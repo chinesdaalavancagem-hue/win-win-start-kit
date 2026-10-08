@@ -16,7 +16,41 @@ export interface Asset { params: Params; days: Day[]; attempt: Attempt; bonus: B
 export interface LogEntry {
   id: number; ts: number; asset: AssetKey; day: number; tipo: "profit" | "aprovada" | "reprovada"; delta: number; saldoApos: number;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  [k: string]: any;
+  custoDia?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  custoCiclo?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  taxaCobrada?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  saque?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  proporcaoPropria?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  custoProprioDia?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  custoBonusDia?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  custoProprioCiclo?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  resultadoReal?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  bruto?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  prevCfdBalance?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  prevCounts?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  prevDayIndex?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  prevCycleCost?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  prevCustoProprioAcumulado?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  prevTotalGasto?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  prevBonusDeposito?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  prevBonusAtual?: any;
 }
 export interface State {
   activeTab: TabKey; assets: Record<AssetKey, Asset>; log: LogEntry[]; cfdBalance: number; totalGasto: number;
@@ -144,7 +178,7 @@ export function handleProfit(s: State, key: AssetKey) {
   const a = s.assets[key];
   const idx = clampDayIndex(a);
   if (idx < 0) return;
-  const calc = computeAssetCalcs(a, key)[idx];
+  const calc = computeAssetCalcs(a, key)[idx]!;
   const isLast = idx === a.days.length - 1;
   const prev = { prevCfdBalance: s.cfdBalance, prevCounts: { ...s.counts }, prevDayIndex: a.attempt.currentDayIndex, prevCycleCost: a.attempt.cycleCost || 0, prevCustoProprioAcumulado: a.attempt.custoProprioAcumulado || 0, prevTotalGasto: s.totalGasto, prevBonusDeposito: a.bonus.deposito || 0, prevBonusAtual: a.bonus.bonusAtual || 0 };
   const taxaCobrada = idx === 0 ? a.params.taxa : 0;
@@ -168,7 +202,7 @@ export function handleStop(s: State, key: AssetKey) {
   const a = s.assets[key];
   const idx = clampDayIndex(a);
   if (idx < 0) return;
-  const calc = computeAssetCalcs(a, key)[idx];
+  const calc = computeAssetCalcs(a, key)[idx]!;
   const taxaCobrada = idx === 0 ? a.params.taxa : 0;
   const delta = calc.reprova - taxaCobrada;
   const prev = { prevCfdBalance: s.cfdBalance, prevCounts: { ...s.counts }, prevDayIndex: a.attempt.currentDayIndex, prevCycleCost: a.attempt.cycleCost || 0, prevCustoProprioAcumulado: a.attempt.custoProprioAcumulado || 0, prevTotalGasto: s.totalGasto, prevBonusDeposito: a.bonus.deposito || 0, prevBonusAtual: a.bonus.bonusAtual || 0 };
@@ -185,11 +219,11 @@ export function handleStop(s: State, key: AssetKey) {
 export function undoLast(s: State) {
   const last = s.log[s.log.length - 1];
   if (!last) return;
-  s.cfdBalance = last.prevCfdBalance;
-  s.counts = last.prevCounts;
+  if (typeof last.prevCfdBalance === "number") s.cfdBalance = last.prevCfdBalance;
+  if (last.prevCounts) s.counts = last.prevCounts;
   if (typeof last.prevTotalGasto === "number") s.totalGasto = last.prevTotalGasto;
   const a = s.assets[last.asset];
-  a.attempt.currentDayIndex = last.prevDayIndex;
+  if (typeof last.prevDayIndex === "number") a.attempt.currentDayIndex = last.prevDayIndex;
   if (typeof last.prevCycleCost === "number") a.attempt.cycleCost = last.prevCycleCost;
   if (typeof last.prevCustoProprioAcumulado === "number") a.attempt.custoProprioAcumulado = last.prevCustoProprioAcumulado;
   if (typeof last.prevBonusDeposito === "number") a.bonus.deposito = last.prevBonusDeposito;

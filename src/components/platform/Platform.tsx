@@ -133,7 +133,7 @@ function Panel({ title, children }: { title?: string; children: ReactNode }) {
   );
 }
 
-function Metric({ label, value, tone }: { label: string; value: ReactNode; tone?: "pos" | "neg" }) {
+function Metric({ label, value, tone }: { label: string; value: ReactNode; tone?: "pos" | "neg" | undefined }) {
   return (
     <div className="rounded-lg border bg-card p-3">
       <p className="text-xs text-muted-foreground">{label}</p>
@@ -156,7 +156,7 @@ function AssetView({ state, assetKey, section, setSection, mutate }: { state: St
   // projeção dia a dia (igual ao original)
   let cum = saldo, totalMeta = 0, reservaMinima = 0;
   const rows = asset.days.map((d, i) => {
-    const c = calcs[i];
+    const c = calcs[i]!;
     totalMeta += d.meta;
     const isPast = i < asset.attempt.currentDayIndex;
     const saldoAoEntrar = cum;
@@ -246,7 +246,7 @@ function DayCard({ row, assetKey, mutate }: { row: Row; assetKey: AssetKey; muta
   const { d, c, i, isCurrent } = row;
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => { if (isCurrent && i > 0) ref.current?.scrollIntoView({ behavior: "smooth", block: "center" }); }, [isCurrent, i]);
-  const setD = (k: "mnq" | "lotes" | "meta") => (v: number) => mutate((s) => { s.assets[assetKey].days[i][k] = v; });
+  const setD = (k: "mnq" | "lotes" | "meta") => (v: number) => mutate((s) => { s.assets[assetKey].days[i]![k] = v; });
   return (
     <div ref={ref} className={cn("rounded-lg border bg-card p-4", isCurrent && "border-primary ring-1 ring-primary")}>
       <div className="mb-3 flex items-center justify-between">
