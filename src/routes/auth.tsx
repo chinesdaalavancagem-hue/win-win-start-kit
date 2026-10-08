@@ -24,22 +24,9 @@ export const Route = createFileRoute("/auth")({
 
 const onlyDigits = (v: string) => v.replace(/\D/g, "");
 
-function validCpf(raw: string) {
-  const c = onlyDigits(raw);
-  if (c.length !== 11 || /^(\d)\1+$/.test(c)) return false;
-  for (const t of [9, 10]) {
-    let sum = 0;
-    for (let i = 0; i < t; i++) sum += Number(c[i]) * (t + 1 - i);
-    const d = ((sum * 10) % 11) % 10;
-    if (d !== Number(c[t])) return false;
-  }
-  return true;
-}
-
 const signupSchema = z.object({
   full_name: z.string().trim().min(3, "Informe o nome completo").max(120),
   phone: z.string().refine((v) => onlyDigits(v).length >= 10 && onlyDigits(v).length <= 13, "Telefone inválido"),
-  cpf: z.string().refine(validCpf, "CPF inválido"),
   birth_date: z.string().refine((v) => {
     const d = new Date(v);
     if (isNaN(d.getTime())) return false;
@@ -78,7 +65,7 @@ function AuthPage() {
           password,
           options: {
             emailRedirectTo: window.location.origin + "/plataforma",
-            data: { ...meta, cpf: onlyDigits(meta.cpf), phone: onlyDigits(meta.phone) },
+            data: { ...meta, phone: onlyDigits(meta.phone) },
           },
         });
         if (error) throw new Error(error.message);
@@ -106,7 +93,6 @@ function AuthPage() {
             <>
               <Field name="full_name" label="Nome completo" autoComplete="name" />
               <Field name="phone" label="Telefone / WhatsApp" type="tel" placeholder="(11) 99999-9999" autoComplete="tel" />
-              <Field name="cpf" label="CPF" inputMode="numeric" placeholder="000.000.000-00" />
               <Field name="birth_date" label="Data de nascimento" type="date" />
             </>
           )}
