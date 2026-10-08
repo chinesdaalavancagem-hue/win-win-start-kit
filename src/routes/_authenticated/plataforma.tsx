@@ -1,22 +1,14 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { getMyAccess, signOut } from "@/lib/session";
+import { Platform } from "@/components/platform/Platform";
 
 export const Route = createFileRoute("/_authenticated/plataforma")({
   head: () => ({ meta: [{ title: "Plataforma — Win or Win" }, { name: "description", content: "Sua plataforma Win or Win." }, { property: "og:title", content: "Plataforma — Win or Win" }, { property: "og:description", content: "Planeje contratos, operações, bônus e saques na Win or Win." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
   component: Plataforma,
 });
-
-declare global {
-  interface Window {
-    __winStorage?: {
-      get: (k: string) => Promise<{ value: string } | null>;
-      set: (k: string, v: string) => Promise<boolean>;
-    };
-  }
-}
 
 function Plataforma() {
   const { user } = Route.useRouteContext();
@@ -31,25 +23,22 @@ function Plataforma() {
       setName(profile?.full_name ?? "");
       if (profile?.rejected) return setState("rejected");
       if (!profile?.approved) return setState("pending");
-      window.__winStorage = {
-        async get() {
-          const { data } = await supabase.from("app_data").select("data").eq("user_id", user.id).maybeSingle();
-          return data?.data ? { value: data.data } : null;
-        },
-        async set(_k, v) {
-          const { error } = await supabase
-            .from("app_data")
-            .upsert({ user_id: user.id, data: v, updated_at: new Date().toISOString() });
-          return !error;
-        },
-      };
       setState("ok");
     });
-    return () => { delete window.__winStorage; };
+  }, [user.id]);
+
+  const load = useCallback(async () => {
+    const { data, error } = await supabase.from("app_data").select("data").eq("user_id", user.id).maybeSingle();
+    if (error) throw error;
+    return data?.data || null;
+  }, [user.id]);
+  const save = useCallback(async (v: string) => {
+    const { error } = await supabase.from("app_data").upsert({ user_id: user.id, data: v, updated_at: new Date().toISOString() });
+    return !error;
   }, [user.id]);
 
   return (
-    <div className="flex h-screen flex-col">
+    <div className="flex min-h-screen flex-col">
       <header className="flex items-center justify-between gap-2 border-b px-4 py-2 text-sm">
         <span className="truncate text-muted-foreground">Olá, {name.split(" ")[0] || user.email}</span>
         <div className="flex gap-2">
@@ -70,7 +59,7 @@ function Plataforma() {
           <p className="mt-2 text-muted-foreground">Seu cadastro não foi aprovado. Se achar que houve um engano, fale com o administrador.</p>
         </div>
       )}
-      {state === "ok" && <iframe title="Win or Win Platform" src="/plataforma.html" className="w-full flex-1 border-0" />}
+      {state === "ok" && <Platform load={load} save={save} />}
     </div>
   );
 }
