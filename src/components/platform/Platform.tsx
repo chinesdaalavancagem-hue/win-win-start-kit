@@ -1,0 +1,509 @@
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import {
+  type AssetKey, type State, type TabKey, type Asset,
+  aplicarDeposito, aplicarSaque, clampDayIndex, computeAssetCalcs, defaultState, fmt, fmtSigned, handleProfit, handleStop,
+  historicoTotals, isValidState, normalizeState, parseNum, projetarZeragemBonus, resetBonus, tipoLabel, undoLast,
+} from "@/lib/platform/engine";
+
+type Section = "operacoes" | "parametros" | "bonus";
+type Sync = { mode: "ok" | "busy" | "err"; text: string };
+
+const TABS: { key: TabKey; label: string; dot: string }[] = [
+  { key: "nasdaq", label: "Nasdaq", dot: "bg-primary" },
+  { key: "ouro", label: "Ouro", dot: "bg-brand-gold" },
+  { key: "saque2", label: "Saque 2", dot: "bg-brand-violet" },
+  { key: "historico", label: "Histórico", dot: "bg-muted-foreground" },
+];
+const ASSET_NAME: Record<AssetKey, string> = { nasdaq: "NASDAQ", ouro: "OURO", saque2: "SAQUE 2" };
+
+export function Platform({ load, save }: { load: () => Promise<string | null>; save: (v: string) => Promise<boolean> }) {
+  const [state, setState] = useState<State | null>(null);
+  const [section, setSection] = useState<Section>("operacoes");
+  const [sync, setSync] = useState<Sync>({ mode: "busy", text: "carregando…" });
+  const dirty = useRef(false);
+
+  useEffect(() => {
+    let alive = true;
+    load()
+      .then((raw) => {
+        let s = defaultState();
+        if (raw) { try { const p = JSON.parse(raw); if (isValidState(p)) s = normalizeState(p); } catch { /* usa padrão */ } }
+        if (alive) { setState(s); setSync({ mode: "ok", text: "sincronizado (nuvem)" }); }
+      })
+      .catch(() => { if (alive) { setState(defaultState()); setSync({ mode: "err", text: "falha ao carregar" }); } });
+    return () => { alive = false; };
+  }, [load]);
+
+  useEffect(() => {
+    if (!state || !dirty.current) return;
+    setSync({ mode: "busy", text: "salvando…" });
+    const t = setTimeout(async () => {
+      const ok = await save(JSON.stringify(state)).catch(() => false);
+      setSync(ok ? { mode: "ok", text: "salvo (nuvem)" } : { mode: "err", text: "falha ao salvar" });
+    }, 500);
+    return () => clearTimeout(t);
+  }, [state, save]);
+
+  const mutate = useCallback((fn: (s: State) => void) => {
+    dirty.current = true;
+    setState((prev) => {
+      if (!prev) return prev;
+      const n: State = structuredClone(prev);
+      fn(n);
+      for (const k of ["nasdaq", "ouro", "saque2"] as AssetKey[]) {
+        const b = n.assets[k].bonus;
+        n.assets[k].params.saldoInicial = (b.deposito || 0) + (b.bonusAtual || 0);
+        clampDayIndex(n.assets[k]);
+      }
+      return n;
+    });
+  }, []);
+
+  if (!state) return <p className="m-auto text-muted-foreground">Carregando plataforma…</p>;
+  const tab = state.activeTab;
+
+  return (
+    <div className="mx-auto w-full max-w-5xl px-3 py-4 sm:px-6">
+      <div className="mb-1 flex items-center justify-between gap-3">
+        <h1 className="font-heading text-xl sm:text-2xl">Win or Win Platform</h1>
+        <span className="flex items-center gap-2 font-mono text-xs text-muted-foreground">
+          <span className={cn("size-2 rounded-full", sync.mode === "ok" && "bg-market-up", sync.mode === "busy" && "bg-brand-gold", sync.mode === "err" && "bg-market-down")} />
+          {sync.text}
+        </span>
+      </div>
+      <p className="mb-4 text-sm text-muted-foreground">Digite manualmente os contratos, os lotes do broker CFD e a meta de cada dia.</p>
+
+      <div className="mb-4 flex gap-1 overflow-x-auto border-b">
+        {TABS.map((t) => (
+          <button key={t.key} type="button" onClick={() => mutate((s) => { s.activeTab = t.key; })}
+            className={cn("flex shrink-0 items-center gap-2 border-b-2 px-3 py-2 text-sm transition-colors",
+              tab === t.key ? "border-foreground text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>
+            <span className={cn("size-2 rounded-full", t.dot)} />{t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "historico" ? <Historico state={state} mutate={mutate} /> : (
+        <AssetView key={tab} state={state} assetKey={tab} section={section} setSection={setSection} mutate={mutate} />
+      )}
+
+      <BackupMenu state={state} mutate={mutate} />
+      <StrategyNotes />
+    </div>
+  );
+}
+
+/* ---------- pequenos componentes ---------- */
+
+function NumField({ label, value, onChange, readOnly, helper, placeholder }: { label: string; value: number; onChange?: (n: number) => void; readOnly?: boolean; helper?: ReactNode; placeholder?: string }) {
+  const [text, setText] = useState(String(value));
+  const focused = useRef(false);
+  useEffect(() => { if (!focused.current) setText(String(value)); }, [value]);
+  return (
+    <label className="block min-w-0">
+      <span className="mb-1 block text-xs text-muted-foreground">{label}</span>
+      <input type="text" inputMode="decimal" value={text} readOnly={readOnly} placeholder={placeholder}
+        onFocus={() => { focused.current = true; }} onBlur={() => { focused.current = false; setText(String(value)); }}
+        onChange={(e) => { setText(e.target.value); onChange?.(parseNum(e.target.value)); }}
+        className={cn("w-full rounded-md border bg-input/40 px-3 py-2 font-mono text-sm outline-none focus:ring-2 focus:ring-ring", readOnly && "opacity-70")} />
+      {helper && <span className="mt-1 block font-mono text-[11px] text-muted-foreground">{helper}</span>}
+    </label>
+  );
+}
+
+function ConfirmButton({ children, confirmText, onConfirm, className, variant = "outline", needsConfirm = true }: { children: ReactNode; confirmText: string; onConfirm: () => void; className?: string; variant?: "outline" | "default" | "destructive" | "ghost"; needsConfirm?: boolean }) {
+  const [armed, setArmed] = useState(false);
+  useEffect(() => { if (!armed) return; const t = setTimeout(() => setArmed(false), 4000); return () => clearTimeout(t); }, [armed]);
+  return (
+    <Button type="button" variant={variant} className={className}
+      onClick={() => { if (!needsConfirm || armed) { setArmed(false); onConfirm(); } else setArmed(true); }}>
+      {armed ? confirmText : children}
+    </Button>
+  );
+}
+
+function Panel({ title, children }: { title?: string; children: ReactNode }) {
+  return (
+    <div className="mb-4 rounded-lg border bg-card p-4">
+      {title && <p className="mb-3 font-mono text-xs uppercase tracking-wider text-muted-foreground">{title}</p>}
+      {children}
+    </div>
+  );
+}
+
+function Metric({ label, value, tone }: { label: string; value: ReactNode; tone?: "pos" | "neg" | undefined }) {
+  return (
+    <div className="rounded-lg border bg-card p-3">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className={cn("mt-1 font-mono text-lg font-semibold", tone === "pos" && "text-market-up", tone === "neg" && "text-market-down")}>{value}</p>
+    </div>
+  );
+}
+
+const Note = ({ children }: { children: ReactNode }) => <p className="mt-3 font-mono text-[11px] leading-relaxed text-muted-foreground">{children}</p>;
+
+/* ---------- aba de ativo ---------- */
+
+function AssetView({ state, assetKey, section, setSection, mutate }: { state: State; assetKey: AssetKey; section: Section; setSection: (s: Section) => void; mutate: (fn: (s: State) => void) => void }) {
+  const asset = state.assets[assetKey];
+  const calcs = useMemo(() => computeAssetCalcs(asset, assetKey), [asset, assetKey]);
+  const setP = (k: keyof Asset["params"]) => (v: number) => mutate((s) => { (s.assets[assetKey].params as unknown as Record<string, number>)[k] = v; });
+  const bonus = asset.bonus;
+  const saldo = (bonus.deposito || 0) + (bonus.bonusAtual || 0);
+
+  // projeção dia a dia (igual ao original)
+  let cum = saldo, totalMeta = 0, reservaMinima = 0;
+  const rows = asset.days.map((d, i) => {
+    const c = calcs[i]!;
+    totalMeta += d.meta;
+    const isPast = i < asset.attempt.currentDayIndex;
+    const saldoAoEntrar = cum;
+    if (!isPast) cum += c.passa;
+    const margem = (asset.params.marginPerLot || 0) * d.lotes;
+    const stopout = asset.params.stopoutPct ?? 30;
+    const margemTotal = margem + margem * (stopout / 100);
+    if (!isPast && margem > 0) reservaMinima = Math.max(reservaMinima, margemTotal);
+    let status: "ok" | "alerta" | "risco" = "ok";
+    let statusText = "— sem posição CFD hoje (0 lotes)";
+    if (margem > 0) {
+      if (saldoAoEntrar >= margemTotal) { status = "ok"; statusText = "✅ margem OK"; }
+      else if (saldoAoEntrar >= margem) { status = "alerta"; statusText = "⚠️ cobre a margem, mas sem folga pro buffer de stop-out"; }
+      else { status = "risco"; statusText = "🔴 risco de stop-out — saldo abaixo da margem necessária"; }
+      statusText += ` · margem: $${fmt(margem)} (+${fmt(stopout)}% buffer = $${fmt(margemTotal)}) · saldo disponível: $${fmt(saldoAoEntrar)}`;
+    }
+    const ativoTicks = assetKey === "saque2" ? (asset.params.ativoReal === "nasdaq" ? "nasdaq" : "ouro") : assetKey;
+    const ticks = c.pontos * (ativoTicks === "ouro" ? 10 : 4);
+    return { d, c, i, isCurrent: i === asset.attempt.currentDayIndex, status, statusText, ticks, mult: d.mnq > 0 ? (d.lotes / d.mnq) * 100 : 0 };
+  });
+  const folga = asset.params.folgaExtraPct ?? 20;
+  const reservaComFolga = reservaMinima > 0 ? reservaMinima * (1 + folga / 100) : 0;
+
+  return (
+    <div>
+      <nav className="mb-4 grid grid-cols-3 gap-2" aria-label="Menus da plataforma">
+        {([["operacoes", "Operações"], ["parametros", "Parâmetros"], ["bonus", "Bônus e saques"]] as [Section, string][]).map(([k, l]) => (
+          <Button key={k} type="button" size="sm" variant={section === k ? "default" : "outline"} aria-pressed={section === k} onClick={() => setSection(k)}>{l}</Button>
+        ))}
+      </nav>
+
+      {section === "parametros" && (
+        <Panel title="Parâmetros">
+          {assetKey === "saque2" && (
+            <label className="mb-4 block max-w-xs">
+              <span className="mb-1 block text-xs text-muted-foreground">Ativo real operado (Saque 2)</span>
+              <select value={asset.params.ativoReal === "nasdaq" ? "nasdaq" : "ouro"} className="w-full rounded-md border bg-input/40 px-3 py-2 text-sm"
+                onChange={(e) => mutate((s) => {
+                  const p = s.assets.saque2.params; const v = e.target.value === "nasdaq" ? "nasdaq" : "ouro";
+                  p.ativoReal = v; if (v === "nasdaq") { p.mnq = 2; p.hfm = 1; } else { p.mnq = 10; p.hfm = 100; }
+                })}>
+                <option value="ouro">Ouro (MGC)</option>
+                <option value="nasdaq">Nasdaq</option>
+              </select>
+            </label>
+          )}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <NumField label="$/ponto do contrato futuro" value={asset.params.mnq} onChange={setP("mnq")} />
+            <NumField label="Broker CFD $/ponto/lote" value={asset.params.hfm} onChange={setP("hfm")} />
+            <NumField label="Limite geral EOD da mesa (reprovação $)" value={asset.params.mll} onChange={setP("mll")} helper="só o limite geral, que anda no fim do dia — nunca limite diário" />
+            <NumField label="Saldo broker CFD ($)" value={saldo} readOnly helper={`depósito próprio $${fmt(bonus.deposito || 0)} + bônus $${fmt(bonus.bonusAtual || 0)}`} />
+            <NumField label="Taxa da mesa (fee $)" value={asset.params.taxa} onChange={setP("taxa")} />
+            <NumField label="Lucro líquido desejado ($, sem a taxa)" value={asset.params.lucroDesejado} onChange={setP("lucroDesejado")} />
+            <NumField label="Margem exigida por 1 lote ($)" value={asset.params.marginPerLot} onChange={setP("marginPerLot")} />
+            <NumField label="Stop-out da corretora (%)" value={asset.params.stopoutPct} onChange={setP("stopoutPct")} />
+            <NumField label="Saque esperado por conta aprovada ($)" value={asset.params.saqueAprovada} onChange={setP("saqueAprovada")} />
+            <NumField label="Folga extra de segurança p/ saque (%)" value={asset.params.folgaExtraPct} onChange={setP("folgaExtraPct")} />
+          </div>
+          <Note>A mesa proprietária precisa ter só limite geral do tipo EOD (ele só se move no fechamento do dia). Mesa com limite diário não serve para esta estratégia. Os pontos até a reprovação variam por dia e aparecem em cada card.</Note>
+          <Note>Quando uma conta é aprovada, o primeiro saque devolve o que foi gasto no CFD e ainda gera lucro. Preencha o saque esperado por conta aprovada para a plataforma creditar esse valor automaticamente.</Note>
+        </Panel>
+      )}
+
+      {section === "bonus" && <BonusPanel state={state} assetKey={assetKey} reserva={reservaComFolga} folga={folga} mutate={mutate} />}
+
+      {section === "operacoes" && (
+        <div>
+          <div className="mb-4 grid grid-cols-2 gap-3">
+            <Metric label="Meta total prop firm" value={`$${fmt(totalMeta)}`} />
+            <Metric label="Saldo final se passar — broker CFD" value={`$${fmt(cum)}`} />
+          </div>
+          <div className="space-y-3">
+            {rows.map((r) => (
+              <DayCard key={r.i} row={r} assetKey={assetKey} mutate={mutate} />
+            ))}
+          </div>
+          <Button type="button" variant="outline" className="mt-3 w-full border-dashed" onClick={() => mutate((s) => { s.assets[assetKey].days.push({ mnq: 1, lotes: 1, meta: 150 }); })}>+ adicionar dia</Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+type Row = { d: { mnq: number; lotes: number; meta: number }; c: ReturnType<typeof computeAssetCalcs>[number]; i: number; isCurrent: boolean; status: "ok" | "alerta" | "risco"; statusText: string; ticks: number; mult: number };
+
+function DayCard({ row, assetKey, mutate }: { row: Row; assetKey: AssetKey; mutate: (fn: (s: State) => void) => void }) {
+  const { d, c, i, isCurrent } = row;
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (isCurrent && i > 0) ref.current?.scrollIntoView({ behavior: "smooth", block: "center" }); }, [isCurrent, i]);
+  const setD = (k: "mnq" | "lotes" | "meta") => (v: number) => mutate((s) => { s.assets[assetKey].days[i]![k] = v; });
+  return (
+    <div ref={ref} className={cn("rounded-lg border bg-card p-4", isCurrent && "border-primary ring-1 ring-primary")}>
+      <div className="mb-3 flex items-center justify-between">
+        <span className="font-mono text-sm font-semibold">D{i + 1} {isCurrent && <span className="ml-2 rounded bg-primary px-2 py-0.5 text-[10px] uppercase text-primary-foreground">dia atual</span>}</span>
+        <button type="button" className="text-xs text-muted-foreground hover:text-destructive" onClick={() => mutate((s) => { s.assets[assetKey].days.splice(i, 1); })}>remover</button>
+      </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <NumField label="Contratos" value={d.mnq} onChange={setD("mnq")} helper={<>passa <span className="text-market-down">-${fmt(Math.abs(c.passa))}</span></>} />
+        <NumField label="Lotes (broker CFD)" value={d.lotes} onChange={setD("lotes")} helper={<>reprova <span className="text-market-up">+${fmt(c.reprova)}</span> · pontos p/ reprovar {fmt(c.pontosReprova)}</>} />
+        <NumField label="Meta $" value={d.meta} onChange={setD("meta")} helper={`pontos p/ meta ${fmt(c.pontos)}`} />
+      </div>
+      <p className="mt-3 font-mono text-sm">líquido se reprovar hoje <span className={c.bateuAlvo ? "text-market-up" : "text-market-down"}>${fmt(c.liquidoSeReprovar)}</span></p>
+      <p className="mt-2 inline-block rounded bg-secondary px-2 py-1 font-mono text-[11px] text-muted-foreground">dívida a recuperar hoje: ${fmt(c.dividaHoje)} (alvo bruto se reprovar: ${fmt(c.alvoBruto)})</p>
+      <p className={cn("mt-2 rounded border px-2 py-1 font-mono text-[11px]",
+        row.status === "ok" && "border-market-up/40 text-market-up", row.status === "alerta" && "border-brand-gold/40 text-brand-gold", row.status === "risco" && "border-market-down/40 text-market-down")}>{row.statusText}</p>
+      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 rounded bg-secondary px-2 py-1 font-mono text-[11px] text-muted-foreground">
+        <span>Traders Connect · multiplicador de lote</span><span className="text-foreground">{fmt(row.mult)}%</span><span>Tradovate: {fmt(row.ticks)} ticks</span>
+      </div>
+      {isCurrent && (
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <ConfirmButton variant="default" needsConfirm={row.status === "risco"} confirmText="⚠️ margem em risco — confirmar?" onConfirm={() => mutate((s) => handleProfit(s, assetKey))}>✅ Profit (bateu a meta)</ConfirmButton>
+          <ConfirmButton variant="destructive" confirmText="clique de novo p/ confirmar" onConfirm={() => mutate((s) => handleStop(s, assetKey))}>🛑 Stop (reprovou)</ConfirmButton>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BonusPanel({ state, assetKey, reserva, folga, mutate }: { state: State; assetKey: AssetKey; reserva: number; folga: number; mutate: (fn: (s: State) => void) => void }) {
+  const b = state.assets[assetKey].bonus;
+  const [dep, setDep] = useState("");
+  const [saq, setSaq] = useState("");
+  const total = (b.deposito || 0) + (b.bonusAtual || 0);
+  const last = b.log[b.log.length - 1];
+  const dateStr = (ts: number) => { const d = new Date(ts); return d.toLocaleDateString("pt-BR") + " " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); };
+  let ultima = "nenhum depósito ou saque registrado ainda.";
+  if (last?.tipo === "deposito") ultima = `última ação: depósito de $${fmt(last.valor)} (+$${fmt(last.bonusGanho || 0)} de bônus) em ${dateStr(last.ts)}`;
+  else if (last?.tipo === "saque") ultima = `última ação: saque de $${fmt(last.valor)} (proporção ${fmt((last.proporcao || 0) * 100)}% · bônus reduzido em $${fmt(last.bonusReduzido || 0)}) em ${dateStr(last.ts)}`;
+  else if (last) ultima = `última ação: bônus e depósito próprio zerados (bônus $${fmt(last.valor)}${last.depositoZerado ? ` + depósito $${fmt(last.depositoZerado)}` : ""}) em ${dateStr(last.ts)}`;
+
+  const linhas: ReactNode[] = [];
+  if (total <= 0 && reserva <= 0) linhas.push("estratégia de saque: registre um depósito e pelo menos 1 dia do ciclo atual pra calcular.");
+  else {
+    linhas.push(<>composição atual: <strong>{fmt(total > 0 ? (b.deposito / total) * 100 : 0)}% próprio</strong> (${fmt(b.deposito || 0)}) + <strong>{fmt(total > 0 ? (b.bonusAtual / total) * 100 : 0)}% bônus</strong> (${fmt(b.bonusAtual || 0)})</>);
+    if ((b.deposito || 0) <= 0 && (b.bonusAtual || 0) > 0) linhas.push("🔴 seu depósito próprio já zerou — a partir de agora, toda perda sai direto do bônus.");
+    else if ((b.deposito || 0) > 0 && (b.bonusAtual || 0) > 0) linhas.push(<>faltam <strong>${fmt(b.deposito)}</strong> de depósito próprio pra zerar (a perda consome o próprio inteiro primeiro; só depois tira do bônus).</>);
+    if (reserva > 0) {
+      linhas.push(<>reserva mínima pros dias que faltam (margem + buffer + {fmt(folga)}% de folga): <strong>${fmt(reserva)}</strong></>);
+      linhas.push(total - reserva > 0 ? <>👉 dá pra sacar até <strong>${fmt(total - reserva)}</strong> agora sem comprometer a margem dos dias restantes.</> : "🔴 não sobra espaço pra saque agora — sacar arrisca stop-out.");
+    } else linhas.push("sem exigência de margem registrada pros dias restantes — dá pra considerar sacar o saldo com bônus.");
+    const proj = projetarZeragemBonus(state, assetKey, b.bonusAtual || 0);
+    if ((b.bonusAtual || 0) <= 0) linhas.push("bônus já está zerado.");
+    else if (proj) linhas.push(<>no ritmo atual (média de ${fmt(proj.media)}/dia saindo do bônus, últimos {proj.amostras} registros), o bônus deve zerar em ~<strong>{fmt(proj.dias)} dias</strong>.</>);
+    else linhas.push("ainda sem histórico de custo suficiente pra projetar quando o bônus zera.");
+  }
+
+  return (
+    <Panel title="Rastreador de bônus (broker CFD)">
+      <div className="mb-3 grid grid-cols-2 gap-3">
+        <Metric label="Depósito próprio acumulado" value={`$${fmt(b.deposito)}`} />
+        <Metric label="Bônus atual" value={`$${fmt(b.bonusAtual)}`} tone="pos" />
+      </div>
+      <p className="mb-3 font-mono text-xs text-muted-foreground">espaço restante pra ganhar bônus novo: ${fmt(Math.max(0, b.bonusCap - b.bonusGanhoTotal))} de um teto de ${fmt(b.bonusCap)}</p>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <NumField label="Bônus máximo do plano ($)" value={b.bonusCap} onChange={(v) => mutate((s) => { if (v) s.assets[assetKey].bonus.bonusCap = v; })} />
+        <label className="block"><span className="mb-1 block text-xs text-muted-foreground">Registrar depósito próprio ($)</span>
+          <input inputMode="decimal" value={dep} placeholder="ex: 1000" onChange={(e) => setDep(e.target.value)} className="w-full rounded-md border bg-input/40 px-3 py-2 font-mono text-sm" /></label>
+        <Button type="button" className="self-end" onClick={() => { const v = parseNum(dep); mutate((s) => aplicarDeposito(s, assetKey, v)); setDep(""); }}>Aplicar depósito</Button>
+        <div className="hidden sm:block" />
+        <label className="block"><span className="mb-1 block text-xs text-muted-foreground">Registrar saque de lucro ($)</span>
+          <input inputMode="decimal" value={saq} placeholder="ex: 200" onChange={(e) => setSaq(e.target.value)} className="w-full rounded-md border bg-input/40 px-3 py-2 font-mono text-sm" /></label>
+        <div className="flex gap-2 self-end">
+          <Button type="button" variant="destructive" className="flex-1" onClick={() => { const v = parseNum(saq); mutate((s) => aplicarSaque(s, assetKey, v)); setSaq(""); }}>Aplicar saque</Button>
+          <Button type="button" variant="outline" title="Zerar bônus atual e depósito próprio" onClick={() => mutate((s) => resetBonus(s, assetKey))}>↺</Button>
+        </div>
+      </div>
+      <Note>{ultima}</Note>
+      <div className="mt-3 space-y-1 rounded border bg-secondary p-3 font-mono text-xs leading-relaxed text-muted-foreground">
+        {linhas.map((l, i) => <p key={i}>{l}</p>)}
+      </div>
+    </Panel>
+  );
+}
+
+/* ---------- histórico ---------- */
+
+function Historico({ state, mutate }: { state: State; mutate: (fn: (s: State) => void) => void }) {
+  const { profit, resultadoReal, custoProprio } = historicoTotals(state);
+  const total = state.counts.aprovadas + state.counts.reprovadas;
+  const roi = custoProprio > 0 ? (resultadoReal / custoProprio) * 100 : null;
+  const base = custoProprio + resultadoReal;
+  const margem = base > 0 ? (resultadoReal / base) * 100 : null;
+  return (
+    <div>
+      <div className="mb-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <Metric label="Contas aprovadas" value={state.counts.aprovadas} tone="pos" />
+        <Metric label="Contas reprovadas" value={state.counts.reprovadas} tone="neg" />
+        <Metric label="Profit" value={(profit >= 0 ? "+$" : "-$") + fmt(Math.abs(profit))} tone={profit >= 0 ? "pos" : "neg"} />
+        <Metric label="Resultado real" value={"-$" + fmt(Math.abs(resultadoReal))} tone="neg" />
+      </div>
+      <p className="mb-4 font-mono text-xs text-muted-foreground">
+        {total > 0 ? `taxa de aprovação: ${fmt((state.counts.aprovadas / total) * 100)}% (${total} ciclo${total === 1 ? "" : "s"} concluído${total === 1 ? "" : "s"})` : "nenhum ciclo concluído ainda — use os botões Profit / Stop nos cards de dia."}
+      </p>
+      <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-4">
+        <Metric label="Custo próprio real (todos os ciclos)" value={`$${fmt(custoProprio)}`} tone="neg" />
+        <Metric label="Contas compradas" value={total} />
+        <Metric label="ROI (resultado real)" value={roi == null ? "-" : `${roi >= 0 ? "+" : ""}${fmt(roi)}%`} tone={roi == null ? undefined : roi >= 0 ? "pos" : "neg"} />
+        <Metric label="Margem do resultado real" value={margem == null ? "-" : `${margem >= 0 ? "+" : ""}${fmt(margem)}%`} tone={margem == null ? undefined : margem >= 0 ? "pos" : "neg"} />
+      </div>
+      <Chart state={state} />
+      <Simulador state={state} />
+      <div className="mb-3 flex justify-between">
+        {state.log.length > 0 ? <ConfirmButton variant="ghost" confirmText="clique de novo p/ confirmar" onConfirm={() => mutate(undoLast)}>desfazer última ação</ConfirmButton> : <span />}
+        <ConfirmButton variant="ghost" className="text-destructive" confirmText="clique de novo (apaga o histórico)" onConfirm={() => mutate((s) => {
+          s.log = []; s.cfdBalance = 0; s.totalGasto = 0; s.counts = { aprovadas: 0, reprovadas: 0 };
+          for (const k of ["nasdaq", "ouro", "saque2"] as AssetKey[]) { s.assets[k].attempt.currentDayIndex = 0; s.assets[k].attempt.cycleCost = 0; }
+        })}>limpar histórico</ConfirmButton>
+      </div>
+      <LogList state={state} />
+    </div>
+  );
+}
+
+function Chart({ state }: { state: State }) {
+  const W = 700, H = 220, padL = 46, padR = 14, padT = 14, padB = 24;
+  if (state.log.length === 0) return <div className="mb-4 rounded-lg border bg-card p-8 text-center font-mono text-xs text-muted-foreground">sem eventos registrados ainda</div>;
+  const pts = [0, ...state.log.map((e) => e.saldoApos)];
+  let minV = Math.min(...pts), maxV = Math.max(...pts);
+  if (minV === maxV) { minV -= 10; maxV += 10; }
+  const pad = (maxV - minV) * 0.1; minV -= pad; maxV += pad;
+  const x = (i: number) => padL + (i / Math.max(1, pts.length - 1)) * (W - padL - padR);
+  const y = (v: number) => padT + (1 - (v - minV) / (maxV - minV)) * (H - padT - padB);
+  const txt = { fill: "var(--muted-foreground)", fontSize: 10, fontFamily: "monospace" };
+  return (
+    <div className="mb-4 rounded-lg border bg-card p-2">
+      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="h-48 w-full">
+        <line x1={padL} y1={y(0)} x2={W - padR} y2={y(0)} style={{ stroke: "var(--border)" }} strokeDasharray="4,4" />
+        <text x={padL - 6} y={y(0) + 4} textAnchor="end" style={txt}>$0</text>
+        <text x={padL - 6} y={padT + 8} textAnchor="end" style={txt}>${fmt(maxV)}</text>
+        <text x={padL - 6} y={H - padB} textAnchor="end" style={txt}>${fmt(minV)}</text>
+        <path d={pts.map((v, i) => `${i ? "L" : "M"}${x(i)},${y(v)}`).join(" ")} fill="none" strokeWidth={2} style={{ stroke: "var(--market-up)" }} />
+        {state.log.map((e, i) => (
+          <circle key={e.id} cx={x(i + 1)} cy={y(e.saldoApos)} r={3.5}
+            style={{ fill: e.tipo === "reprovada" ? "var(--market-down)" : e.asset === "ouro" && e.tipo === "profit" ? "var(--brand-gold)" : "var(--market-up)" }} />
+        ))}
+      </svg>
+    </div>
+  );
+}
+
+function Simulador({ state }: { state: State }) {
+  const [taxa, setTaxa] = useState("50");
+  const [ciclos, setCiclos] = useState("100");
+  const rep = state.log.filter((e) => e.tipo === "reprovada").map((e) => e.delta);
+  const apr = state.log.filter((e) => e.tipo === "aprovada").map((e) => e.delta);
+  if (!rep.length || !apr.length) return <Panel title="Simulador de cenários"><p className="font-mono text-xs text-muted-foreground">Registre pelo menos 1 conta aprovada e 1 reprovada pra habilitar o simulador.</p></Panel>;
+  const mRep = rep.reduce((a, b) => a + b, 0) / rep.length;
+  const mApr = apr.reduce((a, b) => a + b, 0) / apr.length;
+  const denom = mRep - mApr;
+  const be = denom > 0 ? (-mApr / denom) * 100 : null;
+  const n = parseNum(ciclos), nRep = Math.round(n * (parseNum(taxa) / 100)), nApr = n - nRep;
+  const ganho = nRep * mRep, custo = nApr * mApr, res = ganho + custo;
+  const totalC = rep.length + apr.length;
+  return (
+    <Panel title="Simulador de cenários (médias do seu histórico)">
+      <p className="mb-3 font-mono text-xs text-muted-foreground">Média por reprova: <span className="text-market-up">+${fmt(mRep)} (n={rep.length})</span> · Média por aprovada: <span className="text-market-down">-${fmt(Math.abs(mApr))} (n={apr.length})</span></p>
+      <div className="mb-3"><Metric label="Taxa de reprovação mínima pra estratégia dar lucro" value={be == null ? "sempre lucrativo" : `${fmt(be)}%`} tone={be == null || be <= 50 ? "pos" : "neg"} /></div>
+      <div className="grid grid-cols-2 gap-3">
+        <label className="block"><span className="mb-1 block text-xs text-muted-foreground">Taxa de reprovação hipotética (%)</span><input inputMode="decimal" value={taxa} onChange={(e) => setTaxa(e.target.value)} className="w-full rounded-md border bg-input/40 px-3 py-2 font-mono text-sm" /></label>
+        <label className="block"><span className="mb-1 block text-xs text-muted-foreground">Número de ciclos</span><input inputMode="decimal" value={ciclos} onChange={(e) => setCiclos(e.target.value)} className="w-full rounded-md border bg-input/40 px-3 py-2 font-mono text-sm" /></label>
+      </div>
+      <div className="mt-3"><Metric label="Resultado projetado" value={(res >= 0 ? "+$" : "-$") + fmt(Math.abs(res))} tone={res >= 0 ? "pos" : "neg"} /></div>
+      <Note>{nRep} reprovada{nRep === 1 ? "" : "s"} · <span className="text-market-up">+${fmt(ganho)}</span> | {nApr} aprovada{nApr === 1 ? "" : "s"} · <span className="text-market-down">-${fmt(Math.abs(custo))}</span></Note>
+      {totalC < 10 && <Note>⚠️ apenas {totalC} ciclo(s) no histórico — essas médias ainda são pouco confiáveis.</Note>}
+    </Panel>
+  );
+}
+
+function LogList({ state }: { state: State }) {
+  if (!state.log.length) return <p className="py-6 text-center font-mono text-xs text-muted-foreground">nenhum evento registrado ainda</p>;
+  return (
+    <div className="divide-y rounded-lg border bg-card">
+      {state.log.slice().reverse().map((e) => {
+        const dt = new Date(e.ts);
+        const date = dt.toLocaleDateString("pt-BR") + " " + dt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+        let extra = "";
+        if (e.tipo === "reprovada" && typeof e.bruto === "number") extra = ` · bruto +$${fmt(e.bruto)}${e.taxaCobrada ? ` − taxa mesa -$${fmt(e.taxaCobrada)}` : ""}`;
+        else if (typeof e.custoDia === "number") {
+          extra = ` · custo do dia -$${fmt(e.custoDia)}${e.taxaCobrada ? ` + taxa mesa -$${fmt(e.taxaCobrada)}` : ""}${e.tipo === "aprovada" && e.saque ? ` + saque +$${fmt(e.saque)}` : ""}`;
+          if (e.tipo === "profit" && typeof e.custoProprioDia === "number") extra += ` (própria -$${fmt(e.custoProprioDia)}${e.custoBonusDia > 0 ? ` + bônus -$${fmt(e.custoBonusDia)}` : ""})`;
+        }
+        if (e.tipo === "aprovada" && typeof e.resultadoReal === "number") {
+          const cb = Math.max(0, (e.custoCiclo || 0) - (e.custoProprioCiclo || 0));
+          extra += ` · resultado real ${e.resultadoReal >= 0 ? "+$" : "-$"}${fmt(Math.abs(e.resultadoReal))} (custo do ciclo: -$${fmt(e.custoProprioCiclo || 0)} próprio${cb > 0 ? ` + -$${fmt(cb)} bônus` : ""})`;
+        } else if (e.tipo === "reprovada" && typeof e.resultadoReal === "number") {
+          const tx = state.assets[e.asset]?.params.taxa ?? e.taxaCobrada ?? 0;
+          const p = e.resultadoReal + tx;
+          extra += ` · profit = líquido ${e.resultadoReal >= 0 ? "+$" : "-$"}${fmt(Math.abs(e.resultadoReal))} + taxa mesa +$${fmt(tx)} = ${p >= 0 ? "+$" : "-$"}${fmt(Math.abs(p))}`;
+        }
+        return (
+          <div key={e.id} className="flex flex-wrap items-start gap-2 p-3 font-mono text-xs">
+            <span className={cn("rounded px-1.5 py-0.5 text-[10px]", e.asset === "ouro" ? "bg-brand-gold/20 text-brand-gold" : e.asset === "saque2" ? "bg-brand-violet/20 text-brand-violet" : "bg-primary/20 text-primary")}>{ASSET_NAME[e.asset]}</span>
+            <span className="font-semibold">D{e.day}</span>
+            <span className="min-w-0 flex-1 text-muted-foreground">{tipoLabel(e.tipo, e.asset)} · {date}{extra}</span>
+            <span className={e.delta >= 0 ? "text-market-up" : "text-market-down"}>líq. {fmtSigned(e.delta)}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ---------- backup e notas ---------- */
+
+function BackupMenu({ state, mutate }: { state: State; mutate: (fn: (s: State) => void) => void }) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  return (
+    <details className="mt-6 rounded-lg border bg-card p-3 text-sm">
+      <summary className="cursor-pointer text-muted-foreground">Backup e dados</summary>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Button type="button" variant="outline" size="sm" onClick={() => {
+          const url = URL.createObjectURL(new Blob([JSON.stringify(state, null, 2)], { type: "application/json" }));
+          const a = document.createElement("a"); a.href = url; a.download = `hedge-multiativo-backup-${new Date().toISOString().slice(0, 10)}.json`; a.click(); URL.revokeObjectURL(url);
+        }}>exportar backup (.json)</Button>
+        <Button type="button" variant="outline" size="sm" onClick={() => fileRef.current?.click()}>importar backup</Button>
+        <ConfirmButton variant="ghost" className="text-destructive" confirmText="clique de novo (apaga tudo)" onConfirm={() => mutate((s) => Object.assign(s, defaultState()))}>limpar todos os dados salvos</ConfirmButton>
+        <input ref={fileRef} type="file" accept=".json,application/json" className="hidden" onChange={(e) => {
+          const f = e.target.files?.[0]; if (!f) return;
+          const r = new FileReader();
+          r.onload = () => {
+            try {
+              const p = JSON.parse(String(r.result));
+              if (!isValidState(p)) return alert("Arquivo inválido: não parece um backup desta plataforma.");
+              const n = normalizeState(p);
+              mutate((s) => Object.assign(s, n));
+              alert("Backup importado com sucesso.");
+            } catch { alert("Não foi possível ler esse arquivo."); }
+            e.target.value = "";
+          };
+          r.readAsText(f);
+        }} />
+      </div>
+    </details>
+  );
+}
+
+function StrategyNotes() {
+  return (
+    <details className="mt-3 rounded-lg border bg-card p-3 text-sm">
+      <summary className="cursor-pointer text-muted-foreground">Como funciona a estratégia</summary>
+      <div className="mt-3 space-y-2 text-xs leading-relaxed text-muted-foreground">
+        <p>Hedge entre a mesa proprietária de futuros e a corretora CFD: o objetivo é <strong>reprovar a mesa</strong>. Cada reprovação gera cerca de $200 brutos no CFD — $100 cobrem a taxa da mesa e ~$100 ficam de lucro líquido.</p>
+        <p>A mesa precisa ter <strong>somente limite geral EOD</strong> (só se move no fim do dia). Mesa com limite diário não serve.</p>
+        <p><strong>Profit</strong>: bateu a meta do dia e avança para o próximo dia. No último dia, a conta é aprovada (ou o saque é gerado, no Saque 2). <strong>Stop</strong>: reprovou — o bruto entra no saldo e o ciclo reinicia no D1.</p>
+        <p>Se a conta passar em todos os dias, perde-se o que foi depositado no CFD, mas o saque da mesa devolve esse valor e ainda sobra uma conta financiada. A aba <strong>Saque 2</strong> calcula o próximo saque, que custa bem menos no CFD que o primeiro ciclo.</p>
+        <p>O histórico é único, somando Nasdaq, Ouro e Saque 2. Tudo é salvo automaticamente na sua conta.</p>
+      </div>
+    </details>
+  );
+}
