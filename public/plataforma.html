@@ -296,6 +296,8 @@
       <p style="font-family:var(--mono); font-size:11px; color:var(--ink-mute); margin:10px 0 0;">Quando você aprova uma conta, geralmente ela vira uma conta financiada e o primeiro saque devolve o que foi gasto no CFD (e ainda gera lucro). Preencha aqui o valor de saque que você espera receber por conta aprovada — a plataforma credita isso automaticamente no saldo, em vez de tratar a aprovação como perda pura.</p>
     </div>
 
+    </section>
+    <section id="section-bonus" hidden>
     <div class="panel">
       <p class="panel-title">Rastreador de bônus (broker CFD)</p>
       <div class="metrics" style="margin-bottom:14px;">
@@ -338,6 +340,8 @@
       </div>
     </div>
 
+    </section>
+    <section id="section-operacoes">
     <div class="metrics">
       <div class="metric">
         <p class="metric-label">Meta total prop firm</p>
@@ -352,6 +356,7 @@
     <div id="days-list"></div>
 
     <button class="add-btn" id="add-day">+ adicionar dia</button>
+    </section>
   </div>
 
   <div id="tab-historico" style="display:none;">
@@ -441,12 +446,15 @@
     <div class="log-list" id="log-list" style="margin-top:14px;"></div>
   </div>
 
+  <details class="backup-menu">
+  <summary>Backup e dados</summary>
   <div class="action-row">
     <button class="text-btn" id="export-data">exportar backup (.json)</button>
     <button class="text-btn" id="import-data">importar backup</button>
     <button class="text-btn danger" id="reset-data">limpar todos os dados salvos</button>
     <input type="file" id="import-file-input" accept=".json,application/json" style="display:none;">
   </div>
+  </details>
 
   <p class="foot">
     <strong>Profit</strong>: bateu a meta do dia — avança pro próximo dia da mesma tentativa (o custo do dia é debitado do saldo CFD). No último dia, Profit marca a conta inteira como <strong>aprovada</strong> (ou <strong>saque gerado</strong>, na aba Saque 2) e reinicia do D1.
@@ -463,6 +471,7 @@
 (function(){
   var STORAGE_KEY = 'hedge-lucid-hfm-multiativo-v2';
   var LEGACY_KEY_V1 = 'hedge-lucid-hfm-multiativo-v1';
+  var activeSection = 'operacoes';
 
   var defaultAssetsBase = {
     nasdaq: {
@@ -1095,6 +1104,12 @@
   }
 
   function render(){
+    document.querySelectorAll('.section-btn').forEach(function(btn){
+      btn.setAttribute('aria-pressed', String(btn.dataset.section === activeSection));
+    });
+    ['operacoes', 'parametros', 'bonus'].forEach(function(section){
+      document.getElementById('section-' + section).hidden = section !== activeSection;
+    });
     document.querySelectorAll('.tab-btn').forEach(function(btn){
       btn.classList.toggle('active', btn.dataset.tab === state.activeTab);
     });
@@ -1437,7 +1452,7 @@
       return { wrap: wrap, input: inp, stat: stat };
     }
 
-    var mnqLabel = currentAssetKey() === 'ouro' ? 'MGC (contratos)' : 'MNQ / NQ (contratos)';
+    var mnqLabel = 'Contratos';
     var mnqF = field(mnqLabel, function(v){ currentAsset().days[dayRows.indexOf(rowObj)].mnq = v; });
     var lotesF = field('Lotes (broker CFD)', function(v){ currentAsset().days[dayRows.indexOf(rowObj)].lotes = v; });
     var metaF = field('Meta $', function(v){ currentAsset().days[dayRows.indexOf(rowObj)].meta = v; });
@@ -1521,6 +1536,12 @@
   }
 
   function attachStaticListeners(){
+    document.querySelectorAll('.section-btn').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        activeSection = btn.dataset.section;
+        render();
+      });
+    });
     document.querySelectorAll('.tab-btn').forEach(function(btn){
       btn.addEventListener('click', function(){
         if(state.activeTab === btn.dataset.tab) return;
