@@ -9,6 +9,6 @@
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
 
-- Original platform HTML lives in public/plataforma.html, embedded via iframe; its window.storage shim proxies saves to the parent page, which persists per-user data in app_data.
+- Platform is native React: pure logic in src/lib/platform/engine.ts, UI in src/components/platform/; whole state is one JSON blob in app_data (format inherited from the old HTML) so existing user data keeps loading.
 - Account access requires profiles.approved (set by admin); first registered user becomes admin via signup trigger.
-- Platform section menus toggle existing DOM panels without changing calculation keys or storage format, preserving existing user data and event handlers.
+- Never change saved state keys/shape without a normalizeState migration; old backups must still import.
