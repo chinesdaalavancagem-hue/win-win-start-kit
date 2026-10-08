@@ -6,6 +6,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { routeTree } from "@/routeTree.gen";
 
 function renderAt(path: string) {
+  // The document shell belongs to SSR, not the div-based test container.
+  routeTree.update({ shellComponent: ({ children }) => children });
   const queryClient = new QueryClient();
   const router = createRouter({
     routeTree,

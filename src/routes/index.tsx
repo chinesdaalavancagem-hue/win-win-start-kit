@@ -86,10 +86,10 @@ function Index() {
             </div>
           </div>
 
-          <div className="relative mx-auto w-full max-w-sm lg:max-w-md">
+          <div className="relative mx-auto w-full max-w-64">
             <div className="absolute -inset-10 bg-brand-gold/5 blur-3xl" aria-hidden="true" />
             <img src={logoAsset.url} alt="Win or Win" width={256} height={256} className="relative mx-auto w-full max-w-64 rounded-lg border border-brand-gold/30 object-contain shadow-2xl" />
-            <div className="absolute -bottom-5 -left-4 border border-border bg-card px-4 py-3 shadow-xl md:-left-8">
+            <div className="mt-4 border-l border-brand-gold/30 px-4 py-2">
               <p className="text-[10px] uppercase text-muted-foreground">Decisão</p>
               <p className="font-heading mt-1 text-sm uppercase text-market-up">Antes da entrada</p>
             </div>
