@@ -2,10 +2,13 @@ import { QueryClient } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
 import { cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { ReactNode } from "react";
 
 import { routeTree } from "@/routeTree.gen";
 
 function renderAt(path: string) {
+  // The document shell belongs to SSR, not the div-based test container.
+  Object.assign(routeTree.options, { shellComponent: ({ children }: { children: ReactNode }) => children });
   const queryClient = new QueryClient();
   const router = createRouter({
     routeTree,

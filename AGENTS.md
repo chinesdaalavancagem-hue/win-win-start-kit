@@ -11,3 +11,4 @@
 
 - Original platform HTML lives in public/plataforma.html, embedded via iframe; its window.storage shim proxies saves to the parent page, which persists per-user data in app_data.
 - Account access requires profiles.approved (set by admin); first registered user becomes admin via signup trigger.
+- Platform section menus toggle existing DOM panels without changing calculation keys or storage format, preserving existing user data and event handlers.

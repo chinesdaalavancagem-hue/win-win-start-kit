@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { getMyAccess, signOut } from "@/lib/session";
 
 export const Route = createFileRoute("/_authenticated/plataforma")({
-  head: () => ({ meta: [{ title: "Plataforma — Win or Win" }, { name: "description", content: "Sua plataforma Win or Win." }] }),
+  head: () => ({ meta: [{ title: "Plataforma — Win or Win" }, { name: "description", content: "Sua plataforma Win or Win." }, { property: "og:title", content: "Plataforma — Win or Win" }, { property: "og:description", content: "Planeje contratos, operações, bônus e saques na Win or Win." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
   component: Plataforma,
 });
 
