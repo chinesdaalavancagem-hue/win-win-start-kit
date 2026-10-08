@@ -8,3 +8,6 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Original platform HTML lives in public/plataforma.html, embedded via iframe; its window.storage shim proxies saves to the parent page, which persists per-user data in app_data.
+- Account access requires profiles.approved (set by admin); first registered user becomes admin via signup trigger.
