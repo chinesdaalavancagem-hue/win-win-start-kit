@@ -183,6 +183,19 @@
     h1{ font-size:21px; }
     .day-actions{ flex-direction:column; }
   }
+  [hidden]{ display:none !important; }
+  .section-nav{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin-bottom:20px; }
+  .section-btn{ background:var(--surface); color:var(--ink-dim); border:1px solid var(--border-strong); padding:12px 8px; font:500 13px var(--sans); cursor:pointer; border-radius:4px; }
+  .section-btn[aria-pressed="true"]{ color:var(--teal); border-color:var(--teal); background:var(--teal-dim); }
+  .section-btn:focus-visible{ outline:2px solid var(--teal); outline-offset:3px; }
+  .top-row{ display:grid; grid-template-columns:minmax(0,1fr) auto; }
+  .top-row > div{ min-width:0; }
+  .wrap{ max-width:900px; }
+  .side-nav{ display:none; }
+  .foot{ display:none; }
+  .backup-menu{ margin-top:24px; color:var(--ink-dim); font-size:12px; }
+  .backup-menu summary{ cursor:pointer; }
+  @media(max-width:600px){ .wrap{ max-width:100%; } .top-row{ grid-template-columns:minmax(0,1fr); } .brand-logo{width:64px;height:64px;border-radius:8px;} .section-btn{font-size:12px;} .grid3{grid-template-columns:1fr;} .metrics.metrics-3{grid-template-columns:repeat(2,minmax(0,1fr)) !important;} }
 </style>
 </head>
 <body>
@@ -205,7 +218,7 @@
       <span id="sync-text">—</span>
     </div>
   </div>
-  <p class="subtitle">Digite manualmente o MNQ, os lotes do broker CFD e a meta de cada dia. Quando bater a meta ou reprovar de verdade, use os botões no dia atual — a plataforma registra tudo sozinha no histórico.</p>
+  <p class="subtitle">Digite manualmente os contratos, os lotes do broker CFD e a meta de cada dia.</p>
 
   <div class="tabs">
     <button class="tab-btn" data-tab="nasdaq"><span class="dot"></span>Nasdaq</button>
@@ -215,6 +228,12 @@
   </div>
 
   <div id="tab-asset">
+    <nav class="section-nav" aria-label="Menus da plataforma">
+      <button type="button" class="section-btn" data-section="operacoes" aria-pressed="true">Operações</button>
+      <button type="button" class="section-btn" data-section="parametros" aria-pressed="false">Parâmetros</button>
+      <button type="button" class="section-btn" data-section="bonus" aria-pressed="false">Bônus e saques</button>
+    </nav>
+    <section id="section-parametros" hidden>
     <div class="panel">
       <p class="panel-title">Parâmetros</p>
       <div class="grid4" id="saque2-ativo-wrap" style="display:none;">
@@ -222,7 +241,7 @@
           <label for="g-saque2-ativo">Ativo real operado (Saque 2)</label>
           <select id="g-saque2-ativo">
             <option value="ouro">Ouro (MGC)</option>
-            <option value="nasdaq">Nasdaq (MNQ)</option>
+            <option value="nasdaq">Nasdaq</option>
           </select>
         </div>
       </div>
@@ -245,7 +264,7 @@
           <div class="helper-line" id="saldo-inicial-composicao">composição: —</div>
         </div>
       </div>
-      <p style="font-family:var(--mono); font-size:11px; color:var(--ink-mute); margin:10px 0 0;">Pontos p/ atingir a reprovação variam por dia (dependem do MNQ de cada dia) — aparecem em cada card de dia, ao lado da reprova.</p>
+      <p style="font-family:var(--mono); font-size:11px; color:var(--ink-mute); margin:10px 0 0;">Pontos p/ atingir a reprovação variam por dia (dependem dos contratos de cada dia) — aparecem em cada card de dia, ao lado da reprova.</p>
       <div class="grid4" style="margin-top:14px;">
         <div>
           <label for="g-taxa">Taxa da mesa (fee $)</label>

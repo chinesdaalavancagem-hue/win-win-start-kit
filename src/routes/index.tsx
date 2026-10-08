@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowDown, ArrowRight, Calculator, CircleDollarSign, ShieldCheck, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import logoAsset from "@/assets/win-or-win-logo.png.asset.json";
+import logoAsset from "@/assets/win-or-win-logo-sharp.png.asset.json";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -88,7 +88,7 @@ function Index() {
 
           <div className="relative mx-auto w-full max-w-sm lg:max-w-md">
             <div className="absolute -inset-10 bg-brand-gold/5 blur-3xl" aria-hidden="true" />
-            <img src={logoAsset.url} alt="Win or Win" className="relative w-full rounded-lg border border-brand-gold/30 object-cover shadow-2xl" />
+            <img src={logoAsset.url} alt="Win or Win" width={256} height={256} className="relative mx-auto w-full max-w-64 rounded-lg border border-brand-gold/30 object-contain shadow-2xl" />
             <div className="absolute -bottom-5 -left-4 border border-border bg-card px-4 py-3 shadow-xl md:-left-8">
               <p className="text-[10px] uppercase text-muted-foreground">Decisão</p>
               <p className="font-heading mt-1 text-sm uppercase text-market-up">Antes da entrada</p>
