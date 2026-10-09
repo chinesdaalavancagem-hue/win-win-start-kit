@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import { Undo2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   type AssetKey, type State, type TabKey, type Asset,
@@ -63,6 +64,7 @@ export function Platform({ load, save }: { load: () => Promise<string | null>; s
 
   if (!state) return <p className="m-auto text-muted-foreground">Carregando plataforma…</p>;
   const tab = state.activeTab;
+  const lastOperation = state.log.at(-1);
 
   return (
     <div className="mx-auto w-full max-w-5xl px-3 py-4 sm:px-6">
@@ -83,6 +85,20 @@ export function Platform({ load, save }: { load: () => Promise<string | null>; s
             <span className={cn("size-2 rounded-full", t.dot)} />{t.label}
           </button>
         ))}
+      </div>
+
+      <div className="sticky top-0 z-10 mb-4 flex flex-wrap items-center justify-between gap-2 border-b bg-background py-2">
+        <span className="min-w-0 text-sm text-muted-foreground">
+          {lastOperation ? `${ASSET_NAME[lastOperation.asset]} · D${lastOperation.day} · ${tipoLabel(lastOperation.tipo, lastOperation.asset)}` : "Nenhuma operação registrada"}
+        </span>
+        <Button type="button" variant="outline" disabled={!lastOperation} onClick={() => mutate((s) => {
+          const last = s.log.at(-1);
+          if (!last) return;
+          undoLast(s);
+          s.activeTab = last.asset;
+        })}>
+          <Undo2 aria-hidden="true" /> Desfazer última operação
+        </Button>
       </div>
 
       {tab === "historico" ? <Historico state={state} mutate={mutate} /> : (
@@ -308,7 +324,7 @@ function DayCard({ row, assetKey, mutate }: { row: Row; assetKey: AssetKey; muta
   }, [isCurrent]);
   const setD = (k: "mnq" | "lotes" | "meta") => (v: number) => mutate((s) => { s.assets[assetKey].days[i]![k] = v; });
   return (
-    <div ref={ref} className={cn("rounded-lg border bg-card p-4", isCurrent && "border-primary ring-1 ring-primary")}>
+    <div ref={ref} className={cn("platform-day-card rounded-lg border bg-card p-4", isCurrent && "border-primary ring-1 ring-primary")}>
       <div className="mb-3 flex items-center justify-between">
         <span className="font-mono text-sm font-semibold">D{i + 1} {isCurrent && <span className="ml-2 rounded bg-primary px-2 py-0.5 text-[10px] uppercase text-primary-foreground">dia atual</span>}</span>
         <button type="button" className="text-xs text-muted-foreground hover:text-destructive" onClick={() => mutate((s) => { s.assets[assetKey].days.splice(i, 1); })}>remover</button>

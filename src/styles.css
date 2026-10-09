@@ -97,6 +97,39 @@
 }
 
 @layer components {
+  @media (min-width: 768px) {
+    .platform-day-card {
+      padding: 1.5rem;
+    }
+
+    .platform-day-card label > span,
+    .platform-day-card p,
+    .platform-day-card > div.font-mono {
+      font-size: 0.875rem;
+      line-height: 1.6;
+    }
+
+    .platform-day-card input {
+      min-height: 3rem;
+      font-size: 1.125rem;
+      padding-block: 0.75rem;
+    }
+
+    .platform-day-card > p:first-of-type {
+      margin-top: 1.25rem;
+      font-size: 1.125rem;
+    }
+
+    .platform-day-card > div:first-child > span {
+      font-size: 1.125rem;
+    }
+
+    .platform-day-card button {
+      min-height: 2.75rem;
+      font-size: 1rem;
+    }
+  }
+
   .marketing-page {
     font-family: "Hind", system-ui, sans-serif;
   }

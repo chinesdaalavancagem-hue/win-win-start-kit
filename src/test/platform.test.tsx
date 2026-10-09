@@ -4,6 +4,33 @@ import { Platform } from "@/components/platform/Platform";
 import { defaultState } from "@/lib/platform/engine";
 
 describe("Platform nativa", () => {
+  it.each([
+    ["profit", false], ["stop", false], ["profit", true], ["stop", true],
+  ] as const)("desfaz %s registrado por atalho=%s e salva o estado anterior", async (operation, shortcut) => {
+    const initial = defaultState();
+    initial.assets.nasdaq.attempt.currentDayIndex = 1;
+    for (const asset of Object.values(initial.assets)) asset.params.saldoInicial = 0;
+    const save = vi.fn(async () => true);
+    await act(async () => { render(<Platform load={async () => JSON.stringify(initial)} save={save} />); });
+
+    if (shortcut) {
+      fireEvent.keyDown(window, { code: "Digit2", shiftKey: operation === "profit", ctrlKey: operation === "stop" });
+    } else {
+      fireEvent.click(screen.getByRole("button", { name: operation === "profit" ? /Profit \(bateu/ : /Stop \(reprovou/ }));
+      fireEvent.change(screen.getByLabelText(/Valor real liquidado/), { target: { value: operation === "profit" ? "-420" : "500" } });
+      fireEvent.click(screen.getByRole("button", { name: "confirmar" }));
+    }
+    await act(async () => { await new Promise((r) => setTimeout(r, 700)); });
+    const recorded = JSON.parse((save.mock.calls.at(-1) as unknown as [string])[0]);
+    expect(recorded.log).toHaveLength(1);
+    expect(recorded.assets.nasdaq.attempt.currentDayIndex).toBe(operation === "profit" ? 2 : 0);
+
+    fireEvent.click(screen.getByRole("button", { name: /Desfazer última operação/ }));
+    await act(async () => { await new Promise((r) => setTimeout(r, 700)); });
+    const restored = JSON.parse((save.mock.calls.at(-1) as unknown as [string])[0]);
+    expect(restored).toEqual(initial);
+  });
+
   it("rola para o próximo dia após Profit e volta ao primeiro após Stop", async () => {
     const scroll = vi.fn();
     const original = HTMLElement.prototype.scrollIntoView;
