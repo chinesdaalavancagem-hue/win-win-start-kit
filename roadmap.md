@@ -1,4 +1,6 @@
 # Ajustes solicitados
+- [ ] Desfazer o último Profit ou Stop diretamente na plataforma, inclusive registros por atalho.
+- [ ] Aumentar altura e legibilidade dos cards no computador sem aumentar a largura; verificar operações e desfazer.
 - [x] Retirar CPF do cadastro.
 - [x] Separar informações da plataforma em menus e trocar MNQ por contratos.
 - [x] Melhorar a apresentação da logo da página inicial.
