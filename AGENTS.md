@@ -13,3 +13,4 @@
 - Account access requires profiles.approved (set by admin); first registered user becomes admin via signup trigger.
 - Never change saved state keys/shape without a normalizeState migration; old backups must still import.
 - Multiple bankrolls live in one app_data blob as {bancasVersion, activeId, bancas[]}; parseBancas wraps the legacy single-state blob so old data keeps loading.
+- Order integration: external callers hit /api/public/ordens* with a per-user bearer key stored only as SHA-256 hash in integration_tokens; queue lives in order_queue, written only by service role.
