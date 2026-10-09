@@ -46,4 +46,19 @@ describe("Platform nativa", () => {
     const saved = JSON.parse((save.mock.calls.at(-1) as unknown as [string])[0]);
     expect(saved.counts.reprovadas).toBe(1);
   });
+
+  it("salva o valor real liquidado no Stop com o spread", async () => {
+    const save = vi.fn(async () => true);
+    await act(async () => { render(<Platform load={async () => null} save={save} />); });
+    await screen.findByText("Meta total prop firm");
+    fireEvent.click(screen.getByRole("button", { name: /Stop/ }));
+    fireEvent.change(screen.getByLabelText(/Valor real liquidado/), { target: { value: "500" } });
+    fireEvent.click(screen.getByRole("button", { name: /confirmar/ }));
+    await act(async () => { await new Promise((r) => setTimeout(r, 700)); });
+    const saved = JSON.parse((save.mock.calls.at(-1) as unknown as [string])[0]);
+    const e = saved.log.at(-1);
+    expect(e.cfdReal).toBe(500);
+    expect(e.spread).toBeCloseTo(500 - e.cfdTeorico);
+    expect(saved.cfdBalance).toBe(500 - saved.assets.nasdaq.params.taxa);
+  });
 });

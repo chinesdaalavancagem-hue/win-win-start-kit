@@ -51,6 +51,8 @@ export interface LogEntry {
   prevBonusDeposito?: any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   prevBonusAtual?: any;
+  /** Registro real de saída: valor teórico sugerido, valor real liquidado e a diferença (spread/slippage). */
+  cfdTeorico?: number; cfdReal?: number; spread?: number;
 }
 export interface State {
   activeTab: TabKey; assets: Record<AssetKey, Asset>; log: LogEntry[]; cfdBalance: number; totalGasto: number;
@@ -174,11 +176,14 @@ function debitarCustoDoBonus(b: Bonus, custo: number) {
   return { proporcaoPropria: custo > 0 ? custoProprio / custo : 1, custoProprio, custoBonus };
 }
 
-export function handleProfit(s: State, key: AssetKey) {
+/** realCfd: valor real liquidado no CFD (perda negativa). Sem ele, usa o teórico. */
+export function handleProfit(s: State, key: AssetKey, realCfd?: number) {
   const a = s.assets[key];
   const idx = clampDayIndex(a);
   if (idx < 0) return;
-  const calc = computeAssetCalcs(a, key)[idx]!;
+  const calc = { ...computeAssetCalcs(a, key)[idx]! };
+  const teorico = -calc.custoSePassar;
+  if (typeof realCfd === "number" && Number.isFinite(realCfd)) calc.custoSePassar = -realCfd;
   const isLast = idx === a.days.length - 1;
   const prev = { prevCfdBalance: s.cfdBalance, prevCounts: { ...s.counts }, prevDayIndex: a.attempt.currentDayIndex, prevCycleCost: a.attempt.cycleCost || 0, prevCustoProprioAcumulado: a.attempt.custoProprioAcumulado || 0, prevTotalGasto: s.totalGasto, prevBonusDeposito: a.bonus.deposito || 0, prevBonusAtual: a.bonus.bonusAtual || 0 };
   const taxaCobrada = idx === 0 ? a.params.taxa : 0;
@@ -195,14 +200,16 @@ export function handleProfit(s: State, key: AssetKey) {
   else { tipo = "profit"; a.attempt.currentDayIndex = idx + 1; a.attempt.cycleCost = cicloCusto; a.attempt.custoProprioAcumulado = custoProprioAcumulado; }
   s.cfdBalance += delta;
   s.totalGasto += taxaCobrada;
-  pushLog(s, { asset: key, day: idx + 1, tipo, delta, saldoApos: s.cfdBalance, custoDia: calc.custoSePassar, custoCiclo: cicloCusto, taxaCobrada, saque, proporcaoPropria: deb.proporcaoPropria, custoProprioDia, custoBonusDia: deb.custoBonus, custoProprioCiclo: isLast ? custoProprioAcumulado : null, resultadoReal, ...prev });
+  pushLog(s, { asset: key, day: idx + 1, tipo, delta, saldoApos: s.cfdBalance, custoDia: calc.custoSePassar, custoCiclo: cicloCusto, taxaCobrada, saque, proporcaoPropria: deb.proporcaoPropria, custoProprioDia, custoBonusDia: deb.custoBonus, custoProprioCiclo: isLast ? custoProprioAcumulado : null, resultadoReal, cfdTeorico: teorico, cfdReal: -calc.custoSePassar, spread: -calc.custoSePassar - teorico, ...prev });
 }
 
-export function handleStop(s: State, key: AssetKey) {
+export function handleStop(s: State, key: AssetKey, realCfd?: number) {
   const a = s.assets[key];
   const idx = clampDayIndex(a);
   if (idx < 0) return;
-  const calc = computeAssetCalcs(a, key)[idx]!;
+  const calc = { ...computeAssetCalcs(a, key)[idx]! };
+  const teorico = calc.reprova;
+  if (typeof realCfd === "number" && Number.isFinite(realCfd)) calc.reprova = realCfd;
   const taxaCobrada = idx === 0 ? a.params.taxa : 0;
   const delta = calc.reprova - taxaCobrada;
   const prev = { prevCfdBalance: s.cfdBalance, prevCounts: { ...s.counts }, prevDayIndex: a.attempt.currentDayIndex, prevCycleCost: a.attempt.cycleCost || 0, prevCustoProprioAcumulado: a.attempt.custoProprioAcumulado || 0, prevTotalGasto: s.totalGasto, prevBonusDeposito: a.bonus.deposito || 0, prevBonusAtual: a.bonus.bonusAtual || 0 };
@@ -213,7 +220,7 @@ export function handleStop(s: State, key: AssetKey) {
   s.totalGasto += taxaCobrada;
   s.counts.reprovadas++;
   a.attempt = freshAttempt();
-  pushLog(s, { asset: key, day: idx + 1, tipo: "reprovada", delta, saldoApos: s.cfdBalance, bruto: calc.reprova, taxaCobrada, custoCiclo: custoTotalCiclo, proporcaoPropria: 1, custoProprioDia: 0, custoBonusDia: 0, custoProprioCiclo: prev.prevCustoProprioAcumulado, resultadoReal, ...prev });
+  pushLog(s, { asset: key, day: idx + 1, tipo: "reprovada", delta, saldoApos: s.cfdBalance, bruto: calc.reprova, taxaCobrada, custoCiclo: custoTotalCiclo, proporcaoPropria: 1, custoProprioDia: 0, custoBonusDia: 0, custoProprioCiclo: prev.prevCustoProprioAcumulado, resultadoReal, cfdTeorico: teorico, cfdReal: calc.reprova, spread: calc.reprova - teorico, ...prev });
 }
 
 export function undoLast(s: State) {
