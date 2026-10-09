@@ -14,8 +14,12 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as AuthenticatedIntegracaoRouteImport } from './routes/_authenticated/integracao'
 import { Route as AuthenticatedPlataformaRouteImport } from './routes/_authenticated/plataforma'
 import { Route as ApiAssistenteRouteImport } from './routes/api/assistente'
+import { Route as ApiPublicOrdensIndexRouteImport } from './routes/api/public/ordens/index'
+import { Route as ApiPublicOrdensConfirmarRouteImport } from './routes/api/public/ordens/confirmar'
+import { Route as ApiPublicOrdensPendentesRouteImport } from './routes/api/public/ordens/pendentes'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -41,6 +45,11 @@ const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedIntegracaoRoute = AuthenticatedIntegracaoRouteImport.update({
+  id: '/integracao',
+  path: '/integracao',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedPlataformaRoute = AuthenticatedPlataformaRouteImport.update({
   id: '/plataforma',
   path: '/plataforma',
@@ -51,22 +60,47 @@ const ApiAssistenteRoute = ApiAssistenteRouteImport.update({
   path: '/api/assistente',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicOrdensIndexRoute = ApiPublicOrdensIndexRouteImport.update({
+  id: '/api/public/ordens/',
+  path: '/api/public/ordens/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicOrdensConfirmarRoute =
+  ApiPublicOrdensConfirmarRouteImport.update({
+    id: '/api/public/ordens/confirmar',
+    path: '/api/public/ordens/confirmar',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicOrdensPendentesRoute =
+  ApiPublicOrdensPendentesRouteImport.update({
+    id: '/api/public/ordens/pendentes',
+    path: '/api/public/ordens/pendentes',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/integracao': typeof AuthenticatedIntegracaoRoute
   '/plataforma': typeof AuthenticatedPlataformaRoute
   '/api/assistente': typeof ApiAssistenteRoute
+  '/api/public/ordens/confirmar': typeof ApiPublicOrdensConfirmarRoute
+  '/api/public/ordens/pendentes': typeof ApiPublicOrdensPendentesRoute
+  '/api/public/ordens/': typeof ApiPublicOrdensIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/integracao': typeof AuthenticatedIntegracaoRoute
   '/plataforma': typeof AuthenticatedPlataformaRoute
   '/api/assistente': typeof ApiAssistenteRoute
+  '/api/public/ordens/confirmar': typeof ApiPublicOrdensConfirmarRoute
+  '/api/public/ordens/pendentes': typeof ApiPublicOrdensPendentesRoute
+  '/api/public/ordens': typeof ApiPublicOrdensIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -75,8 +109,12 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
+  '/_authenticated/integracao': typeof AuthenticatedIntegracaoRoute
   '/_authenticated/plataforma': typeof AuthenticatedPlataformaRoute
   '/api/assistente': typeof ApiAssistenteRoute
+  '/api/public/ordens/confirmar': typeof ApiPublicOrdensConfirmarRoute
+  '/api/public/ordens/pendentes': typeof ApiPublicOrdensPendentesRoute
+  '/api/public/ordens/': typeof ApiPublicOrdensIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -85,16 +123,24 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/admin'
+    | '/integracao'
     | '/plataforma'
     | '/api/assistente'
+    | '/api/public/ordens/confirmar'
+    | '/api/public/ordens/pendentes'
+    | '/api/public/ordens/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/auth'
     | '/reset-password'
     | '/admin'
+    | '/integracao'
     | '/plataforma'
     | '/api/assistente'
+    | '/api/public/ordens/confirmar'
+    | '/api/public/ordens/pendentes'
+    | '/api/public/ordens'
   id:
     | '__root__'
     | '/'
@@ -102,8 +148,12 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/_authenticated/admin'
+    | '/_authenticated/integracao'
     | '/_authenticated/plataforma'
     | '/api/assistente'
+    | '/api/public/ordens/confirmar'
+    | '/api/public/ordens/pendentes'
+    | '/api/public/ordens/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -112,6 +162,9 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   ApiAssistenteRoute: typeof ApiAssistenteRoute
+  ApiPublicOrdensConfirmarRoute: typeof ApiPublicOrdensConfirmarRoute
+  ApiPublicOrdensPendentesRoute: typeof ApiPublicOrdensPendentesRoute
+  ApiPublicOrdensIndexRoute: typeof ApiPublicOrdensIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -151,6 +204,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/integracao': {
+      id: '/_authenticated/integracao'
+      path: '/integracao'
+      fullPath: '/integracao'
+      preLoaderRoute: typeof AuthenticatedIntegracaoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/plataforma': {
       id: '/_authenticated/plataforma'
       path: '/plataforma'
@@ -165,16 +225,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAssistenteRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/ordens/': {
+      id: '/api/public/ordens/'
+      path: '/api/public/ordens'
+      fullPath: '/api/public/ordens/'
+      preLoaderRoute: typeof ApiPublicOrdensIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/ordens/confirmar': {
+      id: '/api/public/ordens/confirmar'
+      path: '/api/public/ordens/confirmar'
+      fullPath: '/api/public/ordens/confirmar'
+      preLoaderRoute: typeof ApiPublicOrdensConfirmarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/ordens/pendentes': {
+      id: '/api/public/ordens/pendentes'
+      path: '/api/public/ordens/pendentes'
+      fullPath: '/api/public/ordens/pendentes'
+      preLoaderRoute: typeof ApiPublicOrdensPendentesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
+  AuthenticatedIntegracaoRoute: typeof AuthenticatedIntegracaoRoute
   AuthenticatedPlataformaRoute: typeof AuthenticatedPlataformaRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
+  AuthenticatedIntegracaoRoute: AuthenticatedIntegracaoRoute,
   AuthenticatedPlataformaRoute: AuthenticatedPlataformaRoute,
 }
 
@@ -187,6 +270,9 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   ApiAssistenteRoute: ApiAssistenteRoute,
+  ApiPublicOrdensConfirmarRoute: ApiPublicOrdensConfirmarRoute,
+  ApiPublicOrdensPendentesRoute: ApiPublicOrdensPendentesRoute,
+  ApiPublicOrdensIndexRoute: ApiPublicOrdensIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

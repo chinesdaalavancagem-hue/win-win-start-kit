@@ -1,0 +1,27 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { mirrorSide, ordemSchema } from "@/lib/integracao";
+import { autenticarToken, json } from "@/lib/integracao.server";
+
+// Recebe uma ordem da mesa e coloca na fila para o robô do MT5.
+export const Route = createFileRoute("/api/public/ordens/")({
+  server: {
+    handlers: {
+      POST: async ({ request }) => {
+        const userId = await autenticarToken(request);
+        if (!userId) return json({ error: "unauthorized" }, 401);
+        let body: unknown;
+        try { body = await request.json(); } catch { return json({ error: "invalid json" }, 400); }
+        const parsed = ordemSchema.safeParse(body);
+        if (!parsed.success) return json({ error: "invalid order", issues: parsed.error.flatten().fieldErrors }, 400);
+        const o = parsed.data;
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { data, error } = await supabaseAdmin.from("order_queue")
+          .upsert({ user_id: userId, external_id: o.id, symbol: o.symbol, side: o.side, mirror_side: mirrorSide(o.side), qty: o.qty, price: o.price ?? null },
+            { onConflict: "user_id,external_id", ignoreDuplicates: true })
+          .select("id").maybeSingle();
+        if (error) { console.error(error); return json({ error: "queue failed" }, 500); }
+        return json({ ok: true, id: data?.id ?? null, duplicate: !data }, data ? 201 : 200);
+      },
+    },
+  },
+});

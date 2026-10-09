@@ -32,6 +32,69 @@ export type Database = {
         }
         Relationships: []
       }
+      integration_tokens: {
+        Row: {
+          created_at: string
+          token_hash: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          token_hash: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          token_hash?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      order_queue: {
+        Row: {
+          created_at: string
+          error: string | null
+          external_id: string
+          id: string
+          mirror_side: string
+          price: number | null
+          qty: number
+          side: string
+          status: string
+          symbol: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          external_id: string
+          id?: string
+          mirror_side: string
+          price?: number | null
+          qty: number
+          side: string
+          status?: string
+          symbol: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          external_id?: string
+          id?: string
+          mirror_side?: string
+          price?: number | null
+          qty?: number
+          side?: string
+          status?: string
+          symbol?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           approved: boolean
