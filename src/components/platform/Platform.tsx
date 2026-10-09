@@ -105,6 +105,8 @@ function NumField({ label, value, onChange, readOnly, helper, placeholder }: { l
     <label className="block min-w-0">
       <span className="mb-1 block text-xs text-muted-foreground">{label}</span>
       <input type="text" inputMode="decimal" value={text} readOnly={readOnly} placeholder={placeholder}
+        enterKeyHint="done"
+        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); } }}
         onFocus={() => { focused.current = true; }} onBlur={() => { focused.current = false; setText(String(value)); }}
         onChange={(e) => { setText(e.target.value); onChange?.(parseNum(e.target.value)); }}
         className={cn("w-full rounded-md border bg-input/40 px-3 py-2 font-mono text-sm outline-none focus:ring-2 focus:ring-ring", readOnly && "opacity-70")} />
@@ -143,7 +145,8 @@ function Settle({ risco, custo, reprova, onProfit, onStop }: { risco: boolean; c
       <p className="text-sm font-semibold">{modo === "profit" ? "✅ Registrar Profit" : "🛑 Registrar reprovação"}</p>
       <p className="mt-1 font-mono text-xs text-muted-foreground">Valor teórico no CFD: <span className={teorico >= 0 ? "text-market-up" : "text-market-down"}>{fmtSigned(teorico)}</span></p>
       <label className="mt-2 block text-xs text-muted-foreground" htmlFor="valor-real">Valor real liquidado no CFD ($, use − para perda)</label>
-      <input id="valor-real" inputMode="decimal" value={valor} onChange={(e) => setValor(e.target.value)} autoFocus
+      <input id="valor-real" inputMode="decimal" enterKeyHint="done" value={valor} onChange={(e) => setValor(e.target.value)} autoFocus
+        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); setModo(null); (modo === "profit" ? onProfit : onStop)(real); } else if (e.key === "Escape") setModo(null); }}
         className="mt-1 w-full rounded-md border bg-background px-2 py-1.5 font-mono text-foreground" />
       <p className="mt-1 font-mono text-xs">spread/slippage: <span className={spread >= 0 ? "text-market-up" : "text-market-down"}>{fmtSigned(spread)}</span></p>
       {modo === "profit" && risco && <p className="mt-1 text-xs text-market-down">⚠️ margem em risco</p>}
@@ -183,6 +186,25 @@ function AssetView({ state, assetKey, section, setSection, mutate }: { state: St
   const setP = (k: keyof Asset["params"]) => (v: number) => mutate((s) => { (s.assets[assetKey].params as unknown as Record<string, number>)[k] = v; });
   const bonus = asset.bonus;
   const saldo = (bonus.deposito || 0) + (bonus.bonusAtual || 0);
+  // Atalhos: Shift+N = Profit no dia N; Ctrl+N (ou Alt+N) = Stop no dia N. Só vale para o dia atual; usa o valor teórico.
+  const curIdx = asset.attempt.currentDayIndex;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+      const m = /^(?:Digit|Numpad)(\d)$/.exec(e.code);
+      if (!m) return;
+      const n = Number(m[1]) === 0 ? 10 : Number(m[1]);
+      const isProfit = e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey;
+      const isStop = (e.ctrlKey || e.altKey || e.metaKey) && !e.shiftKey;
+      if (!isProfit && !isStop) return;
+      e.preventDefault();
+      if (n - 1 !== curIdx) return;
+      mutate((s) => (isProfit ? handleProfit(s, assetKey) : handleStop(s, assetKey)));
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [curIdx, assetKey, mutate]);
 
   // projeção dia a dia (igual ao original)
   let cum = saldo, totalMeta = 0, reservaMinima = 0;
