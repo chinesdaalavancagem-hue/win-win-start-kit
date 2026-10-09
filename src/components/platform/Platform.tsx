@@ -124,6 +124,37 @@ function ConfirmButton({ children, confirmText, onConfirm, className, variant = 
   );
 }
 
+/** Registro real da saída no CFD: sugere o valor teórico e permite ajustar pelo spread/slippage. */
+function Settle({ risco, custo, reprova, onProfit, onStop }: { risco: boolean; custo: number; reprova: number; onProfit: (real: number) => void; onStop: (real: number) => void }) {
+  const [modo, setModo] = useState<null | "profit" | "stop">(null);
+  const [valor, setValor] = useState("");
+  const teorico = modo === "profit" ? -custo : reprova;
+  const real = valor.trim() === "" ? teorico : parseNum(valor);
+  const spread = real - teorico;
+  const abrir = (m: "profit" | "stop") => { setModo(m); setValor(String(Math.round((m === "profit" ? -custo : reprova) * 100) / 100)); };
+  if (!modo) return (
+    <div className="mt-3 grid grid-cols-2 gap-2">
+      <Button type="button" onClick={() => abrir("profit")}>✅ Profit (bateu a meta)</Button>
+      <Button type="button" variant="destructive" onClick={() => abrir("stop")}>🛑 Stop (reprovou)</Button>
+    </div>
+  );
+  return (
+    <div className="mt-3 rounded-lg border border-primary/50 bg-secondary p-3">
+      <p className="text-sm font-semibold">{modo === "profit" ? "✅ Registrar Profit" : "🛑 Registrar reprovação"}</p>
+      <p className="mt-1 font-mono text-xs text-muted-foreground">Valor teórico no CFD: <span className={teorico >= 0 ? "text-market-up" : "text-market-down"}>{fmtSigned(teorico)}</span></p>
+      <label className="mt-2 block text-xs text-muted-foreground" htmlFor="valor-real">Valor real liquidado no CFD ($, use − para perda)</label>
+      <input id="valor-real" inputMode="decimal" value={valor} onChange={(e) => setValor(e.target.value)} autoFocus
+        className="mt-1 w-full rounded-md border bg-background px-2 py-1.5 font-mono text-foreground" />
+      <p className="mt-1 font-mono text-xs">spread/slippage: <span className={spread >= 0 ? "text-market-up" : "text-market-down"}>{fmtSigned(spread)}</span></p>
+      {modo === "profit" && risco && <p className="mt-1 text-xs text-market-down">⚠️ margem em risco</p>}
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <Button type="button" variant={modo === "stop" ? "destructive" : "default"} onClick={() => { setModo(null); (modo === "profit" ? onProfit : onStop)(real); }}>confirmar</Button>
+        <Button type="button" variant="ghost" onClick={() => setModo(null)}>cancelar</Button>
+      </div>
+    </div>
+  );
+}
+
 function Panel({ title, children }: { title?: string; children: ReactNode }) {
   return (
     <div className="mb-4 rounded-lg border bg-card p-4">
@@ -272,12 +303,8 @@ function DayCard({ row, assetKey, mutate }: { row: Row; assetKey: AssetKey; muta
       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 rounded bg-secondary px-2 py-1 font-mono text-[11px] text-muted-foreground">
         <span>Traders Connect · multiplicador de lote</span><span className="text-foreground">{fmt(row.mult)}%</span><span>Tradovate: {fmt(row.ticks)} ticks</span>
       </div>
-      {isCurrent && (
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          <ConfirmButton variant="default" needsConfirm={row.status === "risco"} confirmText="⚠️ margem em risco — confirmar?" onConfirm={() => mutate((s) => handleProfit(s, assetKey))}>✅ Profit (bateu a meta)</ConfirmButton>
-          <ConfirmButton variant="destructive" confirmText="clique de novo p/ confirmar" onConfirm={() => mutate((s) => handleStop(s, assetKey))}>🛑 Stop (reprovou)</ConfirmButton>
-        </div>
-      )}
+      {isCurrent && <Settle risco={row.status === "risco"} custo={c.custoSePassar} reprova={c.reprova}
+        onProfit={(real) => mutate((s) => handleProfit(s, assetKey, real))} onStop={(real) => mutate((s) => handleStop(s, assetKey, real))} />}
     </div>
   );
 }
