@@ -245,7 +245,14 @@ type Row = { d: { mnq: number; lotes: number; meta: number }; c: ReturnType<type
 function DayCard({ row, assetKey, mutate }: { row: Row; assetKey: AssetKey; mutate: (fn: (s: State) => void) => void }) {
   const { d, c, i, isCurrent } = row;
   const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => { if (isCurrent && i > 0) ref.current?.scrollIntoView({ behavior: "smooth", block: "center" }); }, [isCurrent, i]);
+  const wasCurrent = useRef(isCurrent);
+  useEffect(() => {
+    if (isCurrent && !wasCurrent.current) {
+      const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      ref.current?.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "center" });
+    }
+    wasCurrent.current = isCurrent;
+  }, [isCurrent]);
   const setD = (k: "mnq" | "lotes" | "meta") => (v: number) => mutate((s) => { s.assets[assetKey].days[i]![k] = v; });
   return (
     <div ref={ref} className={cn("rounded-lg border bg-card p-4", isCurrent && "border-primary ring-1 ring-primary")}>
