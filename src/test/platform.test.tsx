@@ -1,8 +1,35 @@
 import { render, screen, fireEvent, act } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import { Platform } from "@/components/platform/Platform";
+import { defaultState } from "@/lib/platform/engine";
 
 describe("Platform nativa", () => {
+  it("rola para o próximo dia após Profit e volta ao primeiro após Stop", async () => {
+    const scroll = vi.fn();
+    const original = HTMLElement.prototype.scrollIntoView;
+    HTMLElement.prototype.scrollIntoView = scroll;
+    try {
+      const state = defaultState();
+      state.assets.nasdaq.attempt.currentDayIndex = 1;
+      await act(async () => { render(<Platform load={async () => JSON.stringify(state)} save={async () => true} />); });
+      expect(scroll).not.toHaveBeenCalled();
+
+      fireEvent.click(screen.getByRole("button", { name: /Profit/ }));
+      const confirmProfit = screen.queryByRole("button", { name: /confirmar/ });
+      if (confirmProfit) fireEvent.click(confirmProfit);
+      expect(scroll).toHaveBeenCalledTimes(1);
+      expect((scroll.mock.instances[0] as HTMLElement).textContent).toContain("D3");
+
+      fireEvent.click(screen.getByRole("button", { name: /Stop/ }));
+      fireEvent.click(screen.getByRole("button", { name: /confirmar/ }));
+      expect(scroll).toHaveBeenCalledTimes(2);
+      expect((scroll.mock.instances[1] as HTMLElement).textContent).toContain("D1");
+      expect(scroll).toHaveBeenLastCalledWith({ behavior: "smooth", block: "center" });
+    } finally {
+      HTMLElement.prototype.scrollIntoView = original;
+    }
+  });
+
   it("carrega, alterna menus, registra Stop e salva", async () => {
     const save = vi.fn(async () => true);
     await act(async () => { render(<Platform load={async () => null} save={save} />); });
