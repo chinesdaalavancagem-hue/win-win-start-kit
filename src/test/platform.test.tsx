@@ -1,9 +1,12 @@
 import { render, screen, fireEvent, act } from "@testing-library/react";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { Platform } from "@/components/platform/Platform";
 import { defaultState } from "@/lib/platform/engine";
 
 describe("Platform nativa", () => {
+  const originalScroll = HTMLElement.prototype.scrollIntoView;
+  beforeEach(() => { HTMLElement.prototype.scrollIntoView = vi.fn(); });
+  afterEach(() => { HTMLElement.prototype.scrollIntoView = originalScroll; });
   it.each([
     ["profit", false], ["stop", false], ["profit", true], ["stop", true],
   ] as const)("desfaz %s registrado por atalho=%s e salva o estado anterior", async (operation, shortcut) => {

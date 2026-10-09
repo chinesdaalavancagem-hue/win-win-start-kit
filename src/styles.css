@@ -96,7 +96,7 @@
   --section: oklch(0.145 0.004 220);
 }
 
-@layer components {
+@layer utilities {
   @media (min-width: 768px) {
     .platform-day-card {
       padding: 1.5rem;
@@ -130,6 +130,9 @@
     }
   }
 
+}
+
+@layer components {
   .marketing-page {
     font-family: "Hind", system-ui, sans-serif;
   }
