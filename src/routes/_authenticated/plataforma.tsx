@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { getMyAccess, signOut } from "@/lib/session";
-import { Platform } from "@/components/platform/Platform";
+import { Bancas } from "@/components/platform/Bancas";
 
 export const Route = createFileRoute("/_authenticated/plataforma")({
   head: () => ({ meta: [{ title: "Plataforma — Win or Win" }, { name: "description", content: "Sua plataforma Win or Win." }, { property: "og:title", content: "Plataforma — Win or Win" }, { property: "og:description", content: "Planeje contratos, operações, bônus e saques na Win or Win." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
@@ -59,7 +59,7 @@ function Plataforma() {
           <p className="mt-2 text-muted-foreground">Seu cadastro não foi aprovado. Se achar que houve um engano, fale com o administrador.</p>
         </div>
       )}
-      {state === "ok" && <Platform load={load} save={save} />}
+      {state === "ok" && <Bancas load={load} save={save} />}
     </div>
   );
 }
