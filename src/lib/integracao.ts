@@ -6,7 +6,7 @@ export const ordemSchema = z.object({
   symbol: z.string().trim().min(1).max(40),
   side: z.string().transform((s) => s.toLowerCase()).pipe(z.enum(["buy", "sell"])),
   qty: z.coerce.number().positive().max(10000),
-  price: z.coerce.number().positive().optional(),
+  price: z.preprocess((v) => (v === null || v === "" ? undefined : v), z.coerce.number().positive().optional()),
 });
 export type Ordem = z.infer<typeof ordemSchema>;
 

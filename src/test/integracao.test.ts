@@ -12,6 +12,10 @@ describe("integração de ordens", () => {
   it("rejeita quantidade zero", () => {
     expect(ordemSchema.safeParse({ id: "1", symbol: "MNQ", side: "buy", qty: 0 }).success).toBe(false);
   });
+  it("aceita price nulo ou omitido", () => {
+    expect(ordemSchema.parse({ id: "1", symbol: "MNQ", side: "buy", qty: 1, price: null }).price).toBeUndefined();
+    expect(ordemSchema.parse({ id: "1", symbol: "MNQ", side: "buy", qty: 1 }).price).toBeUndefined();
+  });
   it("sem chave não autentica", () => {
     expect(bearer(new Request("http://x"))).toBeNull();
   });
