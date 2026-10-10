@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { gerarChave } from "@/lib/integracao.functions";
+import { registrarAuditoria } from "@/lib/auditoria.client";
 
 export const Route = createFileRoute("/_authenticated/integracao")({
   beforeLoad: async ({ context }) => {
@@ -64,6 +65,7 @@ function Integracao() {
     setDisp({ robo: !!r.data?.some((f) => f.name === ARQ.robo.nome), ext: !!e.data?.some((f) => f.name === ARQ.ext.nome) });
   }
   useEffect(() => {
+    void registrarAuditoria({ category: "navigation", action: "navigation.opened", outcome: "success", details: { page: "integration" } });
     setBase(window.location.origin);
     supabase.from("user_roles").select("role").eq("user_id", user.id).then(({ data }) => setIsAdmin(!!data?.some((r) => r.role === "admin")));
     load(); loadArquivos();
@@ -72,13 +74,22 @@ function Integracao() {
 
   async function novaChave() {
     if (temChave && !confirm("A chave atual vai parar de funcionar. Continuar?")) return;
-    const r = await gerar();
-    setChave(r.token);
-    setTemChave(true);
+    try {
+      const r = await gerar();
+      setChave(r.token);
+      setTemChave(true);
+    } catch {
+      void registrarAuditoria({ category: "integration", action: "integration.key_failed", outcome: "failed", details: { reason: "key_generation_failed" } });
+      alert("Não foi possível gerar a chave. Tente novamente.");
+    }
   }
   async function baixar(t: Tipo) {
     const { data, error } = await supabase.storage.from("downloads").createSignedUrl(ARQ[t].path, 60, { download: ARQ[t].nome });
-    if (error || !data) return alert("Arquivo ainda não disponível.");
+    if (error || !data) {
+      void registrarAuditoria({ category: "integration", action: "integration.download_failed", outcome: "failed", details: { asset: t, reason: "signed_url_failed" } });
+      return alert("Arquivo ainda não disponível.");
+    }
+    void registrarAuditoria({ category: "integration", action: "integration.download_requested", outcome: "started", details: { asset: t } });
     window.location.href = data.signedUrl;
   }
   async function enviar(t: Tipo, f?: File) {
@@ -86,6 +97,7 @@ function Integracao() {
     if (!f.name.toLowerCase().endsWith(ARQ[t].accept)) return alert(`Envie um arquivo ${ARQ[t].accept}`);
     const { error } = await supabase.storage.from("downloads").upload(ARQ[t].path, f, { upsert: true });
     if (error) return alert("Falha ao enviar o arquivo.");
+    void registrarAuditoria({ category: "integration", action: "integration.file_published", outcome: "success", details: { asset: t } });
     alert("Arquivo publicado para os usuários.");
     loadArquivos();
   }
