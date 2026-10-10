@@ -1,7 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowDown, ArrowRight, Calculator, CircleDollarSign, ShieldCheck, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import logoAsset from "@/assets/win-or-win-logo-sharp.png.asset.json";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -47,7 +46,7 @@ function Index() {
       <header className="sticky top-0 z-50 border-b border-border/70 bg-background/90 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 md:h-20 md:px-8">
           <Link to="/" className="flex items-center gap-3" aria-label="Win or Win — início">
-            <img src={logoAsset.url} alt="" className="size-10 rounded-md object-cover md:size-11" />
+            <img src={/favicon.ico} alt="" className="size-10 rounded-md object-cover md:size-11" />
             <span className="hidden font-heading text-sm uppercase sm:inline">Win or Win</span>
           </Link>
           <nav className="hidden items-center gap-8 text-sm text-muted-foreground md:flex" aria-label="Navegação principal">
@@ -88,7 +87,7 @@ function Index() {
 
           <div className="relative mx-auto w-full max-w-64">
             <div className="absolute -inset-10 bg-brand-gold/5 blur-3xl" aria-hidden="true" />
-            <img src={logoAsset.url} alt="Win or Win" width={256} height={256} className="relative mx-auto w-full max-w-64 rounded-lg border border-brand-gold/30 object-contain shadow-2xl" />
+            <img src={/favicon.ico} alt="Win or Win" width={256} height={256} className="relative mx-auto w-full max-w-64 rounded-lg border border-brand-gold/30 object-contain shadow-2xl" />
             <div className="mt-4 border-l border-brand-gold/30 px-4 py-2">
               <p className="text-[10px] uppercase text-muted-foreground">Decisão</p>
               <p className="font-heading mt-1 text-sm uppercase text-market-up">Antes da entrada</p>
@@ -185,7 +184,7 @@ function Index() {
 
       <footer className="border-t border-border/70">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-5 px-5 py-8 text-sm text-muted-foreground sm:flex-row md:px-8">
-          <div className="flex items-center gap-3"><img src={logoAsset.url} alt="" className="size-8 rounded object-cover" /><span>Win or Win</span></div>
+          <div className="flex items-center gap-3"><img src={/favicon.ico} alt="" className="size-8 rounded object-cover" /><span>Win or Win</span></div>
           <Link to="/auth" className="transition-colors hover:text-foreground">Entrar</Link>
         </div>
       </footer>
