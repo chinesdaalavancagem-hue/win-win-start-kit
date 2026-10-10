@@ -16,9 +16,18 @@ export const Route = createFileRoute("/api/public/ordens/confirmar")({
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { data, error } = await supabaseAdmin.from("order_queue")
           .update({ status: p.data.status, error: p.data.error ?? null, updated_at: new Date().toISOString() })
-          .eq("id", p.data.id).eq("user_id", userId).eq("status", "sent").select("id").maybeSingle();
+          .eq("id", p.data.id).eq("user_id", userId).eq("status", "sent").select("id,symbol").maybeSingle();
         if (error) { console.error(error); return json({ error: "update failed" }, 500); }
         if (!data) return json({ error: "not found" }, 404);
+        const succeeded = p.data.status === "done";
+        const { error: auditError } = await supabaseAdmin.from("audit_logs").insert({
+          user_id: userId,
+          category: "integration",
+          action: succeeded ? "integration.order_confirmed" : "integration.order_failed",
+          outcome: succeeded ? "success" : "failed",
+          details: { order_id: data.id, symbol: data.symbol, error_reported: !succeeded },
+        });
+        if (auditError) console.error("[audit] order confirmation event failed", auditError.message);
         return json({ ok: true });
       },
     },
