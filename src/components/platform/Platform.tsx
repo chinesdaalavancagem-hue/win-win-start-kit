@@ -4,11 +4,11 @@ import { Undo2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   type AssetKey, type State, type TabKey, type Asset,
-  aplicarDeposito, aplicarSaque, calcAporteFracionado, clampDayIndex, computeAssetCalcs, defaultState, fmt, fmtSigned, handleProfit, handleStop,
+  aplicarDeposito, aplicarSaque, calcAporteFracionado, calcCaixaCiclo, clampDayIndex, computeAssetCalcs, defaultState, fmt, fmtSigned, handleProfit, handleStop,
   historicoTotals, isValidState, normalizeState, parseNum, projetarZeragemBonus, resetBonus, tipoLabel, undoLast,
 } from "@/lib/platform/engine";
 
-type Section = "operacoes" | "parametros" | "bonus" | "aporte";
+type Section = "operacoes" | "parametros" | "bonus" | "aporte" | "caixa";
 type Sync = { mode: "ok" | "busy" | "err"; text: string };
 
 const TABS: { key: TabKey; label: string; dot: string }[] = [
@@ -251,8 +251,8 @@ function AssetView({ state, assetKey, section, setSection, mutate }: { state: St
 
   return (
     <div>
-      <nav className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4" aria-label="Menus da plataforma">
-        {([["operacoes", "Operações"], ["parametros", "Parâmetros"], ["bonus", "Bônus e saques"], ["aporte", "Aporte fracionado"]] as [Section, string][]).map(([k, l]) => (
+      <nav className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-5" aria-label="Menus da plataforma">
+        {([["operacoes", "Operações"], ["parametros", "Parâmetros"], ["bonus", "Bônus e saques"], ["aporte", "Aporte fracionado"], ["caixa", "Caixa do ciclo"]] as [Section, string][]).map(([k, l]) => (
           <Button key={k} type="button" size="sm" variant={section === k ? "default" : "outline"} aria-pressed={section === k} onClick={() => setSection(k)}>{l}</Button>
         ))}
       </nav>
@@ -290,6 +290,7 @@ function AssetView({ state, assetKey, section, setSection, mutate }: { state: St
       )}
 
       {section === "aporte" && <AportePanel asset={asset} calcs={calcs} />}
+      {section === "caixa" && <CaixaPanel asset={asset} assetKey={assetKey} />}
       {section === "bonus" && <BonusPanel state={state} assetKey={assetKey} reserva={reservaComFolga} folga={folga} mutate={mutate} />}
 
       {section === "operacoes" && (
@@ -619,6 +620,51 @@ function AportePanel({ asset, calcs }: { asset: Asset; calcs: ReturnType<typeof 
           <div key={l} className="rounded-md border p-3"><dt className="text-sm text-muted-foreground">{l}</dt><dd className={cn("text-2xl font-bold", c)}>${fmt(v)}</dd></div>
         ))}
       </dl>
+    </section>
+  );
+}
+
+function CaixaPanel({ asset, assetKey }: { asset: Asset; assetKey: AssetKey }) {
+  const [pct, setPct] = useState("100");
+  if (!asset.days.length) return <p className="text-muted-foreground">Cadastre os dias do ciclo em Parâmetros para ver o caixa.</p>;
+  const r = calcCaixaCiclo(asset, assetKey, parseNum(pct));
+  const items: [string, number, string, string][] = [
+    ["Caixa próprio máximo disponível", r.caixaMaximo, "text-primary", "o pico de dinheiro seu fora do bolso: taxa + todos os depósitos"],
+    ["Total depositado no CFD no ciclo", r.totalDepositado, "text-foreground", "soma dos aportes fracionados de todos os dias"],
+    ["Bônus recebido no ciclo", r.bonusTotal, "text-accent-foreground", `limitado ao teto de $${fmt(asset.bonus.bonusCap)}`],
+    ["Recuperado no fim", r.recuperado, "text-primary", `saque da mesa $${fmt(r.saque)} + depósito próprio que sobra no CFD $${fmt(r.proprioRecuperavel)}`],
+    ["Resultado do ciclo completo", r.resultadoFinal, r.resultadoFinal >= 0 ? "text-primary" : "text-destructive", "recuperado menos o caixa próprio usado"],
+  ];
+  return (
+    <section className="space-y-4 rounded-lg border bg-card p-4">
+      <h2 className="text-lg font-bold">Caixa necessário para o ciclo inteiro</h2>
+      <label className="block max-w-xs text-sm">Bônus da corretora (%)
+        <input inputMode="decimal" value={pct} onChange={(e) => setPct(e.target.value)} className="mt-1 w-full rounded-md border bg-background px-2 py-1.5" />
+      </label>
+      <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {items.map(([l, v, c, h]) => (
+          <div key={l} className="rounded-md border p-3"><dt className="text-sm text-muted-foreground">{l}</dt><dd className={cn("text-2xl font-bold", c)}>{v < 0 ? "-" : ""}${fmt(Math.abs(v))}</dd><p className="text-xs text-muted-foreground">{h}</p></div>
+        ))}
+      </dl>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="text-left text-xs text-muted-foreground"><tr><th className="p-1">Dia</th><th className="p-1">Necessário no CFD</th><th className="p-1">Saldo antes</th><th className="p-1">Depositar</th><th className="p-1">Bônus</th><th className="p-1">Perda se passar</th><th className="p-1">Caixa acumulado</th></tr></thead>
+          <tbody>{r.dias.map((d) => (
+            <tr key={d.dia} className="border-t"><td className="p-1">D{d.dia}</td><td className="p-1">${fmt(d.necessario)}</td><td className="p-1">${fmt(d.saldoAntes)}</td><td className="p-1 font-semibold text-primary">${fmt(d.deposito)}</td><td className="p-1">${fmt(d.bonusGanho)}</td><td className="p-1">${fmt(d.perda)}</td><td className="p-1">${fmt(d.caixaAcumulado)}</td></tr>
+          ))}</tbody>
+        </table>
+      </div>
+      <div className="rounded-md border p-3 text-xs text-muted-foreground">
+        <p className="mb-1 font-semibold text-foreground">Premissas do cálculo</p>
+        <ul className="list-disc space-y-1 pl-4">
+          <li>Usa o setup salvo desta aba: dias, lotes, contratos, margem por lote (${fmt(asset.params.marginPerLot)}), stop out ({fmt(asset.params.stopoutPct)}%), taxa da mesa (${fmt(r.taxa)}) e saque esperado (${fmt(r.saque)}).</li>
+          <li>Pior caso de caixa: a mesa passa em todos os dias até aprovar. Se reprovar antes, o CFD devolve dinheiro e o caixa usado é menor.</li>
+          <li>Cada dia precisa no CFD: margem × (1 + stop out) + a perda do CFD se a mesa passar. Só se deposita o que falta sobre o saldo que já está lá.</li>
+          <li>Bônus de {fmt(parseNum(pct))}% sobre cada depósito, até o teto de ${fmt(asset.bonus.bonusCap)}. A perda consome primeiro o seu dinheiro e depois o bônus.</li>
+          <li>O ciclo começa com a corretora zerada; o saldo atual da banca não entra na conta.</li>
+          <li>No fim, você recupera o saque da mesa e o depósito próprio que sobrou no CFD. O bônus não pode ser sacado.</li>
+        </ul>
+      </div>
     </section>
   );
 }
