@@ -150,6 +150,39 @@ export type Database = {
         Relationships: []
       }
     }
+      audit_logs: {
+        Row: {
+          id: string
+          user_id: string
+          category: string
+          action: string
+          outcome: string
+          details: Json
+          request_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          category: string
+          action: string
+          outcome: string
+          details?: Json
+          request_id?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          category?: string
+          action?: string
+          outcome?: string
+          details?: Json
+          request_id?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
     Views: {
       [_ in never]: never
     }
