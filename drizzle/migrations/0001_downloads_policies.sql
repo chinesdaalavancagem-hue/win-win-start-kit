@@ -1,0 +1,4 @@
+CREATE POLICY "approved read downloads" ON storage.objects FOR SELECT TO authenticated USING (bucket_id = 'downloads' AND public.is_approved(auth.uid()));
+CREATE POLICY "admin insert downloads" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'downloads' AND public.has_role(auth.uid(), 'admin'));
+CREATE POLICY "admin update downloads" ON storage.objects FOR UPDATE TO authenticated USING (bucket_id = 'downloads' AND public.has_role(auth.uid(), 'admin'));
+CREATE POLICY "admin delete downloads" ON storage.objects FOR DELETE TO authenticated USING (bucket_id = 'downloads' AND public.has_role(auth.uid(), 'admin'));
