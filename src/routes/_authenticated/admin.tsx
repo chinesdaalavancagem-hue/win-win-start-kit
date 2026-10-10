@@ -1,10 +1,13 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { getMyAccess } from "@/lib/session";
+import { getMyAccess, requireAdmin } from "@/lib/session";
 
 export const Route = createFileRoute("/_authenticated/admin")({
+  beforeLoad: async ({ context }) => {
+    if (!(await requireAdmin(context.user.id))) throw redirect({ to: "/plataforma" });
+  },
   head: () => ({ meta: [{ title: "Cadastros — Win or Win" }, { name: "description", content: "Aprovação de cadastros Win or Win." }, { property: "og:title", content: "Cadastros — Win or Win" }, { property: "og:description", content: "Gerencie a aprovação de membros Win or Win." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
   component: Admin,
 });

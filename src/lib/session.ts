@@ -4,8 +4,17 @@ export async function signOut(navigate: (o: { to: string; replace: boolean }) =>
   try {
     localStorage.removeItem("hedge-lucid-hfm-multiativo-v2");
   } catch {}
-  await supabase.auth.signOut();
-  navigate({ to: "/auth", replace: true });
+  try {
+    await supabase.auth.signOut();
+  } catch {}
+  void navigate;
+  // Hard reload: limpa toda memória/scripts da sessão anterior
+  window.location.replace("/auth");
+}
+
+export async function requireAdmin(userId: string) {
+  const { data } = await supabase.from("user_roles").select("role").eq("user_id", userId);
+  return !!data?.some((r) => r.role === "admin");
 }
 
 export async function getMyAccess(userId: string) {
