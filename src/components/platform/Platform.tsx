@@ -102,7 +102,7 @@ export function Platform({ load, save, isAdmin }: { load: () => Promise<string |
       </div>
 
       {tab === "historico" ? <Historico state={state} mutate={mutate} /> : (
-        <AssetView key={tab} state={state} assetKey={tab} section={section} setSection={setSection} mutate={mutate} />
+        <AssetView key={tab} state={state} assetKey={tab} section={section} setSection={setSection} mutate={mutate} isAdmin={isAdmin} />
       )}
 
       <BackupMenu state={state} mutate={mutate} />
