@@ -2,14 +2,10 @@ import { createFileRoute } from "@tanstack/react-router";
 
 const CATEGORIES = new Set(["auth", "strategy", "integration", "navigation", "system", "ui"]);
 const OUTCOMES = new Set(["success", "failed", "denied", "started", "unknown"]);
-const ACTIONS = new Set([
-  "login.success", "login.failed", "signup.success", "logout",
-  "strategy.updated", "strategy.save_failed", "strategy.action", "strategy.undo",
-  "integration.key_generated", "integration.key_failed",
-  "integration.download_requested", "integration.download_failed",
-  "integration.connection_test", "integration.disconnected",
-  "integration.file_published", "integration.order_received", "integration.order_dispatched",
-  "integration.order_confirmed", "integration.order_failed", "navigation.opened", "ui.button_clicked", "system.error",
+const CLIENT_ACTIONS = new Set([
+  "login.success", "signup.success", "logout",
+  "integration.key_failed", "integration.download_requested", "integration.download_failed",
+  "integration.file_published", "navigation.opened", "ui.button_clicked", "system.error",
 ]);
 
 function json(body: unknown, status = 200) {
@@ -71,12 +67,23 @@ export const Route = createFileRoute("/api/auditoria")({
         if (!body || typeof body !== "object" || Array.isArray(body)) return json({ error: "invalid_body" }, 400);
         const event = body as Record<string, unknown>;
         if (typeof event.category !== "string" || !CATEGORIES.has(event.category)
-          || typeof event.action !== "string" || !ACTIONS.has(event.action)
+          || typeof event.action !== "string" || !CLIENT_ACTIONS.has(event.action)
           || (event.outcome !== undefined && (typeof event.outcome !== "string" || !OUTCOMES.has(event.outcome)))) {
           return json({ error: "invalid_event" }, 400);
         }
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        if (event.action === "integration.file_published") {
+          const { data: roles } = await supabaseAdmin.from("user_roles").select("role").eq("user_id", user.id);
+          if (!roles?.some((row) => row.role === "admin")) return json({ error: "forbidden" }, 403);
+        }
+        const expectedCategory: Record<string, string> = {
+          "login.success": "auth", "signup.success": "auth", logout: "auth",
+          "integration.key_failed": "integration", "integration.download_requested": "integration",
+          "integration.download_failed": "integration", "integration.file_published": "integration",
+          "navigation.opened": "navigation", "ui.button_clicked": "ui", "system.error": "system",
+        };
+        if (expectedCategory[event.action] !== event.category) return json({ error: "invalid_event_category" }, 400);
         const { error } = await supabaseAdmin.from("audit_logs").insert({
           user_id: user.id,
           category: event.category,
