@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,6 +6,10 @@ import { Button } from "@/components/ui/button";
 import { gerarChave } from "@/lib/integracao.functions";
 
 export const Route = createFileRoute("/_authenticated/integracao")({
+  beforeLoad: async ({ context }) => {
+    const { data } = await supabase.from("user_roles").select("role").eq("user_id", context.user.id);
+    if (!data?.some((r) => r.role === "admin")) throw redirect({ to: "/plataforma" });
+  },
   head: () => ({ meta: [{ title: "Integração — Win or Win" }, { name: "description", content: "Conecte a mesa Tradovate ao MetaTrader 5." }, { property: "og:title", content: "Integração — Win or Win" }, { property: "og:description", content: "Receba as ordens da mesa e espelhe no CFD." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
   component: Integracao,
 });
