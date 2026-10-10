@@ -116,9 +116,12 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/auditoria': typeof AuthenticatedAuditoriaRoute
   '/integracao': typeof AuthenticatedIntegracaoRoute
   '/plataforma': typeof AuthenticatedPlataformaRoute
   '/api/assistente': typeof ApiAssistenteRoute
+  '/api/auditoria': typeof ApiAuditoriaRoute
+  '/api/plataforma/dados': typeof ApiPlataformaDadosRoute
   '/api/public/ordens/confirmar': typeof ApiPublicOrdensConfirmarRoute
   '/api/public/ordens/pendentes': typeof ApiPublicOrdensPendentesRoute
   '/api/public/ordens': typeof ApiPublicOrdensIndexRoute
@@ -134,6 +137,8 @@ export interface FileRoutesById {
   '/_authenticated/integracao': typeof AuthenticatedIntegracaoRoute
   '/_authenticated/plataforma': typeof AuthenticatedPlataformaRoute
   '/api/assistente': typeof ApiAssistenteRoute
+  '/api/auditoria': typeof ApiAuditoriaRoute
+  '/api/plataforma/dados': typeof ApiPlataformaDadosRoute
   '/api/public/ordens/confirmar': typeof ApiPublicOrdensConfirmarRoute
   '/api/public/ordens/pendentes': typeof ApiPublicOrdensPendentesRoute
   '/api/public/ordens/': typeof ApiPublicOrdensIndexRoute
@@ -163,6 +168,8 @@ export interface FileRouteTypes {
     | '/integracao'
     | '/plataforma'
     | '/api/assistente'
+    | '/api/auditoria'
+    | '/api/plataforma/dados'
     | '/api/public/ordens/confirmar'
     | '/api/public/ordens/pendentes'
     | '/api/public/ordens'
@@ -177,6 +184,8 @@ export interface FileRouteTypes {
     | '/_authenticated/integracao'
     | '/_authenticated/plataforma'
     | '/api/assistente'
+    | '/api/auditoria'
+    | '/api/plataforma/dados'
     | '/api/public/ordens/confirmar'
     | '/api/public/ordens/pendentes'
     | '/api/public/ordens/'
