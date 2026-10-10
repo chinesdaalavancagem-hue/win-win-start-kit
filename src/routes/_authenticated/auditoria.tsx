@@ -1,5 +1,5 @@
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { requireAdmin } from "@/lib/session";
@@ -44,10 +44,11 @@ function Auditoria() {
   const [rows, setRows] = useState<AuditRow[]>([]);
   const [category, setCategory] = useState("");
   const [userId, setUserId] = useState("");
+  const [appliedUserId, setAppliedUserId] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -56,7 +57,7 @@ function Auditoria() {
       if (!token) throw new Error("Sua sessão expirou. Entre novamente.");
       const params = new URLSearchParams({ limit: "100" });
       if (category) params.set("category", category);
-      if (userId.trim()) params.set("userId", userId.trim());
+      if (appliedUserId.trim()) params.set("userId", appliedUserId.trim());
       const response = await fetch("/api/auditoria?" + params.toString(), {
         headers: { authorization: "Bearer " + token },
         cache: "no-store",
@@ -69,9 +70,9 @@ function Auditoria() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [category, appliedUserId]);
 
-  useEffect(() => { void load(); }, [category]);
+  useEffect(() => { void load(); }, [load]);
 
   return (
     <main className="mx-auto max-w-6xl space-y-5 px-4 py-8">
@@ -100,7 +101,7 @@ function Auditoria() {
           <span className="font-medium">ID da conta (opcional)</span>
           <input value={userId} onChange={(e) => setUserId(e.target.value)} placeholder="UUID do usuário" className="w-full rounded-md border bg-background px-3 py-2" />
         </label>
-        <Button onClick={() => void load()} disabled={loading}>Pesquisar</Button>
+        <Button onClick={() => setAppliedUserId(userId.trim())} disabled={loading}>Pesquisar</Button>
       </section>
 
       {error && <p role="alert" className="rounded-md border border-destructive/40 p-3 text-sm text-destructive">{error}</p>}
