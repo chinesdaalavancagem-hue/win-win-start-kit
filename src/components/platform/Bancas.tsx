@@ -5,7 +5,7 @@ import { Platform } from "./Platform";
 import { fmt, fmtSigned } from "@/lib/platform/engine";
 import { type BancasDoc, novaBanca, parseBancas, relatorioCsv, resumoBanca } from "@/lib/platform/bancas";
 
-export function Bancas({ load, save }: { load: () => Promise<string | null>; save: (v: string) => Promise<boolean> }) {
+export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | null>; save: (v: string) => Promise<boolean>; isAdmin: boolean }) {
   const [doc, setDoc] = useState<BancasDoc | null>(null);
   const [err, setErr] = useState(false);
   const [painel, setPainel] = useState(false);
@@ -104,7 +104,7 @@ export function Bancas({ load, save }: { load: () => Promise<string | null>; sav
         </section>
       )}
 
-      <Platform key={ativa.id} load={loadActive} save={saveActive} />
+      <Platform key={ativa.id} load={loadActive} save={saveActive} isAdmin={isAdmin} />
     </div>
   );
 }
