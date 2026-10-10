@@ -308,3 +308,30 @@ export function calcAporteFracionado(o: { margem: number; stopoutPct: number; cu
   const economia = Math.max(0, (o.bancaIntegral || 0) - proprio);
   return { total, proprio, bonus, economia };
 }
+
+export interface CaixaDia { dia: number; necessario: number; saldoAntes: number; deposito: number; bonusGanho: number; perda: number; proprioRestante: number; bonusRestante: number; caixaAcumulado: number }
+/** Caixa do ciclo completo: simula passar em todos os dias (pior caso de caixa) com aporte fracionado e bônus com teto. */
+export function calcCaixaCiclo(a: Asset, key: AssetKey, bonusPct: number) {
+  const calcs = computeAssetCalcs(a, key);
+  const p = Math.max(0, bonusPct || 0) / 100;
+  const cap = a.bonus.bonusCap > 0 ? a.bonus.bonusCap : Infinity;
+  const taxa = a.params.taxa || 0;
+  let proprio = 0, bonus = 0, bonusTotal = 0, depositado = 0;
+  const dias: CaixaDia[] = a.days.map((d, i) => {
+    const perda = Math.max(0, calcs[i]?.custoSePassar ?? 0);
+    const necessario = (a.params.marginPerLot || 0) * d.lotes * (1 + Math.max(0, a.params.stopoutPct || 0) / 100) + perda;
+    const saldoAntes = proprio + bonus;
+    const falta = Math.max(0, necessario - saldoAntes);
+    const espaco = Math.max(0, cap - bonusTotal);
+    const deposito = falta > 0 ? Math.max(falta / (1 + p), falta - espaco) : 0;
+    const bonusGanho = Math.min(deposito * p, espaco);
+    proprio += deposito; bonus += bonusGanho; bonusTotal += bonusGanho; depositado += deposito;
+    const deProprio = Math.min(perda, proprio);
+    proprio -= deProprio; bonus = Math.max(0, bonus - (perda - deProprio));
+    return { dia: i + 1, necessario, saldoAntes, deposito, bonusGanho, perda, proprioRestante: proprio, bonusRestante: bonus, caixaAcumulado: taxa + depositado };
+  });
+  const saque = a.params.saqueAprovada || 0;
+  const caixaMaximo = taxa + depositado;
+  const recuperado = proprio + saque;
+  return { dias, taxa, totalDepositado: depositado, caixaMaximo, proprioRecuperavel: proprio, saque, recuperado, resultadoFinal: recuperado - caixaMaximo, bonusTotal };
+}
