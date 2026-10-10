@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { Button } from "@/components/ui/button";
 import { Undo2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { registrarAuditoria } from "@/lib/auditoria.client";
 import {
   type AssetKey, type State, type TabKey, type Asset,
   aplicarDeposito, aplicarSaque, calcAporteFracionado, calcCaixaCiclo, clampDayIndex, computeAssetCalcs, defaultState, fmt, fmtSigned, handleProfit, handleStop,
@@ -79,7 +80,7 @@ export function Platform({ load, save, isAdmin }: { load: () => Promise<string |
 
       <div className="mb-4 flex gap-1 overflow-x-auto border-b">
         {TABS.map((t) => (
-          <button key={t.key} type="button" onClick={() => mutate((s) => { s.activeTab = t.key; })}
+          <button key={t.key} type="button" onClick={() => { void registrarAuditoria({ category: "navigation", action: "navigation.opened", outcome: "success", details: { page: "platform_tab", tab: t.key } }); mutate((s) => { s.activeTab = t.key; }); }}}
             className={cn("flex shrink-0 items-center gap-2 border-b-2 px-3 py-2 text-sm transition-colors",
               tab === t.key ? "border-foreground text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>
             <span className={cn("size-2 rounded-full", t.dot)} />{t.label}
