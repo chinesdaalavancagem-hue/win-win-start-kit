@@ -284,6 +284,15 @@ function AssetView({ state, assetKey, section, setSection, mutate }: { state: St
             <NumField label="Saque esperado por conta aprovada ($)" value={asset.params.saqueAprovada} onChange={setP("saqueAprovada")} />
             <NumField label="Folga extra de segurança p/ saque (%)" value={asset.params.folgaExtraPct} onChange={setP("folgaExtraPct")} />
           </div>
+          <h3 className="mb-2 mt-5 text-sm font-semibold">Limite geral EOD por dia do ciclo</h3>
+          <p className="mb-3 text-xs text-muted-foreground">Deixe 0 para usar o limite geral acima (${fmt(asset.params.mll)}). Ex.: na conta financiada, após lucro no D4, coloque no D5 o novo limite.</p>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {asset.days.map((d, i) => (
+              <NumField key={i} label={`D${i + 1} limite ($)`} value={d.mll ?? 0}
+                onChange={(v) => mutate((s) => { const day = s.assets[assetKey].days[i]!; if (v > 0) day.mll = v; else delete day.mll; })}
+                helper={d.mll && d.mll > 0 ? "personalizado" : `usa geral $${fmt(asset.params.mll)}`} />
+            ))}
+          </div>
           <Note>A mesa proprietária precisa ter só limite geral do tipo EOD (ele só se move no fechamento do dia). Mesa com limite diário não serve para esta estratégia. Os pontos até a reprovação variam por dia e aparecem em cada card.</Note>
           <Note>Quando uma conta é aprovada, o primeiro saque devolve o que foi gasto no CFD e ainda gera lucro. Preencha o saque esperado por conta aprovada para a plataforma creditar esse valor automaticamente.</Note>
         </Panel>
