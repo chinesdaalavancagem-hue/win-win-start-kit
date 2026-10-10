@@ -82,7 +82,7 @@ export const Route = createFileRoute("/api/auditoria")({
           category: event.category,
           action: event.action,
           outcome: typeof event.outcome === "string" ? event.outcome : "success",
-          details: safeDetails(event.details),
+          details: safeDetails(event.details) as import("@/integrations/supabase/types").Json,
           request_id: crypto.randomUUID(),
         });
         if (error) {
