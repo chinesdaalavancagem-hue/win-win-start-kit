@@ -127,7 +127,7 @@ function Integracao() {
             <li>No MT5: <b>Arquivo → Abrir pasta de dados</b> → entre em <code>MQL5\Experts</code> e cole o arquivo.</li>
             <li>No MT5, clique com o botão direito em <b>Expert Advisors</b> no Navegador e escolha <b>Atualizar</b>.</li>
             <li><b>Ferramentas → Opções → Expert Advisors</b>: marque <b>Permitir WebRequest</b> e adicione <code>{base}</code>.</li>
-            <li>Arraste o robô para o gráfico do ativo (ex.: S100Cash), cole a sua chave no campo <b>Chave</b> e confira o <b>SiteUrl</b> = <code>{base}</code>.</li>
+            <li>Arraste o robô para o gráfico do ativo (ex.: US100Cash ou GOLD), cole a sua chave no campo <b>Chave</b> e confira o <b>SiteUrl</b> = <code>{base}</code>.</li>
             <li>Ligue o botão <b>Algo Trading</b> no topo do MT5. Teste primeiro em conta demo.</li>
           </ol>
         </div>
