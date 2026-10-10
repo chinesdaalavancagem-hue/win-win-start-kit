@@ -22,6 +22,16 @@ export const Route = createFileRoute("/api/public/ordens/pendentes")({
           .in("id", ids).eq("status", "pending")
           .select("id, symbol, mirror_side, qty, price, created_at");
         if (error) { console.error(error); return json({ error: "claim failed" }, 500); }
+        if (data?.length) {
+          const { error: auditError } = await supabaseAdmin.from("audit_logs").insert(data.map((row) => ({
+            user_id: userId,
+            category: "integration",
+            action: "integration.order_dispatched",
+            outcome: "success",
+            details: { order_id: row.id, symbol: row.symbol, qty: Number(row.qty) },
+          })));
+          if (auditError) console.error("[audit] dispatched order event failed", auditError.message);
+        }
 
         const { data: saved } = await supabaseAdmin.from("app_data").select("data")
           .eq("user_id", userId).maybeSingle();
