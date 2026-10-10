@@ -20,6 +20,14 @@ export const Route = createFileRoute("/api/public/ordens/")({
             { onConflict: "user_id,external_id", ignoreDuplicates: true })
           .select("id").maybeSingle();
         if (error) { console.error(error); return json({ error: "queue failed" }, 500); }
+        const { error: auditError } = await supabaseAdmin.from("audit_logs").insert({
+          user_id: userId,
+          category: "integration",
+          action: "integration.order_received",
+          outcome: data ? "success" : "unknown",
+          details: { symbol: o.symbol, qty: o.qty, side: o.side, duplicate: !data },
+        });
+        if (auditError) console.error("[audit] incoming order event failed", auditError.message);
         return json({ ok: true, id: data?.id ?? null, duplicate: !data }, data ? 201 : 200);
       },
     },
