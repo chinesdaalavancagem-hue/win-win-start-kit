@@ -9,7 +9,7 @@ const ACTIONS = new Set([
   "integration.download_requested", "integration.download_failed",
   "integration.connection_test", "integration.disconnected",
   "integration.file_published", "integration.order_received", "integration.order_dispatched",
-  "integration.order_confirmed", "integration.order_failed", "navigation.opened", "ui.button_clicked",
+  "integration.order_confirmed", "integration.order_failed", "navigation.opened", "ui.button_clicked", "system.error",
 ]);
 
 function json(body: unknown, status = 200) {
