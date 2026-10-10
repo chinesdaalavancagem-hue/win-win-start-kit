@@ -19,7 +19,7 @@ const TABS: { key: TabKey; label: string; dot: string }[] = [
 ];
 const ASSET_NAME: Record<AssetKey, string> = { nasdaq: "NASDAQ", ouro: "OURO", saque2: "SAQUE 2" };
 
-export function Platform({ load, save }: { load: () => Promise<string | null>; save: (v: string) => Promise<boolean> }) {
+export function Platform({ load, save, isAdmin }: { load: () => Promise<string | null>; save: (v: string) => Promise<boolean>; isAdmin: boolean }) {
   const [state, setState] = useState<State | null>(null);
   const [section, setSection] = useState<Section>("operacoes");
   const [sync, setSync] = useState<Sync>({ mode: "busy", text: "carregando…" });
@@ -246,6 +246,9 @@ function AssetView({ state, assetKey, section, setSection, mutate }: { state: St
     const ticks = c.pontos * (ativoTicks === "ouro" ? 10 : 4);
     return { d, c, i, isCurrent: i === asset.attempt.currentDayIndex, status, statusText, ticks, mult: d.mnq > 0 ? (d.lotes / d.mnq) * 100 : 0 };
   });
+  const visibleRows = isAdmin ? rows : rows.filter((r) => r.isCurrent);
+  const displayedTotalMeta = isAdmin ? totalMeta : visibleRows.reduce((total, r) => total + r.d.meta, 0);
+  const displayedCum = isAdmin ? cum : visibleRows.reduce((total, r) => total + r.c.passa, saldo);
   const folga = asset.params.folgaExtraPct ?? 20;
   const reservaComFolga = reservaMinima > 0 ? reservaMinima * (1 + folga / 100) : 0;
 
@@ -305,15 +308,15 @@ function AssetView({ state, assetKey, section, setSection, mutate }: { state: St
       {section === "operacoes" && (
         <div>
           <div className="mb-4 grid grid-cols-2 gap-3">
-            <Metric label="Meta total prop firm" value={`$${fmt(totalMeta)}`} />
-            <Metric label="Saldo final se passar — broker CFD" value={`$${fmt(cum)}`} />
+            <Metric label={isAdmin ? "Meta total prop firm" : "Meta do dia atual"} value={`${fmt(displayedTotalMeta)}`} />
+            <Metric label={isAdmin ? "Saldo final se passar — broker CFD" : "Saldo CFD se passar hoje"} value={`${fmt(displayedCum)}`} />
           </div>
           <div className="space-y-3">
-            {rows.map((r) => (
+            {visibleRows.map((r) => (
               <DayCard key={r.i} row={r} assetKey={assetKey} mutate={mutate} />
             ))}
           </div>
-          <Button type="button" variant="outline" className="mt-3 w-full border-dashed" onClick={() => mutate((s) => { s.assets[assetKey].days.push({ mnq: 1, lotes: 1, meta: 150 }); })}>+ adicionar dia</Button>
+          {isAdmin && <Button type="button" variant="outline" className="mt-3 w-full border-dashed" onClick={() => mutate((s) => { s.assets[assetKey].days.push({ mnq: 1, lotes: 1, meta: 150 }); })}>+ adicionar dia</Button>}
         </div>
       )}
     </div>
