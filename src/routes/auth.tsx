@@ -85,7 +85,7 @@ function AuthPage() {
   return (
     <main className="flex min-h-screen items-center justify-center px-4 py-10">
       <div className="w-full max-w-md rounded-xl border bg-card p-8">
-        <img src="/logo.png" width="240" height="240" className="object-contain" />
+        <img src="/logo.png" width="240" height="240" className="mx-auto block object-contain" />
         <h1 className="text-center text-2xl font-bold">{mode === "login" ? "Entrar" : "Criar conta"}</h1>
         <p className="mt-1 text-center text-sm text-muted-foreground">Win or Win Platform</p>
         <form onSubmit={onSubmit} className="mt-6 space-y-4">
