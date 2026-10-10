@@ -22,6 +22,25 @@ const ARQ = {
 } as const;
 type Tipo = keyof typeof ARQ;
 
+
+function CopiarTexto({ texto }: { texto: string }) {
+  const [copiado, setCopiado] = useState(false);
+  async function copiar() {
+    try {
+      await navigator.clipboard.writeText(texto);
+      setCopiado(true);
+      window.setTimeout(() => setCopiado(false), 1800);
+    } catch {
+      window.prompt("Copie o texto abaixo:", texto);
+    }
+  }
+  return (
+    <button type="button" onClick={copiar} className="ml-2 inline-flex items-center rounded border px-2 py-1 text-xs font-medium hover:bg-muted">
+      {copiado ? "Copiado!" : "Copiar"}
+    </button>
+  );
+}
+
 function Integracao() {
   const { user } = Route.useRouteContext();
   const gerar = useServerFn(gerarChave);
@@ -118,19 +137,19 @@ function Integracao() {
           <h3 className="mt-3 font-semibold">Passo 2 — Conferir o Python pelo CMD</h3>
           <ol className="list-decimal space-y-1 pl-5">
             <li>Pressione <b>Windows + R</b>, digite <code>cmd</code> e aperte Enter.</li>
-            <li>Digite <code>python --version</code> e aperte Enter. Deve aparecer a versão instalada do Python.</li>
-            <li>Digite <code>pip --version</code> e aperte Enter para conferir o gerenciador de pacotes. Se o comando <code>python</code> não for reconhecido, feche e reabra o CMD; se continuar, corrija a instalação e a opção PATH.</li>
+            <li>Digite <code>python --version</code><CopiarTexto texto="python --version" /> e aperte Enter. Deve aparecer a versão instalada do Python.</li>
+            <li>Digite <code>pip --version</code><CopiarTexto texto="pip --version" /> e aperte Enter para conferir o gerenciador de pacotes. Se o comando <code>python</code> não for reconhecido, feche e reabra o CMD; se continuar, corrija a instalação e a opção PATH.</li>
           </ol>
           <h3 className="mt-3 font-semibold">Passo 3 — Preparar os arquivos da extensão</h3>
           <ol className="list-decimal space-y-1 pl-5">
             <li>Baixe o arquivo ZIP da extensão e clique em <b>Extrair tudo</b>. Guarde a pasta extraída em um local permanente do computador.</li>
-            <li>Se o pacote incluir o arquivo <code>gerar_extensao.py</code>, abra o CMD e entre na pasta onde esse arquivo está. Digite <code>cd </code> seguido do caminho da pasta entre aspas, por exemplo <code>cd "C:\Integracao"</code>, e aperte Enter.</li>
-            <li>Execute <code>python gerar_extensao.py</code> e aguarde terminar. Se o arquivo gerador tiver outro nome, use o nome exato que veio no pacote. Não execute este comando se o pacote já trouxer a pasta da extensão pronta e não incluir um gerador.</li>
+            <li>Se o pacote incluir o arquivo <code>gerar_extensao.py</code>, abra o CMD e entre na pasta onde esse arquivo está. Digite <code>cd </code> seguido do caminho da pasta entre aspas, por exemplo <code>cd "C:\Integracao"</code><CopiarTexto texto={'cd "C:\\Integracao"'} />, e aperte Enter.</li>
+            <li>Execute <code>python gerar_extensao.py</code><CopiarTexto texto="python gerar_extensao.py" /> e aguarde terminar. Se o arquivo gerador tiver outro nome, use o nome exato que veio no pacote. Não execute este comando se o pacote já trouxer a pasta da extensão pronta e não incluir um gerador.</li>
             <li>Localize a pasta gerada que contém o arquivo <code>manifest.json</code>. Não é necessário instalar bibliotecas extras nem manter o CMD aberto durante o uso normal da extensão, a menos que o pacote forneça instruções específicas diferentes.</li>
           </ol>
           <h3 className="mt-3 font-semibold">Passo 4 — Instalar a extensão no Google Chrome</h3>
           <ol className="list-decimal space-y-1 pl-5">
-            <li>Abra o Chrome e digite <code>chrome://extensions/</code> na barra de endereços.</li>
+            <li>Abra o Chrome e digite <code>chrome://extensions/</code><CopiarTexto texto="chrome://extensions/" /> na barra de endereços.</li>
             <li>Ative o <b>Modo do desenvolvedor</b>, no canto superior direito.</li>
             <li>Clique em <b>Carregar sem compactação</b> e selecione a pasta extraída ou gerada que contém o <code>manifest.json</code>. Selecione a pasta, não o arquivo ZIP.</li>
             <li>Para facilitar o acesso, clique no ícone de quebra-cabeça do Chrome e, se desejar, fixe a extensão na barra.</li>
@@ -138,7 +157,7 @@ function Integracao() {
           <h3 className="mt-3 font-semibold">Passo 5 — Conectar a extensão à plataforma</h3>
           <ol className="list-decimal space-y-1 pl-5">
             <li>Nesta página, na seção <b>Sua chave</b>, gere uma chave de integração e guarde-a com segurança.</li>
-            <li>Abra a extensão no Chrome. Em <b>URL da Plataforma</b>, informe <code>{base}</code>. Em <b>Chave de Integração</b>, cole a chave gerada nesta página e salve.</li>
+            <li>Abra a extensão no Chrome. Em <b>URL da Plataforma</b>, informe <code>{base}</code><CopiarTexto texto={base} />. Em <b>Chave de Integração</b>, cole a chave gerada nesta página e salve.</li>
             <li>Abra a Tradovate na mesma janela do Chrome e confirme que a extensão está ativa.</li>
           </ol>
         </div>
