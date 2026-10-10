@@ -14,5 +14,13 @@ export const gerarChave = createServerFn({ method: "POST" })
     const { error } = await supabaseAdmin.from("integration_tokens")
       .upsert({ user_id: context.userId, token_hash: await hashToken(token), created_at: new Date().toISOString() });
     if (error) throw new Error("Não foi possível gerar a chave");
+    const { error: auditError } = await supabaseAdmin.from("audit_logs").insert({
+      user_id: context.userId,
+      category: "integration",
+      action: "integration.key_generated",
+      outcome: "success",
+      details: { replaced_existing_key: true },
+    });
+    if (auditError) console.error("[audit] key generation event failed", auditError.message);
     return { token };
   });
