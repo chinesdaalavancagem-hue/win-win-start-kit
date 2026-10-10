@@ -60,7 +60,10 @@ function Admin() {
             {p.id !== user.id && (
               <div className="flex items-center gap-2">
                 {p.approved ? (
-                  <Button size="sm" variant="outline" onClick={() => toggle(p)}>Bloquear</Button>
+                  <>
+                    <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-semibold text-primary">Aprovado</span>
+                    <Button size="sm" variant="outline" onClick={() => reject(p)}>Rejeitar</Button>
+                  </>
                 ) : p.rejected ? (
                   <>
                     <span className="rounded-full bg-destructive/15 px-2.5 py-0.5 text-xs font-semibold text-destructive">Rejeitado</span>
