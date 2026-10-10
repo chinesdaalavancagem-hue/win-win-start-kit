@@ -134,8 +134,8 @@ function Integracao() {
             <li>Baixe o robô acima (arquivo .ex5).</li>
             <li>No MT5: <b>Arquivo → Abrir pasta de dados</b> → entre em <code>MQL5\Experts</code> e cole o arquivo.</li>
             <li>No MT5, clique com o botão direito em <b>Expert Advisors</b> no Navegador e escolha <b>Atualizar</b>.</li>
-            <li><b>Ferramentas → Opções → Expert Advisors</b>: marque <b>Permitir WebRequest</b> e adicione <code>{base}</code>.</li>
-            <li>Arraste o robô para o gráfico do ativo (ex.: US100Cash ou GOLD), cole a sua chave no campo <b>Chave</b> e confira o <b>SiteUrl</b> = <code>{base}</code>.</li>
+            <li>Abra <b>Ferramentas → Opções → Expert Advisors</b>, marque <b>Permitir WebRequest para os endereços listados abaixo</b> e adicione a URL completa da plataforma: <code>{base}</code>. Confirme/adote a alteração.</li>
+            <li>Arraste o robô para o gráfico do ativo (ex.: US100Cash ou GOLD). Na janela de parâmetros do robô, preencha <b>Chave</b> com a mesma chave da extensão e preencha <b>SiteUrl</b> com <code>{base}</code>. Não deixe o SiteUrl vazio. Use a URL do site em que você realmente acessa a plataforma; se o domínio mudar, atualize os dois lugares.</li>
             <li>Ligue o botão <b>Algo Trading</b> no topo do MT5. Teste primeiro em conta demo.</li>
           </ol>
         </div>
