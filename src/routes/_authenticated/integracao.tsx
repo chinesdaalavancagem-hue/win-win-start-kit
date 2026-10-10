@@ -114,9 +114,11 @@ function Integracao() {
           <ol className="list-decimal space-y-1 pl-5">
             <li>Baixe a extensão acima e descompacte o arquivo .zip numa pasta.</li>
             <li>No Chrome, abra <code>chrome://extensions</code>.</li>
-            <li>Ligue o <b>Modo do desenvolvedor</b> (canto superior direito).</li>
-            <li>Clique em <b>Carregar sem compactação</b> e escolha a pasta descompactada.</li>
-            <li>Abra a extensão, cole a sua chave e salve.</li>
+            <li>No Chrome, abra o menu de três pontos (⋮), no canto superior direito.</li>
+            <li>Entre em <b>Extensões → Gerenciar extensões</b>. Você também pode clicar no ícone de quebra-cabeça ao lado da barra de endereços e escolher <b>Gerenciar extensões</b>. Se o quebra-cabeça não aparecer, use o menu de três pontos.</li>
+            <li>Na página de extensões, ligue <b>Modo do desenvolvedor</b>, no canto superior direito.</li>
+            <li>Clique em <b>Carregar sem compactação</b>. Antes, extraia o arquivo .zip baixado para uma pasta no computador. Na janela que abrir, selecione a <b>pasta extraída</b> da extensão — não selecione o arquivo .zip — e confirme.</li>
+            <li>Depois que a extensão aparecer na lista, abra-a pelo ícone de quebra-cabeça, cole sua chave e salve.</li>
             <li>Abra a Tradovate na mesma janela do Chrome.</li>
           </ol>
         </div>
@@ -131,7 +133,11 @@ function Integracao() {
             <li>Ligue o botão <b>Algo Trading</b> no topo do MT5. Teste primeiro em conta demo.</li>
           </ol>
         </div>
-        <p className="text-muted-foreground">O robô sempre recebe a direção contrária à da mesa. Se você gerar uma chave nova, troque nos dois lugares.</p>
+        <div className="space-y-2 rounded-md bg-muted/50 p-3">
+          <p className="font-semibold">Preciso instalar o Python?</p>
+          <p>O Chrome não exige Python para carregar uma extensão descompactada. Só instale Python se o pacote baixado incluir um script Python ou instruções específicas pedindo isso. Para a instalação normal descrita acima, basta extrair o .zip e selecionar a pasta da extensão.</p>
+        </div>
+        <p className="text-muted-foreground">O robô sempre recebe a direção contrária à da mesa. Se você gerar uma chave nova, troque nos dois lugares. Teste primeiro em conta demo.</p>
       </section>
 
       <section className="rounded-lg border p-4">
