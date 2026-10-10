@@ -12,6 +12,7 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { registrarAuditoria } from "@/lib/auditoria.client";
 
 function NotFoundComponent() {
   return (
@@ -40,6 +41,7 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
   const router = useRouter();
   useEffect(() => {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
+    void registrarAuditoria({ category: "system", action: "system.error", outcome: "failed", details: { boundary: "root_error_component" } });
   }, [error]);
 
   return (
