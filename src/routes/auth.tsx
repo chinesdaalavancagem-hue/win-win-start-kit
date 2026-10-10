@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
+import { registrarAuditoria } from "@/lib/auditoria.client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -53,12 +54,16 @@ function AuthPage() {
     try {
       if (mode === "login") {
         const { data, error } = await supabase.auth.signInWithPassword({ email: f["email"] ?? "", password: f["password"] ?? "" });
-        if (error) throw new Error("E-mail ou senha incorretos, ou e-mail ainda não confirmado.");
+        if (error) {
+          void registrarAuditoria({ category: "auth", action: "login.failed", outcome: "failed", details: { reason: "invalid_credentials" } });
+          throw new Error("E-mail ou senha incorretos, ou e-mail ainda não confirmado.");
+        }
         const { data: prof } = await supabase.from("profiles").select("rejected").eq("id", data.user.id).maybeSingle();
         if (prof?.rejected) {
           await supabase.auth.signOut();
           throw new Error("Seu acesso foi bloqueado. Entre em contato com o administrador da conta master.");
         }
+        void registrarAuditoria({ category: "auth", action: "login.success", outcome: "success" });
         navigate({ to: "/plataforma" });
       } else {
         const parsed = signupSchema.safeParse(f);
@@ -73,6 +78,7 @@ function AuthPage() {
           },
         });
         if (error) throw new Error(error.message);
+        void registrarAuditoria({ category: "auth", action: "signup.success", outcome: "success" });
         setInfo("Cadastro enviado! Confirme seu e-mail pelo link que enviamos. Depois, aguarde a aprovação do administrador.");
       }
     } catch (err) {
