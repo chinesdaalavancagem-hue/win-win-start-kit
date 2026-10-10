@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import logoAsset from "@/assets/win-or-win-logo.png.asset.json";
 
 export const Route = createFileRoute("/auth")({
   validateSearch: (s: Record<string, unknown>): { mode?: "signup" } => (s["mode"] === "signup" ? { mode: "signup" } : {}),
@@ -86,9 +87,9 @@ function AuthPage() {
     <main className="flex min-h-screen items-center justify-center px-4 py-10">
       <div className="w-full max-w-md rounded-xl border bg-card p-8">
         <img
-          src="/favicon.ico"
+          src={logoAsset.url}
           alt="Win or Win"
-          className="mx-auto mb-6 size-36 rounded-xl object-cover shadow-xl"
+          className="mx-auto mb-6 size-44 rounded-xl object-contain shadow-xl"
         />
         <h1 className="text-center text-2xl font-bold">{mode === "login" ? "Entrar" : "Criar conta"}</h1>
         <p className="mt-1 text-center text-sm text-muted-foreground">Win or Win Platform</p>
