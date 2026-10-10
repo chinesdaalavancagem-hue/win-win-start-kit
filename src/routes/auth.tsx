@@ -54,10 +54,7 @@ function AuthPage() {
     try {
       if (mode === "login") {
         const { data, error } = await supabase.auth.signInWithPassword({ email: f["email"] ?? "", password: f["password"] ?? "" });
-        if (error) {
-          void registrarAuditoria({ category: "auth", action: "login.failed", outcome: "failed", details: { reason: "invalid_credentials" } });
-          throw new Error("E-mail ou senha incorretos, ou e-mail ainda não confirmado.");
-        }
+        if (error) throw new Error("E-mail ou senha incorretos, ou e-mail ainda não confirmado.");
         const { data: prof } = await supabase.from("profiles").select("rejected").eq("id", data.user.id).maybeSingle();
         if (prof?.rejected) {
           await supabase.auth.signOut();
