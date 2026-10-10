@@ -8,7 +8,8 @@ const ACTIONS = new Set([
   "integration.key_generated", "integration.key_failed",
   "integration.download_requested", "integration.download_failed",
   "integration.connection_test", "integration.disconnected",
-  "integration.file_published", "navigation.opened",
+  "integration.file_published", "integration.order_received", "integration.order_dispatched",
+  "integration.order_confirmed", "integration.order_failed", "navigation.opened",
 ]);
 
 function json(body: unknown, status = 200) {
