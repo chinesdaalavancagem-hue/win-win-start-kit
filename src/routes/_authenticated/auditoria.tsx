@@ -30,6 +30,7 @@ const CATEGORY_LABEL: Record<string, string> = {
   integration: "Integração",
   navigation: "Navegação",
   system: "Sistema",
+  ui: "Interface",
 };
 const OUTCOME_LABEL: Record<string, string> = {
   success: "Concluído",
@@ -92,6 +93,7 @@ function Auditoria() {
             <option value="integration">Integração</option>
             <option value="navigation">Navegação</option>
             <option value="system">Sistema</option>
+            <option value="ui">Interface</option>
           </select>
         </label>
         <label className="flex-1 space-y-1 text-sm">
