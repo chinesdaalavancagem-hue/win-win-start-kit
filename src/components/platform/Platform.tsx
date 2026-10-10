@@ -27,6 +27,24 @@ export function Platform({ load, save, isAdmin }: { load: () => Promise<string |
   const dirty = useRef(false);
 
   useEffect(() => {
+    const recordButtonClick = (event: MouseEvent) => {
+      if (!(event.target instanceof Element)) return;
+      const button = event.target.closest("button");
+      if (!button || button.disabled) return;
+      const label = (button.getAttribute("aria-label") || button.innerText || button.textContent || "button")
+        .replace(/\\s+/g, " ").trim().slice(0, 100);
+      void registrarAuditoria({
+        category: "navigation",
+        action: "ui.button_clicked",
+        outcome: "started",
+        details: { page: "platform", button: label },
+      });
+    };
+    document.addEventListener("click", recordButtonClick, true);
+    return () => document.removeEventListener("click", recordButtonClick, true);
+  }, []);
+
+  useEffect(() => {
     let alive = true;
     load()
       .then((raw) => {
@@ -80,7 +98,7 @@ export function Platform({ load, save, isAdmin }: { load: () => Promise<string |
 
       <div className="mb-4 flex gap-1 overflow-x-auto border-b">
         {TABS.map((t) => (
-          <button key={t.key} type="button" onClick={() => { void registrarAuditoria({ category: "navigation", action: "navigation.opened", outcome: "success", details: { page: "platform_tab", tab: t.key } }); mutate((s) => { s.activeTab = t.key; }); }}}
+          <button key={t.key} type="button" onClick={() => mutate((s) => { s.activeTab = t.key; })}
             className={cn("flex shrink-0 items-center gap-2 border-b-2 px-3 py-2 text-sm transition-colors",
               tab === t.key ? "border-foreground text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>
             <span className={cn("size-2 rounded-full", t.dot)} />{t.label}
