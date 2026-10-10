@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowDown, ArrowRight, Calculator, CircleDollarSign, ShieldCheck, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import logoAsset from "@/assets/win-or-win-logo-sharp.png.asset.json";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -46,7 +47,7 @@ function Index() {
       <header className="sticky top-0 z-50 border-b border-border/70 bg-background/90 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 md:h-20 md:px-8">
           <Link to="/" className="flex items-center gap-3" aria-label="Win or Win — início">
-            <img src="/favicon.png" alt="" className="size-10 rounded-md object-cover md:size-11" />
+            <img src={logoAsset.url} alt="" className="size-10 rounded-md object-cover md:size-11" />
             <span className="hidden font-heading text-sm uppercase sm:inline">Win or Win</span>
           </Link>
           <nav className="hidden items-center gap-8 text-sm text-muted-foreground md:flex" aria-label="Navegação principal">
