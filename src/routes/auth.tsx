@@ -53,8 +53,13 @@ function AuthPage() {
     setLoading(true);
     try {
       if (mode === "login") {
-        const { error } = await supabase.auth.signInWithPassword({ email: f["email"] ?? "", password: f["password"] ?? "" });
+        const { data, error } = await supabase.auth.signInWithPassword({ email: f["email"] ?? "", password: f["password"] ?? "" });
         if (error) throw new Error("E-mail ou senha incorretos, ou e-mail ainda não confirmado.");
+        const { data: prof } = await supabase.from("profiles").select("rejected").eq("id", data.user.id).maybeSingle();
+        if (prof?.rejected) {
+          await supabase.auth.signOut();
+          throw new Error("Seu acesso foi bloqueado. Entre em contato com o administrador da conta master.");
+        }
         navigate({ to: "/plataforma" });
       } else {
         const parsed = signupSchema.safeParse(f);

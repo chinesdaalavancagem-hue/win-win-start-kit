@@ -42,7 +42,7 @@ function Plataforma() {
       <header className="flex items-center justify-between gap-2 border-b px-4 py-2 text-sm">
         <span className="truncate text-muted-foreground">Olá, {name.split(" ")[0] || user.email}</span>
         <div className="flex gap-2">
-          {state === "ok" && <Button asChild size="sm" variant="outline"><Link to="/integracao">Integração</Link></Button>}
+          {state === "ok" && isAdmin && <Button asChild size="sm" variant="outline"><Link to="/integracao">Integração</Link></Button>}
           {isAdmin && <Button asChild size="sm" variant="outline"><Link to="/admin">Aprovar cadastros</Link></Button>}
           <Button size="sm" variant="ghost" onClick={() => signOut(navigate)}>Sair</Button>
         </div>
