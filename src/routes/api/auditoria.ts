@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-const CATEGORIES = new Set(["auth", "strategy", "integration", "navigation", "system"]);
+const CATEGORIES = new Set(["auth", "strategy", "integration", "navigation", "system", "ui"]);
 const OUTCOMES = new Set(["success", "failed", "denied", "started", "unknown"]);
 const ACTIONS = new Set([
   "login.success", "login.failed", "signup.success", "logout",
