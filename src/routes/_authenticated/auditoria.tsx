@@ -101,7 +101,7 @@ function Auditoria() {
           <span className="font-medium">ID da conta (opcional)</span>
           <input value={userId} onChange={(e) => setUserId(e.target.value)} placeholder="UUID do usuário" className="w-full rounded-md border bg-background px-3 py-2" />
         </label>
-        <Button onClick={() => setAppliedUserId(userId.trim())} disabled={loading}>Pesquisar</Button>
+        <Button onClick={() => { if (userId.trim() === appliedUserId) void load(); else setAppliedUserId(userId.trim()); }} disabled={loading}>Pesquisar</Button>
       </section>
 
       {error && <p role="alert" className="rounded-md border border-destructive/40 p-3 text-sm text-destructive">{error}</p>}
