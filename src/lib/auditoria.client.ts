@@ -1,4 +1,4 @@
-type AuditCategory = "auth" | "strategy" | "integration" | "navigation" | "system";
+type AuditCategory = "auth" | "strategy" | "integration" | "navigation" | "system" | "ui";
 type AuditOutcome = "success" | "failed" | "denied" | "started" | "unknown";
 
 export async function registrarAuditoria(event: {
