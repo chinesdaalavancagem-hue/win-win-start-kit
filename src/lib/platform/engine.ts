@@ -296,3 +296,15 @@ export function resetBonus(s: State, key: AssetKey) {
   b.log.push({ ts: Date.now(), tipo: "reset", valor: b.bonusAtual, depositoZerado: b.deposito || 0 });
   b.bonusAtual = 0; b.deposito = 0; b.bonusGanhoTotal = 0;
 }
+
+/** Aporte fracionado: deposita só a parte que, somada ao bônus (pct% do depósito, limitado ao teto), cobre o necessário do dia. */
+export function calcAporteFracionado(o: { margem: number; stopoutPct: number; custoDia: number; bonusPct: number; bonusCap: number; bancaIntegral: number }) {
+  const margem = Math.max(0, o.margem || 0);
+  const total = margem * (1 + Math.max(0, o.stopoutPct || 0) / 100) + Math.max(0, o.custoDia || 0);
+  const p = Math.max(0, o.bonusPct || 0) / 100;
+  const cap = o.bonusCap > 0 ? o.bonusCap : Infinity;
+  const proprio = Math.max(total / (1 + p), total - cap);
+  const bonus = total - proprio;
+  const economia = Math.max(0, (o.bancaIntegral || 0) - proprio);
+  return { total, proprio, bonus, economia };
+}

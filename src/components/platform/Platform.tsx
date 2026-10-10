@@ -4,11 +4,11 @@ import { Undo2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   type AssetKey, type State, type TabKey, type Asset,
-  aplicarDeposito, aplicarSaque, clampDayIndex, computeAssetCalcs, defaultState, fmt, fmtSigned, handleProfit, handleStop,
+  aplicarDeposito, aplicarSaque, calcAporteFracionado, clampDayIndex, computeAssetCalcs, defaultState, fmt, fmtSigned, handleProfit, handleStop,
   historicoTotals, isValidState, normalizeState, parseNum, projetarZeragemBonus, resetBonus, tipoLabel, undoLast,
 } from "@/lib/platform/engine";
 
-type Section = "operacoes" | "parametros" | "bonus";
+type Section = "operacoes" | "parametros" | "bonus" | "aporte";
 type Sync = { mode: "ok" | "busy" | "err"; text: string };
 
 const TABS: { key: TabKey; label: string; dot: string }[] = [
@@ -251,8 +251,8 @@ function AssetView({ state, assetKey, section, setSection, mutate }: { state: St
 
   return (
     <div>
-      <nav className="mb-4 grid grid-cols-3 gap-2" aria-label="Menus da plataforma">
-        {([["operacoes", "Operações"], ["parametros", "Parâmetros"], ["bonus", "Bônus e saques"]] as [Section, string][]).map(([k, l]) => (
+      <nav className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4" aria-label="Menus da plataforma">
+        {([["operacoes", "Operações"], ["parametros", "Parâmetros"], ["bonus", "Bônus e saques"], ["aporte", "Aporte fracionado"]] as [Section, string][]).map(([k, l]) => (
           <Button key={k} type="button" size="sm" variant={section === k ? "default" : "outline"} aria-pressed={section === k} onClick={() => setSection(k)}>{l}</Button>
         ))}
       </nav>
@@ -289,6 +289,7 @@ function AssetView({ state, assetKey, section, setSection, mutate }: { state: St
         </Panel>
       )}
 
+      {section === "aporte" && <AportePanel asset={asset} calcs={calcs} />}
       {section === "bonus" && <BonusPanel state={state} assetKey={assetKey} reserva={reservaComFolga} folga={folga} mutate={mutate} />}
 
       {section === "operacoes" && (
@@ -577,5 +578,47 @@ function StrategyNotes() {
         <p>O histórico é único, somando Nasdaq, Ouro e Saque 2. Tudo é salvo automaticamente na sua conta.</p>
       </div>
     </details>
+  );
+}
+
+function AportePanel({ asset, calcs }: { asset: Asset; calcs: ReturnType<typeof computeAssetCalcs> }) {
+  const [dia, setDia] = useState(Math.max(0, Math.min(asset.attempt.currentDayIndex, asset.days.length - 1)));
+  const [pct, setPct] = useState("100");
+  const [banca, setBanca] = useState("1200");
+  const d = asset.days[dia];
+  if (!d) return <p className="text-muted-foreground">Cadastre os dias do ciclo em Parâmetros para usar a calculadora.</p>;
+  const margem = (asset.params.marginPerLot || 0) * d.lotes;
+  const stopout = asset.params.stopoutPct ?? 30;
+  const custoDia = calcs[dia]?.custoSePassar ?? 0;
+  const r = calcAporteFracionado({ margem, stopoutPct: stopout, custoDia, bonusPct: parseNum(pct), bonusCap: asset.bonus.bonusCap, bancaIntegral: parseNum(banca) });
+  const items: [string, number, string][] = [
+    ["1. Total necessário para aguentar o stop out", r.total, "text-foreground"],
+    ["2. Depósito do próprio bolso", r.proprio, "text-primary"],
+    ["3. Bônus recebido da corretora", r.bonus, "text-accent-foreground"],
+    ["4. Economia de capital próprio em risco", r.economia, "text-primary"],
+  ];
+  return (
+    <section className="space-y-4 rounded-lg border bg-card p-4">
+      <h2 className="text-lg font-bold">Calculadora de aporte fracionado</h2>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <label className="text-sm">Dia do ciclo
+          <select value={dia} onChange={(e) => setDia(Number(e.target.value))} className="mt-1 w-full rounded-md border bg-background px-2 py-1.5">
+            {asset.days.map((x, i) => <option key={i} value={i}>D{i + 1} · {x.lotes} lotes{i === asset.attempt.currentDayIndex ? " (atual)" : ""}</option>)}
+          </select>
+        </label>
+        <label className="text-sm">Bônus da corretora (%)
+          <input inputMode="decimal" value={pct} onChange={(e) => setPct(e.target.value)} className="mt-1 w-full rounded-md border bg-background px-2 py-1.5" />
+        </label>
+        <label className="text-sm">Banca integral para comparar ($)
+          <input inputMode="decimal" value={banca} onChange={(e) => setBanca(e.target.value)} className="mt-1 w-full rounded-md border bg-background px-2 py-1.5" />
+        </label>
+      </div>
+      <p className="text-xs text-muted-foreground">Margem ${fmt(margem)} + {fmt(stopout)}% de stop out = ${fmt(margem * (1 + stopout / 100))} · perda CFD se a mesa passar no dia: ${fmt(custoDia)} · teto de bônus: ${fmt(asset.bonus.bonusCap)}</p>
+      <dl className="grid gap-3 sm:grid-cols-2">
+        {items.map(([l, v, c]) => (
+          <div key={l} className="rounded-md border p-3"><dt className="text-sm text-muted-foreground">{l}</dt><dd className={cn("text-2xl font-bold", c)}>${fmt(v)}</dd></div>
+        ))}
+      </dl>
+    </section>
   );
 }
