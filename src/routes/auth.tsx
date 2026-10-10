@@ -86,7 +86,7 @@ function AuthPage() {
     <main className="flex min-h-screen items-center justify-center px-4 py-10">
       <div className="w-full max-w-md rounded-xl border bg-card p-8">
         <img
-          src={/favicon.ico}
+          src="/favicon.ico"
           alt="Win or Win"
           className="mx-auto mb-6 size-36 rounded-xl object-cover shadow-xl"
         />
