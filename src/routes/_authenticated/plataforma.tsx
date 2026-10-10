@@ -40,10 +40,13 @@ function Plataforma() {
   return (
     <div className="flex min-h-screen flex-col">
       <header className="flex items-center justify-between gap-2 border-b px-4 py-2 text-sm">
-        <span className="truncate text-muted-foreground">Olá, {name.split(" ")[0] || user.email}</span>
+        <span className="flex min-w-0 items-center gap-2 text-muted-foreground">
+          <span className="truncate">Olá, {name.split(" ")[0] || user.email}</span>
+          {isAdmin && <span className="shrink-0 rounded-full bg-primary px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-primary-foreground">Master</span>}
+        </span>
         <div className="flex gap-2">
-          {state === "ok" && isAdmin && <Button asChild size="sm" variant="outline"><Link to="/integracao">Integração</Link></Button>}
-          {isAdmin && <Button asChild size="sm" variant="outline"><Link to="/admin">Aprovar cadastros</Link></Button>}
+          {state === "ok" && isAdmin === true && <Button asChild size="sm" variant="outline"><Link to="/integracao">Integração</Link></Button>}
+          {isAdmin === true && <Button asChild size="sm" variant="outline"><Link to="/admin">Aprovar cadastros</Link></Button>}
           <Button size="sm" variant="ghost" onClick={() => signOut(navigate)}>Sair</Button>
         </div>
       </header>
