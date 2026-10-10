@@ -32,7 +32,7 @@ export function Platform({ load, save, isAdmin }: { load: () => Promise<string |
       const button = event.target.closest("button");
       if (!button || button.disabled) return;
       const label = (button.getAttribute("aria-label") || button.innerText || button.textContent || "button")
-        .replace(/\\s+/g, " ").trim().slice(0, 100);
+        .replace(/\s+/g, " ").trim().slice(0, 100);
       void registrarAuditoria({
         category: "navigation",
         action: "ui.button_clicked",
