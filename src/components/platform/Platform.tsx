@@ -196,7 +196,7 @@ const Note = ({ children }: { children: ReactNode }) => <p className="mt-3 font-
 
 /* ---------- aba de ativo ---------- */
 
-function AssetView({ state, assetKey, section, setSection, mutate }: { state: State; assetKey: AssetKey; section: Section; setSection: (s: Section) => void; mutate: (fn: (s: State) => void) => void }) {
+function AssetView({ state, assetKey, section, setSection, mutate, isAdmin }: { state: State; assetKey: AssetKey; section: Section; setSection: (s: Section) => void; mutate: (fn: (s: State) => void) => void; isAdmin: boolean }) {
   const asset = state.assets[assetKey];
   const calcs = useMemo(() => computeAssetCalcs(asset, assetKey), [asset, assetKey]);
   const setP = (k: keyof Asset["params"]) => (v: number) => mutate((s) => { (s.assets[assetKey].params as unknown as Record<string, number>)[k] = v; });
@@ -251,11 +251,14 @@ function AssetView({ state, assetKey, section, setSection, mutate }: { state: St
   const displayedCum = isAdmin ? cum : visibleRows.reduce((total, r) => total + r.c.passa, saldo);
   const folga = asset.params.folgaExtraPct ?? 20;
   const reservaComFolga = reservaMinima > 0 ? reservaMinima * (1 + folga / 100) : 0;
+  const sections: [Section, string][] = isAdmin
+    ? [["operacoes", "Operações"], ["parametros", "Parâmetros"], ["bonus", "Bônus e saques"], ["aporte", "Aporte fracionado"], ["caixa", "Caixa do ciclo"]]
+    : [["operacoes", "Operações"], ["bonus", "Bônus e saques"]];
 
   return (
     <div>
       <nav className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-5" aria-label="Menus da plataforma">
-        {([["operacoes", "Operações"], ["parametros", "Parâmetros"], ["bonus", "Bônus e saques"], ["aporte", "Aporte fracionado"], ["caixa", "Caixa do ciclo"]] as [Section, string][]).map(([k, l]) => (
+        {sections.map(([k, l]) => (
           <Button key={k} type="button" size="sm" variant={section === k ? "default" : "outline"} aria-pressed={section === k} onClick={() => setSection(k)}>{l}</Button>
         ))}
       </nav>
