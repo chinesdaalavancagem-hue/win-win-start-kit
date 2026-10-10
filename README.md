@@ -1,4 +1,4 @@
-# Win or Win
+# Win-or-Win
 
 Implement exactly the screenshot and nothing else
 
