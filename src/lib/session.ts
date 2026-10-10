@@ -1,6 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
+import { registrarAuditoria } from "@/lib/auditoria.client";
 
 export async function signOut(navigate: (o: { to: string; replace: boolean }) => void) {
+  await registrarAuditoria({ category: "auth", action: "logout", outcome: "success" });
   try {
     localStorage.removeItem("hedge-lucid-hfm-multiativo-v2");
   } catch {}
