@@ -108,7 +108,10 @@ export const Route = createFileRoute("/api/auditoria")({
           .select("id,user_id,category,action,outcome,details,request_id,created_at")
           .order("created_at", { ascending: false }).limit(limit);
         if (category && CATEGORIES.has(category)) query = query.eq("category", category);
-        if (userId && /^[0-9a-f-]{36}$/i.test(userId)) query = query.eq("user_id", userId);
+        if (userId) {
+          if (!/^[0-9a-f-]{36}$/i.test(userId)) return json({ error: "invalid_user_id" }, 400);
+          query = query.eq("user_id", userId);
+        }
 
         const { data: logs, error } = await query;
         if (error) {
