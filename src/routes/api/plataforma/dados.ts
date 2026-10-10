@@ -115,7 +115,7 @@ export const Route = createFileRoute("/api/plataforma/dados")({
               changes: diff.changes,
               operation: diff.operation,
               initial_state_saved: diff.initialSave,
-            },
+            } as import("@/integrations/supabase/types").Json,
           });
           if (auditError) console.error("[audit] strategy change could not be stored", auditError.message);
         }
