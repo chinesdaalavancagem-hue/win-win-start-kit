@@ -86,8 +86,7 @@ function Index() {
           </div>
 
           <div className="relative mx-auto w-full max-w-64">
-            <div className="absolute -inset-10 bg-brand-gold/5 blur-3xl" aria-hidden="true" />
-            <img src="/favicon.ico" alt="Win or Win" width={512} height={512} className="relative mx-auto w-full max-w-80 rounded-lg border border-brand-gold/30 object-contain shadow-2xl" />
+            <img src="/logo.png" width="240" height="240" className="object-contain" />
             <div className="mt-4 border-l border-brand-gold/30 px-4 py-2">
               <p className="text-[10px] uppercase text-muted-foreground">Decisão</p>
               <p className="font-heading mt-1 text-sm uppercase text-market-up">Antes da entrada</p>
