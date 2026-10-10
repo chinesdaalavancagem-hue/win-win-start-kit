@@ -19,7 +19,7 @@ export const gerarChave = createServerFn({ method: "POST" })
       category: "integration",
       action: "integration.key_generated",
       outcome: "success",
-      details: { replaced_existing_key: true },
+      details: { token_material_stored_as_hash: true },
     });
     if (auditError) console.error("[audit] key generation event failed", auditError.message);
     return { token };
