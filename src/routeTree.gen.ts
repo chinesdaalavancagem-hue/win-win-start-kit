@@ -165,6 +165,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/admin'
+    | '/auditoria'
     | '/integracao'
     | '/plataforma'
     | '/api/assistente'
