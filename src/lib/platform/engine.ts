@@ -4,7 +4,9 @@
 export type AssetKey = "nasdaq" | "ouro" | "saque2";
 export type TabKey = AssetKey | "historico";
 
-export interface Day { mnq: number; lotes: number; meta: number }
+/** mll opcional: limite geral EOD de reprovação só deste dia; sem ele usa params.mll. */
+export interface Day { mnq: number; lotes: number; meta: number; mll?: number }
+export const dayMll = (a: Asset, d: Day) => (typeof d.mll === "number" && d.mll > 0 ? d.mll : a.params.mll);
 export interface Params {
   mnq: number; hfm: number; mll: number; saldoInicial: number; taxa: number; lucroDesejado: number;
   marginPerLot: number; stopoutPct: number; saqueAprovada: number; folgaExtraPct: number; ativoReal?: "ouro" | "nasdaq";
@@ -152,7 +154,8 @@ export function computeAssetCalcs(a: Asset, key: AssetKey): DayCalc[] {
     const exp = d.mnq * mnqPt;
     const pontos = exp > 0 ? d.meta / exp : 0;
     const custoSePassar = pontos * d.lotes * hfmPt;
-    const pontosReprova = exp > 0 ? mll / exp : 0;
+    const limite = typeof d.mll === "number" && d.mll > 0 ? d.mll : mll;
+    const pontosReprova = exp > 0 ? limite / exp : 0;
     const reprova = pontosReprova * d.lotes * hfmPt;
     const dividaReal = divida;
     const dividaHoje = incluiPretensao ? dividaReal + lucroDesejado : dividaReal;
