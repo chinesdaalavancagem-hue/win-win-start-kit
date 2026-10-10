@@ -34,7 +34,7 @@ export function Platform({ load, save, isAdmin }: { load: () => Promise<string |
       const label = (button.getAttribute("aria-label") || button.innerText || button.textContent || "button")
         .replace(/\s+/g, " ").trim().slice(0, 100);
       void registrarAuditoria({
-        category: "navigation",
+        category: "ui",
         action: "ui.button_clicked",
         outcome: "started",
         details: { page: "platform", button: label },
