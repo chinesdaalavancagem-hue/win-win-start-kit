@@ -125,7 +125,7 @@ function Integracao() {
             <li>Clique em <b>Carregar sem compactação</b>. Antes, extraia o arquivo .zip baixado para uma pasta no computador. Na janela que abrir, selecione a <b>pasta extraída</b> da extensão — não selecione o arquivo .zip — e confirme.</li>
             <li>Depois que a extensão aparecer na lista, abra-a pelo ícone de quebra-cabeça. No campo <b>URL da Plataforma</b>, informe exatamente <code>https://win-win-start-kit.lovable.app</code>. No campo <b>Chave de Integração</b>, cole a chave gerada na seção “Sua chave” desta página e salve.</li>
             <li>Abra a Tradovate na mesma janela do Chrome e confirme que a extensão está ativa.</li>
-            <li>Com o robô já configurado no MetaTrader 5 e a extensão salva com a mesma chave, clique no botão <b>Testar envio da ordem</b> da extensão. Verifique se o teste chega ao MetaTrader e se a comunicação está funcionando antes de operar em conta real. Se falhar, confira a chave, o endereço do servidor configurado e se o robô está aberto e conectado.</li>
+            <li>Com o robô já configurado no MetaTrader 5 e a extensão salva com a mesma chave, clique no botão <b>Testar envio da ordem</b> da extensão e, em seguida, confira no próprio MetaTrader 5 se a ordem de teste foi recebida/executada. O botão envia o teste; a confirmação deve ser feita olhando o MT5. Verifique se a comunicação está funcionando antes de operar em conta real. Se falhar, confira a chave, o endereço do servidor configurado e se o robô está aberto e conectado.</li>
           </ol>
         </div>
         <div>
