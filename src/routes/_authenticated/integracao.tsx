@@ -110,10 +110,15 @@ function Integracao() {
       <section className="space-y-3 rounded-lg border p-4 text-sm">
         <h2 className="font-semibold">3. Guia de instalação</h2>
         <div>
-          <h3 className="font-semibold">Extensão do Chrome</h3>
+          <h3 className="font-semibold">Preparar a extensão no computador (Windows)</h3>
           <ol className="list-decimal space-y-1 pl-5">
-            <li>Baixe a extensão acima e descompacte o arquivo .zip numa pasta.</li>
-            <li>No Chrome, abra <code>chrome://extensions</code>.</li>
+            <li>Baixe o pacote da extensão e extraia o arquivo .zip para uma pasta no computador. Nos arquivos de exemplo, a pasta extraída contém <code>extensao_tradovate</code> e o arquivo <code>gerar_extensao</code>.</li>
+            <li>Instale o <b>Python 3</b> pelo site oficial <a className="underline" href="https://www.python.org/downloads/windows/" target="_blank" rel="noreferrer">python.org/downloads/windows</a>.</li>
+            <li>Durante a instalação do Python, marque <b>Add Python to PATH</b> (Adicionar Python ao PATH), se essa opção aparecer, e conclua a instalação.</li>
+            <li>Execute o arquivo <code>gerar_extensao</code> fornecido no pacote, se ele for o script de geração incluído. Aguarde terminar e confira a pasta <code>extensao_tradovate</code>. Ela deve conter o <code>manifest.json</code> e os arquivos da extensão, como <code>background</code>, <code>content</code> e <code>popup</code>. Se a pasta já vier pronta e não houver instrução para executar o script, não precisa gerá-la novamente.</li>
+          </ol>
+          <h3 className="mt-3 font-semibold">Carregar a extensão no Chrome</h3>
+          <ol className="list-decimal space-y-1 pl-5">
             <li>No Chrome, abra o menu de três pontos (⋮), no canto superior direito.</li>
             <li>Entre em <b>Extensões → Gerenciar extensões</b>. Você também pode clicar no ícone de quebra-cabeça ao lado da barra de endereços e escolher <b>Gerenciar extensões</b>. Se o quebra-cabeça não aparecer, use o menu de três pontos.</li>
             <li>Na página de extensões, ligue <b>Modo do desenvolvedor</b>, no canto superior direito.</li>
@@ -135,8 +140,8 @@ function Integracao() {
           </ol>
         </div>
         <div className="space-y-2 rounded-md bg-muted/50 p-3">
-          <p className="font-semibold">Preciso instalar o Python?</p>
-          <p>O Chrome não exige Python para carregar uma extensão descompactada. Só instale Python se o pacote baixado incluir um script Python ou instruções específicas pedindo isso. Para a instalação normal descrita acima, basta extrair o .zip e selecionar a pasta da extensão.</p>
+          <p className="font-semibold">Importante sobre o Python</p>
+          <p>Para este pacote, instale o Python porque os arquivos fornecidos incluem o gerador <code>gerar_extensao</code>. O Python é usado para preparar a extensão; não precisa ficar aberto durante o uso normal dela no Chrome. Depois de preparada, carregue a pasta que contém o <code>manifest.json</code>. Se o gerador apresentar erro, anote ou tire uma captura da mensagem para identificar a correção necessária.</p>
         </div>
         <p className="text-muted-foreground">O robô sempre recebe a direção contrária à da mesa. Se você gerar uma chave nova, troque nos dois lugares. Teste primeiro em conta demo.</p>
       </section>
