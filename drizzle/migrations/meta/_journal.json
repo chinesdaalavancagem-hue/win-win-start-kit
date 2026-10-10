@@ -15,6 +15,13 @@
       "when": 1791623362182,
       "tag": "0001_downloads_policies",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791650711086,
+      "tag": "0002_audit_logs",
+      "breakpoints": true
     }
   ]
 }
