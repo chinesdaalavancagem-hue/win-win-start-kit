@@ -3,7 +3,7 @@
 CREATE TABLE IF NOT EXISTS public.audit_logs (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  category text NOT NULL CHECK (category IN ('auth', 'strategy', 'integration', 'navigation', 'system')),
+  category text NOT NULL CHECK (category IN ('auth', 'strategy', 'integration', 'navigation', 'system', 'ui')),
   action text NOT NULL,
   outcome text NOT NULL CHECK (outcome IN ('success', 'failed', 'denied', 'started', 'unknown')),
   details jsonb NOT NULL DEFAULT '{}'::jsonb,
