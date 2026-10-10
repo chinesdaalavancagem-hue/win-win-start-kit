@@ -4,7 +4,7 @@ const CATEGORIES = new Set(["auth", "strategy", "integration", "navigation", "sy
 const OUTCOMES = new Set(["success", "failed", "denied", "started", "unknown"]);
 const ACTIONS = new Set([
   "login.success", "login.failed", "signup.success", "logout",
-  "strategy.updated", "strategy.save_failed", "strategy.action",
+  "strategy.updated", "strategy.save_failed", "strategy.action", "strategy.undo",
   "integration.key_generated", "integration.key_failed",
   "integration.download_requested", "integration.download_failed",
   "integration.connection_test", "integration.disconnected",
