@@ -71,14 +71,26 @@ export const Route = createFileRoute("/api/plataforma/dados")({
         }
         const value = (body as { data: string }).data;
         if (value.length > 200_000) return json({ error: "payload_too_large" }, 413);
+        let parsedState: Record<string, unknown>;
         try {
           const parsed = JSON.parse(value);
           if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return json({ error: "invalid_state" }, 400);
+          parsedState = parsed as Record<string, unknown>;
+          const assets = parsedState.assets as Record<string, unknown> | undefined;
+          const nasdaq = assets?.nasdaq as Record<string, unknown> | undefined;
+          const ouro = assets?.ouro as Record<string, unknown> | undefined;
+          if (!nasdaq || !Array.isArray(nasdaq.days) || !ouro || !Array.isArray(ouro.days)) {
+            return json({ error: "invalid_state" }, 400);
+          }
         } catch {
           return json({ error: "invalid_state" }, 400);
         }
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { data: profile, error: profileError } = await supabaseAdmin.from("profiles")
+          .select("approved,rejected").eq("id", user.id).maybeSingle();
+        if (profileError || !profile?.approved || profile.rejected) return json({ error: "account_not_approved" }, 403);
+
         const { data: previousRow, error: readError } = await supabaseAdmin.from("app_data")
           .select("data").eq("user_id", user.id).maybeSingle();
         if (readError) {
