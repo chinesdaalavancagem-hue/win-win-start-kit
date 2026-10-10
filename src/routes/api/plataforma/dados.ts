@@ -20,6 +20,8 @@ function compareStates(previous: string | null, next: string) {
   const changes: Array<{ field: string; previous: unknown; next: unknown }> = [];
   let operation: Record<string, unknown> | undefined;
   let operationChanged = false;
+  let operationRemoved = false;
+  let removedOperation: Record<string, unknown> | undefined;
   try {
     const before = previous ? JSON.parse(previous) as Record<string, unknown> : null;
     const after = JSON.parse(next) as Record<string, unknown>;
@@ -48,12 +50,16 @@ function compareStates(previous: string | null, next: string) {
     const oldOperation = beforeLog.at(-1);
     const newOperation = afterLog.at(-1);
     operationChanged = JSON.stringify(oldOperation ?? null) !== JSON.stringify(newOperation ?? null);
+    operationRemoved = beforeLog.length > afterLog.length;
+    if (operationRemoved && oldOperation) {
+      removedOperation = { asset: oldOperation.asset, day: oldOperation.day, type: oldOperation.tipo };
+    }
     if (operationChanged && newOperation) {
       operation = { asset: newOperation.asset, day: newOperation.day, type: newOperation.tipo };
     }
-    return { changes, operation, operationChanged, initialSave: !before };
+    return { changes, operation, operationChanged, operationRemoved, removedOperation, initialSave: !before };
   } catch {
-    return { changes: [], operation: undefined, operationChanged: false, initialSave: !previous };
+    return { changes: [], operation: undefined, operationChanged: false, operationRemoved: false, removedOperation: undefined, initialSave: !previous };
   }
 }
 
@@ -121,11 +127,12 @@ export const Route = createFileRoute("/api/plataforma/dados")({
           const { error: auditError } = await supabaseAdmin.from("audit_logs").insert({
             user_id: user.id,
             category: "strategy",
-            action: diff.operationChanged ? "strategy.action" : "strategy.updated",
+            action: diff.operationRemoved ? "strategy.undo" : diff.operationChanged ? "strategy.action" : "strategy.updated",
             outcome: "success",
             details: {
               changes: diff.changes,
               operation: diff.operation,
+              operation_removed: diff.removedOperation,
               initial_state_saved: diff.initialSave,
             } as import("@/integrations/supabase/types").Json,
           });
