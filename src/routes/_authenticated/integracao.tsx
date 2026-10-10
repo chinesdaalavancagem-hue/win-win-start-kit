@@ -110,40 +110,55 @@ function Integracao() {
       <section className="space-y-3 rounded-lg border p-4 text-sm">
         <h2 className="font-semibold">3. Guia de instalação</h2>
         <div>
-          <h3 className="font-semibold">Preparar a extensão no computador (Windows)</h3>
+          <h3 className="font-semibold">Passo 1 — Instalar o Python no Windows</h3>
           <ol className="list-decimal space-y-1 pl-5">
-            <li>Baixe o pacote da extensão e extraia o arquivo .zip para uma pasta no computador. Nos arquivos de exemplo, a pasta extraída contém <code>extensao_tradovate</code> e o arquivo <code>gerar_extensao</code>.</li>
-            <li>Instale o <b>Python 3</b> pelo site oficial <a className="underline" href="https://www.python.org/downloads/windows/" target="_blank" rel="noreferrer">python.org/downloads/windows</a>.</li>
-            <li>Durante a instalação do Python, marque <b>Add Python to PATH</b> (Adicionar Python ao PATH), se essa opção aparecer, e conclua a instalação.</li>
-            <li>Execute o arquivo <code>gerar_extensao</code> fornecido no pacote, se ele for o script de geração incluído. Aguarde terminar e confira a pasta <code>extensao_tradovate</code>. Ela deve conter o <code>manifest.json</code> e os arquivos da extensão, como <code>background</code>, <code>content</code> e <code>popup</code>. Se a pasta já vier pronta e não houver instrução para executar o script, não precisa gerá-la novamente.</li>
+            <li>Acesse <a className="underline" href="https://www.python.org/downloads/windows/" target="_blank" rel="noreferrer">python.org/downloads/windows</a> e baixe uma versão atual do Python 3.</li>
+            <li>Abra o instalador. Na primeira tela, marque <b>Add python.exe to PATH</b> (ou <b>Add Python to PATH</b>) e clique em <b>Install Now</b>. Aguarde terminar e clique em <b>Close</b>.</li>
           </ol>
-          <h3 className="mt-3 font-semibold">Carregar a extensão no Chrome</h3>
+          <h3 className="mt-3 font-semibold">Passo 2 — Conferir o Python pelo CMD</h3>
           <ol className="list-decimal space-y-1 pl-5">
-            <li>No Chrome, abra o menu de três pontos (⋮), no canto superior direito.</li>
-            <li>Entre em <b>Extensões → Gerenciar extensões</b>. Você também pode clicar no ícone de quebra-cabeça ao lado da barra de endereços e escolher <b>Gerenciar extensões</b>. Se o quebra-cabeça não aparecer, use o menu de três pontos.</li>
-            <li>Na página de extensões, ligue <b>Modo do desenvolvedor</b>, no canto superior direito.</li>
-            <li>Clique em <b>Carregar sem compactação</b>. Antes, extraia o arquivo .zip baixado para uma pasta no computador. Na janela que abrir, selecione a <b>pasta extraída</b> da extensão — não selecione o arquivo .zip — e confirme.</li>
-            <li>Depois que a extensão aparecer na lista, abra-a pelo ícone de quebra-cabeça. No campo <b>URL da Plataforma</b>, informe exatamente <code>https://win-win-start-kit.lovable.app</code>. No campo <b>Chave de Integração</b>, cole a chave gerada na seção “Sua chave” desta página e salve.</li>
+            <li>Pressione <b>Windows + R</b>, digite <code>cmd</code> e aperte Enter.</li>
+            <li>Digite <code>python --version</code> e aperte Enter. Deve aparecer a versão instalada do Python.</li>
+            <li>Digite <code>pip --version</code> e aperte Enter para conferir o gerenciador de pacotes. Se o comando <code>python</code> não for reconhecido, feche e reabra o CMD; se continuar, corrija a instalação e a opção PATH.</li>
+          </ol>
+          <h3 className="mt-3 font-semibold">Passo 3 — Preparar os arquivos da extensão</h3>
+          <ol className="list-decimal space-y-1 pl-5">
+            <li>Baixe o arquivo ZIP da extensão e clique em <b>Extrair tudo</b>. Guarde a pasta extraída em um local permanente do computador.</li>
+            <li>Se o pacote incluir o arquivo <code>gerar_extensao.py</code>, abra o CMD e entre na pasta onde esse arquivo está. Digite <code>cd </code> seguido do caminho da pasta entre aspas, por exemplo <code>cd "C:\Integracao"</code>, e aperte Enter.</li>
+            <li>Execute <code>python gerar_extensao.py</code> e aguarde terminar. Se o arquivo gerador tiver outro nome, use o nome exato que veio no pacote. Não execute este comando se o pacote já trouxer a pasta da extensão pronta e não incluir um gerador.</li>
+            <li>Localize a pasta gerada que contém o arquivo <code>manifest.json</code>. Não é necessário instalar bibliotecas extras nem manter o CMD aberto durante o uso normal da extensão, a menos que o pacote forneça instruções específicas diferentes.</li>
+          </ol>
+          <h3 className="mt-3 font-semibold">Passo 4 — Instalar a extensão no Google Chrome</h3>
+          <ol className="list-decimal space-y-1 pl-5">
+            <li>Abra o Chrome e digite <code>chrome://extensions/</code> na barra de endereços.</li>
+            <li>Ative o <b>Modo do desenvolvedor</b>, no canto superior direito.</li>
+            <li>Clique em <b>Carregar sem compactação</b> e selecione a pasta extraída ou gerada que contém o <code>manifest.json</code>. Selecione a pasta, não o arquivo ZIP.</li>
+            <li>Para facilitar o acesso, clique no ícone de quebra-cabeça do Chrome e, se desejar, fixe a extensão na barra.</li>
+          </ol>
+          <h3 className="mt-3 font-semibold">Passo 5 — Conectar a extensão à plataforma</h3>
+          <ol className="list-decimal space-y-1 pl-5">
+            <li>Nesta página, na seção <b>Sua chave</b>, gere uma chave de integração e guarde-a com segurança.</li>
+            <li>Abra a extensão no Chrome. Em <b>URL da Plataforma</b>, informe <code>{base}</code>. Em <b>Chave de Integração</b>, cole a chave gerada nesta página e salve.</li>
             <li>Abra a Tradovate na mesma janela do Chrome e confirme que a extensão está ativa.</li>
-            <li>Com o robô já configurado no MetaTrader 5 e a extensão salva com a mesma chave, clique no botão <b>Testar envio da ordem</b> da extensão e, em seguida, confira no próprio MetaTrader 5 se a ordem de teste foi recebida/executada. O botão envia o teste; a confirmação deve ser feita olhando o MT5. Verifique se a comunicação está funcionando antes de operar em conta real. Se falhar, confira a chave, o endereço do servidor configurado e se o robô está aberto e conectado.</li>
           </ol>
         </div>
         <div>
-          <h3 className="font-semibold">Robô MetaTrader 5</h3>
+          <h3 className="font-semibold">Passo 6 — Instalar e configurar o robô no MetaTrader 5</h3>
           <ol className="list-decimal space-y-1 pl-5">
-            <li>Baixe o robô acima (arquivo .ex5).</li>
-            <li>No MT5: <b>Arquivo → Abrir pasta de dados</b> → entre em <code>MQL5\Experts</code> e cole o arquivo.</li>
-            <li>No MT5, clique com o botão direito em <b>Expert Advisors</b> no Navegador e escolha <b>Atualizar</b>.</li>
-            <li>Abra <b>Ferramentas → Opções → Expert Advisors</b>, marque <b>Permitir WebRequest para os endereços listados abaixo</b> e adicione a URL completa da plataforma: <code>{base}</code>. Confirme/adote a alteração.</li>
-            <li>Arraste o robô para o gráfico do ativo (ex.: US100Cash ou GOLD). Na janela de parâmetros do robô, preencha <b>Chave</b> com a mesma chave da extensão e preencha <b>SiteUrl</b> com <code>{base}</code>. Não deixe o SiteUrl vazio. Use a URL do site em que você realmente acessa a plataforma; se o domínio mudar, atualize os dois lugares.</li>
-            <li>Ligue o botão <b>Algo Trading</b> no topo do MT5. Teste primeiro em conta demo.</li>
+            <li>Baixe o robô acima (arquivo <code>.ex5</code>).</li>
+            <li>No MT5, acesse <b>Arquivo → Abrir pasta de dados</b>, entre em <code>MQL5\Experts</code> e copie o arquivo do robô para essa pasta.</li>
+            <li>Volte ao MT5. No painel Navegador, clique com o botão direito em <b>Expert Advisors</b> e escolha <b>Atualizar</b>.</li>
+            <li>Abra <b>Ferramentas → Opções → Expert Advisors</b>. Marque <b>Permitir WebRequest para os endereços listados abaixo</b> e adicione a URL da plataforma: <code>{base}</code>. Confirme a alteração.</li>
+            <li>Arraste o robô para o gráfico do ativo. Nos parâmetros, informe a mesma chave usada na extensão e preencha <b>SiteUrl</b> com <code>{base}</code>. A URL precisa corresponder ao site em que você acessa a plataforma.</li>
+            <li>Ative <b>Algo Trading</b> no MT5. Faça o primeiro teste em uma conta demo.</li>
           </ol>
         </div>
         <div className="space-y-2 rounded-md bg-muted/50 p-3">
-          <p className="font-semibold">Importante sobre o Python</p>
-          <p>Para este pacote, instale o Python porque os arquivos fornecidos incluem o gerador <code>gerar_extensao</code>. O Python é usado para preparar a extensão; não precisa ficar aberto durante o uso normal dela no Chrome. Depois de preparada, carregue a pasta que contém o <code>manifest.json</code>. Se o gerador apresentar erro, anote ou tire uma captura da mensagem para identificar a correção necessária.</p>
+          <p className="font-semibold">Passo 7 — Testar a comunicação</p>
+          <p>Com a extensão configurada e o robô ativo no MT5, clique em <b>Testar envio da ordem</b> na extensão. Depois, confira diretamente no MetaTrader 5 se a ordem de teste foi recebida e executada. O clique no botão, sozinho, não confirma a execução. A tabela desta página também pode ajudar a acompanhar a chegada da ordem à plataforma.</p>
+          <p>Se o teste falhar, confira se a chave é a mesma nos dois lugares, se a URL está correta na extensão, em <b>WebRequest</b> e no parâmetro <b>SiteUrl</b>, e se o robô está ativo e conectado. Não opere em conta real antes de validar o funcionamento em demo.</p>
         </div>
-        <p className="text-muted-foreground">O robô sempre recebe a direção contrária à da mesa. Se você gerar uma chave nova, troque nos dois lugares. Teste primeiro em conta demo.</p>
+        <p className="text-muted-foreground">O robô espelha a direção contrária à da mesa. Se gerar uma nova chave, atualize-a tanto na extensão quanto nos parâmetros do robô.</p>
       </section>
 
       <section className="rounded-lg border p-4">
