@@ -18,14 +18,12 @@ function AnaliseIA() {
   const [capital, setCapital] = useState("1000");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [debug, setDebug] = useState("");
   const [result, setResult] = useState<Result | null>(null);
 
   async function analyze(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
     setError("");
-    setDebug("");
     setResult(null);
     try {
       const { data, error: sessionError } = await supabase.auth.getSession();
@@ -39,11 +37,9 @@ function AnaliseIA() {
         headers: { "content-type": "application/json", authorization: "Bearer " + token },
         body: JSON.stringify({ asset, capitalAvailable: Number(capital.replace(",", ".")) }),
       });
-      const payload = await response.json() as Result | { error?: string; debug?: { status?: number; code?: string; message?: string; streamPartTypes?: string[]; finishReason?: string | null } };
+      const payload = await response.json() as Result | { error?: string };
       if (!response.ok) {
-        setError(`Erro ${response.status}: ${"error" in payload && payload.error ? payload.error : "Não foi possível concluir a análise."}`);
-        // REMOVER ANTES DO MERGE: debug temporário exposto na resposta.
-        if ("debug" in payload && payload.debug) setDebug(`Status do gateway: ${payload.debug.status ?? "desconhecido"} | Código: ${payload.debug.code ?? "não informado"} | Mensagem: ${payload.debug.message ?? "Sem mensagem"}\nTipos recebidos: ${payload.debug.streamPartTypes?.join(", ") ?? "não informado"}\nfinishReason: ${payload.debug.finishReason ?? "não informado"}`);
+        setError("Não foi possível concluir a análise. Tente novamente.");
         return;
       }
       setResult(payload as Result);
@@ -90,7 +86,7 @@ function AnaliseIA() {
         <strong>Aviso de risco:</strong> esta análise é informativa, não é recomendação financeira. Operar pode causar perdas. Os cálculos dependem dos parâmetros salvos e não garantem lucro, aprovação, saque ou conclusão de ciclo. O cenário não prevê o resultado real.
       </aside>
 
-      {error && <div role="alert" className="rounded-lg border border-destructive/40 p-3 text-sm text-destructive"><p>{error}</p>{debug && <p className="mt-2 whitespace-pre-wrap break-words text-xs">{debug}</p>}</div>}
+      {error && <div role="alert" className="rounded-lg border border-destructive/40 p-3 text-sm text-destructive"><p>{error}</p></div>}
 
       {result && (
         <div className="grid gap-5">
