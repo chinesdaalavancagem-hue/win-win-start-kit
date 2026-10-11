@@ -3,6 +3,7 @@ import { useState } from "react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { registrarAuditoria } from "@/lib/auditoria-registro";
+import { registrarAtividade, registrarLoginFalho } from "@/lib/activity-logs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -53,13 +54,18 @@ function AuthPage() {
     setLoading(true);
     try {
       if (mode === "login") {
-        const { data, error } = await supabase.auth.signInWithPassword({ email: f["email"] ?? "", password: f["password"] ?? "" });
-        if (error) throw new Error("E-mail ou senha incorretos, ou e-mail ainda não confirmado.");
+        const email = f["email"] ?? "";
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password: f["password"] ?? "" });
+        if (error) {
+          registrarLoginFalho(email);
+          throw new Error("E-mail ou senha incorretos, ou e-mail ainda não confirmado.");
+        }
         const { data: prof } = await supabase.from("profiles").select("rejected").eq("id", data.user.id).maybeSingle();
         if (prof?.rejected) {
           await supabase.auth.signOut();
           throw new Error("Seu acesso foi bloqueado. Entre em contato com o administrador da conta master.");
         }
+        registrarAtividade("login.success", { metodo: "senha" });
         void registrarAuditoria({ category: "auth", action: "login.success", outcome: "success" });
         navigate({ to: "/plataforma" });
       } else {
