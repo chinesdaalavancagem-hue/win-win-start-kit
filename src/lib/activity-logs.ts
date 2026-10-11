@@ -37,8 +37,10 @@ export function registrarLoginFalho(attemptedEmail: string): void {
   void (async () => {
     try {
       const { supabase } = await import("@/integrations/supabase/client");
+      const email = attemptedEmail.trim().slice(0, 254);
+      const valido = /^[^\s@]*@[^\s@]*\.[^\s@]*$/.test(email);
       await supabase.rpc("log_failed_login", {
-        attempted_email: attemptedEmail.slice(0, 254),
+        attempted_email: valido ? email : "formato inválido",
       });
     } catch {
       // Falha de registro nunca atrapalha o usuário.
