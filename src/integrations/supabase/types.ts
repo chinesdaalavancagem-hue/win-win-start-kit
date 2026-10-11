@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_logs: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       app_data: {
         Row: {
           data: string
@@ -28,6 +52,39 @@ export type Database = {
         Update: {
           data?: string
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      audit_logs: {
+        Row: {
+          action: string
+          category: string
+          created_at: string
+          details: Json
+          id: string
+          outcome: string
+          request_id: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          category: string
+          created_at?: string
+          details?: Json
+          id?: string
+          outcome: string
+          request_id?: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          category?: string
+          created_at?: string
+          details?: Json
+          id?: string
+          outcome?: string
+          request_id?: string
           user_id?: string
         }
         Relationships: []
@@ -162,6 +219,10 @@ export type Database = {
         Returns: boolean
       }
       is_approved: { Args: { _user_id: string }; Returns: boolean }
+      log_failed_login: {
+        Args: { attempted_email: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "user"
