@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { Button } from "@/components/ui/button";
 import { Undo2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { registrarAuditoria } from "@/lib/auditoria.client";
+import { registrarAuditoria } from "@/lib/auditoria-registro";
 import {
   type AssetKey, type State, type TabKey, type Asset,
   aplicarDeposito, aplicarSaque, calcAporteFracionado, calcCaixaCiclo, clampDayIndex, computeAssetCalcs, defaultState, fmt, fmtSigned, handleProfit, handleStop,

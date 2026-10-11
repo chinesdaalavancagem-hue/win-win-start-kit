@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { gerarChave } from "@/lib/integracao.functions";
-import { registrarAuditoria } from "@/lib/auditoria.client";
+import { registrarAuditoria } from "@/lib/auditoria-registro";
 
 export const Route = createFileRoute("/_authenticated/integracao")({
   beforeLoad: async ({ context }) => {
