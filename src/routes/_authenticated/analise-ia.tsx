@@ -39,7 +39,9 @@ function AnaliseIA() {
       });
       const payload = await response.json() as Result | { error?: string };
       if (!response.ok) {
-        setError("Não foi possível concluir a análise. Tente novamente.");
+        setError(response.status === 429
+          ? "Você atingiu o limite de 3 análises hoje. Tente novamente amanhã."
+          : "Não foi possível concluir a análise. Tente novamente.");
         return;
       }
       setResult(payload as Result);
