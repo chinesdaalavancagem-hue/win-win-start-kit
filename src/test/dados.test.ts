@@ -40,11 +40,13 @@ describe("validação do salvamento", () => {
     const a = novaBanca("Principal"); const b = novaBanca("Segunda");
     previous.data = JSON.stringify({ bancasVersion: 1, activeId: a.id, bancas: [a, b] });
     a.state.cfdBalance = 123;
-    a.state.assets.nasdaq.days[0].mnq = 7;
+    const day = a.state.assets.nasdaq.days[0];
+    if (!day) throw new Error("Dia inicial ausente");
+    day.mnq = 7;
     expect((await save({ bancasVersion: 1, activeId: b.id, bancas: [b, a] })).status).toBe(200);
     expect(insert).toHaveBeenCalledWith("activity_logs", [
       expect.objectContaining({ user_id: "test-user", action: "update", details: {
-        banca_id: a.id, campo: "assets.nasdaq.days.0.mnq", valor_antigo: 1, valor_novo: 7,
+        banca_id: a.id, campo: "assets.nasdaq.days.0.mnq", valor_antigo: 20, valor_novo: 7,
       } }),
       expect.objectContaining({ action: "update", details: {
         banca_id: a.id, campo: "cfdBalance", valor_antigo: 0, valor_novo: 123,

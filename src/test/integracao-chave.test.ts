@@ -27,8 +27,13 @@ describe("atividade da chave EA no servidor", () => {
     expect(insert).toHaveBeenCalledWith("activity_logs", row);
     expect(row.details.ultimos_4).toHaveLength(4);
     expect(JSON.stringify(insert.mock.calls)).not.toContain(result.token);
-    expect(JSON.stringify(insert.mock.calls)).not.toContain(upsert.mock.calls[0][0].token_hash);
-    expect(upsert.mock.invocationCallOrder[0]).toBeLessThan(insert.mock.invocationCallOrder[0]);
+    const saved = upsert.mock.calls[0]?.[0];
+    if (!saved) throw new Error("Chave não salva");
+    expect(JSON.stringify(insert.mock.calls)).not.toContain(saved.token_hash);
+    const savedOrder = upsert.mock.invocationCallOrder[0];
+    const logOrder = insert.mock.invocationCallOrder[0];
+    if (savedOrder === undefined || logOrder === undefined) throw new Error("Ordem ausente");
+    expect(savedOrder).toBeLessThan(logOrder);
   });
 
   it.each(["retornado", "exceção"])("falha de log %s não impede retornar a chave", async (mode) => {
