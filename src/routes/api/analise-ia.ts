@@ -111,24 +111,66 @@ export const Route = createFileRoute("/api/analise-ia")({
           }
           return json({ metrics, explanation, remainingToday: remaining });
         } catch (error) {
-          const failure = error && typeof error === "object" ? error as { message?: unknown; status?: unknown; response?: { status?: unknown } } : {};
-          const status = typeof failure.status === "number"
-            ? failure.status
-            : typeof failure.response?.status === "number" ? failure.response.status : 502;
-          const errorName = error instanceof Error ? error.name : "UnknownError";
-          const rawMessage = error instanceof Error ? error.message : "Falha desconhecida na chamada à IA";
-          const safeMessage = rawMessage
-            .replaceAll(apiKey, "[CHAVE REDACTED]")
-            .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[EMAIL REDACTED]")
-            .replace(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, "[UUID REDACTED]")
-            .replace(/\b(?:nasdaq|ouro|saque2)\b/gi, "[ATIVO REDACTED]")
-            .replace(/\b\d+(?:[.,]\d+)?\b/g, "[VALOR REDACTED]")
-            .slice(0, 500);
-          console.error("[analise-ia] Falha na chamada à IA", { status, name: errorName, message: safeMessage });
+          type GatewayError = {
+            name?: unknown;
+            message?: unknown;
+            status?: unknown;
+            statusCode?: unknown;
+            code?: unknown;
+            response?: { status?: unknown };
+            responseBody?: unknown;
+            cause?: unknown;
+          };
+          const root = error && typeof error === "object" ? error as GatewayError : {};
+          const cause = root.cause && typeof root.cause === "object" ? root.cause as GatewayError : {};
+          const gatewayStatus = [root.statusCode, root.status, root.response?.status, cause.statusCode, cause.status, cause.response?.status]
+            .find((value): value is number => typeof value === "number" && Number.isInteger(value) && value >= 100 && value <= 599);
+          const responseBody = typeof root.responseBody === "string"
+            ? root.responseBody
+            : typeof cause.responseBody === "string" ? cause.responseBody : "";
+          let gatewayPayload: { error?: { code?: unknown; message?: unknown; type?: unknown }; code?: unknown; message?: unknown } = {};
+          try {
+            gatewayPayload = JSON.parse(responseBody);
+          } catch {
+            // O corpo não era JSON; usamos os campos estruturados disponíveis no erro.
+          }
+          const gatewayError = gatewayPayload.error && typeof gatewayPayload.error === "object"
+            ? gatewayPayload.error
+            : gatewayPayload;
+          const rawCode = [gatewayError.code, gatewayError.type, root.code, cause.code]
+            .find((value): value is string => typeof value === "string" && value.length > 0);
+          const rawMessage = [gatewayError.message, root.message, cause.message]
+            .find((value): value is string => typeof value === "string" && value.length > 0)
+            ?? "O gateway não forneceu uma mensagem de erro.";
+          const redact = (value: string) => {
+            let safe = value.replaceAll(apiKey, "[CHAVE REDACTED]");
+            const redactMetrics = (item: unknown) => {
+              if (typeof item === "string" && item.length >= 3) safe = safe.replaceAll(item, "[DADO DA BANCA REDACTED]");
+              else if (typeof item === "number" && Number.isFinite(item)) safe = safe.replaceAll(String(item), "[VALOR REDACTED]");
+              else if (Array.isArray(item)) item.forEach(redactMetrics);
+              else if (item && typeof item === "object") Object.values(item).forEach(redactMetrics);
+            };
+            redactMetrics(metrics);
+            return safe
+              .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[EMAIL REDACTED]")
+              .replace(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, "[UUID REDACTED]")
+              .replace(/\b(?:nasdaq|ouro|saque2)\b/gi, "[ATIVO REDACTED]")
+              .replace(/\b\d+(?:[.,]\d+)?\b/g, "[VALOR REDACTED]")
+              .slice(0, 500);
+          };
+          const errorName = typeof root.name === "string" ? root.name : error instanceof Error ? error.name : "UnknownError";
+          const safeCode = rawCode ? redact(rawCode) : "SEM_CODIGO";
+          const safeMessage = redact(rawMessage);
+          console.error("[analise-ia] Falha na chamada à IA", {
+            status: gatewayStatus ?? 502,
+            code: safeCode,
+            name: errorName,
+            message: safeMessage,
+          });
           // REMOVER ANTES DO MERGE: debug temporário exposto na resposta.
           return json({
             error: "A análise não ficou disponível agora. Tente novamente.",
-            debug: { name: errorName, message: safeMessage },
+            debug: { status: gatewayStatus ?? 502, code: safeCode, message: safeMessage },
           }, 502);
         }
       },
