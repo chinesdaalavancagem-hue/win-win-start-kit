@@ -85,8 +85,8 @@ function Index() {
             </div>
           </div>
 
-          <div className="relative mx-auto w-full max-w-64">
-            <img src="/logo.png" width="240" height="240" className="object-contain" />
+          <div className="relative mx-auto w-full max-w-64 md:max-w-80 lg:max-w-96">
+            <img src="/logo.png" width="240" height="240" className="h-auto w-full object-contain" />
             <div className="mt-4 border-l border-brand-gold/30 px-4 py-2">
               <p className="text-[10px] uppercase text-muted-foreground">Decisão</p>
               <p className="font-heading mt-1 text-sm uppercase text-market-up">Antes da entrada</p>
