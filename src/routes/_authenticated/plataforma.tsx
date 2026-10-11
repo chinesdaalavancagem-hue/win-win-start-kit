@@ -63,6 +63,7 @@ function Plataforma() {
         </span>
         <div className="flex gap-2">
           {state === "ok" && <Button asChild size="sm" variant="outline"><Link to="/integracao">Integração</Link></Button>}
+          {state === "ok" && <Button asChild size="sm" variant="outline"><Link to="/analise-ia">Análise IA</Link></Button>}
           {isAdmin === true && <Button asChild size="sm" variant="outline"><Link to="/admin">Aprovar cadastros</Link></Button>}
           {isAdmin === true && <Button asChild size="sm" variant="outline"><Link to="/auditoria">Auditoria</Link></Button>}
           <Button size="sm" variant="ghost" onClick={() => signOut(navigate)}>Sair</Button>

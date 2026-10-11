@@ -38,6 +38,32 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_analysis_daily_usage: {
+        Row: {
+          usage_date: string
+          used: number
+          user_id: string
+        }
+        Insert: {
+          usage_date: string
+          used?: number
+          user_id: string
+        }
+        Update: {
+          usage_date?: string
+          used?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_analysis_daily_usage_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       app_data: {
         Row: {
           data: string
@@ -211,6 +237,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      consume_ai_analysis_quota: {
+        Args: { p_limit?: number; p_user_id: string }
+        Returns: number
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
