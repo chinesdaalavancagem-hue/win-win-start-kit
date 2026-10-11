@@ -39,7 +39,7 @@ function AnaliseIA() {
       });
       const payload = await response.json() as Result | { error?: string };
       if (!response.ok) {
-        setError("error" in payload && payload.error ? payload.error : "Não foi possível concluir a análise.");
+        setError(`Erro ${response.status}: ${"error" in payload && payload.error ? payload.error : "Não foi possível concluir a análise."}`);
         return;
       }
       setResult(payload as Result);
