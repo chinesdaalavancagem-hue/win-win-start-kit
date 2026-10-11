@@ -27,6 +27,7 @@ async function sha256Hex(value: string): Promise<string> {
 export const registrarDispositivoConfiavel = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    console.info("[TRUSTED_DEVICE] entry");
     try {
       const request = getRequest();
       const existingId = readDeviceCookie(request.headers.get("cookie") ?? "");
@@ -41,26 +42,31 @@ export const registrarDispositivoConfiavel = createServerFn({ method: "POST" })
 
       const deviceTokenHash = await sha256Hex(deviceId);
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { error } = await supabaseAdmin.rpc("register_trusted_device", {
+      const { data, error } = await supabaseAdmin.rpc("register_trusted_device", {
         p_user_id: context.userId,
         p_device_token_hash: deviceTokenHash,
         p_device_name: null,
       });
 
       if (error) {
-        console.error("[trusted-devices] registration failed", {
+        console.error("[TRUSTED_DEVICE] error", {
           status: typeof error.status === "number" ? error.status : null,
           message: error.message.replace(
             /(wow_trusted_device|device_token_hash|service_role|password|token|secret|api[_-]?key)\s*[:=]\s*[^\s,;]+/gi,
             "$1=[REDACTED]",
           ),
         });
+        return { registered: false };
       }
-      return { registered: !error };
+
+      console.info("[TRUSTED_DEVICE] success", { event_action: data?.event_action });
+      return { registered: true };
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "Unknown registration error";
-      console.error("[trusted-devices] registration failed", {
-        status: null,
+      console.error("[TRUSTED_DEVICE] error", {
+        status: typeof (cause as { status?: unknown })?.status === "number"
+          ? (cause as { status: number }).status
+          : null,
         message: message.replace(
           /(wow_trusted_device|device_token_hash|service_role|password|token|secret|api[_-]?key)\s*[:=]\s*[^\s,;]+/gi,
           "[REDACTED]",
