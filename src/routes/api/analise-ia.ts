@@ -115,14 +115,21 @@ export const Route = createFileRoute("/api/analise-ia")({
           const status = typeof failure.status === "number"
             ? failure.status
             : typeof failure.response?.status === "number" ? failure.response.status : 502;
+          const errorName = error instanceof Error ? error.name : "UnknownError";
           const rawMessage = error instanceof Error ? error.message : "Falha desconhecida na chamada à IA";
           const safeMessage = rawMessage
-            .replaceAll(apiKey, "[REDACTED]")
+            .replaceAll(apiKey, "[CHAVE REDACTED]")
             .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[EMAIL REDACTED]")
-            .replace(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, "[ID REDACTED]")
+            .replace(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, "[UUID REDACTED]")
+            .replace(/\b(?:nasdaq|ouro|saque2)\b/gi, "[ATIVO REDACTED]")
+            .replace(/\b\d+(?:[.,]\d+)?\b/g, "[VALOR REDACTED]")
             .slice(0, 500);
-          console.error("[analise-ia] Falha na chamada à IA", { status, message: safeMessage });
-          return json({ error: "A análise não ficou disponível agora. Tente novamente." }, 502);
+          console.error("[analise-ia] Falha na chamada à IA", { status, name: errorName, message: safeMessage });
+          // REMOVER ANTES DO MERGE: debug temporário exposto na resposta.
+          return json({
+            error: "A análise não ficou disponível agora. Tente novamente.",
+            debug: { name: errorName, message: safeMessage },
+          }, 502);
         }
       },
     },
