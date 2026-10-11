@@ -14,7 +14,7 @@ describe("Platform nativa", () => {
     initial.assets.nasdaq.attempt.currentDayIndex = 1;
     for (const asset of Object.values(initial.assets)) asset.params.saldoInicial = 0;
     const save = vi.fn(async () => true);
-    await act(async () => { render(<Platform load={async () => JSON.stringify(initial)} save={save} />); });
+    await act(async () => { render(<Platform load={async () => JSON.stringify(initial)} save={save} isAdmin={false} />); });
 
     if (shortcut) {
       fireEvent.keyDown(window, { code: "Digit2", shiftKey: operation === "profit", ctrlKey: operation === "stop" });
@@ -41,7 +41,7 @@ describe("Platform nativa", () => {
     try {
       const state = defaultState();
       state.assets.nasdaq.attempt.currentDayIndex = 1;
-      await act(async () => { render(<Platform load={async () => JSON.stringify(state)} save={async () => true} />); });
+      await act(async () => { render(<Platform load={async () => JSON.stringify(state)} save={async () => true} isAdmin={false} />); });
       expect(scroll).not.toHaveBeenCalled();
 
       fireEvent.click(screen.getByRole("button", { name: /Profit/ }));
@@ -62,7 +62,7 @@ describe("Platform nativa", () => {
 
   it("carrega, alterna menus, registra Stop e salva", async () => {
     const save = vi.fn(async () => true);
-    await act(async () => { render(<Platform load={async () => null} save={save} />); });
+    await act(async () => { render(<Platform load={async () => null} save={save} isAdmin={false} />); });
     expect(await screen.findByText("Meta total prop firm")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Parâmetros" }));
     expect(screen.getByText(/Limite geral EOD/)).toBeTruthy();
@@ -79,7 +79,7 @@ describe("Platform nativa", () => {
 
   it("salva o valor real liquidado no Stop com o spread", async () => {
     const save = vi.fn(async () => true);
-    await act(async () => { render(<Platform load={async () => null} save={save} />); });
+    await act(async () => { render(<Platform load={async () => null} save={save} isAdmin={false} />); });
     await screen.findByText("Meta total prop firm");
     fireEvent.click(screen.getByRole("button", { name: /Stop/ }));
     fireEvent.change(screen.getByLabelText(/Valor real liquidado/), { target: { value: "500" } });
