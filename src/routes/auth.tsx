@@ -5,6 +5,7 @@ import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { registrarAuditoria } from "@/lib/auditoria-registro";
 import { registrarAtividade, registrarLoginFalho } from "@/lib/activity-logs";
+import { registrarDispositivoConfiavel } from "@/lib/trusted-devices.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -148,6 +149,8 @@ function AuthPage() {
             // A saudação é opcional e nunca deve interferir no login nem no registro de atividade.
           }
         })();
+        // O registro do aparelho é observacional e executado em segundo plano.
+        void registrarDispositivoConfiavel().catch(() => undefined);
         navigate({ to: "/plataforma" });
       } else {
         const parsed = signupSchema.safeParse(f);
