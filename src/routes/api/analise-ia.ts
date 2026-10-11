@@ -1,0 +1,118 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { createResponsesCall } from "@/lib/ai/responses.server";
+import { parseBancas } from "@/lib/platform/bancas";
+import { buildDeterministicAnalysis } from "@/lib/platform/ai-analysis";
+import type { AssetKey } from "@/lib/platform/engine";
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
+  });
+}
+
+const validAsset = (value: unknown): value is AssetKey =>
+  value === "nasdaq" || value === "ouro" || value === "saque2";
+
+export const Route = createFileRoute("/api/analise-ia")({
+  server: {
+    handlers: {
+      POST: async ({ request }) => {
+        const authorization = request.headers.get("authorization") ?? "";
+        const accessToken = authorization.startsWith("Bearer ") ? authorization.slice(7) : "";
+        if (!accessToken) return json({ error: "Entre na sua conta para usar a análise." }, 401);
+
+        let body: unknown;
+        try {
+          body = await request.json();
+        } catch {
+          return json({ error: "Pedido inválido." }, 400);
+        }
+        const input = body && typeof body === "object" ? body as Record<string, unknown> : {};
+        if (!validAsset(input.asset)) return json({ error: "Selecione um ativo válido." }, 400);
+        const capital = input.capitalAvailable;
+        if (typeof capital !== "number" || !Number.isFinite(capital) || capital <= 0 || capital > 1_000_000_000) {
+          return json({ error: "Informe uma banca positiva de até 1 bilhão." }, 400);
+        }
+
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(accessToken);
+        const user = authData.user;
+        if (authError || !user) return json({ error: "Sessão inválida. Entre novamente." }, 401);
+
+        const { data: profile, error: profileError } = await supabaseAdmin
+          .from("profiles").select("approved,rejected").eq("id", user.id).maybeSingle();
+        if (profileError || !profile?.approved || profile.rejected) {
+          return json({ error: "Sua conta precisa estar aprovada para usar a análise." }, 403);
+        }
+
+        const { data: saved, error: savedError } = await supabaseAdmin
+          .from("app_data").select("data").eq("user_id", user.id).maybeSingle();
+        if (savedError || !saved?.data) {
+          return json({ error: "Não foi possível carregar a banca salva." }, 400);
+        }
+
+        let parsed;
+        try {
+          const raw = typeof saved.data === "string" ? saved.data : JSON.stringify(saved.data);
+          parsed = parseBancas(raw);
+        } catch {
+          return json({ error: "Os dados salvos da banca não puderam ser lidos." }, 400);
+        }
+        const activeBanca = parsed.bancas.find((item) => item.id === parsed.activeId);
+        if (!activeBanca) return json({ error: "Não foi encontrada uma banca ativa." }, 400);
+
+        let metrics;
+        try {
+          metrics = buildDeterministicAnalysis(activeBanca.state, input.asset, capital);
+        } catch {
+          return json({ error: "Não foi possível calcular os números dessa banca." }, 400);
+        }
+
+        const { data: remaining, error: quotaError } = await supabaseAdmin
+          .rpc("consume_ai_analysis_quota", { p_user_id: user.id, p_limit: 3 });
+        if (quotaError) {
+          return json({ error: "O limite diário não pôde ser verificado. Tente novamente mais tarde." }, 503);
+        }
+        if (remaining === null || typeof remaining !== "number") {
+          return json({ error: "Você atingiu o limite de 3 análises por dia. Tente novamente amanhã (UTC)." }, 429);
+        }
+
+        const apiKey = process.env["LOVABLE_API_KEY"];
+        if (!apiKey) return json({ error: "Assistente não configurado." }, 503);
+
+        const systemPrompt = [
+          "Você explica os resultados determinísticos da plataforma Win or Win em português do Brasil.",
+          "Os números recebidos já foram calculados pelo motor do sistema; não altere, recalcule, invente ou contradiga esses números.",
+          "Use apenas os dados agregados fornecidos. Não peça nem tente inferir identidade, e-mail, ID de usuário, tokens ou chaves.",
+          "Não dê ordens de compra ou venda, não indique execução de operações, não prescreva lotes nem tome decisões pelo usuário.",
+          "Não prometa lucro, aprovação, saque ou conclusão de ciclo. Não trate cenários como previsões nem assuma probabilidades de sucesso.",
+          "Explique que custos são estimativas baseadas nos parâmetros salvos, que resultados reais podem diferir e que operar envolve risco de perda.",
+          "Seja objetivo: explique o custo cumulativo, os dias em que ele supera o capital informado e as limitações do cálculo.",
+        ].join("\n");
+
+        const safeMetrics = JSON.stringify(metrics);
+        try {
+          const call = createResponsesCall(
+            request,
+            { baseURL: "https://ai.gateway.lovable.dev/v1", apiKey, model: "openai/gpt-6-astra" },
+            [{ role: "system", content: systemPrompt }, { role: "user", content: safeMetrics }],
+          );
+          const explanation = await call.result.text;
+          try {
+            await supabaseAdmin.from("activity_logs").insert({
+              user_id: user.id,
+              action: "update",
+              details: { feature: "ai_analysis" },
+            });
+          } catch {
+            // A análise não deve falhar se o registro de atividade falhar.
+          }
+          return json({ metrics, explanation, remainingToday: remaining });
+        } catch {
+          return json({ error: "A análise não ficou disponível agora. Tente novamente." }, 502);
+        }
+      },
+    },
+  },
+});
