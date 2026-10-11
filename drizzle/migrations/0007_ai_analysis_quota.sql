@@ -1,13 +1,13 @@
 CREATE TABLE public.ai_analysis_daily_usage (
-  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   usage_date date NOT NULL,
   used integer NOT NULL DEFAULT 0 CHECK (used >= 0 AND used <= 3),
   PRIMARY KEY (user_id, usage_date)
 );
 
-ALTER TABLE public.ai_analysis_daily_usage ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.ai_analysis_daily_usage FROM PUBLIC, anon, authenticated;
 GRANT ALL ON public.ai_analysis_daily_usage TO service_role;
+ALTER TABLE public.ai_analysis_daily_usage ENABLE ROW LEVEL SECURITY;
 
 CREATE OR REPLACE FUNCTION public.consume_ai_analysis_quota(p_user_id uuid, p_limit integer DEFAULT 3)
 RETURNS integer
