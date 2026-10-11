@@ -149,8 +149,15 @@ function AuthPage() {
             // A saudação é opcional e nunca deve interferir no login nem no registro de atividade.
           }
         })();
-        // O registro do aparelho é observacional e executado em segundo plano.
-        void registrarDispositivoConfiavel().catch(() => undefined);
+        // Aguarda no máximo 3 segundos; falhas no registro nunca impedem o login.
+        try {
+          await Promise.race([
+            registrarDispositivoConfiavel(),
+            new Promise<void>((resolve) => setTimeout(resolve, 3000)),
+          ]);
+        } catch {
+          // O registro do aparelho é opcional e não pode bloquear a navegação.
+        }
         navigate({ to: "/plataforma" });
       } else {
         const parsed = signupSchema.safeParse(f);
