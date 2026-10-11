@@ -11,6 +11,7 @@ export function createResponsesCall(
   request: Request,
   config: { baseURL: string; apiKey: string; model: string },
   messages: ModelMessage[],
+  onStreamError?: (error: unknown) => void,
 ) {
   const runIdFetch = createLovableAiGatewayRunIdFetch(getLovableAiGatewayRunId(request));
   const provider = createOpenAI({
@@ -37,6 +38,7 @@ export function createResponsesCall(
           : {}),
       },
     },
+    onError: ({ error }) => onStreamError?.(error),
   });
   return {
     result,
