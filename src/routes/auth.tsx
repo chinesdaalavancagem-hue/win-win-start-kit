@@ -126,26 +126,28 @@ function AuthPage() {
           await supabase.auth.signOut();
           throw new Error("Seu acesso foi bloqueado. Entre em contato com o administrador da conta master.");
         }
-        // Armazena apenas no aparelho o primeiro nome e o hash do e-mail, sem consulta adicional ao banco.
-        try {
-          const metadata = data.user.user_metadata ?? {};
-          const fullName = [metadata.full_name, metadata.name, metadata.first_name]
-            .find((value) => typeof value === "string" && value.trim());
-          if (typeof fullName === "string") {
-            const savedFirstName = fullName.trim().split(/\s+/)[0]?.slice(0, 40) ?? "";
-            const emailHash = await hashEmail(data.user.email ?? f["email"] ?? "");
-            if (savedFirstName && emailHash) {
-              window.localStorage.setItem(
-                FIRST_NAME_STORAGE_KEY,
-                JSON.stringify({ firstName: savedFirstName, emailHash }),
-              );
-            }
-          }
-        } catch {
-          // A saudação é opcional e nunca deve interferir no login nem no registro de atividade.
-        }
         registrarAtividade("login.success", { metodo: "senha" });
         void registrarAuditoria({ category: "auth", action: "login.success", outcome: "success" });
+        // Salva a saudação localmente sem atrasar o login nem alterar os registros de atividade.
+        void (async () => {
+          try {
+            const metadata = data.user.user_metadata ?? {};
+            const fullName = [metadata.full_name, metadata.name, metadata.first_name]
+              .find((value) => typeof value === "string" && value.trim());
+            if (typeof fullName === "string") {
+              const savedFirstName = fullName.trim().split(/\s+/)[0]?.slice(0, 40) ?? "";
+              const emailHash = await hashEmail(data.user.email ?? f["email"] ?? "");
+              if (savedFirstName && emailHash) {
+                window.localStorage.setItem(
+                  FIRST_NAME_STORAGE_KEY,
+                  JSON.stringify({ firstName: savedFirstName, emailHash }),
+                );
+              }
+            }
+          } catch {
+            // A saudação é opcional e nunca deve interferir no login nem no registro de atividade.
+          }
+        })();
         navigate({ to: "/plataforma" });
       } else {
         const parsed = signupSchema.safeParse(f);
