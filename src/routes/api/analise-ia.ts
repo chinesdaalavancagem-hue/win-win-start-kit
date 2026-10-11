@@ -29,7 +29,8 @@ export const Route = createFileRoute("/api/analise-ia")({
           return json({ error: "Pedido inválido." }, 400);
         }
         const input = body && typeof body === "object" ? body as Record<string, unknown> : {};
-        if (!validAsset(input.asset)) return json({ error: "Selecione um ativo válido." }, 400);
+        const asset = input.asset;
+        if (!validAsset(asset)) return json({ error: "Selecione um ativo válido." }, 400);
         const capital = input.capitalAvailable;
         if (typeof capital !== "number" || !Number.isFinite(capital) || capital <= 0 || capital > 1_000_000_000) {
           return json({ error: "Informe uma banca positiva de até 1 bilhão." }, 400);
@@ -52,7 +53,7 @@ export const Route = createFileRoute("/api/analise-ia")({
           return json({ error: "Não foi possível carregar a banca salva." }, 400);
         }
 
-        let parsed;
+        let parsed: ReturnType<typeof parseBancas>;
         try {
           const raw = typeof saved.data === "string" ? saved.data : JSON.stringify(saved.data);
           parsed = parseBancas(raw);
@@ -62,9 +63,9 @@ export const Route = createFileRoute("/api/analise-ia")({
         const activeBanca = parsed.bancas.find((item) => item.id === parsed.activeId);
         if (!activeBanca) return json({ error: "Não foi encontrada uma banca ativa." }, 400);
 
-        let metrics;
+        let metrics: ReturnType<typeof buildDeterministicAnalysis>;
         try {
-          metrics = buildDeterministicAnalysis(activeBanca.state, input.asset, capital);
+          metrics = buildDeterministicAnalysis(activeBanca.state, asset, capital);
         } catch {
           return json({ error: "Não foi possível calcular os números dessa banca." }, 400);
         }
