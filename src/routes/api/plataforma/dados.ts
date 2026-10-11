@@ -82,10 +82,17 @@ export const Route = createFileRoute("/api/plataforma/dados")({
           const parsed = JSON.parse(value);
           if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return json({ error: "invalid_state" }, 400);
           parsedState = parsed as Record<string, unknown>;
-          const assets = parsedState.assets as Record<string, unknown> | undefined;
-          const nasdaq = assets?.nasdaq as Record<string, unknown> | undefined;
-          const ouro = assets?.ouro as Record<string, unknown> | undefined;
-          if (!nasdaq || !Array.isArray(nasdaq.days) || !ouro || !Array.isArray(ouro.days)) {
+          const states = Array.isArray(parsedState.bancas)
+            ? parsedState.bancas.map((banca: unknown) =>
+                banca && typeof banca === "object" ? (banca as Record<string, unknown>).state : null)
+            : [parsedState];
+          if (!states.length || !states.every((state: unknown) => {
+            if (!state || typeof state !== "object" || Array.isArray(state)) return false;
+            const assets = (state as Record<string, unknown>).assets as Record<string, unknown> | undefined;
+            const nasdaq = assets?.nasdaq as Record<string, unknown> | undefined;
+            const ouro = assets?.ouro as Record<string, unknown> | undefined;
+            return !!nasdaq && Array.isArray(nasdaq.days) && !!ouro && Array.isArray(ouro.days);
+          })) {
             return json({ error: "invalid_state" }, 400);
           }
         } catch {
