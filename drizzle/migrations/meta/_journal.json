@@ -36,6 +36,13 @@
       "when": 1791683212079,
       "tag": "0004_log_failed_login_email_format",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791684418619,
+      "tag": "0005_log_app_data_changes_trigger",
+      "breakpoints": true
     }
   ]
 }
