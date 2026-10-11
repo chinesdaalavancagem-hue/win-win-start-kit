@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { AssetKey } from "@/lib/platform/engine";
 import type { DeterministicAnalysis } from "@/lib/platform/ai-analysis";
@@ -20,7 +20,7 @@ function AnaliseIA() {
   const [error, setError] = useState("");
   const [result, setResult] = useState<Result | null>(null);
 
-  async function analyze(event: React.FormEvent<HTMLFormElement>) {
+  async function analyze(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
     setError("");
