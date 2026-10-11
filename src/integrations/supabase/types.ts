@@ -214,6 +214,75 @@ export type Database = {
         }
         Relationships: []
       }
+      trusted_device_settings: {
+        Row: {
+          max_trusted_devices: number
+          monitor_mode: boolean
+          singleton: boolean
+          updated_at: string
+        }
+        Insert: {
+          max_trusted_devices?: number
+          monitor_mode?: boolean
+          singleton?: boolean
+          updated_at?: string
+        }
+        Update: {
+          max_trusted_devices?: number
+          monitor_mode?: boolean
+          singleton?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      trusted_devices: {
+        Row: {
+          created_at: string
+          device_name: string | null
+          device_token_hash: string
+          id: string
+          last_seen_at: string
+          revoked_at: string | null
+          revoked_by: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          device_name?: string | null
+          device_token_hash: string
+          id?: string
+          last_seen_at?: string
+          revoked_at?: string | null
+          revoked_by?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          device_name?: string | null
+          device_token_hash?: string
+          id?: string
+          last_seen_at?: string
+          revoked_at?: string | null
+          revoked_by?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trusted_devices_revoked_by_fkey"
+            columns: ["revoked_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trusted_devices_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           id: string
@@ -252,6 +321,21 @@ export type Database = {
       log_failed_login: {
         Args: { attempted_email: string }
         Returns: undefined
+      }
+      register_trusted_device: {
+        Args: {
+          p_device_name?: string
+          p_device_token_hash: string
+          p_user_id: string
+        }
+        Returns: {
+          active_device_count: number
+          allowed: boolean
+          device_id: string
+          device_limit: number
+          event_action: string
+          monitor_mode: boolean
+        }[]
       }
     }
     Enums: {
