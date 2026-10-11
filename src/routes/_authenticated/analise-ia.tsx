@@ -18,12 +18,14 @@ function AnaliseIA() {
   const [capital, setCapital] = useState("1000");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [debug, setDebug] = useState("");
   const [result, setResult] = useState<Result | null>(null);
 
   async function analyze(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
     setError("");
+    setDebug("");
     setResult(null);
     try {
       const { data, error: sessionError } = await supabase.auth.getSession();
@@ -37,9 +39,10 @@ function AnaliseIA() {
         headers: { "content-type": "application/json", authorization: "Bearer " + token },
         body: JSON.stringify({ asset, capitalAvailable: Number(capital.replace(",", ".")) }),
       });
-      const payload = await response.json() as Result | { error?: string };
+      const payload = await response.json() as Result | { error?: string; debug?: { name?: string; message?: string } };
       if (!response.ok) {
         setError(`Erro ${response.status}: ${"error" in payload && payload.error ? payload.error : "Não foi possível concluir a análise."}`);
+        if ("debug" in payload && payload.debug) setDebug(`${payload.debug.name ?? "Erro"}: ${payload.debug.message ?? "Sem mensagem"}`);
         return;
       }
       setResult(payload as Result);
@@ -86,7 +89,7 @@ function AnaliseIA() {
         <strong>Aviso de risco:</strong> esta análise é informativa, não é recomendação financeira. Operar pode causar perdas. Os cálculos dependem dos parâmetros salvos e não garantem lucro, aprovação, saque ou conclusão de ciclo. O cenário não prevê o resultado real.
       </aside>
 
-      {error && <p role="alert" className="rounded-lg border border-destructive/40 p-3 text-sm text-destructive">{error}</p>}
+      {error && <div role="alert" className="rounded-lg border border-destructive/40 p-3 text-sm text-destructive"><p>{error}</p>{debug && <p className="mt-2 whitespace-pre-wrap break-words text-xs">{debug}</p>}</div>}
 
       {result && (
         <div className="grid gap-5">
