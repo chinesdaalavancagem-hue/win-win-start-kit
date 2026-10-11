@@ -101,8 +101,9 @@ export const Route = createFileRoute("/api/analise-ia")({
           const call = createResponsesCall(
             request,
             { baseURL: "https://ai.gateway.lovable.dev/v1", apiKey, model: "openai/gpt-6-astra" },
-            [{ role: "system", content: systemPrompt }, { role: "user", content: safeMetrics }],
+            [{ role: "user", content: safeMetrics }],
             (error) => { streamError = error; },
+            systemPrompt,
           );
           for await (const part of call.result.fullStream) {
             const type = typeof part.type === "string" ? part.type : "unknown";
