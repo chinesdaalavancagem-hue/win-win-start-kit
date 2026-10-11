@@ -35,7 +35,9 @@ describe("validação do salvamento", () => {
 
   it("salva o documento de múltiplas bancas sem alterar seu formato", async () => {
     const banca = novaBanca("Principal");
-    banca.state.assets.nasdaq.days[0].mnq = 7;
+    const firstDay = banca.state.assets.nasdaq.days[0];
+    if (!firstDay) throw new Error("Dia inicial ausente");
+    firstDay.mnq = 7;
     const doc = { bancasVersion: 1, activeId: banca.id, bancas: [banca, novaBanca("Segunda")] };
     expect((await save(doc)).status).toBe(200);
     expect(upsert).toHaveBeenCalledWith(expect.objectContaining({ data: JSON.stringify(doc), user_id: "test-user" }));
