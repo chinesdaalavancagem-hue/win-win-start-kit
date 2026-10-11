@@ -1,4 +1,5 @@
 # Ajustes solicitados
+- [x] Registrar mudanças numéricas por banca e criação de chave EA no servidor, sem bloquear salvamento; testar sem publicar.
 - [ ] Desfazer o último Profit ou Stop diretamente na plataforma, inclusive registros por atalho.
 - [ ] Aumentar altura e legibilidade dos cards no computador sem aumentar a largura; verificar operações e desfazer.
 - [x] Retirar CPF do cadastro.

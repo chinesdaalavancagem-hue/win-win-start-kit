@@ -63,6 +63,37 @@ function compareStates(previous: string | null, next: string) {
   }
 }
 
+function numericChanges(previous: string | null, next: Record<string, unknown>) {
+  const changes: Array<{ banca_id: string; campo: string; valor_antigo: number; valor_novo: number }> = [];
+  if (!previous) return changes;
+  const before = JSON.parse(previous) as Record<string, unknown>;
+  const bancas = (doc: Record<string, unknown>) => Array.isArray(doc.bancas)
+    ? doc.bancas.filter((b): b is Record<string, unknown> => !!b && typeof b === "object" && !Array.isArray(b))
+    : [{ id: "legado", state: doc }];
+  const oldBancas = bancas(before);
+  const walk = (oldValue: unknown, newValue: unknown, campo: string, bancaId: string) => {
+    if (typeof oldValue === "number" && typeof newValue === "number") {
+      if (Number.isFinite(oldValue) && Number.isFinite(newValue) && oldValue !== newValue) {
+        changes.push({ banca_id: bancaId, campo, valor_antigo: oldValue, valor_novo: newValue });
+      }
+      return;
+    }
+    if (!oldValue || !newValue || typeof oldValue !== "object" || typeof newValue !== "object") return;
+    if (Array.isArray(oldValue) !== Array.isArray(newValue)) return;
+    for (const key of Object.keys(newValue)) {
+      if (!Object.prototype.hasOwnProperty.call(oldValue, key)) continue;
+      walk((oldValue as Record<string, unknown>)[key], (newValue as Record<string, unknown>)[key], campo ? `${campo}.${key}` : key, bancaId);
+    }
+  };
+  for (const banca of bancas(next)) {
+    if (typeof banca.id !== "string") continue;
+    const oldBanca = oldBancas.find((b) => b.id === banca.id)
+      ?? (!Array.isArray(before.bancas) ? oldBancas[0] : undefined);
+    if (oldBanca) walk(oldBanca.state, banca.state, "", banca.id);
+  }
+  return changes;
+}
+
 export const Route = createFileRoute("/api/plataforma/dados")({
   server: {
     handlers: {
@@ -129,6 +160,20 @@ export const Route = createFileRoute("/api/plataforma/dados")({
           return json({ error: "save_failed" }, 500);
         }
 
+        try {
+          const changes = numericChanges(previousRow?.data ?? null, parsedState);
+          for (let i = 0; i < changes.length; i += 100) {
+            const { error } = await supabaseAdmin.from("activity_logs").insert(changes.slice(i, i + 100).map((details) => ({
+              user_id: user.id, action: "update", details,
+            })));
+            if (error) console.error("[activity] numeric change logging failed");
+          }
+        } catch {
+          // O estado já foi salvo; falhas no log nunca alteram o resultado.
+          console.error("[activity] numeric change logging failed");
+        }
+
+        try {
         const diff = compareStates(previousRow?.data ?? null, value);
         if (diff.initialSave || diff.changes.length || diff.operationChanged) {
           const { error: auditError } = await supabaseAdmin.from("audit_logs").insert({
@@ -144,6 +189,9 @@ export const Route = createFileRoute("/api/plataforma/dados")({
             } as import("@/integrations/supabase/types").Json,
           });
           if (auditError) console.error("[audit] strategy change could not be stored", auditError.message);
+        }
+        } catch {
+          console.error("[audit] strategy change logging failed");
         }
         return json({ ok: true });
       },
