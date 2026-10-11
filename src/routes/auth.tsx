@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { greetings, getDayPeriod, verses, type DayPeriod } from "@/lib/login-greeting-verses";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { registrarAuditoria } from "@/lib/auditoria-registro";
@@ -24,6 +25,17 @@ export const Route = createFileRoute("/auth")({
 });
 
 const onlyDigits = (v: string) => v.replace(/\D/g, "");
+const FIRST_NAME_STORAGE_KEY = "win_or_win_first_name";
+
+async function hashEmail(email: string): Promise<string> {
+  const normalizedEmail = email.trim().toLowerCase();
+  if (!normalizedEmail || !window.crypto?.subtle) return "";
+  const digest = await window.crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(normalizedEmail),
+  );
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
 
 const signupSchema = z.object({
   full_name: z.string().trim().min(3, "Informe o nome completo").max(120),
@@ -45,6 +57,55 @@ function AuthPage() {
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [firstName, setFirstName] = useState("");
+  const [savedEmailHash, setSavedEmailHash] = useState("");
+  const [loginEmail, setLoginEmail] = useState("");
+  const [emailMatchesSavedUser, setEmailMatchesSavedUser] = useState(false);
+  const [dayPeriod, setDayPeriod] = useState<DayPeriod>(() => getDayPeriod());
+
+  useEffect(() => {
+    const refreshGreeting = () => {
+      setDayPeriod(getDayPeriod());
+      try {
+        const saved = window.localStorage.getItem(FIRST_NAME_STORAGE_KEY);
+        if (!saved) {
+          setFirstName("");
+          setSavedEmailHash("");
+          return;
+        }
+        const parsed = JSON.parse(saved) as { firstName?: unknown; emailHash?: unknown };
+        setFirstName(typeof parsed.firstName === "string" ? parsed.firstName.slice(0, 40) : "");
+        setSavedEmailHash(typeof parsed.emailHash === "string" ? parsed.emailHash : "");
+      } catch {
+        setFirstName("");
+        setSavedEmailHash("");
+      }
+    };
+
+    refreshGreeting();
+    const intervalId = window.setInterval(refreshGreeting, 60_000);
+    return () => window.clearInterval(intervalId);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!loginEmail.trim() || !savedEmailHash) {
+      setEmailMatchesSavedUser(false);
+      return;
+    }
+
+    void hashEmail(loginEmail)
+      .then((hash) => {
+        if (!cancelled) setEmailMatchesSavedUser(Boolean(hash && hash === savedEmailHash));
+      })
+      .catch(() => {
+        if (!cancelled) setEmailMatchesSavedUser(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [loginEmail, savedEmailHash]);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -64,6 +125,24 @@ function AuthPage() {
         if (prof?.rejected) {
           await supabase.auth.signOut();
           throw new Error("Seu acesso foi bloqueado. Entre em contato com o administrador da conta master.");
+        }
+        // Armazena apenas no aparelho o primeiro nome e o hash do e-mail, sem consulta adicional ao banco.
+        try {
+          const metadata = data.user.user_metadata ?? {};
+          const fullName = [metadata.full_name, metadata.name, metadata.first_name]
+            .find((value) => typeof value === "string" && value.trim());
+          if (typeof fullName === "string") {
+            const savedFirstName = fullName.trim().split(/\s+/)[0]?.slice(0, 40) ?? "";
+            const emailHash = await hashEmail(data.user.email ?? f["email"] ?? "");
+            if (savedFirstName && emailHash) {
+              window.localStorage.setItem(
+                FIRST_NAME_STORAGE_KEY,
+                JSON.stringify({ firstName: savedFirstName, emailHash }),
+              );
+            }
+          }
+        } catch {
+          // A saudação é opcional e nunca deve interferir no login nem no registro de atividade.
         }
         registrarAtividade("login.success", { metodo: "senha" });
         void registrarAuditoria({ category: "auth", action: "login.success", outcome: "success" });
@@ -95,6 +174,22 @@ function AuthPage() {
     <main className="flex min-h-screen items-center justify-center px-4 py-10">
       <div className="w-full max-w-md rounded-xl border bg-card p-8">
         <img src="/logo.png" width="240" height="240" className="mx-auto block object-contain" />
+        {mode === "login" && firstName && emailMatchesSavedUser && (
+          <section className="mb-5 mt-2 space-y-2 text-center" aria-label="Saudação e versículo bíblico">
+            <h2 className="text-xl font-semibold">
+              {greetings[dayPeriod]}, {firstName}!
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Que Deus abençoe seu dia e guie seus passos.
+            </p>
+            <blockquote className="pt-2 text-sm leading-relaxed">
+              “{verses[dayPeriod].text}”
+              <footer className="mt-1 text-xs text-muted-foreground">
+                {verses[dayPeriod].reference}
+              </footer>
+            </blockquote>
+          </section>
+        )}
         <h1 className="text-center text-2xl font-bold">{mode === "login" ? "Entrar" : "Criar conta"}</h1>
         <p className="mt-1 text-center text-sm text-muted-foreground">Win or Win Platform</p>
         <form onSubmit={onSubmit} className="mt-6 space-y-4">
@@ -105,7 +200,13 @@ function AuthPage() {
               <Field name="birth_date" label="Data de nascimento" type="date" />
             </>
           )}
-          <Field name="email" label="E-mail" type="email" autoComplete="email" />
+          <Field
+            name="email"
+            label="E-mail"
+            type="email"
+            autoComplete="email"
+            onChange={(event) => setLoginEmail(event.currentTarget.value)}
+          />
           <Field name="password" label="Senha" type="password" autoComplete={mode === "login" ? "current-password" : "new-password"} />
           {error && <p className="text-sm text-destructive">{error}</p>}
           {info && <p className="text-sm text-primary">{info}</p>}
