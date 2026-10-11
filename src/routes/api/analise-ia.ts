@@ -93,13 +93,16 @@ export const Route = createFileRoute("/api/analise-ia")({
         ].join("\n");
 
         const safeMetrics = JSON.stringify(metrics);
+        let streamError: unknown;
         try {
           const call = createResponsesCall(
             request,
             { baseURL: "https://ai.gateway.lovable.dev/v1", apiKey, model: "openai/gpt-6-astra" },
             [{ role: "system", content: systemPrompt }, { role: "user", content: safeMetrics }],
+            (error) => { streamError = error; },
           );
           const explanation = await call.result.text;
+          if (streamError !== undefined) throw streamError;
           try {
             await supabaseAdmin.from("activity_logs").insert({
               user_id: user.id,
@@ -121,7 +124,8 @@ export const Route = createFileRoute("/api/analise-ia")({
             responseBody?: unknown;
             cause?: unknown;
           };
-          const root = error && typeof error === "object" ? error as GatewayError : {};
+          const actualError = streamError ?? error;
+          const root = actualError && typeof actualError === "object" ? actualError as GatewayError : {};
           const cause = root.cause && typeof root.cause === "object" ? root.cause as GatewayError : {};
           const gatewayStatus = [root.statusCode, root.status, root.response?.status, cause.statusCode, cause.status, cause.response?.status]
             .find((value): value is number => typeof value === "number" && Number.isInteger(value) && value >= 100 && value <= 599);
@@ -146,12 +150,13 @@ export const Route = createFileRoute("/api/analise-ia")({
           const redact = (value: string) => {
             let safe = value.replaceAll(apiKey, "[CHAVE REDACTED]");
             const redactMetrics = (item: unknown) => {
-              if (typeof item === "string" && item.length >= 3) safe = safe.replaceAll(item, "[DADO DA BANCA REDACTED]");
+              if (typeof item === "string" && item.length > 0) safe = safe.replaceAll(item, "[DADO DA BANCA REDACTED]");
               else if (typeof item === "number" && Number.isFinite(item)) safe = safe.replaceAll(String(item), "[VALOR REDACTED]");
               else if (Array.isArray(item)) item.forEach(redactMetrics);
               else if (item && typeof item === "object") Object.values(item).forEach(redactMetrics);
             };
             redactMetrics(metrics);
+            redactMetrics(activeBanca.state);
             return safe
               .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[EMAIL REDACTED]")
               .replace(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, "[UUID REDACTED]")
