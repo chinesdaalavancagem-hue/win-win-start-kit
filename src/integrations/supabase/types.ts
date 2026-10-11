@@ -237,6 +237,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      register_trusted_device: {
+        Args: { p_device_name?: string | null; p_device_token_hash: string; p_user_id: string }
+        Returns: {
+          active_device_count: number
+          allowed: boolean
+          device_id: string | null
+          device_limit: number
+          event_action: string
+          monitor_mode: boolean
+        }[]
+      }
       consume_ai_analysis_quota: {
         Args: { p_limit?: number; p_user_id: string }
         Returns: number
