@@ -102,8 +102,8 @@ export const Route = createFileRoute("/api/analise-ia")({
           try {
             await supabaseAdmin.from("activity_logs").insert({
               user_id: user.id,
-              action: "update",
-              details: { feature: "ai_analysis" },
+              action: "ai.analysis.completed",
+              details: {},
             });
           } catch {
             // A análise não deve falhar se o registro de atividade falhar.
