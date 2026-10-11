@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { registrarAuditoria } from "@/lib/auditoria.client";
+import { registrarAuditoria } from "@/lib/auditoria-registro";
 
 export async function signOut(navigate: (o: { to: string; replace: boolean }) => void) {
   await registrarAuditoria({ category: "auth", action: "logout", outcome: "success" });

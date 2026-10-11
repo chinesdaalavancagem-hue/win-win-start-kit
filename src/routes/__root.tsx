@@ -12,7 +12,7 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { registrarAuditoria } from "@/lib/auditoria.client";
+import { registrarAuditoria } from "@/lib/auditoria-registro";
 
 function NotFoundComponent() {
   return (
