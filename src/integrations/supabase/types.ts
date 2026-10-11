@@ -222,6 +222,10 @@ export type Database = {
       log_failed_login: {
         Args: { attempted_email: string }
         Returns: undefined
+      },
+      consume_ai_analysis_quota: {
+        Args: { p_limit?: number; p_user_id: string }
+        Returns: number | null
       }
     }
     Enums: {
