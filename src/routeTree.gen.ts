@@ -43,14 +43,14 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
   path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedAuditoriaRoute = AuthenticatedAuditoriaRouteImport.update({
-  id: '/auditoria',
-  path: '/auditoria',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAuditoriaRoute = AuthenticatedAuditoriaRouteImport.update({
+  id: '/auditoria',
+  path: '/auditoria',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedIntegracaoRoute = AuthenticatedIntegracaoRouteImport.update({
@@ -63,6 +63,11 @@ const AuthenticatedPlataformaRoute = AuthenticatedPlataformaRouteImport.update({
   path: '/plataforma',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const ApiAssistenteRoute = ApiAssistenteRouteImport.update({
+  id: '/api/assistente',
+  path: '/api/assistente',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuditoriaRoute = ApiAuditoriaRouteImport.update({
   id: '/api/auditoria',
   path: '/api/auditoria',
@@ -71,11 +76,6 @@ const ApiAuditoriaRoute = ApiAuditoriaRouteImport.update({
 const ApiPlataformaDadosRoute = ApiPlataformaDadosRouteImport.update({
   id: '/api/plataforma/dados',
   path: '/api/plataforma/dados',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiAssistenteRoute = ApiAssistenteRouteImport.update({
-  id: '/api/assistente',
-  path: '/api/assistente',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicOrdensIndexRoute = ApiPublicOrdensIndexRouteImport.update({
@@ -235,18 +235,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/auditoria': {
-      id: '/_authenticated/auditoria'
-      path: '/auditoria'
-      fullPath: '/auditoria'
-      preLoaderRoute: typeof AuthenticatedAuditoriaRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/admin': {
       id: '/_authenticated/admin'
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/auditoria': {
+      id: '/_authenticated/auditoria'
+      path: '/auditoria'
+      fullPath: '/auditoria'
+      preLoaderRoute: typeof AuthenticatedAuditoriaRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/integracao': {
@@ -263,6 +263,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPlataformaRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/assistente': {
+      id: '/api/assistente'
+      path: '/api/assistente'
+      fullPath: '/api/assistente'
+      preLoaderRoute: typeof ApiAssistenteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auditoria': {
       id: '/api/auditoria'
       path: '/api/auditoria'
@@ -275,13 +282,6 @@ declare module '@tanstack/react-router' {
       path: '/api/plataforma/dados'
       fullPath: '/api/plataforma/dados'
       preLoaderRoute: typeof ApiPlataformaDadosRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/assistente': {
-      id: '/api/assistente'
-      path: '/api/assistente'
-      fullPath: '/api/assistente'
-      preLoaderRoute: typeof ApiAssistenteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/ordens/': {
