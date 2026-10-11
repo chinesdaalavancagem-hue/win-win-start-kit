@@ -94,8 +94,6 @@ export const Route = createFileRoute("/api/analise-ia")({
 
         const safeMetrics = JSON.stringify(metrics);
         let streamError: unknown;
-        const streamPartTypes: string[] = [];
-        let finishReason: string | undefined;
         let explanation = "";
         try {
           const call = createResponsesCall(
@@ -106,41 +104,20 @@ export const Route = createFileRoute("/api/analise-ia")({
             systemPrompt,
           );
           for await (const part of call.result.fullStream) {
-            const type = typeof part.type === "string" ? part.type : "unknown";
-            const category = type === "start"
-              ? "start"
-              : type.startsWith("reasoning")
-                ? "reasoning"
-                : type.startsWith("text")
-                  ? "text"
-                  : type === "finish"
-                    ? "finish"
-                    : type === "error"
-                      ? "error"
-                      : type;
-            if (streamPartTypes.length < 100) streamPartTypes.push(category);
-
-            if (type === "text-delta") explanation += part.text;
-            if (type === "finish" && typeof part.finishReason === "string") finishReason = part.finishReason;
-            if (type === "error") throw part.error;
+            if (part.type === "text-delta") explanation += part.text;
+            if (part.type === "error") throw part.error;
           }
           if (streamError !== undefined) throw streamError;
           try {
             await supabaseAdmin.from("activity_logs").insert({
               user_id: user.id,
               action: "ai.analysis.completed",
-              details: {},
+              details: { ativo: asset === "nasdaq" ? "Nasdaq" : asset === "ouro" ? "Ouro" : "Saque 2" },
             });
           } catch {
             // A análise não deve falhar se o registro de atividade falhar.
           }
-          // REMOVER ANTES DO MERGE: debug temporário exposto na resposta.
-          return json({
-            metrics,
-            explanation,
-            remainingToday: remaining,
-            debug: { streamPartTypes, finishReason: finishReason ?? null },
-          });
+          return json({ metrics, explanation, remainingToday: remaining });
         } catch (error) {
           type GatewayError = {
             name?: unknown;
@@ -201,17 +178,7 @@ export const Route = createFileRoute("/api/analise-ia")({
             name: errorName,
             message: safeMessage,
           });
-          // REMOVER ANTES DO MERGE: debug temporário exposto na resposta.
-          return json({
-            error: "A análise não ficou disponível agora. Tente novamente.",
-            debug: {
-              status: gatewayStatus ?? 502,
-              code: safeCode,
-              message: safeMessage,
-              streamPartTypes,
-              finishReason: finishReason ?? null,
-            },
-          }, 502);
+          return json({ error: "Não foi possível concluir a análise. Tente novamente." }, 502);
         }
       },
     },
