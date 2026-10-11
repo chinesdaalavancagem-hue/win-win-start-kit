@@ -23,7 +23,7 @@ export function registrarAtividade(
       await supabase.from("activity_logs").insert({
         user_id: userId,
         action,
-        details,
+        details: details as import("@/integrations/supabase/types").Json,
       });
     } catch {
       // Falha de registro nunca atrapalha o usuário.
