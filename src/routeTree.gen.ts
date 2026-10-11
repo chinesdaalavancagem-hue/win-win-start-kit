@@ -14,9 +14,11 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as AuthenticatedAnaliseIaRouteImport } from './routes/_authenticated/analise-ia'
 import { Route as AuthenticatedAuditoriaRouteImport } from './routes/_authenticated/auditoria'
 import { Route as AuthenticatedIntegracaoRouteImport } from './routes/_authenticated/integracao'
 import { Route as AuthenticatedPlataformaRouteImport } from './routes/_authenticated/plataforma'
+import { Route as ApiAnaliseIaRouteImport } from './routes/api/analise-ia'
 import { Route as ApiAssistenteRouteImport } from './routes/api/assistente'
 import { Route as ApiAuditoriaRouteImport } from './routes/api/auditoria'
 import { Route as ApiPlataformaDadosRouteImport } from './routes/api/plataforma/dados'
@@ -48,6 +50,11 @@ const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAnaliseIaRoute = AuthenticatedAnaliseIaRouteImport.update({
+  id: '/analise-ia',
+  path: '/analise-ia',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedAuditoriaRoute = AuthenticatedAuditoriaRouteImport.update({
   id: '/auditoria',
   path: '/auditoria',
@@ -62,6 +69,11 @@ const AuthenticatedPlataformaRoute = AuthenticatedPlataformaRouteImport.update({
   id: '/plataforma',
   path: '/plataforma',
   getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const ApiAnaliseIaRoute = ApiAnaliseIaRouteImport.update({
+  id: '/api/analise-ia',
+  path: '/api/analise-ia',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAssistenteRoute = ApiAssistenteRouteImport.update({
   id: '/api/assistente',
@@ -101,9 +113,11 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/analise-ia': typeof AuthenticatedAnaliseIaRoute
   '/auditoria': typeof AuthenticatedAuditoriaRoute
   '/integracao': typeof AuthenticatedIntegracaoRoute
   '/plataforma': typeof AuthenticatedPlataformaRoute
+  '/api/analise-ia': typeof ApiAnaliseIaRoute
   '/api/assistente': typeof ApiAssistenteRoute
   '/api/auditoria': typeof ApiAuditoriaRoute
   '/api/plataforma/dados': typeof ApiPlataformaDadosRoute
@@ -116,9 +130,11 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/analise-ia': typeof AuthenticatedAnaliseIaRoute
   '/auditoria': typeof AuthenticatedAuditoriaRoute
   '/integracao': typeof AuthenticatedIntegracaoRoute
   '/plataforma': typeof AuthenticatedPlataformaRoute
+  '/api/analise-ia': typeof ApiAnaliseIaRoute
   '/api/assistente': typeof ApiAssistenteRoute
   '/api/auditoria': typeof ApiAuditoriaRoute
   '/api/plataforma/dados': typeof ApiPlataformaDadosRoute
@@ -133,9 +149,11 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
+  '/_authenticated/analise-ia': typeof AuthenticatedAnaliseIaRoute
   '/_authenticated/auditoria': typeof AuthenticatedAuditoriaRoute
   '/_authenticated/integracao': typeof AuthenticatedIntegracaoRoute
   '/_authenticated/plataforma': typeof AuthenticatedPlataformaRoute
+  '/api/analise-ia': typeof ApiAnaliseIaRoute
   '/api/assistente': typeof ApiAssistenteRoute
   '/api/auditoria': typeof ApiAuditoriaRoute
   '/api/plataforma/dados': typeof ApiPlataformaDadosRoute
@@ -150,9 +168,11 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/admin'
+    | '/analise-ia'
     | '/auditoria'
     | '/integracao'
     | '/plataforma'
+    | '/api/analise-ia'
     | '/api/assistente'
     | '/api/auditoria'
     | '/api/plataforma/dados'
@@ -165,9 +185,11 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/admin'
+    | '/analise-ia'
     | '/auditoria'
     | '/integracao'
     | '/plataforma'
+    | '/api/analise-ia'
     | '/api/assistente'
     | '/api/auditoria'
     | '/api/plataforma/dados'
@@ -181,9 +203,11 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/_authenticated/admin'
+    | '/_authenticated/analise-ia'
     | '/_authenticated/auditoria'
     | '/_authenticated/integracao'
     | '/_authenticated/plataforma'
+    | '/api/analise-ia'
     | '/api/assistente'
     | '/api/auditoria'
     | '/api/plataforma/dados'
@@ -197,6 +221,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  ApiAnaliseIaRoute: typeof ApiAnaliseIaRoute
   ApiAssistenteRoute: typeof ApiAssistenteRoute
   ApiAuditoriaRoute: typeof ApiAuditoriaRoute
   ApiPlataformaDadosRoute: typeof ApiPlataformaDadosRoute
@@ -242,6 +267,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/analise-ia': {
+      id: '/_authenticated/analise-ia'
+      path: '/analise-ia'
+      fullPath: '/analise-ia'
+      preLoaderRoute: typeof AuthenticatedAnaliseIaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/auditoria': {
       id: '/_authenticated/auditoria'
       path: '/auditoria'
@@ -262,6 +294,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/plataforma'
       preLoaderRoute: typeof AuthenticatedPlataformaRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/api/analise-ia': {
+      id: '/api/analise-ia'
+      path: '/api/analise-ia'
+      fullPath: '/api/analise-ia'
+      preLoaderRoute: typeof ApiAnaliseIaRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/assistente': {
       id: '/api/assistente'
@@ -310,6 +349,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
+  AuthenticatedAnaliseIaRoute: typeof AuthenticatedAnaliseIaRoute
   AuthenticatedAuditoriaRoute: typeof AuthenticatedAuditoriaRoute
   AuthenticatedIntegracaoRoute: typeof AuthenticatedIntegracaoRoute
   AuthenticatedPlataformaRoute: typeof AuthenticatedPlataformaRoute
@@ -317,6 +357,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
+  AuthenticatedAnaliseIaRoute: AuthenticatedAnaliseIaRoute,
   AuthenticatedAuditoriaRoute: AuthenticatedAuditoriaRoute,
   AuthenticatedIntegracaoRoute: AuthenticatedIntegracaoRoute,
   AuthenticatedPlataformaRoute: AuthenticatedPlataformaRoute,
@@ -330,6 +371,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  ApiAnaliseIaRoute: ApiAnaliseIaRoute,
   ApiAssistenteRoute: ApiAssistenteRoute,
   ApiAuditoriaRoute: ApiAuditoriaRoute,
   ApiPlataformaDadosRoute: ApiPlataformaDadosRoute,
