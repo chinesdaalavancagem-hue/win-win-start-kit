@@ -134,9 +134,10 @@ export const Route = createFileRoute("/api/analise-ia")({
           } catch {
             // O corpo não era JSON; usamos os campos estruturados disponíveis no erro.
           }
-          const gatewayError = gatewayPayload.error && typeof gatewayPayload.error === "object"
-            ? gatewayPayload.error
-            : gatewayPayload;
+          const gatewayError: { code?: unknown; message?: unknown; type?: unknown } =
+            gatewayPayload.error && typeof gatewayPayload.error === "object"
+              ? gatewayPayload.error
+              : gatewayPayload;
           const rawCode = [gatewayError.code, gatewayError.type, root.code, cause.code]
             .find((value): value is string => typeof value === "string" && value.length > 0);
           const rawMessage = [gatewayError.message, root.message, cause.message]
