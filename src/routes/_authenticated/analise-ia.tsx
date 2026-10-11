@@ -39,10 +39,10 @@ function AnaliseIA() {
         headers: { "content-type": "application/json", authorization: "Bearer " + token },
         body: JSON.stringify({ asset, capitalAvailable: Number(capital.replace(",", ".")) }),
       });
-      const payload = await response.json() as Result | { error?: string; debug?: { name?: string; message?: string } };
+      const payload = await response.json() as Result | { error?: string; debug?: { status?: number; code?: string; message?: string } };
       if (!response.ok) {
         setError(`Erro ${response.status}: ${"error" in payload && payload.error ? payload.error : "Não foi possível concluir a análise."}`);
-        if ("debug" in payload && payload.debug) setDebug(`${payload.debug.name ?? "Erro"}: ${payload.debug.message ?? "Sem mensagem"}`);
+        if ("debug" in payload && payload.debug) setDebug(`Status do gateway: ${payload.debug.status ?? "desconhecido"} | Código: ${payload.debug.code ?? "não informado"} | Mensagem: ${payload.debug.message ?? "Sem mensagem"}`);
         return;
       }
       setResult(payload as Result);
