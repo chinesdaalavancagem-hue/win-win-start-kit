@@ -39,3 +39,9 @@ $$;
 
 REVOKE EXECUTE ON FUNCTION public.consume_ai_analysis_quota(uuid, integer) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.consume_ai_analysis_quota(uuid, integer) TO service_role;
+
+-- Registra apenas o evento de conclusão, sem guardar o conteúdo da análise.
+ALTER TABLE public.activity_logs DROP CONSTRAINT IF EXISTS activity_logs_action_check;
+ALTER TABLE public.activity_logs
+  ADD CONSTRAINT activity_logs_action_check
+  CHECK (action IN ('login.success', 'login.failed', 'logout', 'create', 'update', 'delete', 'ai.analysis.completed'));
