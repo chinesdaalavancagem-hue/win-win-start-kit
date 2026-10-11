@@ -39,10 +39,11 @@ function AnaliseIA() {
         headers: { "content-type": "application/json", authorization: "Bearer " + token },
         body: JSON.stringify({ asset, capitalAvailable: Number(capital.replace(",", ".")) }),
       });
-      const payload = await response.json() as Result | { error?: string; debug?: { status?: number; code?: string; message?: string } };
+      const payload = await response.json() as Result | { error?: string; debug?: { status?: number; code?: string; message?: string; streamPartTypes?: string[]; finishReason?: string | null } };
       if (!response.ok) {
         setError(`Erro ${response.status}: ${"error" in payload && payload.error ? payload.error : "Não foi possível concluir a análise."}`);
-        if ("debug" in payload && payload.debug) setDebug(`Status do gateway: ${payload.debug.status ?? "desconhecido"} | Código: ${payload.debug.code ?? "não informado"} | Mensagem: ${payload.debug.message ?? "Sem mensagem"}`);
+        // REMOVER ANTES DO MERGE: debug temporário exposto na resposta.
+        if ("debug" in payload && payload.debug) setDebug(`Status do gateway: ${payload.debug.status ?? "desconhecido"} | Código: ${payload.debug.code ?? "não informado"} | Mensagem: ${payload.debug.message ?? "Sem mensagem"}\nTipos recebidos: ${payload.debug.streamPartTypes?.join(", ") ?? "não informado"}\nfinishReason: ${payload.debug.finishReason ?? "não informado"}`);
         return;
       }
       setResult(payload as Result);
