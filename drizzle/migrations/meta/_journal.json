@@ -50,6 +50,13 @@
       "when": 1791686058255,
       "tag": "0006_remove_app_data_activity_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791729000000,
+      "tag": "0007_ai_analysis_quota",
+      "breakpoints": true
     }
   ]
 }
