@@ -43,6 +43,13 @@
       "when": 1791684418619,
       "tag": "0005_log_app_data_changes_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791686058255,
+      "tag": "0006_remove_app_data_activity_trigger",
+      "breakpoints": true
     }
   ]
 }
