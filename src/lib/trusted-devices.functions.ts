@@ -51,7 +51,7 @@ export const registrarDispositivoConfiavel = createServerFn({ method: "POST" })
         console.error("[trusted-devices] registration failed", {
           status: typeof error.status === "number" ? error.status : null,
           message: error.message.replace(
-            /(?:wow_trusted_device|device_token_hash|service_role|password|token|secret|api[_-]?key)\s*[:=]\s*[^\s,;]+/gi,
+            /(wow_trusted_device|device_token_hash|service_role|password|token|secret|api[_-]?key)\s*[:=]\s*[^\s,;]+/gi,
             "$1=[REDACTED]",
           ),
         });
@@ -62,7 +62,7 @@ export const registrarDispositivoConfiavel = createServerFn({ method: "POST" })
       console.error("[trusted-devices] registration failed", {
         status: null,
         message: message.replace(
-          /(?:wow_trusted_device|device_token_hash|service_role|password|token|secret|api[_-]?key)\s*[:=]\s*[^\s,;]+/gi,
+          /(wow_trusted_device|device_token_hash|service_role|password|token|secret|api[_-]?key)\s*[:=]\s*[^\s,;]+/gi,
           "[REDACTED]",
         ),
       });
