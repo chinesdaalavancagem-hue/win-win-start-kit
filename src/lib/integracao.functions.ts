@@ -14,6 +14,17 @@ export const gerarChave = createServerFn({ method: "POST" })
     const { error } = await supabaseAdmin.from("integration_tokens")
       .upsert({ user_id: context.userId, token_hash: await hashToken(token), created_at: new Date().toISOString() });
     if (error) throw new Error("Não foi possível gerar a chave");
+    try {
+      const { error: logError } = await supabaseAdmin.from("activity_logs").insert({
+        user_id: context.userId,
+        action: "create",
+        details: { tipo: "chave_ea", ultimos_4: token.slice(-4) },
+      });
+      if (logError) console.error("[activity] EA key creation logging failed");
+    } catch {
+      console.error("[activity] EA key creation logging failed");
+    }
+    try {
     const { error: auditError } = await supabaseAdmin.from("audit_logs").insert({
       user_id: context.userId,
       category: "integration",
@@ -22,5 +33,8 @@ export const gerarChave = createServerFn({ method: "POST" })
       details: { token_material_stored_as_hash: true },
     });
     if (auditError) console.error("[audit] key generation event failed", auditError.message);
+    } catch {
+      console.error("[audit] key generation logging failed");
+    }
     return { token };
   });
