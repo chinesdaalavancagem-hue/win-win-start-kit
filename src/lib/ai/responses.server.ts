@@ -12,7 +12,13 @@ export function createResponsesCall(
   config: { baseURL: string; apiKey: string; model: string },
   messages: ModelMessage[],
   onStreamError?: (error: unknown) => void,
+  instructions?: string,
 ) {
+  const systemMessages = messages.filter((message) => message.role === "system");
+  const promptInstructions = instructions ?? systemMessages
+    .map((message) => message.content)
+    .join("\n");
+  const inputMessages = messages.filter((message) => message.role !== "system");
   const runIdFetch = createLovableAiGatewayRunIdFetch(getLovableAiGatewayRunId(request));
   const provider = createOpenAI({
     baseURL: `${config.baseURL.replace(/\/+$/, "").replace(/\/v1$/, "")}/v1`,
@@ -23,7 +29,8 @@ export function createResponsesCall(
   const reasoning = config.model !== "openai/chat-latest";
   const result = streamText({
     model: provider.responses(config.model),
-    messages,
+    ...(promptInstructions ? { instructions: promptInstructions } : {}),
+    messages: inputMessages,
     abortSignal: request.signal,
     providerOptions: {
       openai: {
