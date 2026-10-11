@@ -69,6 +69,9 @@ export const Route = createFileRoute("/api/analise-ia")({
           return json({ error: "Não foi possível calcular os números dessa banca." }, 400);
         }
 
+        const apiKey = process.env["LOVABLE_API_KEY"];
+        if (!apiKey) return json({ error: "Assistente não configurado." }, 503);
+
         const { data: remaining, error: quotaError } = await supabaseAdmin
           .rpc("consume_ai_analysis_quota", { p_user_id: user.id, p_limit: 3 });
         if (quotaError) {
@@ -77,9 +80,6 @@ export const Route = createFileRoute("/api/analise-ia")({
         if (remaining === null || typeof remaining !== "number") {
           return json({ error: "Você atingiu o limite de 3 análises por dia. Tente novamente amanhã (UTC)." }, 429);
         }
-
-        const apiKey = process.env["LOVABLE_API_KEY"];
-        if (!apiKey) return json({ error: "Assistente não configurado." }, 503);
 
         const systemPrompt = [
           "Você explica os resultados determinísticos da plataforma Win or Win em português do Brasil.",
