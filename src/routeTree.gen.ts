@@ -21,6 +21,7 @@ import { Route as AuthenticatedPlataformaRouteImport } from './routes/_authentic
 import { Route as ApiAnaliseIaRouteImport } from './routes/api/analise-ia'
 import { Route as ApiAssistenteRouteImport } from './routes/api/assistente'
 import { Route as ApiAuditoriaRouteImport } from './routes/api/auditoria'
+import { Route as ApiTelegramTesteRouteImport } from './routes/api/telegram-teste'
 import { Route as ApiPlataformaDadosRouteImport } from './routes/api/plataforma/dados'
 import { Route as ApiPublicOrdensIndexRouteImport } from './routes/api/public/ordens/index'
 import { Route as ApiPublicOrdensConfirmarRouteImport } from './routes/api/public/ordens/confirmar'
@@ -85,6 +86,11 @@ const ApiAuditoriaRoute = ApiAuditoriaRouteImport.update({
   path: '/api/auditoria',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiTelegramTesteRoute = ApiTelegramTesteRouteImport.update({
+  id: '/api/telegram-teste',
+  path: '/api/telegram-teste',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPlataformaDadosRoute = ApiPlataformaDadosRouteImport.update({
   id: '/api/plataforma/dados',
   path: '/api/plataforma/dados',
@@ -120,6 +126,7 @@ export interface FileRoutesByFullPath {
   '/api/analise-ia': typeof ApiAnaliseIaRoute
   '/api/assistente': typeof ApiAssistenteRoute
   '/api/auditoria': typeof ApiAuditoriaRoute
+  '/api/telegram-teste': typeof ApiTelegramTesteRoute
   '/api/plataforma/dados': typeof ApiPlataformaDadosRoute
   '/api/public/ordens/confirmar': typeof ApiPublicOrdensConfirmarRoute
   '/api/public/ordens/pendentes': typeof ApiPublicOrdensPendentesRoute
@@ -137,6 +144,7 @@ export interface FileRoutesByTo {
   '/api/analise-ia': typeof ApiAnaliseIaRoute
   '/api/assistente': typeof ApiAssistenteRoute
   '/api/auditoria': typeof ApiAuditoriaRoute
+  '/api/telegram-teste': typeof ApiTelegramTesteRoute
   '/api/plataforma/dados': typeof ApiPlataformaDadosRoute
   '/api/public/ordens/confirmar': typeof ApiPublicOrdensConfirmarRoute
   '/api/public/ordens/pendentes': typeof ApiPublicOrdensPendentesRoute
@@ -156,6 +164,7 @@ export interface FileRoutesById {
   '/api/analise-ia': typeof ApiAnaliseIaRoute
   '/api/assistente': typeof ApiAssistenteRoute
   '/api/auditoria': typeof ApiAuditoriaRoute
+  '/api/telegram-teste': typeof ApiTelegramTesteRoute
   '/api/plataforma/dados': typeof ApiPlataformaDadosRoute
   '/api/public/ordens/confirmar': typeof ApiPublicOrdensConfirmarRoute
   '/api/public/ordens/pendentes': typeof ApiPublicOrdensPendentesRoute
@@ -175,6 +184,7 @@ export interface FileRouteTypes {
     | '/api/analise-ia'
     | '/api/assistente'
     | '/api/auditoria'
+    | '/api/telegram-teste'
     | '/api/plataforma/dados'
     | '/api/public/ordens/confirmar'
     | '/api/public/ordens/pendentes'
@@ -192,6 +202,7 @@ export interface FileRouteTypes {
     | '/api/analise-ia'
     | '/api/assistente'
     | '/api/auditoria'
+    | '/api/telegram-teste'
     | '/api/plataforma/dados'
     | '/api/public/ordens/confirmar'
     | '/api/public/ordens/pendentes'
@@ -210,6 +221,7 @@ export interface FileRouteTypes {
     | '/api/analise-ia'
     | '/api/assistente'
     | '/api/auditoria'
+    | '/api/telegram-teste'
     | '/api/plataforma/dados'
     | '/api/public/ordens/confirmar'
     | '/api/public/ordens/pendentes'
@@ -224,6 +236,7 @@ export interface RootRouteChildren {
   ApiAnaliseIaRoute: typeof ApiAnaliseIaRoute
   ApiAssistenteRoute: typeof ApiAssistenteRoute
   ApiAuditoriaRoute: typeof ApiAuditoriaRoute
+  ApiTelegramTesteRoute: typeof ApiTelegramTesteRoute
   ApiPlataformaDadosRoute: typeof ApiPlataformaDadosRoute
   ApiPublicOrdensConfirmarRoute: typeof ApiPublicOrdensConfirmarRoute
   ApiPublicOrdensPendentesRoute: typeof ApiPublicOrdensPendentesRoute
@@ -316,6 +329,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuditoriaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/telegram-teste': {
+      id: '/api/telegram-teste'
+      path: '/api/telegram-teste'
+      fullPath: '/api/telegram-teste'
+      preLoaderRoute: typeof ApiTelegramTesteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/plataforma/dados': {
       id: '/api/plataforma/dados'
       path: '/api/plataforma/dados'
@@ -374,6 +394,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAnaliseIaRoute: ApiAnaliseIaRoute,
   ApiAssistenteRoute: ApiAssistenteRoute,
   ApiAuditoriaRoute: ApiAuditoriaRoute,
+  ApiTelegramTesteRoute: ApiTelegramTesteRoute,
   ApiPlataformaDadosRoute: ApiPlataformaDadosRoute,
   ApiPublicOrdensConfirmarRoute: ApiPublicOrdensConfirmarRoute,
   ApiPublicOrdensPendentesRoute: ApiPublicOrdensPendentesRoute,
