@@ -51,6 +51,9 @@ function Integracao() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [disp, setDisp] = useState<Record<Tipo, boolean>>({ robo: false, ext: false });
   const [base, setBase] = useState("");
+  const [telegramBotToken, setTelegramBotToken] = useState("");
+  const [telegramChatId, setTelegramChatId] = useState("");
+  const [telegramTestando, setTelegramTestando] = useState(false);
 
   async function load() {
     const [{ data: t }, { data: o }] = await Promise.all([
@@ -71,6 +74,27 @@ function Integracao() {
     load(); loadArquivos();
     const i = setInterval(load, 10000); return () => clearInterval(i);
   }, [user.id]);
+
+  async function testarTelegram() {
+    setTelegramTestando(true);
+    try {
+      const response = await fetch("/api/telegram-teste", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          botToken: telegramBotToken.trim() || undefined,
+          chatId: telegramChatId.trim() || undefined,
+        }),
+      });
+      const result = await response.json() as { ok?: boolean; error?: string };
+      if (!response.ok || !result.ok) throw new Error(result.error || "Falha ao enviar o teste.");
+      alert("Solicitação de teste enviada. Confira o Telegram.");
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Não foi possível testar o Telegram.");
+    } finally {
+      setTelegramTestando(false);
+    }
+  }
 
   async function novaChave() {
     if (temChave && !confirm("A chave atual vai parar de funcionar. Continuar?")) return;
@@ -136,6 +160,21 @@ function Integracao() {
             ))}
           </div>
         )}
+      </section>
+
+      <section className="space-y-3 rounded-lg border p-4 text-sm">
+        <h2 className="font-semibold">Notificações no Telegram</h2>
+        <p className="text-muted-foreground">Receba alertas quando uma ordem chegar da Tradovate e quando o MT5 confirmar a execução. Crie um bot conversando com <a className="underline" href="https://t.me/BotFather" target="_blank" rel="noreferrer">@BotFather</a> e copie o token. Para descobrir seu Chat ID, consulte <a className="underline" href="https://t.me/userinfobot" target="_blank" rel="noreferrer">@userinfobot</a>. Depois, abra uma conversa com seu bot e envie /start.</p>
+        <label className="block space-y-1">
+          <span>Token do bot (opcional se configurado no servidor)</span>
+          <input className="w-full rounded-md border bg-background px-3 py-2" type="password" autoComplete="off" value={telegramBotToken} onChange={(e) => setTelegramBotToken(e.target.value)} placeholder="Token fornecido pelo BotFather" />
+        </label>
+        <label className="block space-y-1">
+          <span>Chat ID (opcional se configurado no servidor)</span>
+          <input className="w-full rounded-md border bg-background px-3 py-2" value={telegramChatId} onChange={(e) => setTelegramChatId(e.target.value)} placeholder="Ex.: 123456789" />
+        </label>
+        <p className="text-xs text-muted-foreground">Os valores informados são usados somente para este teste e não são salvos na plataforma. Se deixar vazio, serão usadas as variáveis de ambiente do servidor.</p>
+        <Button size="sm" onClick={testarTelegram} disabled={telegramTestando}>{telegramTestando ? "Testando..." : "Testar Notificação"}</Button>
       </section>
 
       <section className="space-y-4 rounded-lg border p-4 text-sm">
