@@ -12,6 +12,7 @@ export async function enviarTelegram(
     const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      signal: AbortSignal.timeout(2500),
       body: JSON.stringify({
         chat_id: chatId,
         text: mensagem,
