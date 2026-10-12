@@ -1,4 +1,4 @@
-type TelegramOptions = { botToken?: string; chatId?: string };
+type TelegramOptions = { botToken?: string; chatId?: string | undefined };
 
 export async function enviarTelegram(
   mensagem: string,
