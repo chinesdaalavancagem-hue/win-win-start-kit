@@ -29,6 +29,7 @@ export const Route = createFileRoute("/api/public/ordens/pendentes")({
         }
         if (!rows?.length) return json({ orders: [] });
 
+        // Calcular o lote antes de marcar a ordem como enviada e antes do audit log.
         const resolved = rows.map((row) => ({
           row,
           resolution: resolveCfdLot(saved?.data ?? null, row.symbol),
@@ -57,13 +58,24 @@ export const Route = createFileRoute("/api/public/ordens/pendentes")({
 
         const resolvedById = new Map(valid.map(({ row, resolution }) => [row.id, resolution]));
         if (data?.length) {
-          const { error: auditError } = await supabaseAdmin.from("audit_logs").insert(data.map((row) => ({
-            user_id: userId,
-            category: "integration",
-            action: "integration.order_dispatched",
-            outcome: "success",
-            details: { order_id: row.id, symbol: row.symbol, qty: Number(row.qty) },
-          })));
+          const { error: auditError } = await supabaseAdmin.from("audit_logs").insert(data.map((row) => {
+            const resolution = resolvedById.get(row.id)!;
+            return {
+              user_id: userId,
+              category: "integration",
+              action: "integration.order_dispatched",
+              outcome: "success",
+              details: {
+                order_id: row.id,
+                symbol: row.symbol,
+                qty: Number(row.qty),
+                lot: resolution.lot,
+                lot_error: resolution.error,
+                lot_asset: resolution.assetKey,
+                lot_day: resolution.day,
+              },
+            };
+          }));
           if (auditError) console.error("[audit] dispatched order event failed", auditError.message);
         }
 
