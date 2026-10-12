@@ -17,7 +17,7 @@ export const Route = createFileRoute("/api/telegram-teste")({
           if (!tokenConfigurado || !chatConfigurado) {
             return json({ ok: false, error: "Configure o botToken e o chatId ou as variáveis TELEGRAM_BOT_TOKEN e TELEGRAM_CHAT_ID." }, 400);
           }
-          await enviarTelegram("🧪 <b>Teste de Notificação — Win or Win</b>\nSeu bot do Telegram está configurado para receber alertas.", {
+          const enviado = await enviarTelegram("🧪 <b>Teste de Notificação — Win or Win</b>\nSeu bot do Telegram está configurado para receber alertas.", {
             botToken: botToken || undefined,
             chatId: chatId || undefined,
           });
