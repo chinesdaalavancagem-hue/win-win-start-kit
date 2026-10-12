@@ -3,6 +3,15 @@ import { mirrorSide, ordemSchema } from "@/lib/integracao";
 import { autenticarToken, json } from "@/lib/integracao.server";
 import { enviarTelegram } from "@/lib/telegram.server";
 
+async function enviarTelegramComTimeout(mensagem: string): Promise<void> {
+  try {
+    await enviarTelegram(mensagem);
+  } catch {
+    // Falhas de notificação não podem afetar o processamento da ordem.
+  }
+}
+
+
 // Recebe uma ordem da mesa e coloca na fila para o robô do MT5.
 export const Route = createFileRoute("/api/public/ordens/")({
   server: {
@@ -30,7 +39,7 @@ export const Route = createFileRoute("/api/public/ordens/")({
         });
         if (auditError) console.error("[audit] incoming order event failed", auditError.message);
         if (data) {
-          void enviarTelegram(`🚀 <b>Ordem Recebida (Tradovate)</b>\n<b>Ativo:</b> ${o.symbol}\n<b>Lado:</b> ${o.side} ➔ <b>CFD Hedge:</b> ${mirrorSide(o.side)}\n<b>Quantidade:</b> ${o.qty}`);
+          await enviarTelegramComTimeout(`🚀 <b>Ordem Recebida (Tradovate)</b>\n<b>Ativo:</b> ${o.symbol}\n<b>Lado:</b> ${o.side} ➔ <b>CFD Hedge:</b> ${mirrorSide(o.side)}\n<b>Quantidade:</b> ${o.qty}`);
         }
         return json({ ok: true, id: data?.id ?? null, duplicate: !data }, data ? 201 : 200);
       },
