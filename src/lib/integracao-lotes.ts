@@ -44,7 +44,12 @@ export function resolveCfdLot(rawState: unknown, symbol: string): CfdLotResoluti
     return { lot: null, assetKey: null, day: null, error: "O estado salvo da plataforma não contém os ciclos esperados." };
   }
 
-  const state = normalizeState(parsed) as State;
+  let state: State;
+  try {
+    state = normalizeState(parsed);
+  } catch {
+    return { lot: null, assetKey: null, day: null, error: "O estado salvo da plataforma está incompleto ou inválido." };
+  }
   const mesa = symbol.trim().toUpperCase();
   let symbolAsset: "nasdaq" | "ouro" | null = null;
 
@@ -63,6 +68,9 @@ export function resolveCfdLot(rawState: unknown, symbol: string): CfdLotResoluti
   }
 
   const asset = state.assets[assetKey];
+  if (!Number.isInteger(asset.attempt.currentDayIndex)) {
+    return { lot: null, assetKey: null, day: null, error: `O dia atual do ciclo ${assetKey} está ausente ou inválido.` };
+  }
   const index = clampDayIndex(asset);
   const day = index >= 0 ? asset.days[index] : undefined;
   const lot = Number(day?.lotes);
