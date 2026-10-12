@@ -189,6 +189,7 @@ export type Database = {
           id: string
           phone: string
           rejected: boolean
+          telegram_chat_id: string | null
         }
         Insert: {
           approved?: boolean
@@ -200,6 +201,7 @@ export type Database = {
           id: string
           phone?: string
           rejected?: boolean
+          telegram_chat_id?: string | null
         }
         Update: {
           approved?: boolean
@@ -211,6 +213,7 @@ export type Database = {
           id?: string
           phone?: string
           rejected?: boolean
+          telegram_chat_id?: string | null
         }
         Relationships: []
       }

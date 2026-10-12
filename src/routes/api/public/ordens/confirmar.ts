@@ -1,11 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { confirmarSchema } from "@/lib/integracao";
 import { autenticarToken, json } from "@/lib/integracao.server";
-import { enviarTelegram } from "@/lib/telegram.server";
+import { enviarTelegram, chatIdDoUsuario } from "@/lib/telegram.server";
 
-async function enviarTelegramComTimeout(mensagem: string): Promise<void> {
+async function enviarTelegramComTimeout(mensagem: string, chatId?: string): Promise<void> {
   try {
-    await enviarTelegram(mensagem);
+    await enviarTelegram(mensagem, { chatId });
   } catch {
     // Falhas de notificação não podem afetar o processamento da ordem.
   }
@@ -38,7 +38,8 @@ export const Route = createFileRoute("/api/public/ordens/confirmar")({
           details: { order_id: data.id, symbol: data.symbol, error_reported: !succeeded },
         });
         if (auditError) console.error("[audit] order confirmation event failed", auditError.message);
-        await enviarTelegramComTimeout(`✅ <b>Ordem Executada no MetaTrader 5</b>\n<b>Ativo:</b> ${data.symbol}\n<b>Status:</b> ${p.data.status}${p.data.error ? `\n<b>Erro:</b> ${p.data.error}` : ""}`);
+        const chatId = await chatIdDoUsuario(userId);
+        await enviarTelegramComTimeout(`✅ <b>Ordem Executada no MetaTrader 5</b>\n<b>Ativo:</b> ${data.symbol}\n<b>Status:</b> ${p.data.status}${p.data.error ? `\n<b>Erro:</b> ${p.data.error}` : ""}`, chatId ?? undefined);
         return json({ ok: true });
       },
     },

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { gerarChave } from "@/lib/integracao.functions";
+import { salvarChatId } from "@/lib/telegram.functions";
 import { registrarAuditoria } from "@/lib/auditoria-registro";
 
 export const Route = createFileRoute("/_authenticated/integracao")({
@@ -45,23 +46,26 @@ function CopiarTexto({ texto }: { texto: string }) {
 function Integracao() {
   const { user } = Route.useRouteContext();
   const gerar = useServerFn(gerarChave);
+  const salvarChat = useServerFn(salvarChatId);
   const [temChave, setTemChave] = useState<boolean | null>(null);
   const [chave, setChave] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [disp, setDisp] = useState<Record<Tipo, boolean>>({ robo: false, ext: false });
   const [base, setBase] = useState("");
-  const [telegramBotToken, setTelegramBotToken] = useState("");
   const [telegramChatId, setTelegramChatId] = useState("");
   const [telegramTestando, setTelegramTestando] = useState(false);
+  const [telegramSalvando, setTelegramSalvando] = useState(false);
 
   async function load() {
-    const [{ data: t }, { data: o }] = await Promise.all([
+    const [{ data: t }, { data: o }, { data: p }] = await Promise.all([
       supabase.from("integration_tokens").select("created_at").maybeSingle(),
       supabase.from("order_queue").select("id,symbol,side,mirror_side,qty,status,error,created_at").order("created_at", { ascending: false }).limit(50),
+      supabase.from("profiles").select("telegram_chat_id").eq("id", user.id).maybeSingle(),
     ]);
     setTemChave(!!t);
     setRows((o as Row[]) ?? []);
+    setTelegramChatId(p?.telegram_chat_id ?? "");
   }
   async function loadArquivos() {
     const [r, e] = await Promise.all([supabase.storage.from("downloads").list("robo"), supabase.storage.from("downloads").list("extensao")]);
@@ -82,7 +86,6 @@ function Integracao() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          botToken: telegramBotToken.trim() || undefined,
           chatId: telegramChatId.trim() || undefined,
         }),
       });
@@ -93,6 +96,20 @@ function Integracao() {
       alert(error instanceof Error ? error.message : "Não foi possível testar o Telegram.");
     } finally {
       setTelegramTestando(false);
+    }
+  }
+
+  async function salvarChatTelegram() {
+    const chatId = telegramChatId.trim();
+    if (!/^-?\d{3,20}$/.test(chatId)) return alert("Informe um Chat ID numérico válido (ex.: 123456789).");
+    setTelegramSalvando(true);
+    try {
+      await salvarChat({ data: { chatId } });
+      alert("Chat ID salvo! A partir de agora suas notificações chegam no seu Telegram.");
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Não foi possível salvar o Chat ID.");
+    } finally {
+      setTelegramSalvando(false);
     }
   }
 
@@ -164,17 +181,16 @@ function Integracao() {
 
       <section className="space-y-3 rounded-lg border p-4 text-sm">
         <h2 className="font-semibold">Notificações no Telegram</h2>
-        <p className="text-muted-foreground">Receba alertas quando uma ordem chegar da Tradovate e quando o MT5 confirmar a execução. Crie um bot conversando com <a className="underline" href="https://t.me/BotFather" target="_blank" rel="noreferrer">@BotFather</a> e copie o token. Para descobrir seu Chat ID, consulte <a className="underline" href="https://t.me/userinfobot" target="_blank" rel="noreferrer">@userinfobot</a>. Depois, abra uma conversa com seu bot e envie /start.</p>
+        <p className="text-muted-foreground">Receba alertas quando uma ordem chegar da Tradovate e quando o MT5 confirmar a execução. O bot já está configurado na plataforma; você só precisa do seu Chat ID. Para descobri-lo, converse com <a className="underline" href="https://t.me/userinfobot" target="_blank" rel="noreferrer">@userinfobot</a>. Importante: abra uma conversa com o bot <a className="underline" href="https://t.me/WinOrWinAlertasBot" target="_blank" rel="noreferrer">@WinOrWinAlertasBot</a> e envie <code>/start</code> — o Telegram só entrega mensagens a quem já iniciou a conversa.</p>
         <label className="block space-y-1">
-          <span>Token do bot (opcional se configurado no servidor)</span>
-          <input className="w-full rounded-md border bg-background px-3 py-2" type="password" autoComplete="off" value={telegramBotToken} onChange={(e) => setTelegramBotToken(e.target.value)} placeholder="Token fornecido pelo BotFather" />
-        </label>
-        <label className="block space-y-1">
-          <span>Chat ID (opcional se configurado no servidor)</span>
+          <span>Seu Chat ID do Telegram</span>
           <input className="w-full rounded-md border bg-background px-3 py-2" value={telegramChatId} onChange={(e) => setTelegramChatId(e.target.value)} placeholder="Ex.: 123456789" />
         </label>
-        <p className="text-xs text-muted-foreground">Os valores informados são usados somente para este teste e não são salvos na plataforma. Se deixar vazio, serão usadas as variáveis de ambiente do servidor.</p>
-        <Button size="sm" onClick={testarTelegram} disabled={telegramTestando}>{telegramTestando ? "Testando..." : "Testar Notificação"}</Button>
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" onClick={salvarChatTelegram} disabled={telegramSalvando}>{telegramSalvando ? "Salvando..." : "Salvar Chat ID"}</Button>
+          <Button size="sm" variant="outline" onClick={testarTelegram} disabled={telegramTestando}>{telegramTestando ? "Testando..." : "Testar Notificação"}</Button>
+        </div>
+        <p className="text-xs text-muted-foreground">O Chat ID salvo fica ligado à sua conta: as notificações das suas ordens chegam no seu Telegram. Se deixar em branco, os alertas seguem para o Chat ID monitorado pela master.</p>
       </section>
 
       <section className="space-y-4 rounded-lg border p-4 text-sm">

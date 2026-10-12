@@ -1,11 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { mirrorSide, ordemSchema } from "@/lib/integracao";
 import { autenticarToken, json } from "@/lib/integracao.server";
-import { enviarTelegram } from "@/lib/telegram.server";
+import { enviarTelegram, chatIdDoUsuario } from "@/lib/telegram.server";
 
-async function enviarTelegramComTimeout(mensagem: string): Promise<void> {
+async function enviarTelegramComTimeout(mensagem: string, chatId?: string): Promise<void> {
   try {
-    await enviarTelegram(mensagem);
+    await enviarTelegram(mensagem, { chatId });
   } catch {
     // Falhas de notificação não podem afetar o processamento da ordem.
   }
@@ -39,7 +39,8 @@ export const Route = createFileRoute("/api/public/ordens/")({
         });
         if (auditError) console.error("[audit] incoming order event failed", auditError.message);
         if (data) {
-          await enviarTelegramComTimeout(`🚀 <b>Ordem Recebida (Tradovate)</b>\n<b>Ativo:</b> ${o.symbol}\n<b>Lado:</b> ${o.side} ➔ <b>CFD Hedge:</b> ${mirrorSide(o.side)}\n<b>Quantidade:</b> ${o.qty}`);
+          const chatId = await chatIdDoUsuario(userId);
+          await enviarTelegramComTimeout(`🚀 <b>Ordem Recebida (Tradovate)</b>\n<b>Ativo:</b> ${o.symbol}\n<b>Lado:</b> ${o.side} ➔ <b>CFD Hedge:</b> ${mirrorSide(o.side)}\n<b>Quantidade:</b> ${o.qty}`, chatId ?? undefined);
         }
         return json({ ok: true, id: data?.id ?? null, duplicate: !data }, data ? 201 : 200);
       },
