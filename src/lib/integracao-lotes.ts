@@ -7,6 +7,7 @@ export type CfdLotResolution =
 /**
  * Resolve the CFD lot from the user's saved platform cycle.
  * Supabase JSON/JSONB may already be decoded to an object; legacy rows may be strings.
+ * Multi-bank documents resolve to the state selected by activeId (or the first bank).
  * Tradovate contract quantity is intentionally not used as CFD volume.
  */
 export function resolveCfdLot(rawState: unknown, symbol: string): CfdLotResolution {
@@ -23,6 +24,20 @@ export function resolveCfdLot(rawState: unknown, symbol: string): CfdLotResoluti
     }
   } else {
     parsed = rawState;
+  }
+
+  // New persisted format: { bancasVersion, activeId, bancas: [{ id, nome, state }] }.
+  // Keep accepting the legacy single-State format unchanged.
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    "bancas" in parsed &&
+    Array.isArray((parsed as { bancas?: unknown }).bancas) &&
+    (parsed as { bancas: unknown[] }).bancas.length > 0
+  ) {
+    const doc = parsed as { activeId?: unknown; bancas: Array<{ id?: unknown; state?: unknown }> };
+    const active = doc.bancas.find((banca) => banca?.id === doc.activeId) ?? doc.bancas[0];
+    parsed = active?.state;
   }
 
   if (!isValidState(parsed)) {
