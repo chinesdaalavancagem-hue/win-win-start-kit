@@ -5,7 +5,9 @@ import { resolveCfdLot } from "@/lib/integracao-lotes";
 function stateWithGoldLot(lot: number) {
   const state = defaultState();
   state.activeTab = "ouro";
-  state.assets.ouro.days[0]!.lotes = lot;
+  const day = state.assets.ouro.days[0];
+  if (!day) throw new Error("O estado padrão precisa ter o primeiro dia de Ouro.");
+  day.lotes = lot;
   return state;
 }
 
@@ -75,4 +77,39 @@ describe("resolveCfdLot com estado de bancas", () => {
     expect(result.lot).toBeNull();
     expect(result.error).toMatch(/lote CFD do dia 1/i);
   });
+
+  it("retorna erro controlado quando o estado não possui params", () => {
+    const state = stateWithGoldLot(0.30);
+    const { params, ...goldWithoutParams } = state.assets.ouro;
+    const incomplete = { ...state, assets: { ...state.assets, ouro: goldWithoutParams } };
+
+    expect(resolveCfdLot(incomplete, "MGC")).toEqual({
+      lot: null,
+      assetKey: null,
+      day: null,
+      error: "O estado salvo da plataforma está incompleto ou inválido.",
+    });
+  });
+
+  it.each([undefined, Number.NaN, Number.POSITIVE_INFINITY, 0.5])(
+    "rejeita currentDayIndex inválido (%s) sem gerar dia NaN",
+    (currentDayIndex) => {
+      const state = stateWithGoldLot(0.30);
+      const { currentDayIndex: previousIndex, ...attempt } = state.assets.ouro.attempt;
+      const invalid = {
+        ...state,
+        assets: {
+          ...state.assets,
+          ouro: { ...state.assets.ouro, attempt: currentDayIndex === undefined ? attempt : { ...attempt, currentDayIndex } },
+        },
+      };
+
+      expect(resolveCfdLot(invalid, "MGC")).toEqual({
+        lot: null,
+        assetKey: null,
+        day: null,
+        error: "O dia atual do ciclo ouro está ausente ou inválido.",
+      });
+    },
+  );
 });
