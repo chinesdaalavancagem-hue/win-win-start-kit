@@ -1,6 +1,6 @@
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { gerarChave } from "@/lib/integracao.functions";
@@ -54,6 +54,7 @@ function Integracao() {
   const [disp, setDisp] = useState<Record<Tipo, boolean>>({ robo: false, ext: false });
   const [base, setBase] = useState("");
   const [telegramChatId, setTelegramChatId] = useState("");
+  const telegramChatIdAlterado = useRef(false);
   const [telegramTestando, setTelegramTestando] = useState(false);
   const [telegramSalvando, setTelegramSalvando] = useState(false);
 
@@ -65,7 +66,7 @@ function Integracao() {
     ]);
     setTemChave(!!t);
     setRows((o as Row[]) ?? []);
-    setTelegramChatId(p?.telegram_chat_id ?? "");
+    if (!telegramChatIdAlterado.current) setTelegramChatId(p?.telegram_chat_id ?? "");
   }
   async function loadArquivos() {
     const [r, e] = await Promise.all([supabase.storage.from("downloads").list("robo"), supabase.storage.from("downloads").list("extensao")]);
@@ -105,6 +106,7 @@ function Integracao() {
     setTelegramSalvando(true);
     try {
       await salvarChat({ data: { chatId } });
+      telegramChatIdAlterado.current = false;
       alert("Chat ID salvo! A partir de agora suas notificações chegam no seu Telegram.");
     } catch (error) {
       alert(error instanceof Error ? error.message : "Não foi possível salvar o Chat ID.");
@@ -184,7 +186,7 @@ function Integracao() {
         <p className="text-muted-foreground">Receba alertas quando uma ordem chegar da Tradovate e quando o MT5 confirmar a execução. O bot já está configurado na plataforma; você só precisa do seu Chat ID. Para descobri-lo, converse com <a className="underline" href="https://t.me/userinfobot" target="_blank" rel="noreferrer">@userinfobot</a>. Importante: abra uma conversa com o bot <a className="underline" href="https://t.me/Win_or_Win_bot" target="_blank" rel="noreferrer">@Win_or_Win_bot</a> e envie <code>/start</code> — o Telegram só entrega mensagens a quem já iniciou a conversa.</p>
         <label className="block space-y-1">
           <span>Seu Chat ID do Telegram</span>
-          <input className="w-full rounded-md border bg-background px-3 py-2" value={telegramChatId} onChange={(e) => setTelegramChatId(e.target.value)} placeholder="Ex.: 123456789" />
+          <input className="w-full rounded-md border bg-background px-3 py-2" value={telegramChatId} onChange={(e) => { telegramChatIdAlterado.current = true; setTelegramChatId(e.target.value); }} placeholder="Ex.: 123456789" />
         </label>
         <div className="flex flex-wrap gap-2">
           <Button size="sm" onClick={salvarChatTelegram} disabled={telegramSalvando}>{telegramSalvando ? "Salvando..." : "Salvar Chat ID"}</Button>
