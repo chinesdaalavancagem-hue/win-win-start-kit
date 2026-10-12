@@ -21,6 +21,7 @@ export const Route = createFileRoute("/api/telegram-teste")({
             botToken: botToken || undefined,
             chatId: chatId || undefined,
           });
+          if (!enviado) return json({ ok: false, error: "O Telegram não confirmou o envio. Verifique o token, o Chat ID e se você iniciou uma conversa com o bot." }, 502);
           return json({ ok: true });
         } catch {
           return json({ ok: false, error: "Não foi possível iniciar o teste do Telegram." }, 500);
