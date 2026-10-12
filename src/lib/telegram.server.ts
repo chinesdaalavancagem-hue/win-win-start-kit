@@ -25,3 +25,15 @@ export async function enviarTelegram(
     return false;
   }
 }
+
+// Chat ID individual do usuário; se não configurado, usa o do servidor (master).
+export async function chatIdDoUsuario(userId: string): Promise<string | null> {
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data } = await supabaseAdmin.from("profiles").select("telegram_chat_id").eq("id", userId).maybeSingle();
+    const chatId = data?.telegram_chat_id?.trim();
+    return chatId || null;
+  } catch {
+    return null;
+  }
+}
