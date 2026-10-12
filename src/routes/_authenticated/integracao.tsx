@@ -138,58 +138,96 @@ function Integracao() {
         )}
       </section>
 
-      <section className="space-y-3 rounded-lg border p-4 text-sm">
-        <h2 className="font-semibold">3. Guia de instalação</h2>
-        <div>
-          <h3 className="font-semibold">Passo 1 — Instalar o Python no Windows</h3>
-          <ol className="list-decimal space-y-1 pl-5">
-            <li>Acesse <a className="underline" href="https://www.python.org/downloads/windows/" target="_blank" rel="noreferrer">python.org/downloads/windows</a> e baixe uma versão atual do Python 3.</li>
-            <li>Abra o instalador. Na primeira tela, marque <b>Add python.exe to PATH</b> (ou <b>Add Python to PATH</b>) e clique em <b>Install Now</b>. Aguarde terminar e clique em <b>Close</b>.</li>
-          </ol>
-          <h3 className="mt-3 font-semibold">Passo 2 — Conferir o Python pelo CMD</h3>
-          <ol className="list-decimal space-y-1 pl-5">
-            <li>Pressione <b>Windows + R</b>, digite <code>cmd</code> e aperte Enter.</li>
-            <li>Digite <code>python --version</code><CopiarTexto texto="python --version" /> e aperte Enter. Deve aparecer a versão instalada do Python.</li>
-            <li>Digite <code>pip --version</code><CopiarTexto texto="pip --version" /> e aperte Enter para conferir o gerenciador de pacotes. Se o comando <code>python</code> não for reconhecido, feche e reabra o CMD; se continuar, corrija a instalação e a opção PATH.</li>
-          </ol>
-          <h3 className="mt-3 font-semibold">Passo 3 — Preparar os arquivos da extensão</h3>
-          <ol className="list-decimal space-y-1 pl-5">
-            <li>Baixe o arquivo ZIP da extensão e clique em <b>Extrair tudo</b>. Guarde a pasta extraída em um local permanente do computador.</li>
-            <li>Se o pacote incluir o arquivo <code>gerar_extensao.py</code>, abra o CMD e entre na pasta onde esse arquivo está. Digite <code>cd </code> seguido do caminho da pasta entre aspas, por exemplo <code>cd "C:\Integracao"</code><CopiarTexto texto={'cd "C:\\Integracao"'} />, e aperte Enter.</li>
-            <li>Execute <code>python gerar_extensao.py</code><CopiarTexto texto="python gerar_extensao.py" /> e aguarde terminar. Se o arquivo gerador tiver outro nome, use o nome exato que veio no pacote. Não execute este comando se o pacote já trouxer a pasta da extensão pronta e não incluir um gerador.</li>
-            <li>Localize a pasta gerada que contém o arquivo <code>manifest.json</code>. Não é necessário instalar bibliotecas extras nem manter o CMD aberto durante o uso normal da extensão, a menos que o pacote forneça instruções específicas diferentes.</li>
-          </ol>
-          <h3 className="mt-3 font-semibold">Passo 4 — Instalar a extensão no Google Chrome</h3>
-          <ol className="list-decimal space-y-1 pl-5">
-            <li>Abra o Chrome e digite <code>chrome://extensions/</code><CopiarTexto texto="chrome://extensions/" /> na barra de endereços.</li>
-            <li>Ative o <b>Modo do desenvolvedor</b>, no canto superior direito.</li>
-            <li>Clique em <b>Carregar sem compactação</b> e selecione a pasta extraída ou gerada que contém o <code>manifest.json</code>. Selecione a pasta, não o arquivo ZIP.</li>
-            <li>Para facilitar o acesso, clique no ícone de quebra-cabeça do Chrome e, se desejar, fixe a extensão na barra.</li>
-          </ol>
-          <h3 className="mt-3 font-semibold">Passo 5 — Conectar a extensão à plataforma</h3>
-          <ol className="list-decimal space-y-1 pl-5">
-            <li>Nesta página, na seção <b>Sua chave</b>, gere uma chave de integração e guarde-a com segurança.</li>
-            <li>Abra a extensão no Chrome. Em <b>URL da Plataforma</b>, informe <code>{base}</code><CopiarTexto texto={base} />. Em <b>Chave de Integração</b>, cole a chave gerada nesta página e salve.</li>
-            <li>Abra a Tradovate na mesma janela do Chrome e confirme que a extensão está ativa.</li>
-          </ol>
-        </div>
-        <div>
-          <h3 className="font-semibold">Passo 6 — Instalar e configurar o robô no MetaTrader 5</h3>
-          <ol className="list-decimal space-y-1 pl-5">
-            <li>Baixe o robô acima (arquivo <code>.ex5</code>).</li>
-            <li>No MT5, acesse <b>Arquivo → Abrir pasta de dados</b>, entre em <code>MQL5\Experts</code> e copie o arquivo do robô para essa pasta.</li>
-            <li>Volte ao MT5. No painel Navegador, clique com o botão direito em <b>Expert Advisors</b> e escolha <b>Atualizar</b>.</li>
-            <li>Abra <b>Ferramentas → Opções → Expert Advisors</b>. Marque <b>Permitir WebRequest para os endereços listados abaixo</b> e adicione a URL da plataforma: <code>{base}</code>. Confirme a alteração.</li>
-            <li>Arraste o robô para o gráfico do ativo. Nos parâmetros, informe a mesma chave usada na extensão e preencha <b>SiteUrl</b> com <code>{base}</code>. A URL precisa corresponder ao site em que você acessa a plataforma.</li>
-            <li>Ative <b>Algo Trading</b> no MT5. Faça o primeiro teste em uma conta demo.</li>
-          </ol>
-        </div>
-        <div className="space-y-2 rounded-md bg-muted/50 p-3">
-          <p className="font-semibold">Passo 7 — Testar a comunicação</p>
-          <p>Com a extensão configurada e o robô ativo no MT5, clique em <b>Testar envio da ordem</b> na extensão. Depois, confira diretamente no MetaTrader 5 se a ordem de teste foi recebida e executada. O clique no botão, sozinho, não confirma a execução. A tabela desta página também pode ajudar a acompanhar a chegada da ordem à plataforma.</p>
-          <p>Se o teste falhar, confira se a chave é a mesma nos dois lugares, se a URL está correta na extensão, em <b>WebRequest</b> e no parâmetro <b>SiteUrl</b>, e se o robô está ativo e conectado. Não opere em conta real antes de validar o funcionamento em demo.</p>
-        </div>
-        <p className="text-muted-foreground">O robô espelha a direção contrária à da mesa. Se gerar uma nova chave, atualize-a tanto na extensão quanto nos parâmetros do robô.</p>
+      <section className="space-y-4 rounded-lg border p-4 text-sm">
+        <h2 className="text-lg font-semibold">🚀 Guia de Instalação e Ativação — WinOrWin</h2>
+        <blockquote className="border-l-4 pl-3 text-muted-foreground">
+          <p><b>Aviso importante:</b> A extensão WinOrWin roda 100% nativa dentro do Google Chrome. Você NÃO precisa instalar Python, Node, abrir o prompt de comando (CMD) ou fazer configurações avançadas no seu computador. Todo o processo leva menos de 2 minutos.</p>
+        </blockquote>
+
+        <h3 className="font-semibold">📋 O que você precisa antes de começar:</h3>
+        <ol className="list-decimal space-y-1 pl-5">
+          <li>Ter uma conta aprovada na plataforma WinOrWin;</li>
+          <li>Ter o navegador Google Chrome instalado;</li>
+          <li>Baixar o arquivo da extensão (<code>WinOrWin_Extensao.zip</code>);</li>
+          <li>Ter o MetaTrader 5 aberto no seu computador.</li>
+        </ol>
+
+        <h3 className="text-base font-semibold">📌 PARTE 1: Instalando a Extensão no Chrome</h3>
+        <h4 className="font-semibold">Passo 1: Extrair os arquivos</h4>
+        <ol className="list-decimal space-y-1 pl-5">
+          <li>Localize o arquivo <code>WinOrWin_Extensao.zip</code> que você baixou.</li>
+          <li>Clique com o botão direito nele e escolha Extrair Tudo... (ou use o WinRAR/7-Zip).</li>
+          <li>Salve em um local definitivo do seu computador (ex: na pasta Documentos ou Área de Trabalho).</li>
+        </ol>
+        <blockquote className="border-l-4 pl-3 text-muted-foreground">⚠️ Atenção: Mantenha essa pasta no computador e não a apague após a instalação.</blockquote>
+
+        <h4 className="font-semibold">Passo 2: Carregar no Google Chrome</h4>
+        <ol className="list-decimal space-y-1 pl-5">
+          <li>Abra o Google Chrome.</li>
+          <li>Na barra de endereços, digite <code>chrome://extensions/</code> (e aperte Enter).</li>
+          <li>No canto superior direito da tela, ative a chave: Modo do desenvolvedor.</li>
+          <li>No canto superior esquerdo, clique no botão: Carregar sem compactação.</li>
+          <li>Selecione a pasta descompactada da extensão (onde estão os arquivos <code>manifest.json</code>, <code>content.js</code>, etc.) e clique em Selecionar pasta.</li>
+          <li>Pronto! A extensão WinOrWin Tradovate Bridge aparecerá na sua lista.</li>
+        </ol>
+
+        <h4 className="font-semibold">Passo 3: Fixar o ícone no navegador</h4>
+        <ol className="list-decimal space-y-1 pl-5">
+          <li>No canto superior direito do Chrome, clique no ícone de Quebra-cabeça (Extensões).</li>
+          <li>Localize a WinOrWin Tradovate Bridge e clique no ícone de Alfinete (Fixar) para deixá-la sempre visível na barra do navegador.</li>
+        </ol>
+
+        <h4 className="font-semibold">Passo 4: Conectar sua Conta</h4>
+        <ol className="list-decimal space-y-1 pl-5">
+          <li>Acesse sua conta na plataforma WinOrWin e vá no menu Integração.</li>
+          <li>Copie a sua Chave de Integração Pessoal (Token).</li>
+          <li>Clique no ícone da extensão no topo do Chrome.</li>
+          <li>Preencha os campos:
+            <ul className="list-disc space-y-1 pl-5">
+              <li>URL da Plataforma: <code>https://win-or-win.lovable.app</code></li>
+              <li>Chave de Integração: Cole a sua chave copiada.</li>
+            </ul>
+          </li>
+          <li>Clique em Salvar Configurações.</li>
+          <li>Ao abrir a plataforma Tradovate no Chrome, você verá no topo direito da tela o selo verde:<br />🟢 WinOrWin: Conectado e Pronto.</li>
+        </ol>
+
+        <h3 className="text-base font-semibold">📌 PARTE 2: Configurando o Robô no MetaTrader 5</h3>
+        <h4 className="font-semibold">Passo 1: Permitir a conexão no MT5 (Apenas uma vez)</h4>
+        <ol className="list-decimal space-y-1 pl-5">
+          <li>No MetaTrader 5, clique no menu superior em Ferramentas &gt; Opções (ou aperte <code>Ctrl + O</code>).</li>
+          <li>Vá até a aba Expert Advisors.</li>
+          <li>Marque a caixinha: Permitir WebRequest para as URLs listadas.</li>
+          <li>Clique no botão de adicionar (+ ou duplo clique) e insira exatamente o endereço: <code>https://win-or-win.lovable.app</code></li>
+          <li>Clique em OK.</li>
+        </ol>
+
+        <h4 className="font-semibold">Passo 2: Inserir o Robô no Gráfico</h4>
+        <ol className="list-decimal space-y-1 pl-5">
+          <li>Abra o gráfico do ativo correspondente na sua corretora (ex: <code>GOLD</code> ou <code>US100Cash</code>).</li>
+          <li>No menu do MT5, arraste o Expert Advisor WinOrWin_Hedge para dentro do gráfico.</li>
+          <li>Na aba Comum:
+            <ul className="list-disc space-y-1 pl-5"><li>Marque a caixinha: Permitir Algo Trading (Negociação Automatizada).</li></ul>
+          </li>
+          <li>Na aba Parâmetros de Entrada (Inputs):
+            <ul className="list-disc space-y-1 pl-5">
+              <li>URL do Site: <code>https://win-or-win.lovable.app</code></li>
+              <li>Chave de Integração: Cole a mesma chave pessoal da plataforma.</li>
+              <li>Mapa de Ativos: Verifique o nome exato dos ativos na sua corretora (ex: <code>MNQ=US100Cash;MGC=GOLD</code>).</li>
+              <li>Magic Number: Deixe <code>0</code> (o robô gera um número exclusivo automático para a sua conta).</li>
+            </ul>
+          </li>
+          <li>Clique em OK.</li>
+          <li>No topo do MetaTrader 5, certifique-se de que o botão Algo Trading está verde (ativado).</li>
+        </ol>
+
+        <h3 className="text-base font-semibold">✅ Como Funciona no Dia a Dia</h3>
+        <ul className="list-disc space-y-1 pl-5">
+          <li>Quando você der um clique de Compra na Tradovate, o robô entra Vendido no MT5.</li>
+          <li>Quando você der um clique de Venda na Tradovate, o robô entra Comprado no MT5.</li>
+          <li>Se você apertar o botão de Fechar/Zerar na Tradovate ou atingir alvo/stop, o robô encerra a ordem no MT5 na hora.</li>
+          <li>A velocidade de comunicação é de milissegundos, com auditoria direta no seu painel.</li>
+        </ul>
       </section>
 
       <section className="rounded-lg border p-4">

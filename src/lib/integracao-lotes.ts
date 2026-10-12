@@ -6,25 +6,50 @@ export type CfdLotResolution =
 
 /**
  * Resolve the CFD lot from the user's saved platform cycle.
+ * Supabase JSON/JSONB may already be decoded to an object; legacy rows may be strings.
+ * Multi-bank documents resolve to the state selected by activeId (or the first bank).
  * Tradovate contract quantity is intentionally not used as CFD volume.
  */
-export function resolveCfdLot(rawState: string | null | undefined, symbol: string): CfdLotResolution {
-  if (!rawState) {
+export function resolveCfdLot(rawState: unknown, symbol: string): CfdLotResolution {
+  if (rawState == null || rawState === "") {
     return { lot: null, assetKey: null, day: null, error: "A plataforma ainda não tem um estado salvo." };
   }
 
   let parsed: unknown;
-  try {
-    parsed = JSON.parse(rawState);
-  } catch {
-    return { lot: null, assetKey: null, day: null, error: "O estado salvo da plataforma não é um JSON válido." };
+  if (typeof rawState === "string") {
+    try {
+      parsed = JSON.parse(rawState);
+    } catch {
+      return { lot: null, assetKey: null, day: null, error: "O estado salvo da plataforma não é um JSON válido." };
+    }
+  } else {
+    parsed = rawState;
+  }
+
+  // New persisted format: { bancasVersion, activeId, bancas: [{ id, nome, state }] }.
+  // Keep accepting the legacy single-State format unchanged.
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    "bancas" in parsed &&
+    Array.isArray((parsed as { bancas?: unknown }).bancas) &&
+    (parsed as { bancas: unknown[] }).bancas.length > 0
+  ) {
+    const doc = parsed as { activeId?: unknown; bancas: Array<{ id?: unknown; state?: unknown }> };
+    const active = doc.bancas.find((banca) => banca?.id === doc.activeId) ?? doc.bancas[0];
+    parsed = active?.state;
   }
 
   if (!isValidState(parsed)) {
     return { lot: null, assetKey: null, day: null, error: "O estado salvo da plataforma não contém os ciclos esperados." };
   }
 
-  const state = normalizeState(parsed) as State;
+  let state: State;
+  try {
+    state = normalizeState(parsed);
+  } catch {
+    return { lot: null, assetKey: null, day: null, error: "O estado salvo da plataforma está incompleto ou inválido." };
+  }
   const mesa = symbol.trim().toUpperCase();
   let symbolAsset: "nasdaq" | "ouro" | null = null;
 
@@ -43,6 +68,9 @@ export function resolveCfdLot(rawState: string | null | undefined, symbol: strin
   }
 
   const asset = state.assets[assetKey];
+  if (!Number.isInteger(asset.attempt.currentDayIndex)) {
+    return { lot: null, assetKey: null, day: null, error: `O dia atual do ciclo ${assetKey} está ausente ou inválido.` };
+  }
   const index = clampDayIndex(asset);
   const day = index >= 0 ? asset.days[index] : undefined;
   const lot = Number(day?.lotes);
