@@ -34,7 +34,7 @@ export const Route = createFileRoute("/api/public/ordens/pendentes")({
           resolution: resolveCfdLot(saved?.data ?? null, row.symbol),
         }));
         const lotErrors = resolved
-          .filter(({ resolution }) => resolution.lot == null)
+          .filter(({ resolution }) => resolution.lot == null || !Number.isFinite(resolution.lot) || resolution.lot <= 0)
           .map(({ row, resolution }) => ({
             id: row.id,
             symbol: row.symbol,
@@ -75,7 +75,7 @@ export const Route = createFileRoute("/api/public/ordens/pendentes")({
               symbol: row.symbol,
               side: row.mirror_side,
               qty: Number(row.qty),
-              lot: resolution.lot,
+              lot: resolution.lot!,
               lot_asset: resolution.assetKey ?? undefined,
               lot_day: resolution.day ?? undefined,
               price: row.price,
