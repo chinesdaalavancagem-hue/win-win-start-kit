@@ -6,18 +6,23 @@ export type CfdLotResolution =
 
 /**
  * Resolve the CFD lot from the user's saved platform cycle.
+ * Supabase JSON/JSONB may already be decoded to an object; legacy rows may be strings.
  * Tradovate contract quantity is intentionally not used as CFD volume.
  */
-export function resolveCfdLot(rawState: string | null | undefined, symbol: string): CfdLotResolution {
-  if (!rawState) {
+export function resolveCfdLot(rawState: unknown, symbol: string): CfdLotResolution {
+  if (rawState == null || rawState === "") {
     return { lot: null, assetKey: null, day: null, error: "A plataforma ainda não tem um estado salvo." };
   }
 
   let parsed: unknown;
-  try {
-    parsed = JSON.parse(rawState);
-  } catch {
-    return { lot: null, assetKey: null, day: null, error: "O estado salvo da plataforma não é um JSON válido." };
+  if (typeof rawState === "string") {
+    try {
+      parsed = JSON.parse(rawState);
+    } catch {
+      return { lot: null, assetKey: null, day: null, error: "O estado salvo da plataforma não é um JSON válido." };
+    }
+  } else {
+    parsed = rawState;
   }
 
   if (!isValidState(parsed)) {
