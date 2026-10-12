@@ -99,7 +99,7 @@ function Integracao() {
     }
   }
 
-  async function salvarChat() {
+  async function salvarChatTelegram() {
     const chatId = telegramChatId.trim();
     if (!/^-?\d{3,20}$/.test(chatId)) return alert("Informe um Chat ID numérico válido (ex.: 123456789).");
     setTelegramSalvando(true);
@@ -187,7 +187,7 @@ function Integracao() {
           <input className="w-full rounded-md border bg-background px-3 py-2" value={telegramChatId} onChange={(e) => setTelegramChatId(e.target.value)} placeholder="Ex.: 123456789" />
         </label>
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" onClick={salvarChat} disabled={telegramSalvando}>{telegramSalvando ? "Salvando..." : "Salvar Chat ID"}</Button>
+          <Button size="sm" onClick={salvarChatTelegram} disabled={telegramSalvando}>{telegramSalvando ? "Salvando..." : "Salvar Chat ID"}</Button>
           <Button size="sm" variant="outline" onClick={testarTelegram} disabled={telegramTestando}>{telegramTestando ? "Testando..." : "Testar Notificação"}</Button>
         </div>
         <p className="text-xs text-muted-foreground">O Chat ID salvo fica ligado à sua conta: as notificações das suas ordens chegam no seu Telegram. Se deixar em branco, os alertas seguem para o Chat ID monitorado pela master.</p>
