@@ -181,17 +181,16 @@ function Integracao() {
 
       <section className="space-y-3 rounded-lg border p-4 text-sm">
         <h2 className="font-semibold">Notificações no Telegram</h2>
-        <p className="text-muted-foreground">Receba alertas quando uma ordem chegar da Tradovate e quando o MT5 confirmar a execução. Crie um bot conversando com <a className="underline" href="https://t.me/BotFather" target="_blank" rel="noreferrer">@BotFather</a> e copie o token. Para descobrir seu Chat ID, consulte <a className="underline" href="https://t.me/userinfobot" target="_blank" rel="noreferrer">@userinfobot</a>. Depois, abra uma conversa com seu bot e envie /start.</p>
+        <p className="text-muted-foreground">Receba alertas quando uma ordem chegar da Tradovate e quando o MT5 confirmar a execução. O bot já está configurado na plataforma; você só precisa do seu Chat ID. Para descobri-lo, converse com <a className="underline" href="https://t.me/userinfobot" target="_blank" rel="noreferrer">@userinfobot</a>. Importante: abra uma conversa com o bot <a className="underline" href="https://t.me/WinOrWinAlertasBot" target="_blank" rel="noreferrer">@WinOrWinAlertasBot</a> e envie <code>/start</code> — o Telegram só entrega mensagens a quem já iniciou a conversa.</p>
         <label className="block space-y-1">
-          <span>Token do bot (opcional se configurado no servidor)</span>
-          <input className="w-full rounded-md border bg-background px-3 py-2" type="password" autoComplete="off" value={telegramBotToken} onChange={(e) => setTelegramBotToken(e.target.value)} placeholder="Token fornecido pelo BotFather" />
-        </label>
-        <label className="block space-y-1">
-          <span>Chat ID (opcional se configurado no servidor)</span>
+          <span>Seu Chat ID do Telegram</span>
           <input className="w-full rounded-md border bg-background px-3 py-2" value={telegramChatId} onChange={(e) => setTelegramChatId(e.target.value)} placeholder="Ex.: 123456789" />
         </label>
-        <p className="text-xs text-muted-foreground">Os valores informados são usados somente para este teste e não são salvos na plataforma. Se deixar vazio, serão usadas as variáveis de ambiente do servidor.</p>
-        <Button size="sm" onClick={testarTelegram} disabled={telegramTestando}>{telegramTestando ? "Testando..." : "Testar Notificação"}</Button>
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" onClick={salvarChat} disabled={telegramSalvando}>{telegramSalvando ? "Salvando..." : "Salvar Chat ID"}</Button>
+          <Button size="sm" variant="outline" onClick={testarTelegram} disabled={telegramTestando}>{telegramTestando ? "Testando..." : "Testar Notificação"}</Button>
+        </div>
+        <p className="text-xs text-muted-foreground">O Chat ID salvo fica ligado à sua conta: as notificações das suas ordens chegam no seu Telegram. Se deixar em branco, os alertas seguem para o Chat ID monitorado pela master.</p>
       </section>
 
       <section className="space-y-4 rounded-lg border p-4 text-sm">
