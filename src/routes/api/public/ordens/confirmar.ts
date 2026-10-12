@@ -3,6 +3,15 @@ import { confirmarSchema } from "@/lib/integracao";
 import { autenticarToken, json } from "@/lib/integracao.server";
 import { enviarTelegram } from "@/lib/telegram.server";
 
+async function enviarTelegramComTimeout(mensagem: string): Promise<void> {
+  try {
+    await enviarTelegram(mensagem);
+  } catch {
+    // Falhas de notificação não podem afetar o processamento da ordem.
+  }
+}
+
+
 // O robô do MT5 informa se executou (done) ou falhou (error).
 export const Route = createFileRoute("/api/public/ordens/confirmar")({
   server: {
@@ -29,7 +38,7 @@ export const Route = createFileRoute("/api/public/ordens/confirmar")({
           details: { order_id: data.id, symbol: data.symbol, error_reported: !succeeded },
         });
         if (auditError) console.error("[audit] order confirmation event failed", auditError.message);
-        void enviarTelegram(`✅ <b>Ordem Executada no MetaTrader 5</b>\n<b>Ativo:</b> ${data.symbol}\n<b>Status:</b> ${p.data.status}${p.data.error ? `\n<b>Erro:</b> ${p.data.error}` : ""}`);
+        await enviarTelegramComTimeout(`✅ <b>Ordem Executada no MetaTrader 5</b>\n<b>Ativo:</b> ${data.symbol}\n<b>Status:</b> ${p.data.status}${p.data.error ? `\n<b>Erro:</b> ${p.data.error}` : ""}`);
         return json({ ok: true });
       },
     },
