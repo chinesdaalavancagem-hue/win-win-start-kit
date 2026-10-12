@@ -18,8 +18,8 @@ export const Route = createFileRoute("/api/telegram-teste")({
             return json({ ok: false, error: "Configure o botToken e o chatId ou as variáveis TELEGRAM_BOT_TOKEN e TELEGRAM_CHAT_ID." }, 400);
           }
           const enviado = await enviarTelegram("🧪 <b>Teste de Notificação — Win or Win</b>\nSeu bot do Telegram está configurado para receber alertas.", {
-            botToken: botToken || undefined,
-            chatId: chatId || undefined,
+            botToken: tokenConfigurado,
+            chatId: chatConfigurado,
           });
           if (!enviado) return json({ ok: false, error: "O Telegram não confirmou o envio. Verifique o token, o Chat ID e se você iniciou uma conversa com o bot." }, 502);
           return json({ ok: true });
