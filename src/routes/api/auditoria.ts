@@ -33,7 +33,7 @@ function validateDetails(value: unknown): D | null {
   if (entries.length > 10) return null;
   for (const [, item] of entries) {
     if (typeof item === "string") {
-      if (item.length > 200) return null;
+      if (item.length > 500) return null;
     } else if (
       item !== null &&
       typeof item !== "boolean" &&
