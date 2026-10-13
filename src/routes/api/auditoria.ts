@@ -18,6 +18,55 @@ async function authenticatedUser(request: Request) {
   return error || !data.user ? null : data.user;
 }
 const obj = (v: unknown): D => v && typeof v === "object" && !Array.isArray(v) ? v as D : {};
+
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX_EVENTS = 30;
+// Process-local sliding window; no schema or other files are needed.
+const postEventTimestamps = new Map<string, number[]>();
+
+function validateDetails(value: unknown): D | null {
+  // Keep existing callers that omit details compatible.
+  if (value === undefined) return {};
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+
+  const entries = Object.entries(value as Record<string, unknown>);
+  if (entries.length > 10) return null;
+  for (const [, item] of entries) {
+    if (typeof item === "string") {
+      if (item.length > 200) return null;
+    } else if (
+      item !== null &&
+      typeof item !== "boolean" &&
+      (typeof item !== "number" || !Number.isFinite(item))
+    ) {
+      // Depth 1: scalar values only; nested objects and arrays are rejected.
+      return null;
+    }
+  }
+  return value as D;
+}
+
+function consumePostRateLimit(userId: string, now = Date.now()): boolean {
+  const cutoff = now - RATE_LIMIT_WINDOW_MS;
+  const recent = (postEventTimestamps.get(userId) ?? []).filter((timestamp) => timestamp > cutoff);
+  if (recent.length >= RATE_LIMIT_MAX_EVENTS) {
+    postEventTimestamps.set(userId, recent);
+    return false;
+  }
+
+  recent.push(now);
+  postEventTimestamps.set(userId, recent);
+
+  // Bound stale-key accumulation in long-lived server processes.
+  if (postEventTimestamps.size > 1_000) {
+    for (const [id, timestamps] of postEventTimestamps) {
+      const active = timestamps.filter((timestamp) => timestamp > cutoff);
+      if (active.length) postEventTimestamps.set(id, active);
+      else postEventTimestamps.delete(id);
+    }
+  }
+  return true;
+}
 function safe(v: unknown, max = 90): string {
   if (typeof v !== "string") return "";
   return v.replace(/[\u0000-\u001f\u007f]/g, " ").replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "")
@@ -108,6 +157,8 @@ export const Route = createFileRoute("/api/auditoria")({
       if (!body || typeof body !== "object" || Array.isArray(body)) return json({ error: "invalid_body" }, 400);
       const event = body as Record<string, unknown>;
       if (typeof event.category !== "string" || !CATEGORIES.has(event.category) || typeof event.action !== "string" || !CLIENT_ACTIONS.has(event.action) || (event.outcome !== undefined && (typeof event.outcome !== "string" || !OUTCOMES.has(event.outcome)))) return json({ error: "invalid_event" }, 400);
+      const details = validateDetails(event.details);
+      if (details === null) return json({ error: "invalid_details" }, 400);
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       if (event.action === "integration.file_published") {
         const { data: roles } = await supabaseAdmin.from("user_roles").select("role").eq("user_id", user.id);
@@ -115,7 +166,8 @@ export const Route = createFileRoute("/api/auditoria")({
       }
       const expected: Record<string, string> = { "login.success": "auth", "signup.success": "auth", logout: "auth", "integration.key_failed": "integration", "integration.download_requested": "integration", "integration.download_failed": "integration", "integration.file_published": "integration", "navigation.opened": "navigation", "ui.button_clicked": "ui", "system.error": "system" };
       if (expected[event.action] !== event.category) return json({ error: "invalid_event_category" }, 400);
-      const { error } = await supabaseAdmin.from("audit_logs").insert({ user_id: user.id, category: event.category, action: event.action, outcome: typeof event.outcome === "string" ? event.outcome : "success", details: obj(event.details), request_id: crypto.randomUUID() });
+      if (!consumePostRateLimit(user.id)) return json({ error: "rate_limit_exceeded" }, 429);
+      const { error } = await supabaseAdmin.from("audit_logs").insert({ user_id: user.id, category: event.category, action: event.action, outcome: typeof event.outcome === "string" ? event.outcome : "success", details, request_id: crypto.randomUUID() });
       if (error) { console.error("[audit] insert failed", error.message); return json({ error: "audit_write_failed" }, 500); }
       return json({ ok: true }, 201);
     },
