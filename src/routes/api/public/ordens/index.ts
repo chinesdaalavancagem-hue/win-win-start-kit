@@ -2,7 +2,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { mirrorSide, ordemSchema } from "@/lib/integracao";
 import { autenticarToken, json } from "@/lib/integracao.server";
 import { enviarTelegram, chatIdDoUsuario } from "@/lib/telegram.server";
-import type { PushPayload } from "@/lib/push.server";
 
 async function enviarTelegramComTimeout(mensagem: string, chatId?: string): Promise<void> {
   try {
@@ -47,7 +46,7 @@ export const Route = createFileRoute("/api/public/ordens/")({
               title: "🚀 Ordem Recebida (Tradovate)",
               body: `Ativo: ${o.symbol} | Lado: ${o.side} | Qtd: ${o.qty}`,
               url: "/plataforma",
-            } satisfies PushPayload),
+            }),
           ).catch(() => {
             // Push é best-effort; a fila e o alerta do Telegram não dependem dele.
           });
