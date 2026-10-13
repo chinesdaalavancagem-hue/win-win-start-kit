@@ -5,6 +5,12 @@ export type PushPayload = { title: string; body: string; url?: string };
 const encoder = new TextEncoder();
 const VAPID_EXPIRY_SECONDS = 12 * 60 * 60;
 
+// Produz um ArrayBuffer independente, compatível com os tipos BufferSource
+// esperados pela Web Crypto API em runtimes como Cloudflare Workers.
+function asArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  return bytes.slice().buffer as ArrayBuffer;
+}
+
 function decodeBase64Url(value: string): Uint8Array {
   const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
   const binary = atob(normalized + "=".repeat((4 - (normalized.length % 4)) % 4));
@@ -54,7 +60,7 @@ async function createVapidAuthorization(endpoint: string, publicKey: string, pri
   const signature = new Uint8Array(await crypto.subtle.sign(
     { name: "ECDSA", hash: "SHA-256" },
     key,
-    encoder.encode(unsigned),
+    asArrayBuffer(encoder.encode(unsigned)),
   ));
   if (signature.length !== 64) throw new Error("Unexpected ES256 signature format");
   return `vapid t=${unsigned}.${encodeBase64Url(signature)}, k=${publicKey}`;
@@ -68,7 +74,7 @@ async function encryptPayload(subscription: { p256dh: string; auth: string }, pa
   }
 
   const uaPublicKey = await crypto.subtle.importKey(
-    "raw", uaPublicBytes, { name: "ECDH", namedCurve: "P-256" }, false, [],
+    "raw", asArrayBuffer(uaPublicBytes), { name: "ECDH", namedCurve: "P-256" }, false, [],
   );
   const ephemeral = await crypto.subtle.generateKey(
     { name: "ECDH", namedCurve: "P-256" }, true, ["deriveBits"],
@@ -79,22 +85,24 @@ async function encryptPayload(subscription: { p256dh: string; auth: string }, pa
   ));
 
   const keyInfo = concatBytes(encoder.encode("WebPush: info\0"), uaPublicBytes, asPublicBytes);
-  const sharedKey = await crypto.subtle.importKey("raw", sharedSecret, "HKDF", false, ["deriveBits"]);
+  const sharedKey = await crypto.subtle.importKey("raw", asArrayBuffer(sharedSecret), "HKDF", false, ["deriveBits"]);
   const ikm = new Uint8Array(await crypto.subtle.deriveBits(
-    { name: "HKDF", hash: "SHA-256", salt: authSecret, info: keyInfo }, sharedKey, 256,
+    { name: "HKDF", hash: "SHA-256", salt: asArrayBuffer(authSecret), info: asArrayBuffer(keyInfo) }, sharedKey, 256,
   ));
 
   const salt = crypto.getRandomValues(new Uint8Array(16));
-  const inputKey = await crypto.subtle.importKey("raw", ikm, "HKDF", false, ["deriveBits"]);
+  const inputKey = await crypto.subtle.importKey("raw", asArrayBuffer(ikm), "HKDF", false, ["deriveBits"]);
   const contentKeyBytes = new Uint8Array(await crypto.subtle.deriveBits(
-    { name: "HKDF", hash: "SHA-256", salt, info: encoder.encode("Content-Encoding: aes128gcm\0") }, inputKey, 128,
+    { name: "HKDF", hash: "SHA-256", salt: asArrayBuffer(salt), info: asArrayBuffer(encoder.encode("Content-Encoding: aes128gcm\0")) }, inputKey, 128,
   ));
   const nonce = new Uint8Array(await crypto.subtle.deriveBits(
-    { name: "HKDF", hash: "SHA-256", salt, info: encoder.encode("Content-Encoding: nonce\0") }, inputKey, 96,
+    { name: "HKDF", hash: "SHA-256", salt: asArrayBuffer(salt), info: asArrayBuffer(encoder.encode("Content-Encoding: nonce\0")) }, inputKey, 96,
   ));
-  const contentKey = await crypto.subtle.importKey("raw", contentKeyBytes, { name: "AES-GCM" }, false, ["encrypt"]);
+  const contentKey = await crypto.subtle.importKey("raw", asArrayBuffer(contentKeyBytes), { name: "AES-GCM" }, false, ["encrypt"]);
   const plaintext = concatBytes(encoder.encode(payload), new Uint8Array([2]));
-  const ciphertext = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv: nonce, tagLength: 128 }, contentKey, plaintext));
+  const ciphertext = new Uint8Array(await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv: asArrayBuffer(nonce), tagLength: 128 }, contentKey, asArrayBuffer(plaintext),
+  ));
 
   // RFC 8291 aes128gcm record: salt || rs || idlen || ephemeral public key || ciphertext.
   return concatBytes(salt, uint32be(4096), new Uint8Array([asPublicBytes.length]), asPublicBytes, ciphertext);

@@ -40,21 +40,20 @@ export const Route = createFileRoute("/api/public/ordens/")({
         });
         if (auditError) console.error("[audit] incoming order event failed", auditError.message);
         if (data) {
-          void enviarPushAoUsuario(userId, { title: "🚀 Ordem Recebida (Tradovate)", body: `Ativo: ${o.symbol} | Lado: ${o.side} | Qtd: ${o.qty}`, url: "/plataforma" });
+          try {
+            await enviarPushAoUsuario(userId, {
+              title: "🚀 Ordem Recebida (Tradovate)",
+              body: `Ativo: ${o.symbol} | Lado: ${o.side} | Qtd: ${o.qty}`,
+              url: "/plataforma",
+            });
+          } catch {
+            // Push é best-effort; a fila e o alerta do Telegram não dependem dele.
+          }
           const chatId = await chatIdDoUsuario(userId);
           await enviarTelegramComTimeout(`🚀 <b>Ordem Recebida (Tradovate)</b>
 <b>Ativo:</b> ${o.symbol}
 <b>Lado:</b> ${o.side} ➔ <b>CFD Hedge:</b> ${mirrorSide(o.side)}
 <b>Quantidade:</b> ${o.qty}`, chatId ?? undefined);
-          void import("@/lib/push.server").then(({ enviarPushAoUsuario }) =>
-            enviarPushAoUsuario(userId, {
-              title: "🚀 Ordem Recebida (Tradovate)",
-              body: `Ativo: ${o.symbol} | Lado: ${o.side} | Qtd: ${o.qty}`,
-              url: "/plataforma",
-            }),
-          ).catch(() => {
-            // Push é best-effort; a fila e o alerta do Telegram não dependem dele.
-          });
         }
         return json({ ok: true, id: data?.id ?? null, duplicate: !data }, data ? 201 : 200);
       },
