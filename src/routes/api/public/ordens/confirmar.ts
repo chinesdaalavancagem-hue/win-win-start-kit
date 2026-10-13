@@ -2,7 +2,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { confirmarSchema } from "@/lib/integracao";
 import { autenticarToken, json } from "@/lib/integracao.server";
 import { enviarTelegram, chatIdDoUsuario } from "@/lib/telegram.server";
-import type { PushPayload } from "@/lib/push.server";
 
 async function enviarTelegramComTimeout(mensagem: string, chatId?: string): Promise<void> {
   try {
@@ -46,7 +45,7 @@ export const Route = createFileRoute("/api/public/ordens/confirmar")({
             title: succeeded ? "✅ Ordem Executada no MT5" : "⚠️ Falha na Ordem no MT5",
             body: `Ativo: ${data.symbol} | Status: ${p.data.status}`,
             url: "/plataforma",
-          } satisfies PushPayload),
+          }),
         ).catch(() => {
           // Push é best-effort; a confirmação e o alerta do Telegram não dependem dele.
         });
