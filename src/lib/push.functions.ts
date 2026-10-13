@@ -43,6 +43,17 @@ export const salvarInscricaoPush = createServerFn({ method: "POST" })
 export const enviarPushTeste = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY || !process.env.VAPID_SUBJECT) {
+      throw new Error("As chaves VAPID não estão configuradas no servidor.");
+    }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { count, error } = await supabaseAdmin
+      .from("push_subscriptions")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", context.userId);
+    if (error) throw new Error("Não foi possível verificar as inscrições de notificações.");
+    if (!count) throw new Error("Ative as notificações neste aparelho antes de enviar um teste.");
+
     const { enviarPushAoUsuario } = await import("@/lib/push.server");
     await enviarPushAoUsuario(context.userId, {
       title: "🧪 Teste de Notificação — Win or Win",
