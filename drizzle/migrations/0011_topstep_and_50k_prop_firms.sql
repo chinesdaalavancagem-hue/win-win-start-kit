@@ -1,4 +1,4 @@
--- Add Topstep and initialize the official/referral links.
+-- Add Topstep and initialize the official links.
 -- The account size is intentionally fixed at USD 50,000 for every firm.
 ALTER TABLE public.prop_firms DROP CONSTRAINT IF EXISTS prop_firms_id_check;
 ALTER TABLE public.prop_firms
@@ -10,7 +10,7 @@ VALUES
   ('lucid-trading', 'Lucid Trading', 'https://lucidtrading.com/', '', ARRAY[50000]),
   ('tradeify', 'Tradeify', 'https://tradeify.co/', '', ARRAY[50000]),
   ('my-funded-futures', 'My Funded Futures', 'https://myfundedfutures.com/', '', ARRAY[50000]),
-  ('topstep', 'Topstep', 'https://social.topstep.com/trader/840014e6-0c9c-4f05-9326-2501c87b9b44', '', ARRAY[50000])
+  ('topstep', 'Topstep', 'https://www.topstep.com/', '', ARRAY[50000])
 ON CONFLICT (id) DO UPDATE SET
   name = EXCLUDED.name,
   affiliate_url = CASE
