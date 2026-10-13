@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { mirrorSide, ordemSchema } from "@/lib/integracao";
 import { autenticarToken, json } from "@/lib/integracao.server";
-import { enviarTelegram, chatIdDoUsuario } from "@/lib/telegram.server";\nimport { enviarPushAoUsuario } from "@/lib/push.server";
+import { enviarTelegram, chatIdDoUsuario } from "@/lib/telegram.server";
+import { enviarPushAoUsuario } from "@/lib/push.server";
 
 async function enviarTelegramComTimeout(mensagem: string, chatId?: string): Promise<void> {
   try {
@@ -41,7 +42,10 @@ export const Route = createFileRoute("/api/public/ordens/")({
         if (data) {
           void enviarPushAoUsuario(userId, { title: "🚀 Ordem Recebida (Tradovate)", body: `Ativo: ${o.symbol} | Lado: ${o.side} | Qtd: ${o.qty}`, url: "/plataforma" });
           const chatId = await chatIdDoUsuario(userId);
-          await enviarTelegramComTimeout(`🚀 <b>Ordem Recebida (Tradovate)</b>\n<b>Ativo:</b> ${o.symbol}\n<b>Lado:</b> ${o.side} ➔ <b>CFD Hedge:</b> ${mirrorSide(o.side)}\n<b>Quantidade:</b> ${o.qty}`, chatId ?? undefined);
+          await enviarTelegramComTimeout(`🚀 <b>Ordem Recebida (Tradovate)</b>
+<b>Ativo:</b> ${o.symbol}
+<b>Lado:</b> ${o.side} ➔ <b>CFD Hedge:</b> ${mirrorSide(o.side)}
+<b>Quantidade:</b> ${o.qty}`, chatId ?? undefined);
           void import("@/lib/push.server").then(({ enviarPushAoUsuario }) =>
             enviarPushAoUsuario(userId, {
               title: "🚀 Ordem Recebida (Tradovate)",
