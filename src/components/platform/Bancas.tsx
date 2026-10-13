@@ -4,12 +4,16 @@ import { Input } from "@/components/ui/input";
 import { Platform } from "./Platform";
 import { fmt, fmtSigned } from "@/lib/platform/engine";
 import { type BancasDoc, novaBanca, parseBancas, relatorioCsv, resumoBanca } from "@/lib/platform/bancas";
+import { ComprarDesafioModal } from "./ComprarDesafioModal";
+import { needsNewChallenge } from "@/lib/platform/challenges";
+import { Plus, ExternalLink } from "lucide-react";
 
 export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | null>; save: (v: string) => Promise<boolean>; isAdmin: boolean }) {
   const [doc, setDoc] = useState<BancasDoc | null>(null);
   const [err, setErr] = useState(false);
   const [painel, setPainel] = useState(false);
   const [nome, setNome] = useState("");
+  const [purchaseOpen, setPurchaseOpen] = useState(false);
   const docRef = useRef<BancasDoc | null>(null);
 
   useEffect(() => { load().then((r) => { const d = parseBancas(r); docRef.current = d; setDoc(d); }).catch(() => setErr(true)); }, [load]);
@@ -27,15 +31,22 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
     const next = { ...d, bancas: d.bancas.map((b) => (b.id === id ? { ...b, state: JSON.parse(v) } : b)) };
     docRef.current = next;
     setDoc(next);
-    return save(JSON.stringify(next));
+    const before = d.bancas.find((b) => b.id === id);
+    const after = next.bancas.find((b) => b.id === id);
+    const ok = await save(JSON.stringify(next));
+    if (ok && before && after && needsNewChallenge(after.state) && after.state.log.at(-1)?.id !== before.state.log.at(-1)?.id) setPurchaseOpen(true);
+    return ok;
   }, [activeId, save]);
 
   if (err) return <p className="m-auto text-destructive">Falha ao carregar as bancas.</p>;
   if (!doc) return <p className="m-auto text-muted-foreground">Carregando bancas...</p>;
-  const ativa = doc.bancas.find((b) => b.id === doc.activeId)!;
+  const ativa = doc.bancas.find((b) => b.id === doc.activeId) ?? doc.bancas[0];
+  if (!ativa) return <p className="m-auto text-destructive">Nenhuma banca disponível.</p>;
 
   function exportar() {
-    const url = URL.createObjectURL(new Blob([relatorioCsv(doc!.bancas)], { type: "text/csv;charset=utf-8" }));
+    const current = docRef.current;
+    if (!current) return;
+    const url = URL.createObjectURL(new Blob([relatorioCsv(current.bancas)], { type: "text/csv;charset=utf-8" }));
     const a = document.createElement("a");
     a.href = url; a.download = `relatorio-bancas-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
     URL.revokeObjectURL(url);
@@ -52,7 +63,19 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
         <Button size="sm" variant="outline" onClick={() => setPainel(!painel)} aria-expanded={painel}>
           {painel ? "Fechar gestão" : `Gerenciar bancas (${doc.bancas.length})`}
         </Button>
+        <Button size="sm" onClick={() => setPurchaseOpen(true)}><Plus className="size-4" />Adquirir novo teste</Button>
       </div>
+      {needsNewChallenge(ativa.state) && <div className="flex flex-wrap items-center justify-between gap-3 border-b border-primary/30 bg-primary/10 px-4 py-3 text-sm"><p>Ciclo encerrado na mesa. Adquira ou renove seu teste para iniciar o próximo ciclo.</p><Button size="sm" variant="outline" onClick={() => setPurchaseOpen(true)}><ExternalLink className="size-4" />Novo teste</Button></div>}
+      {ativa.challengeAccount && <p className="border-b px-4 py-2 text-xs text-muted-foreground">Conta {ativa.challengeAccount.account_external_id} · ${fmt(ativa.challengeAccount.account_size)}</p>}
+      {purchaseOpen && <ComprarDesafioModal open={purchaseOpen} onOpenChange={setPurchaseOpen} source={ativa} onRegister={async (banca) => {
+        const current = docRef.current;
+        if (!current) return false;
+        if (current.bancas.some((b) => b.challengeAccount?.prop_firm_id === banca.challengeAccount?.prop_firm_id && b.challengeAccount?.account_external_id === banca.challengeAccount?.account_external_id)) throw new Error("Conta já cadastrada");
+        const next = { ...current, activeId: banca.id, bancas: [...current.bancas, banca] };
+        const ok = await save(JSON.stringify(next));
+        if (ok) { docRef.current = next; setDoc(next); }
+        return ok;
+      }} />}
 
       {painel && (
         <section className="space-y-4 border-b px-4 py-4">
@@ -93,7 +116,7 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
                       <Button size="sm" variant="ghost" className="text-destructive" onClick={() => {
                         if (!window.confirm(`Excluir a banca "${b.nome}" e todo o histórico dela?`)) return;
                         const rest = doc.bancas.filter((x) => x.id !== b.id);
-                        persist({ ...doc, bancas: rest, activeId: isActive ? rest[0]!.id : doc.activeId });
+                        persist({ ...doc, bancas: rest, activeId: isActive ? rest[0]?.id ?? doc.activeId : doc.activeId });
                       }}>Excluir</Button>
                     )}
                   </div>
