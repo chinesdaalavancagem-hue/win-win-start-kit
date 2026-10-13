@@ -11,20 +11,25 @@ export const Route = createFileRoute("/_authenticated")({
     const token = sessionData.session?.access_token;
     if (!token) throw redirect({ to: "/auth" });
 
-    // The server, not browser state, decides whether the current version was accepted.
+    // O status é calculado pelo servidor; falha de rede/banco bloqueia o acesso.
+    let response: Response;
     try {
-      const response = await fetch("/api/termos/status", {
+      response = await fetch("/api/termos/status", {
         headers: { authorization: `Bearer ${token}` },
         cache: "no-store",
       });
-      if (!response.ok) throw redirect({ to: "/termos" });
-      const status = await response.json() as { accepted?: boolean };
-      if (!status.accepted) throw redirect({ to: "/termos" });
-    } catch (error) {
-      // Preserve TanStack redirects; fail closed on network or database errors.
-      if (error && typeof error === "object" && "options" in error) throw error;
+    } catch {
       throw redirect({ to: "/termos" });
     }
+    if (!response.ok) throw redirect({ to: "/termos" });
+
+    let status: { accepted?: boolean };
+    try {
+      status = await response.json() as { accepted?: boolean };
+    } catch {
+      throw redirect({ to: "/termos" });
+    }
+    if (!status.accepted) throw redirect({ to: "/termos" });
 
     return { user: data.user };
   },
