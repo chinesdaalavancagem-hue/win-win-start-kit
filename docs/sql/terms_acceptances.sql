@@ -3,7 +3,7 @@
 
 CREATE TABLE IF NOT EXISTS public.terms_acceptances (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   terms_version text NOT NULL
     CHECK (char_length(terms_version) BETWEEN 1 AND 64),
   accepted_at timestamptz NOT NULL DEFAULT now(),
