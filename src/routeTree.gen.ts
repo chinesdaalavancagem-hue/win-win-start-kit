@@ -26,6 +26,9 @@ import { Route as ApiPlataformaDadosRouteImport } from './routes/api/plataforma/
 import { Route as ApiPublicOrdensIndexRouteImport } from './routes/api/public/ordens/index'
 import { Route as ApiPublicOrdensConfirmarRouteImport } from './routes/api/public/ordens/confirmar'
 import { Route as ApiPublicOrdensPendentesRouteImport } from './routes/api/public/ordens/pendentes'
+import { Route as TermsRouteImport } from './routes/termos'
+import { Route as ApiTermosStatusRouteImport } from './routes/api/termos/status'
+import { Route as ApiTermosAceiteRouteImport } from './routes/api/termos/aceite'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -113,6 +116,9 @@ const ApiPublicOrdensPendentesRoute =
     path: '/api/public/ordens/pendentes',
     getParentRoute: () => rootRouteImport,
   } as any)
+const TermsRoute = TermsRouteImport.update({ id: '/termos', path: '/termos', getParentRoute: () => rootRouteImport } as any)
+const ApiTermosStatusRoute = ApiTermosStatusRouteImport.update({ id: '/api/termos/status', path: '/api/termos/status', getParentRoute: () => rootRouteImport } as any)
+const ApiTermosAceiteRoute = ApiTermosAceiteRouteImport.update({ id: '/api/termos/aceite', path: '/api/termos/aceite', getParentRoute: () => rootRouteImport } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -131,6 +137,9 @@ export interface FileRoutesByFullPath {
   '/api/public/ordens/confirmar': typeof ApiPublicOrdensConfirmarRoute
   '/api/public/ordens/pendentes': typeof ApiPublicOrdensPendentesRoute
   '/api/public/ordens/': typeof ApiPublicOrdensIndexRoute
+  '/termos': typeof TermsRoute
+  '/api/termos/status': typeof ApiTermosStatusRoute
+  '/api/termos/aceite': typeof ApiTermosAceiteRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -149,6 +158,9 @@ export interface FileRoutesByTo {
   '/api/public/ordens/confirmar': typeof ApiPublicOrdensConfirmarRoute
   '/api/public/ordens/pendentes': typeof ApiPublicOrdensPendentesRoute
   '/api/public/ordens': typeof ApiPublicOrdensIndexRoute
+  '/termos': typeof TermsRoute
+  '/api/termos/status': typeof ApiTermosStatusRoute
+  '/api/termos/aceite': typeof ApiTermosAceiteRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -169,6 +181,9 @@ export interface FileRoutesById {
   '/api/public/ordens/confirmar': typeof ApiPublicOrdensConfirmarRoute
   '/api/public/ordens/pendentes': typeof ApiPublicOrdensPendentesRoute
   '/api/public/ordens/': typeof ApiPublicOrdensIndexRoute
+  '/termos': typeof TermsRoute
+  '/api/termos/status': typeof ApiTermosStatusRoute
+  '/api/termos/aceite': typeof ApiTermosAceiteRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -189,6 +204,9 @@ export interface FileRouteTypes {
     | '/api/public/ordens/confirmar'
     | '/api/public/ordens/pendentes'
     | '/api/public/ordens/'
+    | '/termos'
+    | '/api/termos/status'
+    | '/api/termos/aceite'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -207,6 +225,9 @@ export interface FileRouteTypes {
     | '/api/public/ordens/confirmar'
     | '/api/public/ordens/pendentes'
     | '/api/public/ordens'
+    | '/termos'
+    | '/api/termos/status'
+    | '/api/termos/aceite'
   id:
     | '__root__'
     | '/'
@@ -226,6 +247,9 @@ export interface FileRouteTypes {
     | '/api/public/ordens/confirmar'
     | '/api/public/ordens/pendentes'
     | '/api/public/ordens/'
+    | '/termos'
+    | '/api/termos/status'
+    | '/api/termos/aceite'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -241,6 +265,9 @@ export interface RootRouteChildren {
   ApiPublicOrdensConfirmarRoute: typeof ApiPublicOrdensConfirmarRoute
   ApiPublicOrdensPendentesRoute: typeof ApiPublicOrdensPendentesRoute
   ApiPublicOrdensIndexRoute: typeof ApiPublicOrdensIndexRoute
+  TermsRoute: typeof TermsRoute
+  ApiTermosStatusRoute: typeof ApiTermosStatusRoute
+  ApiTermosAceiteRoute: typeof ApiTermosAceiteRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -364,6 +391,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicOrdensPendentesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/termos': {
+      id: '/termos'
+      path: '/termos'
+      fullPath: '/termos'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/termos/status': {
+      id: '/api/termos/status'
+      path: '/api/termos/status'
+      fullPath: '/api/termos/status'
+      preLoaderRoute: typeof ApiTermosStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/termos/aceite': {
+      id: '/api/termos/aceite'
+      path: '/api/termos/aceite'
+      fullPath: '/api/termos/aceite'
+      preLoaderRoute: typeof ApiTermosAceiteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -399,6 +447,9 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicOrdensConfirmarRoute: ApiPublicOrdensConfirmarRoute,
   ApiPublicOrdensPendentesRoute: ApiPublicOrdensPendentesRoute,
   ApiPublicOrdensIndexRoute: ApiPublicOrdensIndexRoute,
+  TermsRoute: TermsRoute,
+  ApiTermosStatusRoute: ApiTermosStatusRoute,
+  ApiTermosAceiteRoute: ApiTermosAceiteRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
