@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { confirmarSchema } from "@/lib/integracao";
 import { autenticarToken, json } from "@/lib/integracao.server";
-import { enviarTelegram, chatIdDoUsuario } from "@/lib/telegram.server";
+import { enviarTelegram, chatIdDoUsuario } from "@/lib/telegram.server";\nimport { enviarPushAoUsuario } from "@/lib/push.server";
 
 async function enviarTelegramComTimeout(mensagem: string, chatId?: string): Promise<void> {
   try {
@@ -29,7 +29,7 @@ export const Route = createFileRoute("/api/public/ordens/confirmar")({
           .eq("id", p.data.id).eq("user_id", userId).eq("status", "sent").select("id,symbol").maybeSingle();
         if (error) { console.error(error); return json({ error: "update failed" }, 500); }
         if (!data) return json({ error: "not found" }, 404);
-        const succeeded = p.data.status === "done";
+        const succeeded = p.data.status === "done";\n        void enviarPushAoUsuario(userId, { title: succeeded ? "✅ Ordem Executada no MT5" : "⚠️ Falha na Ordem no MT5", body: `Ativo: ${data.symbol} | Status: ${p.data.status}`, url: "/plataforma" });
         const { error: auditError } = await supabaseAdmin.from("audit_logs").insert({
           user_id: userId,
           category: "integration",
