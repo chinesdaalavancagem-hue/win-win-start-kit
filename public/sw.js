@@ -13,16 +13,20 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = new URL(event.notification.data?.url || "/plataforma", self.location.origin).href;
+  const requestedUrl = event.notification.data?.url || "/plataforma";
+  const url = new URL(requestedUrl, self.location.origin);
+  const safeUrl = url.origin === self.location.origin ? url.href : new URL("/plataforma", self.location.origin).href;
   event.waitUntil((async () => {
     const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
     for (const client of windows) {
       if (new URL(client.url).origin === self.location.origin) {
         await client.focus();
-        if ("navigate" in client && new URL(client.url).pathname !== new URL(url).pathname) return client.navigate(url);
+        if ("navigate" in client && new URL(client.url).pathname !== new URL(safeUrl).pathname) {
+          return client.navigate(safeUrl);
+        }
         return;
       }
     }
-    await self.clients.openWindow(url);
+    await self.clients.openWindow(safeUrl);
   })());
 });
