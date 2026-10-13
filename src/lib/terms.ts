@@ -1,38 +1,63 @@
-export const CURRENT_TERMS_VERSION = "2026-10-13-v1";
+export const CURRENT_TERMS_VERSION = "2026-10-13-v2";
 
 export const TERMS_SECTIONS = [
   {
-    title: "1. Uso da plataforma",
+    title: "1. O que é a plataforma",
     paragraphs: [
-      "A conta é pessoal. Você é responsável por manter suas credenciais em sigilo, informar dados corretos e comunicar qualquer uso não autorizado da sua conta.",
-      "Não utilize a plataforma para atividades ilegais, para tentar contornar controles de segurança ou para prejudicar outros usuários ou os serviços.",
+      "A Win or Win Platform é um conjunto de ferramentas que inclui um painel de cálculo de lotes e metas, um registro de operações e um mecanismo de integração que envia à corretora do próprio usuário as ordens de cópia da operação de referência, por meio de um robô (Expert Advisor) instalado pelo próprio usuário no MetaTrader 5.",
+      "A plataforma não opera por você. Todas as ordens são enviadas à conta do usuário, na corretora por ele escolhida, sob a sua chave de integração e a sua responsabilidade.",
     ],
   },
   {
-    title: "2. Ferramentas e risco financeiro",
+    title: "2. Não há garantia de resultado",
     paragraphs: [
-      "A plataforma oferece ferramentas de organização, cálculo e acompanhamento. Ela não substitui aconselhamento financeiro, jurídico ou tributário e não garante resultados, lucros, aprovação em avaliações ou saques.",
-      "Operações em mercados financeiros, especialmente com alavancagem, envolvem risco de perda. Você é responsável por avaliar os riscos e pelas decisões que tomar com base nas informações exibidas.",
+      "A plataforma não garante lucro, aprovação em avaliações de mesas proprietárias, saques ou qualquer resultado financeiro. Resultados dependem de muitas variáveis, incluindo mercado, capital, corretora, configuração, conexão e decisões do usuário. Desempenho passado e simulações não garantem resultados futuros.",
     ],
   },
   {
-    title: "3. Dados e segurança",
+    title: "3. Riscos",
     paragraphs: [
-      "Dados necessários à autenticação, operação, prevenção a abusos e segurança podem ser processados conforme as configurações e avisos de privacidade aplicáveis à plataforma.",
-      "Para registrar este aceite, armazenamos o identificador da sua conta, a versão dos termos, a data e hora registradas pelo servidor e um hash do aparelho/navegador. Este registro não armazena o endereço IP bruto.",
+      "Operações em mercados financeiros, especialmente com alavancagem, podem gerar perdas parciais ou totais do capital. Você declara estar ciente de que pode perder todo o valor operado.",
     ],
   },
   {
-    title: "4. Disponibilidade e alterações",
+    title: "4. Responsabilidades do usuário",
     paragraphs: [
-      "A plataforma pode receber manutenção, alterações ou interrupções. Não é garantida disponibilidade ininterrupta nem ausência de erros.",
-      "Quando uma nova versão dos termos exigir novo aceite, o acesso às áreas protegidas poderá ficar condicionado à confirmação dessa versão.",
+      "Você é responsável por:",
+      "a) configurar corretamente a conta, a chave de integração, os lotes e os parâmetros;",
+      "b) verificar, na sua corretora, se cada ordem foi recebida, executada, rejeitada ou cancelada;",
+      "c) manter o computador, o MetaTrader 5, a extensão e a conexão funcionando durante a operação;",
+      "d) conhecer e cumprir as regras da sua corretora e de qualquer mesa proprietária que utilizar;",
+      "e) não compartilhar sua chave de integração nem sua conta;",
+      "f) não alterar o software nem ignorar avisos de erro da ferramenta.",
     ],
   },
   {
-    title: "5. Aceite",
+    title: "5. Falhas e limitações técnicas",
     paragraphs: [
-      "Ao selecionar “Aceito”, você confirma que teve a oportunidade de ler estes termos e concorda com a versão identificada nesta tela.",
+      "A plataforma depende de internet, de serviços de terceiros e de corretoras. Podem ocorrer atrasos, falhas, ordens não executadas e indisponibilidades. A plataforma não se responsabiliza por prejuízos decorrentes dessas falhas fora do seu controle, observados os direitos garantidos pelo Código de Defesa do Consumidor.",
+    ],
+  },
+  {
+    title: "6. Aceite",
+    paragraphs: [
+      "Ao clicar em \"Aceito\", você declara que leu e compreendeu estes termos, incluindo os riscos e as suas responsabilidades. O sistema registra o aceite com identificação da conta, versão dos termos, data e hora.",
+    ],
+  },
+  {
+    title: "7. Dados pessoais",
+    paragraphs: [
+      "Os dados são tratados para autenticação, operação da ferramenta, segurança e registro do aceite. A Política de Privacidade completa, com bases legais, retenção e direitos, deve ser disponibilizada separadamente.",
+    ],
+  },
+  {
+    title: "8. Alterações",
+    paragraphs: [
+      "Estes termos podem ser atualizados. Mudanças relevantes serão comunicadas e poderão exigir novo aceite.",
     ],
   },
 ] as const;
+
+// Nota para o advogado: o identificador de dispositivo usado no aceite é dado pessoal.
+// Avaliar se o mecanismo deve ser mantido, descrito de outra forma ou substituído.
+// Status editorial: minuta para revisão jurídica; não é aprovação jurídica final.
