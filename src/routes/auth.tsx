@@ -194,7 +194,11 @@ function AuthPage() {
               {greetings[dayPeriod]}, {firstName}!
             </h2>
             <p className="text-sm text-muted-foreground">
-              Que Deus abençoe seu dia e guie seus passos.
+              {dayPeriod === "morning"
+                ? "Que Deus abençoe seu dia."
+                : dayPeriod === "afternoon"
+                  ? "Que Deus abençoe sua tarde."
+                  : "Que Deus abençoe sua noite."}
             </p>
             <blockquote className="pt-2 text-sm leading-relaxed">
               “{dailyVerse.text}”
