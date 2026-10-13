@@ -9,7 +9,7 @@ export const FIRM_NAMES = {
 export const firmIdSchema = z.enum(["lucid-trading", "tradeify", "my-funded-futures", "topstep"]);
 export const affiliateUrlSchema = z.string().trim().max(2048).refine((value) => {
   if (!value) return true;
-  try { const url = new URL(value); return url.protocol === "https:" && !!url.hostname && !url.username && !url.password && !/\\s/.test(value); } catch { return false; }
+  try { const url = new URL(value); return url.protocol === "https:" && !!url.hostname && !url.username && !url.password && !/\s/.test(value); } catch { return false; }
 }, "Informe um link HTTPS válido, sem credenciais.");
 export const firmSchema = z.object({
   id: firmIdSchema,
