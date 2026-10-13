@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { challengeAccountSchema } from "@/lib/prop-firms";
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -113,6 +114,11 @@ export const Route = createFileRoute("/api/plataforma/dados")({
           const parsed = JSON.parse(value);
           if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return json({ error: "invalid_state" }, 400);
           parsedState = parsed as Record<string, unknown>;
+          if (Array.isArray(parsedState.bancas) && parsedState.bancas.some((banca: unknown) => {
+            if (!banca || typeof banca !== "object") return true;
+            const account = (banca as Record<string, unknown>).challengeAccount;
+            return account !== undefined && !challengeAccountSchema.safeParse(account).success;
+          })) return json({ error: "invalid_state" }, 400);
           const states = Array.isArray(parsedState.bancas)
             ? parsedState.bancas.map((banca: unknown) =>
                 banca && typeof banca === "object" ? (banca as Record<string, unknown>).state : null)

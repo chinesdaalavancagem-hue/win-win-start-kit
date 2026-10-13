@@ -217,6 +217,33 @@ export type Database = {
         }
         Relationships: []
       }
+      prop_firms: {
+        Row: {
+          account_sizes: number[]
+          affiliate_url: string
+          coupon: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          account_sizes?: number[]
+          affiliate_url?: string
+          coupon?: string
+          id: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          account_sizes?: number[]
+          affiliate_url?: string
+          coupon?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       push_subscriptions: {
         Row: {
           auth: string
