@@ -64,6 +64,13 @@
       "when": 1791833151239,
       "tag": "0008_add_telegram_chat_id",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791855256081,
+      "tag": "0009_push_subscriptions",
+      "breakpoints": true
     }
   ]
 }
