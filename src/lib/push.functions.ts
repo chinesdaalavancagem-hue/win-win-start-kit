@@ -3,21 +3,38 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 type PushInput = { endpoint: string; keys: { p256dh: string; auth: string } };
 
+function validarInscricaoPush(value: unknown): PushInput {
+  const v = value as Partial<PushInput> | null;
+  if (!v || typeof v.endpoint !== "string" || typeof v.keys?.p256dh !== "string" ||
+    typeof v.keys?.auth !== "string") {
+    throw new Error("Inscrição de push inválida");
+  }
+  let endpoint: URL;
+  try { endpoint = new URL(v.endpoint); } catch { throw new Error("Endpoint de push inválido"); }
+  const host = endpoint.hostname.toLowerCase();
+  const allowedHost = host === "fcm.googleapis.com" ||
+    host === "updates.push.services.mozilla.com" ||
+    host === "push.services.mozilla.com" ||
+    host === "web.push.apple.com" ||
+    host.endsWith(".push.apple.com") ||
+    host.endsWith(".notify.windows.com");
+  if (endpoint.protocol !== "https:" || !allowedHost || endpoint.username || endpoint.password ||
+    v.keys.p256dh.length > 256 || v.keys.auth.length > 256) {
+    throw new Error("Endpoint de push inválido");
+  }
+  return { endpoint: endpoint.toString(), keys: { p256dh: v.keys.p256dh, auth: v.keys.auth } };
+}
+
 export const salvarInscricaoPush = createServerFn({ method: "POST" })
-  .inputValidator((value: unknown): PushInput => {
-    const v = value as Partial<PushInput>;
-    if (!v || typeof v.endpoint !== "string" || !v.endpoint.startsWith("https://") ||
-      typeof v.keys?.p256dh !== "string" || typeof v.keys?.auth !== "string") {
-      throw new Error("Inscrição de push inválida");
-    }
-    return { endpoint: v.endpoint, keys: { p256dh: v.keys.p256dh, auth: v.keys.auth } };
-  })
+  .inputValidator(validarInscricaoPush)
   .middleware([requireSupabaseAuth])
   .handler(async ({ context, data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin.from("push_subscriptions").upsert({
-      user_id: context.userId, endpoint: data.endpoint,
-      p256dh: data.keys.p256dh, auth: data.keys.auth,
+      user_id: context.userId,
+      endpoint: data.endpoint,
+      p256dh: data.keys.p256dh,
+      auth: data.keys.auth,
     }, { onConflict: "user_id,endpoint" });
     if (error) throw new Error("Não foi possível salvar a inscrição de notificações");
     return { ok: true };
