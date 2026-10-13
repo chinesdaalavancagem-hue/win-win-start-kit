@@ -20,10 +20,14 @@ export const firmSchema = z.object({
 export type Firm = z.infer<typeof firmSchema> & { name: string };
 
 const DEFAULT_FIRM_URLS: Record<keyof typeof FIRM_NAMES, string> = {
-  "lucid-trading": "https://lucidtrading.com/",
-  tradeify: "https://tradeify.co/",
-  "my-funded-futures": "https://myfundedfutures.com/",
-  topstep: "https://www.topstep.com/",
+  "lucid-trading":
+    "https://lucidtrading.com/?ref=cupommesasprop&utm_source=cupommesasprop&utm_medium=afiliado&utm_campaign=lucidtrading",
+  tradeify:
+    "https://tradeify.co/?ref=TWC&utm_source=cupommesasprop&utm_medium=afiliado&utm_campaign=tradeify",
+  "my-funded-futures":
+    "https://myfundedfutures.com/challenge?ref=355&utm_source=cupommesasprop&utm_campaign=myfundedfutures&utm_medium=afiliado",
+  topstep:
+    "https://www.topstep.com/?ref=TWC&utm_source=cupommesasprop&utm_medium=afiliado&utm_campaign=topstep&utm_content=topstep",
 };
 
 export const EMPTY_FIRMS: Firm[] = Object.entries(FIRM_NAMES).map(([id, name]) => ({
