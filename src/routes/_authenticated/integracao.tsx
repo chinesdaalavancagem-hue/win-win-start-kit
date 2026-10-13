@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { gerarChave } from "@/lib/integracao.functions";
 import { salvarChatId } from "@/lib/telegram.functions";
 import { registrarAuditoria } from "@/lib/auditoria-registro";
+import { VAPID_PUBLIC_KEY } from "@/lib/push-public-key";
+import { enviarPushTeste, salvarInscricaoPush } from "@/lib/push.functions";
 
 export const Route = createFileRoute("/_authenticated/integracao")({
   beforeLoad: async ({ context }) => {
@@ -47,6 +49,8 @@ function Integracao() {
   const { user } = Route.useRouteContext();
   const gerar = useServerFn(gerarChave);
   const salvarChat = useServerFn(salvarChatId);
+  const salvarPush = useServerFn(salvarInscricaoPush);
+  const testarPush = useServerFn(enviarPushTeste);
   const [temChave, setTemChave] = useState<boolean | null>(null);
   const [chave, setChave] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
@@ -57,6 +61,8 @@ function Integracao() {
   const telegramChatIdAlterado = useRef(false);
   const [telegramTestando, setTelegramTestando] = useState(false);
   const [telegramSalvando, setTelegramSalvando] = useState(false);
+  const [pushAtivando, setPushAtivando] = useState(false);
+  const [pushTestando, setPushTestando] = useState(false);
 
   async function load() {
     const [{ data: t }, { data: o }, { data: p }] = await Promise.all([
@@ -112,6 +118,58 @@ function Integracao() {
       alert(error instanceof Error ? error.message : "Não foi possível salvar o Chat ID.");
     } finally {
       setTelegramSalvando(false);
+    }
+  }
+
+  async function ativarPush() {
+    setPushAtivando(true);
+    try {
+      if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
+        throw new Error("Este navegador não oferece suporte a notificações push.");
+      }
+      if (!VAPID_PUBLIC_KEY) {
+        throw new Error("As notificações ainda não foram configuradas no servidor.");
+      }
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        throw new Error("Permissão de notificações não concedida. Verifique as configurações do navegador.");
+      }
+      const registration = await navigator.serviceWorker.ready;
+      const applicationServerKey = Uint8Array.from(
+        atob(VAPID_PUBLIC_KEY.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - (VAPID_PUBLIC_KEY.length % 4)) % 4)),
+        (character) => character.charCodeAt(0),
+      );
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: applicationServerKey as unknown as BufferSource,
+      });
+      const serialized = subscription.toJSON();
+      if (!serialized.endpoint || !serialized.keys?.p256dh || !serialized.keys.auth) {
+        throw new Error("O navegador não forneceu uma inscrição push válida.");
+      }
+      await salvarPush({
+        data: {
+          endpoint: serialized.endpoint,
+          keys: { p256dh: serialized.keys.p256dh, auth: serialized.keys.auth },
+        },
+      });
+      alert("Notificações ativadas neste aparelho!");
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Não foi possível ativar as notificações.");
+    } finally {
+      setPushAtivando(false);
+    }
+  }
+
+  async function testarNotificacaoPush() {
+    setPushTestando(true);
+    try {
+      await testarPush();
+      alert("Teste solicitado. Se este aparelho estiver inscrito e as chaves VAPID estiverem configuradas, a notificação chegará em instantes.");
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Não foi possível solicitar a notificação de teste.");
+    } finally {
+      setPushTestando(false);
     }
   }
 
@@ -193,6 +251,23 @@ function Integracao() {
           <Button size="sm" variant="outline" onClick={testarTelegram} disabled={telegramTestando}>{telegramTestando ? "Testando..." : "Testar Notificação"}</Button>
         </div>
         <p className="text-xs text-muted-foreground">O Chat ID salvo fica ligado à sua conta: as notificações das suas ordens chegam no seu Telegram. Se deixar em branco, os alertas seguem para o Chat ID monitorado pela master.</p>
+      </section>
+
+      <section className="space-y-3 rounded-lg border p-4 text-sm">
+        <h2 className="font-semibold">Notificações no Dispositivo (PWA Push)</h2>
+        <p className="text-muted-foreground">Receba alertas neste aparelho quando uma ordem for recebida e quando o MetaTrader 5 confirmar a execução ou informar uma falha. Os alertas do Telegram continuam funcionando em paralelo.</p>
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" onClick={ativarPush} disabled={pushAtivando}>
+            {pushAtivando ? "Ativando..." : "Ativar Notificações no Aparelho"}
+          </Button>
+          <Button size="sm" variant="outline" onClick={testarNotificacaoPush} disabled={pushTestando}>
+            {pushTestando ? "Enviando..." : "Enviar Notificação de Teste"}
+          </Button>
+        </div>
+        <div className="rounded-md border border-dashed p-3 text-muted-foreground">
+          <p className="font-medium text-foreground">iPhone / iPad</p>
+          <p>No iOS 16.4 ou superior, abra esta plataforma no Safari, use Compartilhar → Adicionar à Tela de Início e abra pelo ícone instalado. Depois, toque em ativar notificações e aceite a permissão. No Android, use um navegador compatível e permita as notificações.</p>
+        </div>
       </section>
 
       <section className="space-y-4 rounded-lg border p-4 text-sm">
