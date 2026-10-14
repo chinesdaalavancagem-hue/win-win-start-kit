@@ -10,7 +10,14 @@ export const listPropFirms = createServerFn({ method: "GET" })
     return EMPTY_FIRMS.map((fallback) => {
       const row = data?.find((firm) => firm.id === fallback.id);
       const parsed = firmSchema.safeParse(row);
-      return parsed.success ? { ...parsed.data, name: FIRM_NAMES[parsed.data.id] } : fallback;
+      return parsed.success
+        ? {
+            ...parsed.data,
+            name: FIRM_NAMES[parsed.data.id],
+            affiliate_url: parsed.data.affiliate_url || fallback.affiliate_url,
+            account_sizes: [50_000],
+          }
+        : fallback;
     });
   });
 
@@ -20,7 +27,12 @@ export const savePropFirm = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { data: admin, error: roleError } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
     if (roleError || !admin) throw new Error("Somente a master pode configurar as mesas.");
-    const { error } = await context.supabase.from("prop_firms").upsert({ ...data, name: FIRM_NAMES[data.id], updated_at: new Date().toISOString() });
+    const { error } = await context.supabase.from("prop_firms").upsert({
+      ...data,
+      name: FIRM_NAMES[data.id],
+      account_sizes: [50_000],
+      updated_at: new Date().toISOString(),
+    });
     if (error) throw new Error("Não foi possível salvar a mesa.");
     return { ok: true };
   });
