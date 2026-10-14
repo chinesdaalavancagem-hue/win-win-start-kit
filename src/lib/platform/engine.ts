@@ -336,5 +336,6 @@ export function calcCaixaCiclo(a: Asset, key: AssetKey, bonusPct: number) {
   const saque = a.params.saqueAprovada || 0;
   const caixaMaximo = taxa + depositado;
   const recuperado = proprio + saque;
-  return { dias, taxa, totalDepositado: depositado, caixaMaximo, proprioRecuperavel: proprio, saque, recuperado, resultadoFinal: recuperado - caixaMaximo, bonusTotal };
+  const totalPerda = dias.reduce((acc, d) => acc + d.perda, 0);
+  return { dias, taxa, totalDepositado: depositado, totalPerda, caixaMaximo, proprioRecuperavel: proprio, saque, recuperado, resultadoFinal: recuperado - caixaMaximo, bonusTotal };
 }
