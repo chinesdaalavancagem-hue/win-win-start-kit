@@ -212,10 +212,12 @@ function AuthPage() {
         <p className="mt-1 text-center text-sm text-muted-foreground">Win or Win Platform</p>
         <form
           onSubmit={onSubmit}
-          onKeyDown={(e) => {
+          onKeyDownCapture={(e) => {
             if (e.key !== "Enter" || !(e.target instanceof HTMLInputElement)) return;
+            if (loading || e.nativeEvent.isComposing) return;
             e.preventDefault();
-            if (!loading) e.currentTarget.requestSubmit();
+            const submitButton = e.currentTarget.querySelector<HTMLButtonElement>('button[type="submit"]');
+            submitButton?.click();
           }}
           className="mt-6 space-y-4"
         >
