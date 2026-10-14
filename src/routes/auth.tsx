@@ -187,7 +187,7 @@ function AuthPage() {
 
   return (
     <main
-      className="flex min-h-screen items-center justify-center px-3 py-2 sm:px-4 sm:py-10"
+      className="flex min-h-screen items-start justify-center px-3 pt-2 pb-4 sm:items-center sm:px-4 sm:py-10"
       onKeyDownCapture={(e: React.KeyboardEvent<HTMLElement>) => {
         if (e.key !== "Enter" || e.nativeEvent.isComposing || loading) return;
         const target = e.target;
@@ -198,8 +198,8 @@ function AuthPage() {
         submitButton?.click();
       }}
     >
-      <div className="w-full max-w-md rounded-xl border bg-card p-4 sm:p-8">
-        <img src="/logo.png" width="240" height="240" className="mx-auto block h-24 w-24 object-contain sm:h-48 sm:w-48" />
+      <div className="w-full max-w-md rounded-xl border bg-card p-3 sm:p-8">
+        <img src="/logo.png" width="240" height="240" className="mx-auto block h-20 w-20 object-contain sm:h-48 sm:w-48" />
         {mode === "login" && firstName && emailMatchesSavedUser && (
           <section className="mb-2 mt-1 space-y-1 text-center sm:mb-5 sm:mt-2 sm:space-y-2" aria-label="Saudação e versículo bíblico">
             <h2 className="text-lg font-semibold sm:text-xl">
