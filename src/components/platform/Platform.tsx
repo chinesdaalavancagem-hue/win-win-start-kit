@@ -367,7 +367,7 @@ function DayCard({ row, assetKey, mutate }: { row: Row; assetKey: AssetKey; muta
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <NumField label="Contratos" value={d.mnq} onChange={setD("mnq")} helper={<>passa <span className="text-market-down">-${fmt(Math.abs(c.passa))}</span></>} />
-        <NumField label="Lotes (broker CFD)" value={d.lotes} onChange={setD("lotes")} helper={<>reprova <span className="text-market-up">+${fmt(c.reprova)}</span> · pontos p/ reprovar {fmt(c.pontosReprova)}</>} />
+        <NumField label="Lotes (broker CFD)" value={d.lotes} onChange={setD("lotes")} helper={<>reprova <span className="text-market-up">+${fmt(c.reprova)}</span> · Forex: {fmt(c.pontosReprova)} pips ({fmt(c.pontosReprova * 10)} pontos)</>} />
         <NumField label="Meta $" value={d.meta} onChange={setD("meta")} helper={`pontos p/ meta ${fmt(c.pontos)}`} />
       </div>
       <p className="mt-3 font-mono text-sm">líquido se reprovar hoje <span className={c.bateuAlvo ? "text-market-up" : "text-market-down"}>${fmt(c.liquidoSeReprovar)}</span></p>
@@ -375,7 +375,7 @@ function DayCard({ row, assetKey, mutate }: { row: Row; assetKey: AssetKey; muta
       <p className={cn("mt-2 rounded border px-2 py-1 font-mono text-[11px]",
         row.status === "ok" && "border-market-up/40 text-market-up", row.status === "alerta" && "border-brand-gold/40 text-brand-gold", row.status === "risco" && "border-market-down/40 text-market-down")}>{row.statusText}</p>
       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 rounded bg-secondary px-2 py-1 font-mono text-[11px] text-muted-foreground">
-        <span>Traders Connect · multiplicador de lote</span><span className="text-foreground">{fmt(row.mult)}%</span><span>Tradovate: {fmt(row.ticks)} ticks</span>
+        <span>Trade Ovate: <span className="text-foreground">{fmt(row.ticks)} ticks</span></span><span>Forex para reprovar: <span className="text-foreground">{fmt(c.pontosReprova)} pips ({fmt(c.pontosReprova * 10)} pontos)</span></span>
       </div>
       {isCurrent && <Settle risco={row.status === "risco"} custo={c.custoSePassar} reprova={c.reprova}
         onProfit={(real) => mutate((s) => handleProfit(s, assetKey, real))} onStop={(real) => mutate((s) => handleStop(s, assetKey, real))} />}
