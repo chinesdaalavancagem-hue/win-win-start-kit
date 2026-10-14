@@ -110,6 +110,12 @@ function AuthPage() {
     };
   }, [loginEmail, savedEmailHash]);
 
+  function handleEnterToSubmit(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
+    e.preventDefault();
+    if (!loading) e.currentTarget.form?.requestSubmit();
+  }
+
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
@@ -210,17 +216,7 @@ function AuthPage() {
         )}
         <h1 className="text-center text-2xl font-bold">{mode === "login" ? "Entrar" : "Criar conta"}</h1>
         <p className="mt-1 text-center text-sm text-muted-foreground">Win or Win Platform</p>
-        <form
-          onSubmit={onSubmit}
-          onKeyDownCapture={(e) => {
-            if (e.key !== "Enter" || !(e.target instanceof HTMLInputElement)) return;
-            if (loading || e.nativeEvent.isComposing) return;
-            e.preventDefault();
-            const submitButton = e.currentTarget.querySelector<HTMLButtonElement>('button[type="submit"]');
-            submitButton?.click();
-          }}
-          className="mt-6 space-y-4"
-        >
+        <form onSubmit={onSubmit} className="mt-6 space-y-4">
           {mode === "signup" && (
             <>
               <Field name="full_name" label="Nome completo" autoComplete="name" />
@@ -234,8 +230,9 @@ function AuthPage() {
             type="email"
             autoComplete="email"
             onChange={(event) => setLoginEmail(event.currentTarget.value)}
+            onKeyDown={handleEnterToSubmit}
           />
-          <Field name="password" label="Senha" type="password" autoComplete={mode === "login" ? "current-password" : "new-password"} />
+          <Field name="password" label="Senha" type="password" autoComplete={mode === "login" ? "current-password" : "new-password"} onKeyDown={handleEnterToSubmit} />
           {error && <p className="text-sm text-destructive">{error}</p>}
           {info && <p className="text-sm text-primary">{info}</p>}
           <Button type="submit" className="w-full" disabled={loading}>
