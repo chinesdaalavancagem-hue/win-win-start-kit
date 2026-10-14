@@ -1,25 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { mirrorSide, ordemSchema } from "@/lib/integracao";
 import { autenticarToken, json } from "@/lib/integracao.server";
-import { enviarTelegram, chatIdDoUsuario } from "@/lib/telegram.server";
-import { enviarPushAoUsuario } from "@/lib/push.server";
-
-async function enviarTelegramComTimeout(mensagem: string, chatId?: string): Promise<void> {
-  try {
-    await enviarTelegram(mensagem, { chatId });
-  } catch {
-    // Falhas de notificação não podem afetar o processamento da ordem.
-  }
-}
-
 
 // Recebe uma ordem da mesa e coloca na fila para o robô do MT5.
 export const Route = createFileRoute("/api/public/ordens/")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const userId = await autenticarToken(request);
-        if (!userId) return json({ error: "unauthorized" }, 401);
+        const auth = await autenticarToken(request);
+        if (auth.status === 401) return json({ error: "unauthorized" }, 401);
+        if (auth.status === 500) return json({ error: "auth_unavailable" }, 500);
+        const userId = auth.userId;
         let body: unknown;
         try { body = await request.json(); } catch { return json({ error: "invalid json" }, 400); }
         const parsed = ordemSchema.safeParse(body);
@@ -39,22 +30,6 @@ export const Route = createFileRoute("/api/public/ordens/")({
           details: { symbol: o.symbol, qty: o.qty, side: o.side, duplicate: !data },
         });
         if (auditError) console.error("[audit] incoming order event failed", auditError.message);
-        if (data) {
-          try {
-            await enviarPushAoUsuario(userId, {
-              title: "🚀 Ordem Recebida (Tradovate)",
-              body: `Ativo: ${o.symbol} | Lado: ${o.side} | Qtd: ${o.qty}`,
-              url: "/plataforma",
-            });
-          } catch {
-            // Push é best-effort; a fila e o alerta do Telegram não dependem dele.
-          }
-          const chatId = await chatIdDoUsuario(userId);
-          await enviarTelegramComTimeout(`🚀 <b>Ordem Recebida (Tradovate)</b>
-<b>Ativo:</b> ${o.symbol}
-<b>Lado:</b> ${o.side} ➔ <b>CFD Hedge:</b> ${mirrorSide(o.side)}
-<b>Quantidade:</b> ${o.qty}`, chatId ?? undefined);
-        }
         return json({ ok: true, id: data?.id ?? null, duplicate: !data }, data ? 201 : 200);
       },
     },

@@ -2,99 +2,57 @@ import { createFileRoute } from "@tanstack/react-router";
 import { autenticarToken, json } from "@/lib/integracao.server";
 import { resolveCfdLot } from "@/lib/integracao-lotes";
 
-// O robô busca as ordens pendentes; só as ordens com lote válido são marcadas como enviadas.
+// O robô busca as ordens pendentes; elas passam a "sent" para não repetir.
 // "qty" continua sendo a quantidade de contratos da mesa para compatibilidade;
 // "lot" é o lote CFD definido pelo ciclo/dia salvo na plataforma.
 export const Route = createFileRoute("/api/public/ordens/pendentes")({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        const userId = await autenticarToken(request);
-        if (!userId) return json({ error: "unauthorized" }, 401);
+        const auth = await autenticarToken(request);
+        if (auth.status === 401) return json({ error: "unauthorized" }, 401);
+        if (auth.status === 500) return json({ error: "auth_unavailable" }, 500);
+        const userId = auth.userId;
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-        const { data: saved, error: savedError } = await supabaseAdmin.from("app_data").select("data")
-          .eq("user_id", userId).maybeSingle();
-        if (savedError) {
-          console.error("[integration] failed to load app_data", savedError.message);
-          return json({ error: "platform state unavailable" }, 500);
-        }
-
-        const { data: rows, error: rowsError } = await supabaseAdmin.from("order_queue")
-          .select("id, symbol, mirror_side, qty, price, created_at")
+        const { data: rows } = await supabaseAdmin.from("order_queue").select("id")
           .eq("user_id", userId).eq("status", "pending").order("created_at").limit(20);
-        if (rowsError) {
-          console.error("[integration] failed to load pending orders", rowsError.message);
-          return json({ error: "pending orders unavailable" }, 500);
-        }
-        if (!rows?.length) return json({ orders: [] });
+        const ids = (rows ?? []).map((r) => r.id);
+        if (!ids.length) return json({ orders: [] });
 
-        // Calcular o lote antes de marcar a ordem como enviada e antes do audit log.
-        const resolved = rows.map((row) => ({
-          row,
-          resolution: resolveCfdLot(saved?.data ?? null, row.symbol),
-        }));
-        const lotErrors = resolved
-          .filter(({ resolution }) => resolution.lot == null || !Number.isFinite(resolution.lot) || resolution.lot <= 0)
-          .map(({ row, resolution }) => ({
-            id: row.id,
-            symbol: row.symbol,
-            error: resolution.error ?? "Não foi possível determinar o lote do ciclo atual.",
-          }));
-        const valid = resolved.filter(({ resolution }) =>
-          typeof resolution.lot === "number" && Number.isFinite(resolution.lot) && resolution.lot > 0
-        );
-        if (!valid.length) return json({ orders: [], lot_errors: lotErrors });
-
-        const ids = valid.map(({ row }) => row.id);
         const { data, error } = await supabaseAdmin.from("order_queue")
           .update({ status: "sent", updated_at: new Date().toISOString() })
-          .in("id", ids).eq("user_id", userId).eq("status", "pending")
+          .in("id", ids).eq("status", "pending")
           .select("id, symbol, mirror_side, qty, price, created_at");
-        if (error) {
-          console.error("[integration] failed to claim pending orders", error.message);
-          return json({ error: "claim failed" }, 500);
-        }
-
-        const resolvedById = new Map(valid.map(({ row, resolution }) => [row.id, resolution]));
+        if (error) { console.error(error); return json({ error: "claim failed" }, 500); }
         if (data?.length) {
-          const { error: auditError } = await supabaseAdmin.from("audit_logs").insert(data.map((row) => {
-            const resolution = resolvedById.get(row.id)!;
-            return {
-              user_id: userId,
-              category: "integration",
-              action: "integration.order_dispatched",
-              outcome: "success",
-              details: {
-                order_id: row.id,
-                symbol: row.symbol,
-                qty: Number(row.qty),
-                lot: resolution.lot,
-                lot_error: resolution.error,
-                lot_asset: resolution.assetKey,
-                lot_day: resolution.day,
-              },
-            };
-          }));
+          const { error: auditError } = await supabaseAdmin.from("audit_logs").insert(data.map((row) => ({
+            user_id: userId,
+            category: "integration",
+            action: "integration.order_dispatched",
+            outcome: "success",
+            details: { order_id: row.id, symbol: row.symbol, qty: Number(row.qty) },
+          })));
           if (auditError) console.error("[audit] dispatched order event failed", auditError.message);
         }
 
+        const { data: saved } = await supabaseAdmin.from("app_data").select("data")
+          .eq("user_id", userId).maybeSingle();
         return json({
-          orders: (data ?? []).map((row) => {
-            const resolution = resolvedById.get(row.id)!;
+          orders: (data ?? []).map((r) => {
+            const resolution = resolveCfdLot(saved?.data ?? null, r.symbol);
             return {
-              id: row.id,
-              symbol: row.symbol,
-              side: row.mirror_side,
-              qty: Number(row.qty),
-              lot: resolution.lot!,
+              id: r.id,
+              symbol: r.symbol,
+              side: r.mirror_side,
+              qty: Number(r.qty),
+              lot: resolution.lot ?? 0,
+              lot_error: resolution.error ?? undefined,
               lot_asset: resolution.assetKey ?? undefined,
               lot_day: resolution.day ?? undefined,
-              price: row.price,
-              created_at: row.created_at,
+              price: r.price,
+              created_at: r.created_at,
             };
           }),
-          ...(lotErrors.length ? { lot_errors: lotErrors } : {}),
         });
       },
     },

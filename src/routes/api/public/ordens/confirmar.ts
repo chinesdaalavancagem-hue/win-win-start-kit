@@ -1,25 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { confirmarSchema } from "@/lib/integracao";
 import { autenticarToken, json } from "@/lib/integracao.server";
-import { enviarTelegram, chatIdDoUsuario } from "@/lib/telegram.server";
-import { enviarPushAoUsuario } from "@/lib/push.server";
-
-async function enviarTelegramComTimeout(mensagem: string, chatId?: string): Promise<void> {
-  try {
-    await enviarTelegram(mensagem, { chatId });
-  } catch {
-    // Falhas de notificação não podem afetar o processamento da ordem.
-  }
-}
-
 
 // O robô do MT5 informa se executou (done) ou falhou (error).
 export const Route = createFileRoute("/api/public/ordens/confirmar")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const userId = await autenticarToken(request);
-        if (!userId) return json({ error: "unauthorized" }, 401);
+        const auth = await autenticarToken(request);
+        if (auth.status === 401) return json({ error: "unauthorized" }, 401);
+        if (auth.status === 500) return json({ error: "auth_unavailable" }, 500);
+        const userId = auth.userId;
         let body: unknown;
         try { body = await request.json(); } catch { return json({ error: "invalid json" }, 400); }
         const p = confirmarSchema.safeParse(body);
@@ -31,7 +22,6 @@ export const Route = createFileRoute("/api/public/ordens/confirmar")({
         if (error) { console.error(error); return json({ error: "update failed" }, 500); }
         if (!data) return json({ error: "not found" }, 404);
         const succeeded = p.data.status === "done";
-        void enviarPushAoUsuario(userId, { title: succeeded ? "✅ Ordem Executada no MT5" : "⚠️ Falha na Ordem no MT5", body: `Ativo: ${data.symbol} | Status: ${p.data.status}`, url: "/plataforma" });
         const { error: auditError } = await supabaseAdmin.from("audit_logs").insert({
           user_id: userId,
           category: "integration",
@@ -40,20 +30,6 @@ export const Route = createFileRoute("/api/public/ordens/confirmar")({
           details: { order_id: data.id, symbol: data.symbol, error_reported: !succeeded },
         });
         if (auditError) console.error("[audit] order confirmation event failed", auditError.message);
-        const chatId = await chatIdDoUsuario(userId);
-        await enviarTelegramComTimeout(`✅ <b>Ordem Executada no MetaTrader 5</b>
-<b>Ativo:</b> ${data.symbol}
-<b>Status:</b> ${p.data.status}${p.data.error ? `
-<b>Erro:</b> ${p.data.error}` : ""}`, chatId ?? undefined);
-        void import("@/lib/push.server").then(({ enviarPushAoUsuario }) =>
-          enviarPushAoUsuario(userId, {
-            title: succeeded ? "✅ Ordem Executada no MT5" : "⚠️ Falha na Ordem no MT5",
-            body: `Ativo: ${data.symbol} | Status: ${p.data.status}`,
-            url: "/plataforma",
-          }),
-        ).catch(() => {
-          // Push é best-effort; a confirmação e o alerta do Telegram não dependem dele.
-        });
         return json({ ok: true });
       },
     },
