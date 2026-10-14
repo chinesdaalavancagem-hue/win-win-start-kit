@@ -191,12 +191,12 @@ function AuthPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-4 py-10">
-      <div className="w-full max-w-md rounded-xl border bg-card p-8">
-        <img src="/logo.png" width="240" height="240" className="mx-auto block object-contain" />
+    <main className="flex min-h-screen items-center justify-center px-4 py-4 sm:py-10">
+      <div className="w-full max-w-md rounded-xl border bg-card p-5 sm:p-8">
+        <img src="/logo.png" width="240" height="240" className="mx-auto block h-32 w-32 object-contain sm:h-48 sm:w-48" />
         {mode === "login" && firstName && emailMatchesSavedUser && (
-          <section className="mb-5 mt-2 space-y-2 text-center" aria-label="Saudação e versículo bíblico">
-            <h2 className="text-xl font-semibold">
+          <section className="mb-3 mt-1 space-y-1 text-center" aria-label="Saudação e versículo bíblico">
+            <h2 className="text-lg font-semibold sm:text-xl">
               {greetings[dayPeriod]}, {firstName}!
             </h2>
             <p className="text-sm text-muted-foreground">
@@ -206,7 +206,7 @@ function AuthPage() {
                   ? "Que Deus abençoe sua tarde."
                   : "Que Deus abençoe sua noite."}
             </p>
-            <blockquote className="pt-2 text-sm leading-relaxed">
+            <blockquote className="pt-1 text-xs leading-snug sm:text-sm sm:leading-relaxed">
               “{dailyVerse.text}”
               <footer className="mt-1 text-xs text-muted-foreground">
                 {dailyVerse.reference}
@@ -216,7 +216,7 @@ function AuthPage() {
         )}
         <h1 className="text-center text-2xl font-bold">{mode === "login" ? "Entrar" : "Criar conta"}</h1>
         <p className="mt-1 text-center text-sm text-muted-foreground">Win or Win Platform</p>
-        <form onSubmit={onSubmit} className="mt-6 space-y-4">
+        <form onSubmit={onSubmit} className="mt-4 space-y-3 sm:mt-6 sm:space-y-4">
           {mode === "signup" && (
             <>
               <Field name="full_name" label="Nome completo" autoComplete="name" />
