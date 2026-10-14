@@ -270,9 +270,13 @@ function AssetView({ state, assetKey, section, setSection, mutate, isAdmin }: { 
   const displayedCum = isAdmin ? cum : visibleRows.reduce((total, r) => total + r.c.passa, saldo);
   const folga = asset.params.folgaExtraPct ?? 20;
   const reservaComFolga = reservaMinima > 0 ? reservaMinima * (1 + folga / 100) : 0;
-  const sections: [Section, string][] = isAdmin
-    ? [["operacoes", "Operações"], ["parametros", "Parâmetros"], ["bonus", "Bônus e saques"], ["aporte", "Aporte fracionado"], ["caixa", "Caixa do ciclo"]]
-    : [["operacoes", "Operações"], ["bonus", "Bônus e saques"]];
+  const sections: [Section, string][] = [
+    ["operacoes", "Operações"],
+    ["parametros", "Parâmetros"],
+    ["bonus", "Bônus e saques"],
+    ["aporte", "Aporte fracionado"],
+    ["caixa", "Caixa do ciclo"],
+  ];
 
   return (
     <div>
