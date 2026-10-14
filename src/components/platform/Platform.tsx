@@ -382,7 +382,7 @@ function DayCard({ row, assetKey, mutate }: { row: Row; assetKey: AssetKey; muta
       <p className={cn("mt-2 rounded border px-2 py-1 font-mono text-[11px]",
         row.status === "ok" && "border-market-up/40 text-market-up", row.status === "alerta" && "border-brand-gold/40 text-brand-gold", row.status === "risco" && "border-market-down/40 text-market-down")}>{row.statusText}</p>
       {row.caixaDia && d.lotes > 0 && <div className="mt-2 grid grid-cols-2 gap-2 rounded-md border border-primary/30 bg-primary/5 p-3 font-mono text-xs sm:grid-cols-3">
-        <div><p className="text-muted-foreground">Depositar na corretora hoje</p><p className="mt-1 text-base font-semibold text-primary">${fmt(row.caixaDia.deposito)}</p></div>
+        <div><p className="text-muted-foreground">Depositar na corretora hoje</p><p className={cn("mt-1 text-base font-semibold", row.caixaDia.deposito > 0 ? "text-market-up" : "text-market-up")}>${fmt(row.caixaDia.deposito)}</p></div>
         <div><p className="text-muted-foreground">Saldo antes do depósito</p><p className="mt-1 text-base font-semibold">${fmt(row.caixaDia.saldoAntes)}</p></div>
         <div><p className="text-muted-foreground">Bônus deste depósito</p><p className="mt-1 text-base font-semibold">${fmt(row.caixaDia.bonusGanho)}</p></div>
       </div>}
