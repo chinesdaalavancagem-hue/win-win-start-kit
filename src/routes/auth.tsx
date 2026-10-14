@@ -210,7 +210,15 @@ function AuthPage() {
         )}
         <h1 className="text-center text-2xl font-bold">{mode === "login" ? "Entrar" : "Criar conta"}</h1>
         <p className="mt-1 text-center text-sm text-muted-foreground">Win or Win Platform</p>
-        <form onSubmit={onSubmit} className="mt-6 space-y-4">
+        <form
+          onSubmit={onSubmit}
+          onKeyDown={(e) => {
+            if (e.key !== "Enter" || !(e.target instanceof HTMLInputElement)) return;
+            e.preventDefault();
+            if (!loading) e.currentTarget.requestSubmit();
+          }}
+          className="mt-6 space-y-4"
+        >
           {mode === "signup" && (
             <>
               <Field name="full_name" label="Nome completo" autoComplete="name" />
