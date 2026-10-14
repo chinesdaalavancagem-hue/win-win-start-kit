@@ -110,7 +110,6 @@ function AuthPage() {
     };
   }, [loginEmail, savedEmailHash]);
 
-
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
@@ -186,33 +185,22 @@ function AuthPage() {
   }
 
   return (
-    <main
-      className="flex min-h-screen items-start justify-center overflow-y-auto px-3 pt-1 pb-2 sm:items-center sm:px-4 sm:py-10"
-      onKeyDownCapture={(e: React.KeyboardEvent<HTMLElement>) => {
-        if (e.key !== "Enter" || e.nativeEvent.isComposing || loading) return;
-        const target = e.target;
-        if (!(target instanceof HTMLInputElement)) return;
-        const form = target.form;
-        if (!form) return;
-        e.preventDefault();
-        form.requestSubmit();
-      }}
-    >
-      <div className="w-full max-w-md rounded-xl border bg-card p-2 sm:p-8">
-        <img src="/logo.png" width="240" height="240" className="mx-auto block h-12 w-12 object-contain sm:h-48 sm:w-48" />
+    <main className="flex min-h-screen items-center justify-center px-4 py-10">
+      <div className="w-full max-w-md rounded-xl border bg-card p-8">
+        <img src="/logo.png" width="240" height="240" className="mx-auto block object-contain" />
         {mode === "login" && firstName && emailMatchesSavedUser && (
-          <section className="mb-1 mt-0 space-y-0 text-center sm:mb-5 sm:mt-2 sm:space-y-2" aria-label="Saudação e versículo bíblico">
-            <h2 className="text-sm font-semibold sm:text-xl">
+          <section className="mb-5 mt-2 space-y-2 text-center" aria-label="Saudação e versículo bíblico">
+            <h2 className="text-xl font-semibold">
               {greetings[dayPeriod]}, {firstName}!
             </h2>
-            <p className="text-[11px] leading-tight text-muted-foreground sm:text-sm">
+            <p className="text-sm text-muted-foreground">
               {dayPeriod === "morning"
                 ? "Que Deus abençoe seu dia."
                 : dayPeriod === "afternoon"
                   ? "Que Deus abençoe sua tarde."
                   : "Que Deus abençoe sua noite."}
             </p>
-            <blockquote className="pt-0 text-[10px] leading-tight sm:pt-2 sm:text-sm sm:leading-relaxed">
+            <blockquote className="pt-2 text-sm leading-relaxed">
               “{dailyVerse.text}”
               <footer className="mt-1 text-xs text-muted-foreground">
                 {dailyVerse.reference}
@@ -220,9 +208,9 @@ function AuthPage() {
             </blockquote>
           </section>
         )}
-        <h1 className="text-center text-lg font-bold sm:text-2xl">{mode === "login" ? "Entrar" : "Criar conta"}</h1>
-        <p className="mt-0 text-[11px] leading-tight text-center text-muted-foreground sm:mt-1 sm:text-sm">Win or Win Platform</p>
-        <form onSubmit={onSubmit} className="mt-1.5 space-y-1 sm:mt-6 sm:space-y-4">
+        <h1 className="text-center text-2xl font-bold">{mode === "login" ? "Entrar" : "Criar conta"}</h1>
+        <p className="mt-1 text-center text-sm text-muted-foreground">Win or Win Platform</p>
+        <form onSubmit={onSubmit} className="mt-6 space-y-4">
           {mode === "signup" && (
             <>
               <Field name="full_name" label="Nome completo" autoComplete="name" />
