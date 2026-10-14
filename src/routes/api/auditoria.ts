@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import type { Json } from "@/integrations/supabase/types";const CATEGORIES = new Set(["auth", "strategy", "integration", "navigation", "system", "ui"]);
+import type { Json } from "@/integrations/supabase/types";
+
+const CATEGORIES = new Set(["auth", "strategy", "integration", "navigation", "system", "ui"]);
 const OUTCOMES = new Set(["success", "failed", "denied", "started", "unknown"]);
 const CLIENT_ACTIONS = new Set(["login.success", "signup.success", "logout", "integration.key_failed", "integration.download_requested", "integration.download_failed", "integration.file_published", "navigation.opened", "ui.button_clicked", "system.error"]);
 type D = Record<string, unknown>;
@@ -166,7 +168,8 @@ export const Route = createFileRoute("/api/auditoria")({
       const expected: Record<string, string> = { "login.success": "auth", "signup.success": "auth", logout: "auth", "integration.key_failed": "integration", "integration.download_requested": "integration", "integration.download_failed": "integration", "integration.file_published": "integration", "navigation.opened": "navigation", "ui.button_clicked": "ui", "system.error": "system" };
       if (expected[event.action] !== event.category) return json({ error: "invalid_event_category" }, 400);
       if (!consumePostRateLimit(user.id)) return json({ error: "rate_limit_exceeded" }, 429);
-      const { error } = await supabaseAdmin.from("audit_logs").insert({ user_id: user.id, category: event.category, action: event.action, outcome: typeof event.outcome === "string" ? event.outcome : "success", details: details as unknown as Json, request_id: crypto.randomUUID() });      if (error) { console.error("[audit] insert failed", error.message); return json({ error: "audit_write_failed" }, 500); }
+      const { error } = await supabaseAdmin.from("audit_logs").insert({ user_id: user.id, category: event.category, action: event.action, outcome: typeof event.outcome === "string" ? event.outcome : "success", details: details as unknown as Json, request_id: crypto.randomUUID() });
+      if (error) { console.error("[audit] insert failed", error.message); return json({ error: "audit_write_failed" }, 500); }
       return json({ ok: true }, 201);
     },
     GET: async ({ request }) => {
