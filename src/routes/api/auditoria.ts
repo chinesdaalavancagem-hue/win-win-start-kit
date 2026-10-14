@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import type { Json } from "@/integrations/supabase/types";
 
 const CATEGORIES = new Set(["auth", "strategy", "integration", "navigation", "system", "ui"]);
 const OUTCOMES = new Set(["success", "failed", "denied", "started", "unknown"]);
