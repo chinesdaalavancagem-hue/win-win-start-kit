@@ -41,6 +41,14 @@ export const Route = createFileRoute("/api/analise-ia")({
         const user = authData.user;
         if (authError || !user) return json({ error: "Sessão inválida. Entre novamente." }, 401);
 
+        const { getTermsStatusForUser } = await import("@/lib/terms.server");
+        try {
+          const termsStatus = await getTermsStatusForUser(user.id);
+          if (!termsStatus.accepted) return json({ error: "Aceite a versão vigente dos termos em /termos para continuar." }, 403);
+        } catch {
+          return json({ error: "Não foi possível verificar o aceite dos termos." }, 503);
+        }
+
         const { data: profile, error: profileError } = await supabaseAdmin
           .from("profiles").select("approved,rejected").eq("id", user.id).maybeSingle();
         if (profileError || !profile?.approved || profile.rejected) {
