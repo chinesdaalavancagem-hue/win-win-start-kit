@@ -259,10 +259,23 @@ function AssetView({ state, assetKey, section, setSection, mutate, isAdmin }: { 
     let status: "ok" | "alerta" | "risco" = "ok";
     let statusText = "— sem posição CFD hoje (0 lotes)";
     if (margem > 0 && caixaDia) {
-      if (caixaDia.deposito <= 0) { status = "ok"; statusText = "✅ saldo existente cobre o necessário para hoje"; }
-      else if (caixaDia.saldoAntes >= margemTotal) { status = "alerta"; statusText = "⚠️ saldo cobre a margem; falta completar o caixa do dia"; }
-      else { status = "risco"; statusText = "🔴 precisa de depósito para cobrir margem, buffer e perda projetada"; }
-      statusText += ` · depositar hoje: ${fmt(caixaDia.deposito)} · saldo antes: ${fmt(caixaDia.saldoAntes)} (próprio: ${fmt(caixaDia.proprioAntes)} + bônus: ${fmt(caixaDia.bonusAntes)}) · bônus do depósito: ${fmt(caixaDia.bonusGanho)} · necessário no CFD: ${fmt(caixaDia.necessario)}`;
+      const depositoRegistradoNoDia = asset.bonus.log
+        .filter((entry) => entry.tipo === "deposito" && entry.dia === i + 1)
+        .reduce((total, entry) => total + entry.valor, 0);
+      const caixaCoberto = caixaDia.deposito <= 0 || depositoRegistradoNoDia >= caixaDia.deposito;
+      if (caixaCoberto) {
+        status = "ok";
+        statusText = caixaDia.deposito <= 0
+          ? "✅ não precisa depositar: o saldo projetado já cobre o necessário"
+          : `✅ depósito registrado para o dia ${i + 1}; valor projetado coberto`;
+      } else if (caixaDia.saldoAntes >= margemTotal) {
+        status = "alerta";
+        statusText = `⚠️ depósito pendente para o dia ${i + 1}: registrado ${fmt(depositoRegistradoNoDia)} de ${fmt(caixaDia.deposito)} necessário`;
+      } else {
+        status = "risco";
+        statusText = `🔴 registre o depósito do dia ${i + 1}: ${fmt(depositoRegistradoNoDia)} de ${fmt(caixaDia.deposito)} necessário`;
+      }
+      statusText += ` · depositar hoje: ${fmt(Math.max(0, caixaDia.deposito - depositoRegistradoNoDia))} · saldo antes: ${fmt(caixaDia.saldoAntes)} (próprio: ${fmt(caixaDia.proprioAntes)} + bônus: ${fmt(caixaDia.bonusAntes)}) · bônus do depósito: ${fmt(caixaDia.bonusGanho)} · necessário no CFD: ${fmt(caixaDia.necessario)}`;
     }
     const ativoTicks = assetKey === "saque2" ? (asset.params.ativoReal === "nasdaq" ? "nasdaq" : "ouro") : assetKey;
     const ticks = c.pontos * (ativoTicks === "ouro" ? 10 : 4);
