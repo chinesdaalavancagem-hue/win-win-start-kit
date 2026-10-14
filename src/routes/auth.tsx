@@ -199,20 +199,20 @@ function AuthPage() {
       }}
     >
       <div className="w-full max-w-md rounded-xl border bg-card p-2 sm:p-8">
-        <img src="/logo.png" width="240" height="240" className="mx-auto block h-16 w-16 object-contain sm:h-48 sm:w-48" />
+        <img src="/logo.png" width="240" height="240" className="mx-auto block h-12 w-12 object-contain sm:h-48 sm:w-48" />
         {mode === "login" && firstName && emailMatchesSavedUser && (
-          <section className="mb-1 mt-0 space-y-0.5 text-center sm:mb-5 sm:mt-2 sm:space-y-2" aria-label="Saudação e versículo bíblico">
-            <h2 className="text-base font-semibold sm:text-xl">
+          <section className="mb-1 mt-0 space-y-0 text-center sm:mb-5 sm:mt-2 sm:space-y-2" aria-label="Saudação e versículo bíblico">
+            <h2 className="text-sm font-semibold sm:text-xl">
               {greetings[dayPeriod]}, {firstName}!
             </h2>
-            <p className="text-xs text-muted-foreground sm:text-sm">
+            <p className="text-[11px] leading-tight text-muted-foreground sm:text-sm">
               {dayPeriod === "morning"
                 ? "Que Deus abençoe seu dia."
                 : dayPeriod === "afternoon"
                   ? "Que Deus abençoe sua tarde."
                   : "Que Deus abençoe sua noite."}
             </p>
-            <blockquote className="pt-0.5 text-[11px] leading-tight sm:pt-2 sm:text-sm sm:leading-relaxed">
+            <blockquote className="pt-0 text-[10px] leading-tight sm:pt-2 sm:text-sm sm:leading-relaxed">
               “{dailyVerse.text}”
               <footer className="mt-1 text-xs text-muted-foreground">
                 {dailyVerse.reference}
@@ -220,9 +220,9 @@ function AuthPage() {
             </blockquote>
           </section>
         )}
-        <h1 className="text-center text-xl font-bold sm:text-2xl">{mode === "login" ? "Entrar" : "Criar conta"}</h1>
-        <p className="mt-0.5 text-center text-xs text-muted-foreground sm:mt-1 sm:text-sm">Win or Win Platform</p>
-        <form onSubmit={onSubmit} className="mt-2 space-y-1.5 sm:mt-6 sm:space-y-4">
+        <h1 className="text-center text-lg font-bold sm:text-2xl">{mode === "login" ? "Entrar" : "Criar conta"}</h1>
+        <p className="mt-0 text-[11px] leading-tight text-center text-muted-foreground sm:mt-1 sm:text-sm">Win or Win Platform</p>
+        <form onSubmit={onSubmit} className="mt-1.5 space-y-1 sm:mt-6 sm:space-y-4">
           {mode === "signup" && (
             <>
               <Field name="full_name" label="Nome completo" autoComplete="name" />
