@@ -7,8 +7,10 @@ export const Route = createFileRoute("/api/public/ordens/")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const userId = await autenticarToken(request);
-        if (!userId) return json({ error: "unauthorized" }, 401);
+        const auth = await autenticarToken(request);
+        if (auth.status === 401) return json({ error: "unauthorized" }, 401);
+        if (auth.status === 500) return json({ error: "auth_unavailable" }, 500);
+        const userId = auth.userId;
         let body: unknown;
         try { body = await request.json(); } catch { return json({ error: "invalid json" }, 400); }
         const parsed = ordemSchema.safeParse(body);
