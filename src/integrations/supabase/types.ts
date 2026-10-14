@@ -279,6 +279,38 @@ export type Database = {
           },
         ]
       }
+      terms_acceptances: {
+        Row: {
+          accepted_at: string
+          device_hash: string
+          id: string
+          terms_version: string
+          user_id: string
+        }
+        Insert: {
+          accepted_at?: string
+          device_hash: string
+          id?: string
+          terms_version: string
+          user_id: string
+        }
+        Update: {
+          accepted_at?: string
+          device_hash?: string
+          id?: string
+          terms_version?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "terms_acceptances_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trusted_device_settings: {
         Row: {
           max_trusted_devices: number
