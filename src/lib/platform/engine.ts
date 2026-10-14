@@ -12,7 +12,7 @@ export interface Params {
   marginPerLot: number; stopoutPct: number; saqueAprovada: number; folgaExtraPct: number; ativoReal?: "ouro" | "nasdaq";
 }
 export interface Attempt { currentDayIndex: number; cycleCost: number; custoProprioAcumulado: number }
-export interface BonusLog { ts: number; tipo: "deposito" | "saque" | "reset"; valor: number; bonusGanho?: number; proporcao?: number; bonusReduzido?: number; depositoZerado?: number }
+export interface BonusLog { ts: number; tipo: "deposito" | "saque" | "reset"; valor: number; dia?: number; bonusGanho?: number; proporcao?: number; bonusReduzido?: number; depositoZerado?: number }
 export interface Bonus { deposito: number; bonusAtual: number; bonusGanhoTotal: number; bonusCap: number; log: BonusLog[] }
 export interface Asset { params: Params; days: Day[]; attempt: Attempt; bonus: Bonus }
 export interface LogEntry {
@@ -280,7 +280,7 @@ export function aplicarDeposito(s: State, key: AssetKey, valor: number) {
   const espaco = Math.max(0, b.bonusCap - b.bonusGanhoTotal);
   const ganho = Math.min(valor, espaco);
   b.deposito += valor; b.bonusAtual += ganho; b.bonusGanhoTotal += ganho;
-  b.log.push({ ts: Date.now(), tipo: "deposito", valor, bonusGanho: ganho });
+  b.log.push({ ts: Date.now(), tipo: "deposito", valor, dia: s.assets[key].attempt.currentDayIndex + 1, bonusGanho: ganho });
 }
 
 export function aplicarSaque(s: State, key: AssetKey, valor: number) {
@@ -312,7 +312,7 @@ export function calcAporteFracionado(o: { margem: number; stopoutPct: number; cu
   return { total, proprio, bonus, economia };
 }
 
-export interface CaixaDia { dia: number; necessario: number; saldoAntes: number; deposito: number; bonusGanho: number; perda: number; proprioRestante: number; bonusRestante: number; caixaAcumulado: number }
+export interface CaixaDia { dia: number; necessario: number; saldoAntes: number; proprioAntes: number; bonusAntes: number; proprioDisponivel: number; bonusDisponivel: number; excedenteProprioSacavel: number; deposito: number; bonusGanho: number; perda: number; proprioRestante: number; bonusRestante: number; caixaAcumulado: number }
 /** Caixa do ciclo completo: simula passar em todos os dias (pior caso de caixa) com aporte fracionado e bônus com teto. */
 export function calcCaixaCiclo(a: Asset, key: AssetKey, bonusPct: number) {
   const calcs = computeAssetCalcs(a, key);
@@ -323,18 +323,31 @@ export function calcCaixaCiclo(a: Asset, key: AssetKey, bonusPct: number) {
   const dias: CaixaDia[] = a.days.map((d, i) => {
     const perda = Math.max(0, calcs[i]?.custoSePassar ?? 0);
     const necessario = (a.params.marginPerLot || 0) * d.lotes * (1 + Math.max(0, a.params.stopoutPct || 0) / 100) + perda;
-    const saldoAntes = proprio + bonus;
+    const proprioAntes = proprio;
+    const bonusAntes = bonus;
+    const saldoAntes = proprioAntes + bonusAntes;
     const falta = Math.max(0, necessario - saldoAntes);
     const espaco = Math.max(0, cap - bonusTotal);
     const deposito = falta > 0 ? Math.max(falta / (1 + p), falta - espaco) : 0;
     const bonusGanho = Math.min(deposito * p, espaco);
     proprio += deposito; bonus += bonusGanho; bonusTotal += bonusGanho; depositado += deposito;
+    const proprioDisponivel = proprioAntes + deposito;
+    const bonusDisponivel = bonusAntes + bonusGanho;
+    // Estima o saque máximo do saldo próprio sem deixar a cobertura abaixo do necessário.
+    // O saque também reduz o bônus proporcionalmente, conforme aplicarSaque:
+    // bônusReduzido = bônusDisponível * (saque / saldoPróprioDisponível).
+    // Portanto, cada real sacado reduz o saldo total em (1 + bônus/próprio).
+    const folgaTotal = Math.max(0, proprioDisponivel + bonusDisponivel - necessario);
+    const excedenteProprioSacavel = proprioDisponivel > 0
+      ? Math.min(proprioDisponivel, folgaTotal / (1 + bonusDisponivel / proprioDisponivel))
+      : 0;
     const deProprio = Math.min(perda, proprio);
     proprio -= deProprio; bonus = Math.max(0, bonus - (perda - deProprio));
-    return { dia: i + 1, necessario, saldoAntes, deposito, bonusGanho, perda, proprioRestante: proprio, bonusRestante: bonus, caixaAcumulado: taxa + depositado };
+    return { dia: i + 1, necessario, saldoAntes, proprioAntes, bonusAntes, proprioDisponivel, bonusDisponivel, excedenteProprioSacavel, deposito, bonusGanho, perda, proprioRestante: proprio, bonusRestante: bonus, caixaAcumulado: taxa + depositado };
   });
   const saque = a.params.saqueAprovada || 0;
   const caixaMaximo = taxa + depositado;
   const recuperado = proprio + saque;
-  return { dias, taxa, totalDepositado: depositado, caixaMaximo, proprioRecuperavel: proprio, saque, recuperado, resultadoFinal: recuperado - caixaMaximo, bonusTotal };
+  const totalPerda = dias.reduce((acc, d) => acc + d.perda, 0);
+  return { dias, taxa, totalDepositado: depositado, totalPerda, caixaMaximo, proprioRecuperavel: proprio, saque, recuperado, resultadoFinal: recuperado - caixaMaximo, bonusTotal };
 }

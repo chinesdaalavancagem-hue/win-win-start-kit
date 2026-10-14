@@ -221,6 +221,8 @@ function AssetView({ state, assetKey, section, setSection, mutate, isAdmin }: { 
   const setP = (k: keyof Asset["params"]) => (v: number) => mutate((s) => { (s.assets[assetKey].params as unknown as Record<string, number>)[k] = v; });
   const bonus = asset.bonus;
   const saldo = (bonus.deposito || 0) + (bonus.bonusAtual || 0);
+  const [bonusPct, setBonusPct] = useState("100");
+  const caixaCiclo = useMemo(() => calcCaixaCiclo(asset, assetKey, parseNum(bonusPct)), [asset, assetKey, bonusPct]);
   // Atalhos: Shift+N = Profit no dia N; Ctrl+N (ou Alt+N) = Stop no dia N. Só vale para o dia atual; usa o valor teórico.
   const curIdx = asset.attempt.currentDayIndex;
   useEffect(() => {
@@ -242,7 +244,7 @@ function AssetView({ state, assetKey, section, setSection, mutate, isAdmin }: { 
   }, [curIdx, assetKey, mutate]);
 
   // projeção dia a dia (igual ao original)
-  let cum = saldo, totalMeta = 0, reservaMinima = 0;
+  let cum = saldo, totalMeta = 0, reservaMinima = 0, perdaProjetadaAcumulada = 0;
   const rows = asset.days.map((d, i) => {
     const c = calcs[i]!;
     totalMeta += d.meta;
@@ -252,27 +254,58 @@ function AssetView({ state, assetKey, section, setSection, mutate, isAdmin }: { 
     const margem = (asset.params.marginPerLot || 0) * d.lotes;
     const stopout = asset.params.stopoutPct ?? 30;
     const margemTotal = margem + margem * (stopout / 100);
-    if (!isPast && margem > 0) reservaMinima = Math.max(reservaMinima, margemTotal);
+    if (!isPast) {
+      perdaProjetadaAcumulada += c.custoSePassar;
+      if (margem > 0) reservaMinima = Math.max(reservaMinima, margemTotal + perdaProjetadaAcumulada);
+    }
+    const caixaDia = caixaCiclo.dias[i];
     let status: "ok" | "alerta" | "risco" = "ok";
     let statusText = "— sem posição CFD hoje (0 lotes)";
-    if (margem > 0) {
-      if (saldoAoEntrar >= margemTotal) { status = "ok"; statusText = "✅ margem OK"; }
-      else if (saldoAoEntrar >= margem) { status = "alerta"; statusText = "⚠️ cobre a margem, mas sem folga pro buffer de stop-out"; }
-      else { status = "risco"; statusText = "🔴 risco de stop-out — saldo abaixo da margem necessária"; }
-      statusText += ` · margem: $${fmt(margem)} (+${fmt(stopout)}% buffer = $${fmt(margemTotal)}) · saldo disponível: $${fmt(saldoAoEntrar)}`;
+    if (margem > 0 && caixaDia) {
+      // Um reset representa retirar o saldo da corretora: depósitos anteriores deixam
+      // de contar para os status dos cards. Só valem depósitos registrados depois do último reset.
+      const ultimoReset = asset.bonus.log.map((entry) => entry.tipo).lastIndexOf("reset");
+      const logAtivo = asset.bonus.log.slice(ultimoReset + 1);
+      const depositoRegistradoNoDia = logAtivo
+        .filter((entry) => entry.tipo === "deposito" && entry.dia === i + 1)
+        .reduce((total, entry) => total + entry.valor, 0);
+      const caixaCoberto = caixaDia.deposito <= 0 || depositoRegistradoNoDia >= caixaDia.deposito;
+      if (caixaCoberto) {
+        status = "ok";
+        statusText = caixaDia.deposito <= 0
+          ? "✅ não precisa depositar: o saldo projetado já cobre o necessário"
+          : `✅ depósito registrado para o dia ${i + 1}; valor projetado coberto`;
+      } else if (caixaDia.saldoAntes >= margemTotal) {
+        status = "alerta";
+        statusText = `⚠️ depósito pendente para o dia ${i + 1}: registrado ${fmt(depositoRegistradoNoDia)} de ${fmt(caixaDia.deposito)} necessário`;
+      } else {
+        status = "risco";
+        statusText = `🔴 registre o depósito do dia ${i + 1}: ${fmt(depositoRegistradoNoDia)} de ${fmt(caixaDia.deposito)} necessário`;
+      }
+      statusText += ` · depositar hoje: ${fmt(Math.max(0, caixaDia.deposito - depositoRegistradoNoDia))} · saldo antes: ${fmt(caixaDia.saldoAntes)} (próprio: ${fmt(caixaDia.proprioAntes)} + bônus: ${fmt(caixaDia.bonusAntes)}) · bônus do depósito: ${fmt(caixaDia.bonusGanho)} · necessário no CFD: ${fmt(caixaDia.necessario)}`;
     }
     const ativoTicks = assetKey === "saque2" ? (asset.params.ativoReal === "nasdaq" ? "nasdaq" : "ouro") : assetKey;
     const ticks = c.pontos * (ativoTicks === "ouro" ? 10 : 4);
-    return { d, c, i, isCurrent: i === asset.attempt.currentDayIndex, status, statusText, ticks, mult: d.mnq > 0 ? (d.lotes / d.mnq) * 100 : 0 };
+    return { d, c, i, isCurrent: i === asset.attempt.currentDayIndex, status, statusText, ticks, mult: d.mnq > 0 ? (d.lotes / d.mnq) * 100 : 0, caixaDia };
   });
   const visibleRows = isAdmin ? rows : rows.filter((r) => r.isCurrent);
   const displayedTotalMeta = isAdmin ? totalMeta : visibleRows.reduce((total, r) => total + r.d.meta, 0);
   const displayedCum = isAdmin ? cum : visibleRows.reduce((total, r) => total + r.c.passa, saldo);
   const folga = asset.params.folgaExtraPct ?? 20;
   const reservaComFolga = reservaMinima > 0 ? reservaMinima * (1 + folga / 100) : 0;
-  const sections: [Section, string][] = isAdmin
-    ? [["operacoes", "Operações"], ["parametros", "Parâmetros"], ["bonus", "Bônus e saques"], ["aporte", "Aporte fracionado"], ["caixa", "Caixa do ciclo"]]
-    : [["operacoes", "Operações"], ["bonus", "Bônus e saques"]];
+  const proprioAtual = Math.max(0, asset.bonus.deposito || 0);
+  const bonusAtual = Math.max(0, asset.bonus.bonusAtual || 0);
+  // AplicarSaque reduz o bônus na mesma proporção do depósito próprio sacado.
+  const excedenteAtualSacavel = proprioAtual > 0
+    ? Math.min(proprioAtual, Math.max(0, proprioAtual + bonusAtual - reservaComFolga) / (1 + bonusAtual / proprioAtual))
+    : 0;
+  const sections: [Section, string][] = [
+    ["operacoes", "Operações"],
+    ["parametros", "Parâmetros"],
+    ["bonus", "Bônus e saques"],
+    ["aporte", "Aporte fracionado"],
+    ["caixa", "Caixa do ciclo"],
+  ];
 
   return (
     <div>
@@ -324,7 +357,7 @@ function AssetView({ state, assetKey, section, setSection, mutate, isAdmin }: { 
       )}
 
       {section === "aporte" && <AportePanel asset={asset} calcs={calcs} />}
-      {section === "caixa" && <CaixaPanel asset={asset} assetKey={assetKey} />}
+      {section === "caixa" && <CaixaPanel asset={asset} assetKey={assetKey} bonusPct={bonusPct} setBonusPct={setBonusPct} /> }
       {section === "bonus" && <BonusPanel state={state} assetKey={assetKey} reserva={reservaComFolga} folga={folga} mutate={mutate} />}
 
       {section === "operacoes" && (
@@ -345,7 +378,7 @@ function AssetView({ state, assetKey, section, setSection, mutate, isAdmin }: { 
   );
 }
 
-type Row = { d: { mnq: number; lotes: number; meta: number }; c: ReturnType<typeof computeAssetCalcs>[number]; i: number; isCurrent: boolean; status: "ok" | "alerta" | "risco"; statusText: string; ticks: number; mult: number };
+type Row = { d: { mnq: number; lotes: number; meta: number }; c: ReturnType<typeof computeAssetCalcs>[number]; i: number; isCurrent: boolean; status: "ok" | "alerta" | "risco"; statusText: string; ticks: number; mult: number; caixaDia?: ReturnType<typeof calcCaixaCiclo>["dias"][number] | undefined };
 
 function DayCard({ row, assetKey, mutate }: { row: Row; assetKey: AssetKey; mutate: (fn: (s: State) => void) => void }) {
   const { d, c, i, isCurrent } = row;
@@ -367,15 +400,23 @@ function DayCard({ row, assetKey, mutate }: { row: Row; assetKey: AssetKey; muta
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <NumField label="Contratos" value={d.mnq} onChange={setD("mnq")} helper={<>passa <span className="text-market-down">-${fmt(Math.abs(c.passa))}</span></>} />
-        <NumField label="Lotes (broker CFD)" value={d.lotes} onChange={setD("lotes")} helper={<>reprova <span className="text-market-up">+${fmt(c.reprova)}</span> · pontos p/ reprovar {fmt(c.pontosReprova)}</>} />
-        <NumField label="Meta $" value={d.meta} onChange={setD("meta")} helper={`pontos p/ meta ${fmt(c.pontos)}`} />
+        <NumField label="Lotes (broker CFD)" value={d.lotes} onChange={setD("lotes")} helper={<>reprova <span className="text-market-up">+${fmt(c.reprova)}</span> · alvo p/ reprova: {fmt(c.pontosReprova * 10)} pontos</>} />
+        <NumField label="Meta $" value={d.meta} onChange={setD("meta")} helper={`alvo p/ meta: ${fmt(row.ticks)} ticks`} />
       </div>
       <p className="mt-3 font-mono text-sm">líquido se reprovar hoje <span className={c.bateuAlvo ? "text-market-up" : "text-market-down"}>${fmt(c.liquidoSeReprovar)}</span></p>
       <p className="mt-2 inline-block rounded bg-secondary px-2 py-1 font-mono text-[11px] text-muted-foreground">dívida a recuperar hoje: ${fmt(c.dividaHoje)} (alvo bruto se reprovar: ${fmt(c.alvoBruto)})</p>
       <p className={cn("mt-2 rounded border px-2 py-1 font-mono text-[11px]",
         row.status === "ok" && "border-market-up/40 text-market-up", row.status === "alerta" && "border-brand-gold/40 text-brand-gold", row.status === "risco" && "border-market-down/40 text-market-down")}>{row.statusText}</p>
+      {row.caixaDia && d.lotes > 0 && <div className="mt-2 grid grid-cols-2 gap-2 rounded-md border border-primary/30 bg-primary/5 p-3 font-mono text-xs sm:grid-cols-3">
+        <div><p className="text-muted-foreground">Depositar na corretora hoje</p><p className="mt-1 text-base font-semibold text-market-up">${fmt(row.caixaDia.deposito)}</p></div>
+        <div><p className="text-muted-foreground">Saldo próprio no CFD</p><p className="mt-1 text-base font-semibold">${fmt(row.caixaDia.proprioAntes)}</p></div>
+        <div><p className="text-muted-foreground">Saldo de bônus no CFD</p><p className="mt-1 text-base font-semibold">${fmt(row.caixaDia.bonusAntes)}</p></div>
+        <div><p className="text-muted-foreground">Necessário no CFD</p><p className="mt-1 text-base font-semibold">${fmt(row.caixaDia.necessario)}</p></div>
+        <div><p className="text-muted-foreground">Excedente próprio potencialmente sacável</p><p className="mt-1 text-base font-semibold text-market-up">${fmt(excedenteAtualSacavel)}</p></div>
+        <div><p className="text-muted-foreground">Bônus deste depósito</p><p className="mt-1 text-base font-semibold">${fmt(row.caixaDia.bonusGanho)}</p></div>
+      </div>}
       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 rounded bg-secondary px-2 py-1 font-mono text-[11px] text-muted-foreground">
-        <span>Traders Connect · multiplicador de lote</span><span className="text-foreground">{fmt(row.mult)}%</span><span>Tradovate: {fmt(row.ticks)} ticks</span>
+        <span>Trade Ovate: <span className="text-foreground">{fmt(row.ticks)} ticks</span></span><span>Forex para reprovar: <span className="text-foreground">{fmt(c.pontosReprova * 10)} pontos</span></span>
       </div>
       {isCurrent && <Settle risco={row.status === "risco"} custo={c.custoSePassar} reprova={c.reprova}
         onProfit={(real) => mutate((s) => handleProfit(s, assetKey, real))} onStop={(real) => mutate((s) => handleStop(s, assetKey, real))} />}
@@ -403,7 +444,10 @@ function BonusPanel({ state, assetKey, reserva, folga, mutate }: { state: State;
     else if ((b.deposito || 0) > 0 && (b.bonusAtual || 0) > 0) linhas.push(<>faltam <strong>${fmt(b.deposito)}</strong> de depósito próprio pra zerar (a perda consome o próprio inteiro primeiro; só depois tira do bônus).</>);
     if (reserva > 0) {
       linhas.push(<>reserva mínima pros dias que faltam (margem + buffer + {fmt(folga)}% de folga): <strong>${fmt(reserva)}</strong></>);
-      linhas.push(total - reserva > 0 ? <>👉 dá pra sacar até <strong>${fmt(total - reserva)}</strong> agora sem comprometer a margem dos dias restantes.</> : "🔴 não sobra espaço pra saque agora — sacar arrisca stop-out.");
+      const saqueSeguro = (b.deposito || 0) > 0
+        ? Math.min(b.deposito, Math.max(0, total - reserva) / (1 + (b.bonusAtual || 0) / b.deposito))
+        : 0;
+      linhas.push(saqueSeguro > 0 ? <>👉 dá pra sacar até <strong>${fmt(saqueSeguro)}</strong> agora sem comprometer a reserva projetada (considerando a redução proporcional do bônus).</> : "🔴 não sobra espaço pra saque agora — sacar arrisca stop-out.");
     } else linhas.push("sem exigência de margem registrada pros dias restantes — dá pra considerar sacar o saldo com bônus.");
     const proj = projetarZeragemBonus(state, assetKey, b.bonusAtual || 0);
     if ((b.bonusAtual || 0) <= 0) linhas.push("bônus já está zerado.");
@@ -658,22 +702,23 @@ function AportePanel({ asset, calcs }: { asset: Asset; calcs: ReturnType<typeof 
   );
 }
 
-function CaixaPanel({ asset, assetKey }: { asset: Asset; assetKey: AssetKey }) {
-  const [pct, setPct] = useState("100");
+function CaixaPanel({ asset, assetKey, bonusPct, setBonusPct }: { asset: Asset; assetKey: AssetKey; bonusPct: string; setBonusPct: (value: string) => void }) {
   if (!asset.days.length) return <p className="text-muted-foreground">Cadastre os dias do ciclo em Parâmetros para ver o caixa.</p>;
-  const r = calcCaixaCiclo(asset, assetKey, parseNum(pct));
+  const r = calcCaixaCiclo(asset, assetKey, parseNum(bonusPct));
   const items: [string, number, string, string][] = [
     ["Caixa próprio máximo disponível", r.caixaMaximo, "text-primary", "o pico de dinheiro seu fora do bolso: taxa + todos os depósitos"],
-    ["Total depositado no CFD no ciclo", r.totalDepositado, "text-foreground", "soma dos aportes fracionados de todos os dias"],
-    ["Bônus recebido no ciclo", r.bonusTotal, "text-accent-foreground", `limitado ao teto de $${fmt(asset.bonus.bonusCap)}`],
-    ["Recuperado no fim", r.recuperado, "text-primary", `saque da mesa $${fmt(r.saque)} + depósito próprio que sobra no CFD $${fmt(r.proprioRecuperavel)}`],
+    ["Total depositado no CFD no ciclo", r.totalDepositado, "text-foreground", "depósito é margem de garantia; não significa que todo esse valor será perdido"],
+    ["Perda total no CFD se passar todos os dias", r.totalPerda, "text-destructive", "soma das perdas diárias do CFD; este é o valor efetivamente consumido pelas perdas"],
+    ["Saldo próprio recuperável no CFD", r.proprioRecuperavel, "text-primary", "parte do dinheiro depositado que sobra na corretora e pode ser sacada de volta"],
+    ["Bônus recebido no ciclo", r.bonusTotal, "text-accent-foreground", `limitado ao teto de ${fmt(asset.bonus.bonusCap)}`],
+    ["Recuperado no fim", r.recuperado, "text-primary", `saque da mesa ${fmt(r.saque)} + saldo próprio recuperável no CFD ${fmt(r.proprioRecuperavel)}`],
     ["Resultado do ciclo completo", r.resultadoFinal, r.resultadoFinal >= 0 ? "text-primary" : "text-destructive", "recuperado menos o caixa próprio usado"],
   ];
   return (
     <section className="space-y-4 rounded-lg border bg-card p-4">
       <h2 className="text-lg font-bold">Caixa necessário para o ciclo inteiro</h2>
       <label className="block max-w-xs text-sm">Bônus da corretora (%)
-        <input inputMode="decimal" value={pct} onChange={(e) => setPct(e.target.value)} className="mt-1 w-full rounded-md border bg-background px-2 py-1.5" />
+        <input inputMode="decimal" value={bonusPct} onChange={(e) => setBonusPct(e.target.value)} className="mt-1 w-full rounded-md border bg-background px-2 py-1.5" />
       </label>
       <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {items.map(([l, v, c, h]) => (
@@ -686,6 +731,13 @@ function CaixaPanel({ asset, assetKey }: { asset: Asset; assetKey: AssetKey }) {
           <tbody>{r.dias.map((d) => (
             <tr key={d.dia} className="border-t"><td className="p-1">D{d.dia}</td><td className="p-1">${fmt(d.necessario)}</td><td className="p-1">${fmt(d.saldoAntes)}</td><td className="p-1 font-semibold text-primary">${fmt(d.deposito)}</td><td className="p-1">${fmt(d.bonusGanho)}</td><td className="p-1">${fmt(d.perda)}</td><td className="p-1">${fmt(d.caixaAcumulado)}</td></tr>
           ))}</tbody>
+          <tfoot>
+            <tr className="border-t-2 font-semibold">
+              <td className="p-1" colSpan={5}>Perda total no CFD se passar todos os dias</td>
+              <td className="p-1 text-destructive">${fmt(r.totalPerda)}</td>
+              <td className="p-1">—</td>
+            </tr>
+          </tfoot>
         </table>
       </div>
       <div className="rounded-md border p-3 text-xs text-muted-foreground">
@@ -693,8 +745,9 @@ function CaixaPanel({ asset, assetKey }: { asset: Asset; assetKey: AssetKey }) {
         <ul className="list-disc space-y-1 pl-4">
           <li>Usa o setup salvo desta aba: dias, lotes, contratos, margem por lote (${fmt(asset.params.marginPerLot)}), stop out ({fmt(asset.params.stopoutPct)}%), taxa da mesa (${fmt(r.taxa)}) e saque esperado (${fmt(r.saque)}).</li>
           <li>Pior caso de caixa: a mesa passa em todos os dias até aprovar. Se reprovar antes, o CFD devolve dinheiro e o caixa usado é menor.</li>
+          <li>O total depositado no CFD é margem de garantia, não perda total. A perda efetiva é a soma de “Perda se passar” de cada dia; o saldo próprio que sobra permanece recuperável na corretora.</li>
           <li>Cada dia precisa no CFD: margem × (1 + stop out) + a perda do CFD se a mesa passar. Só se deposita o que falta sobre o saldo que já está lá.</li>
-          <li>Bônus de {fmt(parseNum(pct))}% sobre cada depósito, até o teto de ${fmt(asset.bonus.bonusCap)}. A perda consome primeiro o seu dinheiro e depois o bônus.</li>
+          <li>Bônus de {fmt(parseNum(bonusPct))}% sobre cada depósito, até o teto de ${fmt(asset.bonus.bonusCap)}. A perda consome primeiro o seu dinheiro e depois o bônus.</li>
           <li>O ciclo começa com a corretora zerada; o saldo atual da banca não entra na conta.</li>
           <li>No fim, você recupera o saque da mesa e o depósito próprio que sobrou no CFD. O bônus não pode ser sacado.</li>
         </ul>
