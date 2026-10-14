@@ -371,8 +371,8 @@ function DayCard({ row, assetKey, mutate }: { row: Row; assetKey: AssetKey; muta
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <NumField label="Contratos" value={d.mnq} onChange={setD("mnq")} helper={<>passa <span className="text-market-down">-${fmt(Math.abs(c.passa))}</span></>} />
-        <NumField label="Lotes (broker CFD)" value={d.lotes} onChange={setD("lotes")} helper={<>reprova <span className="text-market-up">+${fmt(c.reprova)}</span> · Forex: {fmt(c.pontosReprova * 10)} pontos</>} />
-        <NumField label="Meta $" value={d.meta} onChange={setD("meta")} helper={`pontos p/ meta ${fmt(c.pontos * 10)} ticks`} />
+        <NumField label="Lotes (broker CFD)" value={d.lotes} onChange={setD("lotes")} helper={<>reprova <span className="text-market-up">+${fmt(c.reprova)}</span> · alvo p/ reprova: {fmt(c.pontosReprova * 10)} pontos</>} />
+        <NumField label="Meta $" value={d.meta} onChange={setD("meta")} helper={`alvo p/ meta: ${fmt(c.pontos * 10)} ticks`} />
       </div>
       <p className="mt-3 font-mono text-sm">líquido se reprovar hoje <span className={c.bateuAlvo ? "text-market-up" : "text-market-down"}>${fmt(c.liquidoSeReprovar)}</span></p>
       <p className="mt-2 inline-block rounded bg-secondary px-2 py-1 font-mono text-[11px] text-muted-foreground">dívida a recuperar hoje: ${fmt(c.dividaHoje)} (alvo bruto se reprovar: ${fmt(c.alvoBruto)})</p>
