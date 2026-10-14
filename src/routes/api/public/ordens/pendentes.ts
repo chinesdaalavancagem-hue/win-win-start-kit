@@ -9,8 +9,10 @@ export const Route = createFileRoute("/api/public/ordens/pendentes")({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        const userId = await autenticarToken(request);
-        if (!userId) return json({ error: "unauthorized" }, 401);
+        const auth = await autenticarToken(request);
+        if (auth.status === 401) return json({ error: "unauthorized" }, 401);
+        if (auth.status === 500) return json({ error: "auth_unavailable" }, 500);
+        const userId = auth.userId;
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { data: rows } = await supabaseAdmin.from("order_queue").select("id")
           .eq("user_id", userId).eq("status", "pending").order("created_at").limit(20);
