@@ -244,7 +244,7 @@ function AssetView({ state, assetKey, section, setSection, mutate, isAdmin }: { 
   }, [curIdx, assetKey, mutate]);
 
   // projeção dia a dia (igual ao original)
-  let cum = saldo, totalMeta = 0, reservaMinima = 0, perdaProjetadaAcumulada = 0;
+  let cum = saldo, totalMeta = 0, reservaMinima = 0;
   const rows = asset.days.map((d, i) => {
     const c = calcs[i]!;
     totalMeta += d.meta;
@@ -254,9 +254,10 @@ function AssetView({ state, assetKey, section, setSection, mutate, isAdmin }: { 
     const margem = (asset.params.marginPerLot || 0) * d.lotes;
     const stopout = asset.params.stopoutPct ?? 30;
     const margemTotal = margem + margem * (stopout / 100);
-    if (!isPast) {
-      perdaProjetadaAcumulada += c.custoSePassar;
-      if (margem > 0) reservaMinima = Math.max(reservaMinima, margemTotal + perdaProjetadaAcumulada);
+    // Para saque, reservar somente o necessário para operar o dia atual:
+    // margem + stop-out + perda CFD se a mesa passar hoje. Não somar dias futuros.
+    if (i === asset.attempt.currentDayIndex) {
+      reservaMinima = margem > 0 ? margemTotal + Math.max(0, c.custoSePassar) : 0;
     }
     const caixaDia = caixaCiclo.dias[i];
     let status: "ok" | "alerta" | "risco" = "ok";
