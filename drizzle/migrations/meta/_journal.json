@@ -57,6 +57,41 @@
       "when": 1791729000000,
       "tag": "0007_ai_analysis_quota",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791833151239,
+      "tag": "0008_add_telegram_chat_id",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791855256081,
+      "tag": "0009_push_subscriptions",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791857683284,
+      "tag": "0010_prop_firm_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791936770506,
+      "tag": "0011_terms_acceptances",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1791945198000,
+      "tag": "0012_topstep_and_50k_prop_firms",
+      "breakpoints": true
     }
   ]
 }

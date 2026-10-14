@@ -4,9 +4,6 @@ import { getRequest } from '@tanstack/react-start/server'
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from './types'
 
-
-
-
 function isNewSupabaseApiKey(value: string): boolean {
   return value.startsWith('sb_publishable_') || value.startsWith('sb_secret_');
 }
@@ -33,7 +30,6 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 
 export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server(
   async ({ next }) => {
-    
     const SUPABASE_URL = process.env['SUPABASE_URL'];
     const SUPABASE_PUBLISHABLE_KEY = process.env['SUPABASE_PUBLISHABLE_KEY'];
 
@@ -46,59 +42,49 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server
       console.error(`[Supabase] ${message}`);
       throw new Error(message);
     }
-    
-    const request = getRequest();
 
+    const request = getRequest();
     if (!request?.headers) {
       throw new Error('Unauthorized: No request headers available');
     }
 
-
     const authHeader = request.headers.get('authorization');
-
     if (!authHeader) {
       throw new Error('Unauthorized: No authorization header provided');
     }
-
     if (!authHeader.startsWith('Bearer ')) {
       throw new Error('Unauthorized: Only Bearer tokens are supported');
     }
 
-    const token = authHeader.replace('Bearer ', '');
-    if (!token) {
-      throw new Error('Unauthorized: No token provided');
-    }
-
-    if (token.split('.').length !== 3) {
-      throw new Error('Unauthorized: Invalid token');
-    }
+    const token = authHeader.slice(7);
+    if (!token) throw new Error('Unauthorized: No token provided');
+    if (token.split('.').length !== 3) throw new Error('Unauthorized: Invalid token');
 
     const supabase = createClient<Database>(
-      SUPABASE_URL!,
-      SUPABASE_PUBLISHABLE_KEY!,
+      SUPABASE_URL,
+      SUPABASE_PUBLISHABLE_KEY,
       {
         global: {
-          fetch: createSupabaseFetch(SUPABASE_PUBLISHABLE_KEY!),
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          fetch: createSupabaseFetch(SUPABASE_PUBLISHABLE_KEY),
+          headers: { Authorization: `Bearer ${token}` },
         },
         auth: {
           storage: undefined,
           persistSession: false,
           autoRefreshToken: false,
         },
-      }
+      },
     );
 
     const { data, error } = await supabase.auth.getClaims(token);
-    if (error || !data?.claims) {
-      throw new Error('Unauthorized: Invalid token');
-    }
+    if (error || !data?.claims) throw new Error('Unauthorized: Invalid token');
+    if (!data.claims.sub) throw new Error('Unauthorized: No user ID found in token');
 
-    if (!data.claims.sub) {
-      throw new Error('Unauthorized: No user ID found in token');
-    }
+    // Enforce the current terms on the server for every server function using this auth middleware.
+    // Fail closed if the table is missing or its status cannot be verified.
+    const { getTermsStatusForUser } = await import('@/lib/terms.server');
+    const termsStatus = await getTermsStatusForUser(data.claims.sub);
+    if (!termsStatus.accepted) throw new Error('TERMS_ACCEPTANCE_REQUIRED');
 
     return next({
       context: {

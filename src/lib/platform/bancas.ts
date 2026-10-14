@@ -1,6 +1,7 @@
 import { type State, defaultState, historicoTotals, isValidState, normalizeState, tipoLabel } from "./engine";
+import { challengeAccountSchema, type ChallengeAccount } from "../prop-firms";
 
-export interface Banca { id: string; nome: string; criadaEm: number; state: State }
+export interface Banca { id: string; nome: string; criadaEm: number; state: State; challengeAccount?: ChallengeAccount }
 export interface BancasDoc { bancasVersion: 1; activeId: string; bancas: Banca[] }
 
 const newId = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
@@ -20,8 +21,9 @@ export function parseBancas(raw: string | null): BancasDoc {
     const bancas: Banca[] = p.bancas.map((b: any, i: number) => ({
       id: String(b.id || newId()), nome: String(b.nome || `Banca ${i + 1}`), criadaEm: Number(b.criadaEm) || Date.now(),
       state: isValidState(b.state) ? normalizeState(b.state) : defaultState(),
+      ...(challengeAccountSchema.safeParse(b.challengeAccount).success ? { challengeAccount: challengeAccountSchema.parse(b.challengeAccount) } : {}),
     }));
-    const activeId = bancas.some((b) => b.id === p.activeId) ? p.activeId : bancas[0]!.id;
+    const activeId = bancas.some((b) => b.id === p.activeId) ? p.activeId : bancas[0]?.id ?? "";
     return { bancasVersion: 1, activeId, bancas };
   }
   const first = novaBanca("Banca principal", isValidState(p) ? normalizeState(p) : defaultState());

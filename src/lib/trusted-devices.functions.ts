@@ -42,15 +42,14 @@ export const registrarDispositivoConfiavel = createServerFn({ method: "POST" })
 
       const deviceTokenHash = await sha256Hex(deviceId);
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { data, error } = await supabaseAdmin.rpc("register_trusted_device", {
+      const { data, error, status } = await supabaseAdmin.rpc("register_trusted_device", {
         p_user_id: context.userId,
         p_device_token_hash: deviceTokenHash,
-        p_device_name: null,
       });
 
       if (error) {
         console.error("[TRUSTED_DEVICE] error", {
-          status: typeof error.status === "number" ? error.status : null,
+          status,
           message: error.message.replace(
             /(wow_trusted_device|device_token_hash|service_role|password|token|secret|api[_-]?key)\s*[:=]\s*[^\s,;]+/gi,
             "$1=[REDACTED]",
@@ -59,7 +58,7 @@ export const registrarDispositivoConfiavel = createServerFn({ method: "POST" })
         return { registered: false };
       }
 
-      console.info("[TRUSTED_DEVICE] success", { event_action: data?.event_action });
+      console.info("[TRUSTED_DEVICE] success", { event_action: data?.[0]?.event_action });
       return { registered: true };
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "Unknown registration error";

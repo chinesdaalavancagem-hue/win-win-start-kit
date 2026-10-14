@@ -189,6 +189,7 @@ export type Database = {
           id: string
           phone: string
           rejected: boolean
+          telegram_chat_id: string | null
         }
         Insert: {
           approved?: boolean
@@ -200,6 +201,7 @@ export type Database = {
           id: string
           phone?: string
           rejected?: boolean
+          telegram_chat_id?: string | null
         }
         Update: {
           approved?: boolean
@@ -211,8 +213,103 @@ export type Database = {
           id?: string
           phone?: string
           rejected?: boolean
+          telegram_chat_id?: string | null
         }
         Relationships: []
+      }
+      prop_firms: {
+        Row: {
+          account_sizes: number[]
+          affiliate_url: string
+          coupon: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          account_sizes?: number[]
+          affiliate_url?: string
+          coupon?: string
+          id: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          account_sizes?: number[]
+          affiliate_url?: string
+          coupon?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          id: string
+          p256dh: string
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          p256dh: string
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          p256dh?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      terms_acceptances: {
+        Row: {
+          accepted_at: string
+          device_hash: string
+          id: string
+          terms_version: string
+          user_id: string
+        }
+        Insert: {
+          accepted_at?: string
+          device_hash: string
+          id?: string
+          terms_version: string
+          user_id: string
+        }
+        Update: {
+          accepted_at?: string
+          device_hash?: string
+          id?: string
+          terms_version?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "terms_acceptances_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       trusted_device_settings: {
         Row: {

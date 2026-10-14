@@ -1,10 +1,13 @@
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { gerarChave } from "@/lib/integracao.functions";
+import { salvarChatId } from "@/lib/telegram.functions";
 import { registrarAuditoria } from "@/lib/auditoria-registro";
+import { VAPID_PUBLIC_KEY } from "@/lib/push-public-key";
+import { enviarPushTeste, salvarInscricaoPush } from "@/lib/push.functions";
 
 export const Route = createFileRoute("/_authenticated/integracao")({
   beforeLoad: async ({ context }) => {
@@ -45,20 +48,31 @@ function CopiarTexto({ texto }: { texto: string }) {
 function Integracao() {
   const { user } = Route.useRouteContext();
   const gerar = useServerFn(gerarChave);
+  const salvarChat = useServerFn(salvarChatId);
+  const salvarPush = useServerFn(salvarInscricaoPush);
+  const testarPush = useServerFn(enviarPushTeste);
   const [temChave, setTemChave] = useState<boolean | null>(null);
   const [chave, setChave] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [disp, setDisp] = useState<Record<Tipo, boolean>>({ robo: false, ext: false });
   const [base, setBase] = useState("");
+  const [telegramChatId, setTelegramChatId] = useState("");
+  const telegramChatIdAlterado = useRef(false);
+  const [telegramTestando, setTelegramTestando] = useState(false);
+  const [telegramSalvando, setTelegramSalvando] = useState(false);
+  const [pushAtivando, setPushAtivando] = useState(false);
+  const [pushTestando, setPushTestando] = useState(false);
 
   async function load() {
-    const [{ data: t }, { data: o }] = await Promise.all([
+    const [{ data: t }, { data: o }, { data: p }] = await Promise.all([
       supabase.from("integration_tokens").select("created_at").maybeSingle(),
       supabase.from("order_queue").select("id,symbol,side,mirror_side,qty,status,error,created_at").order("created_at", { ascending: false }).limit(50),
+      supabase.from("profiles").select("telegram_chat_id").eq("id", user.id).maybeSingle(),
     ]);
     setTemChave(!!t);
     setRows((o as Row[]) ?? []);
+    if (!telegramChatIdAlterado.current) setTelegramChatId(p?.telegram_chat_id ?? "");
   }
   async function loadArquivos() {
     const [r, e] = await Promise.all([supabase.storage.from("downloads").list("robo"), supabase.storage.from("downloads").list("extensao")]);
@@ -71,6 +85,93 @@ function Integracao() {
     load(); loadArquivos();
     const i = setInterval(load, 10000); return () => clearInterval(i);
   }, [user.id]);
+
+  async function testarTelegram() {
+    setTelegramTestando(true);
+    try {
+      const response = await fetch("/api/telegram-teste", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chatId: telegramChatId.trim() || undefined,
+        }),
+      });
+      const result = await response.json() as { ok?: boolean; error?: string };
+      if (!response.ok || !result.ok) throw new Error(result.error || "Falha ao enviar o teste.");
+      alert("Solicitação de teste enviada. Confira o Telegram.");
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Não foi possível testar o Telegram.");
+    } finally {
+      setTelegramTestando(false);
+    }
+  }
+
+  async function salvarChatTelegram() {
+    const chatId = telegramChatId.trim();
+    if (!/^-?\d{3,20}$/.test(chatId)) return alert("Informe um Chat ID numérico válido (ex.: 123456789).");
+    setTelegramSalvando(true);
+    try {
+      await salvarChat({ data: { chatId } });
+      telegramChatIdAlterado.current = false;
+      alert("Chat ID salvo! A partir de agora suas notificações chegam no seu Telegram.");
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Não foi possível salvar o Chat ID.");
+    } finally {
+      setTelegramSalvando(false);
+    }
+  }
+
+  async function ativarPush() {
+    setPushAtivando(true);
+    try {
+      if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
+        throw new Error("Este navegador não oferece suporte a notificações push.");
+      }
+      if (!VAPID_PUBLIC_KEY) {
+        throw new Error("As notificações ainda não foram configuradas no servidor.");
+      }
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        throw new Error("Permissão de notificações não concedida. Verifique as configurações do navegador.");
+      }
+      const registration = await navigator.serviceWorker.ready;
+      const applicationServerKey = Uint8Array.from(
+        atob(VAPID_PUBLIC_KEY.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - (VAPID_PUBLIC_KEY.length % 4)) % 4)),
+        (character) => character.charCodeAt(0),
+      );
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: applicationServerKey as unknown as BufferSource,
+      });
+      const serialized = subscription.toJSON();
+      if (!serialized.endpoint || !serialized.keys?.p256dh || !serialized.keys.auth) {
+        throw new Error("O navegador não forneceu uma inscrição push válida.");
+      }
+      await salvarPush({
+        data: {
+          endpoint: serialized.endpoint,
+          keys: { p256dh: serialized.keys.p256dh, auth: serialized.keys.auth },
+        },
+      });
+      alert("Notificações ativadas neste aparelho!");
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Não foi possível ativar as notificações.");
+    } finally {
+      setPushAtivando(false);
+    }
+  }
+
+  async function testarNotificacaoPush() {
+    setPushTestando(true);
+    try {
+      await testarPush();
+      alert("Teste solicitado. Se este aparelho estiver inscrito e as chaves VAPID estiverem configuradas, a notificação chegará em instantes.");
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Não foi possível solicitar a notificação de teste.");
+    } finally {
+      setPushTestando(false);
+    }
+  }
 
   async function novaChave() {
     if (temChave && !confirm("A chave atual vai parar de funcionar. Continuar?")) return;
@@ -139,57 +240,126 @@ function Integracao() {
       </section>
 
       <section className="space-y-3 rounded-lg border p-4 text-sm">
-        <h2 className="font-semibold">3. Guia de instalação</h2>
-        <div>
-          <h3 className="font-semibold">Passo 1 — Instalar o Python no Windows</h3>
-          <ol className="list-decimal space-y-1 pl-5">
-            <li>Acesse <a className="underline" href="https://www.python.org/downloads/windows/" target="_blank" rel="noreferrer">python.org/downloads/windows</a> e baixe uma versão atual do Python 3.</li>
-            <li>Abra o instalador. Na primeira tela, marque <b>Add python.exe to PATH</b> (ou <b>Add Python to PATH</b>) e clique em <b>Install Now</b>. Aguarde terminar e clique em <b>Close</b>.</li>
-          </ol>
-          <h3 className="mt-3 font-semibold">Passo 2 — Conferir o Python pelo CMD</h3>
-          <ol className="list-decimal space-y-1 pl-5">
-            <li>Pressione <b>Windows + R</b>, digite <code>cmd</code> e aperte Enter.</li>
-            <li>Digite <code>python --version</code><CopiarTexto texto="python --version" /> e aperte Enter. Deve aparecer a versão instalada do Python.</li>
-            <li>Digite <code>pip --version</code><CopiarTexto texto="pip --version" /> e aperte Enter para conferir o gerenciador de pacotes. Se o comando <code>python</code> não for reconhecido, feche e reabra o CMD; se continuar, corrija a instalação e a opção PATH.</li>
-          </ol>
-          <h3 className="mt-3 font-semibold">Passo 3 — Preparar os arquivos da extensão</h3>
-          <ol className="list-decimal space-y-1 pl-5">
-            <li>Baixe o arquivo ZIP da extensão e clique em <b>Extrair tudo</b>. Guarde a pasta extraída em um local permanente do computador.</li>
-            <li>Se o pacote incluir o arquivo <code>gerar_extensao.py</code>, abra o CMD e entre na pasta onde esse arquivo está. Digite <code>cd </code> seguido do caminho da pasta entre aspas, por exemplo <code>cd "C:\Integracao"</code><CopiarTexto texto={'cd "C:\\Integracao"'} />, e aperte Enter.</li>
-            <li>Execute <code>python gerar_extensao.py</code><CopiarTexto texto="python gerar_extensao.py" /> e aguarde terminar. Se o arquivo gerador tiver outro nome, use o nome exato que veio no pacote. Não execute este comando se o pacote já trouxer a pasta da extensão pronta e não incluir um gerador.</li>
-            <li>Localize a pasta gerada que contém o arquivo <code>manifest.json</code>. Não é necessário instalar bibliotecas extras nem manter o CMD aberto durante o uso normal da extensão, a menos que o pacote forneça instruções específicas diferentes.</li>
-          </ol>
-          <h3 className="mt-3 font-semibold">Passo 4 — Instalar a extensão no Google Chrome</h3>
-          <ol className="list-decimal space-y-1 pl-5">
-            <li>Abra o Chrome e digite <code>chrome://extensions/</code><CopiarTexto texto="chrome://extensions/" /> na barra de endereços.</li>
-            <li>Ative o <b>Modo do desenvolvedor</b>, no canto superior direito.</li>
-            <li>Clique em <b>Carregar sem compactação</b> e selecione a pasta extraída ou gerada que contém o <code>manifest.json</code>. Selecione a pasta, não o arquivo ZIP.</li>
-            <li>Para facilitar o acesso, clique no ícone de quebra-cabeça do Chrome e, se desejar, fixe a extensão na barra.</li>
-          </ol>
-          <h3 className="mt-3 font-semibold">Passo 5 — Conectar a extensão à plataforma</h3>
-          <ol className="list-decimal space-y-1 pl-5">
-            <li>Nesta página, na seção <b>Sua chave</b>, gere uma chave de integração e guarde-a com segurança.</li>
-            <li>Abra a extensão no Chrome. Em <b>URL da Plataforma</b>, informe <code>{base}</code><CopiarTexto texto={base} />. Em <b>Chave de Integração</b>, cole a chave gerada nesta página e salve.</li>
-            <li>Abra a Tradovate na mesma janela do Chrome e confirme que a extensão está ativa.</li>
-          </ol>
+        <h2 className="font-semibold">Notificações no Telegram</h2>
+        <p className="text-muted-foreground">Receba alertas quando uma ordem chegar da Tradovate e quando o MT5 confirmar a execução. O bot já está configurado na plataforma; você só precisa do seu Chat ID. Para descobri-lo, converse com <a className="underline" href="https://t.me/userinfobot" target="_blank" rel="noreferrer">@userinfobot</a>. Importante: abra uma conversa com o bot <a className="underline" href="https://t.me/Win_or_Win_bot" target="_blank" rel="noreferrer">@Win_or_Win_bot</a> e envie <code>/start</code> — o Telegram só entrega mensagens a quem já iniciou a conversa.</p>
+        <label className="block space-y-1">
+          <span>Seu Chat ID do Telegram</span>
+          <input className="w-full rounded-md border bg-background px-3 py-2" value={telegramChatId} onChange={(e) => { telegramChatIdAlterado.current = true; setTelegramChatId(e.target.value); }} placeholder="Ex.: 123456789" />
+        </label>
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" onClick={salvarChatTelegram} disabled={telegramSalvando}>{telegramSalvando ? "Salvando..." : "Salvar Chat ID"}</Button>
+          <Button size="sm" variant="outline" onClick={testarTelegram} disabled={telegramTestando}>{telegramTestando ? "Testando..." : "Testar Notificação"}</Button>
         </div>
-        <div>
-          <h3 className="font-semibold">Passo 6 — Instalar e configurar o robô no MetaTrader 5</h3>
-          <ol className="list-decimal space-y-1 pl-5">
-            <li>Baixe o robô acima (arquivo <code>.ex5</code>).</li>
-            <li>No MT5, acesse <b>Arquivo → Abrir pasta de dados</b>, entre em <code>MQL5\Experts</code> e copie o arquivo do robô para essa pasta.</li>
-            <li>Volte ao MT5. No painel Navegador, clique com o botão direito em <b>Expert Advisors</b> e escolha <b>Atualizar</b>.</li>
-            <li>Abra <b>Ferramentas → Opções → Expert Advisors</b>. Marque <b>Permitir WebRequest para os endereços listados abaixo</b> e adicione a URL da plataforma: <code>{base}</code>. Confirme a alteração.</li>
-            <li>Arraste o robô para o gráfico do ativo. Nos parâmetros, informe a mesma chave usada na extensão e preencha <b>SiteUrl</b> com <code>{base}</code>. A URL precisa corresponder ao site em que você acessa a plataforma.</li>
-            <li>Ative <b>Algo Trading</b> no MT5. Faça o primeiro teste em uma conta demo.</li>
-          </ol>
+        <p className="text-xs text-muted-foreground">O Chat ID salvo fica ligado à sua conta: as notificações das suas ordens chegam no seu Telegram. Se deixar em branco, os alertas seguem para o Chat ID monitorado pela master.</p>
+      </section>
+
+      <section className="space-y-3 rounded-lg border p-4 text-sm">
+        <h2 className="font-semibold">Notificações no Dispositivo (PWA Push)</h2>
+        <p className="text-muted-foreground">Receba alertas neste aparelho quando uma ordem for recebida e quando o MetaTrader 5 confirmar a execução ou informar uma falha. Os alertas do Telegram continuam funcionando em paralelo.</p>
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" onClick={ativarPush} disabled={pushAtivando}>
+            {pushAtivando ? "Ativando..." : "Ativar Notificações no Aparelho"}
+          </Button>
+          <Button size="sm" variant="outline" onClick={testarNotificacaoPush} disabled={pushTestando}>
+            {pushTestando ? "Enviando..." : "Enviar Notificação de Teste"}
+          </Button>
         </div>
-        <div className="space-y-2 rounded-md bg-muted/50 p-3">
-          <p className="font-semibold">Passo 7 — Testar a comunicação</p>
-          <p>Com a extensão configurada e o robô ativo no MT5, clique em <b>Testar envio da ordem</b> na extensão. Depois, confira diretamente no MetaTrader 5 se a ordem de teste foi recebida e executada. O clique no botão, sozinho, não confirma a execução. A tabela desta página também pode ajudar a acompanhar a chegada da ordem à plataforma.</p>
-          <p>Se o teste falhar, confira se a chave é a mesma nos dois lugares, se a URL está correta na extensão, em <b>WebRequest</b> e no parâmetro <b>SiteUrl</b>, e se o robô está ativo e conectado. Não opere em conta real antes de validar o funcionamento em demo.</p>
+        <div className="rounded-md border border-dashed p-3 text-muted-foreground">
+          <p className="font-medium text-foreground">iPhone / iPad</p>
+          <p>No iOS 16.4 ou superior, abra esta plataforma no Safari, use Compartilhar → Adicionar à Tela de Início e abra pelo ícone instalado. Depois, toque em ativar notificações e aceite a permissão. No Android, use um navegador compatível e permita as notificações.</p>
         </div>
-        <p className="text-muted-foreground">O robô espelha a direção contrária à da mesa. Se gerar uma nova chave, atualize-a tanto na extensão quanto nos parâmetros do robô.</p>
+      </section>
+
+      <section className="space-y-4 rounded-lg border p-4 text-sm">
+        <h2 className="text-lg font-semibold">🚀 Guia de Instalação e Ativação — WinOrWin</h2>
+        <blockquote className="border-l-4 pl-3 text-muted-foreground">
+          <p><b>Aviso importante:</b> A extensão WinOrWin roda 100% nativa dentro do Google Chrome. Você NÃO precisa instalar Python, Node, abrir o prompt de comando (CMD) ou fazer configurações avançadas no seu computador. Todo o processo leva menos de 2 minutos.</p>
+        </blockquote>
+
+        <h3 className="font-semibold">📋 O que você precisa antes de começar:</h3>
+        <ol className="list-decimal space-y-1 pl-5">
+          <li>Ter uma conta aprovada na plataforma WinOrWin;</li>
+          <li>Ter o navegador Google Chrome instalado;</li>
+          <li>Baixar o arquivo da extensão (<code>WinOrWin_Extensao.zip</code>);</li>
+          <li>Ter o MetaTrader 5 aberto no seu computador.</li>
+        </ol>
+
+        <h3 className="text-base font-semibold">📌 PARTE 1: Instalando a Extensão no Chrome</h3>
+        <h4 className="font-semibold">Passo 1: Extrair os arquivos</h4>
+        <ol className="list-decimal space-y-1 pl-5">
+          <li>Localize o arquivo <code>WinOrWin_Extensao.zip</code> que você baixou.</li>
+          <li>Clique com o botão direito nele e escolha Extrair Tudo... (ou use o WinRAR/7-Zip).</li>
+          <li>Salve em um local definitivo do seu computador (ex: na pasta Documentos ou Área de Trabalho).</li>
+        </ol>
+        <blockquote className="border-l-4 pl-3 text-muted-foreground">⚠️ Atenção: Mantenha essa pasta no computador e não a apague após a instalação.</blockquote>
+
+        <h4 className="font-semibold">Passo 2: Carregar no Google Chrome</h4>
+        <ol className="list-decimal space-y-1 pl-5">
+          <li>Abra o Google Chrome.</li>
+          <li>Na barra de endereços, digite <code>chrome://extensions/</code> (e aperte Enter).</li>
+          <li>No canto superior direito da tela, ative a chave: Modo do desenvolvedor.</li>
+          <li>No canto superior esquerdo, clique no botão: Carregar sem compactação.</li>
+          <li>Selecione a pasta descompactada da extensão (onde estão os arquivos <code>manifest.json</code>, <code>content.js</code>, etc.) e clique em Selecionar pasta.</li>
+          <li>Pronto! A extensão WinOrWin Tradovate Bridge aparecerá na sua lista.</li>
+        </ol>
+
+        <h4 className="font-semibold">Passo 3: Fixar o ícone no navegador</h4>
+        <ol className="list-decimal space-y-1 pl-5">
+          <li>No canto superior direito do Chrome, clique no ícone de Quebra-cabeça (Extensões).</li>
+          <li>Localize a WinOrWin Tradovate Bridge e clique no ícone de Alfinete (Fixar) para deixá-la sempre visível na barra do navegador.</li>
+        </ol>
+
+        <h4 className="font-semibold">Passo 4: Conectar sua Conta</h4>
+        <ol className="list-decimal space-y-1 pl-5">
+          <li>Acesse sua conta na plataforma WinOrWin e vá no menu Integração.</li>
+          <li>Copie a sua Chave de Integração Pessoal (Token).</li>
+          <li>Clique no ícone da extensão no topo do Chrome.</li>
+          <li>Preencha os campos:
+            <ul className="list-disc space-y-1 pl-5">
+              <li>URL da Plataforma: <code>https://win-or-win.lovable.app</code></li>
+              <li>Chave de Integração: Cole a sua chave copiada.</li>
+            </ul>
+          </li>
+          <li>Clique em Salvar Configurações.</li>
+          <li>Ao abrir a plataforma Tradovate no Chrome, você verá no topo direito da tela o selo verde:<br />🟢 WinOrWin: Conectado e Pronto.</li>
+        </ol>
+
+        <h3 className="text-base font-semibold">📌 PARTE 2: Configurando o Robô no MetaTrader 5</h3>
+        <h4 className="font-semibold">Passo 1: Permitir a conexão no MT5 (Apenas uma vez)</h4>
+        <ol className="list-decimal space-y-1 pl-5">
+          <li>No MetaTrader 5, clique no menu superior em Ferramentas &gt; Opções (ou aperte <code>Ctrl + O</code>).</li>
+          <li>Vá até a aba Expert Advisors.</li>
+          <li>Marque a caixinha: Permitir WebRequest para as URLs listadas.</li>
+          <li>Clique no botão de adicionar (+ ou duplo clique) e insira exatamente o endereço: <code>https://win-or-win.lovable.app</code></li>
+          <li>Clique em OK.</li>
+        </ol>
+
+        <h4 className="font-semibold">Passo 2: Inserir o Robô no Gráfico</h4>
+        <ol className="list-decimal space-y-1 pl-5">
+          <li>Abra o gráfico do ativo correspondente na sua corretora (ex: <code>GOLD</code> ou <code>US100Cash</code>).</li>
+          <li>No menu do MT5, arraste o Expert Advisor WinOrWin_Hedge para dentro do gráfico.</li>
+          <li>Na aba Comum:
+            <ul className="list-disc space-y-1 pl-5"><li>Marque a caixinha: Permitir Algo Trading (Negociação Automatizada).</li></ul>
+          </li>
+          <li>Na aba Parâmetros de Entrada (Inputs):
+            <ul className="list-disc space-y-1 pl-5">
+              <li>URL do Site: <code>https://win-or-win.lovable.app</code></li>
+              <li>Chave de Integração: Cole a mesma chave pessoal da plataforma.</li>
+              <li>Mapa de Ativos: Verifique o nome exato dos ativos na sua corretora (ex: <code>MNQ=US100Cash;MGC=GOLD</code>).</li>
+              <li>Magic Number: Deixe <code>0</code> (o robô gera um número exclusivo automático para a sua conta).</li>
+            </ul>
+          </li>
+          <li>Clique em OK.</li>
+          <li>No topo do MetaTrader 5, certifique-se de que o botão Algo Trading está verde (ativado).</li>
+        </ol>
+
+        <h3 className="text-base font-semibold">✅ Como Funciona no Dia a Dia</h3>
+        <ul className="list-disc space-y-1 pl-5">
+          <li>Quando você der um clique de Compra na Tradovate, o robô entra Vendido no MT5.</li>
+          <li>Quando você der um clique de Venda na Tradovate, o robô entra Comprado no MT5.</li>
+          <li>Se você apertar o botão de Fechar/Zerar na Tradovate ou atingir alvo/stop, o robô encerra a ordem no MT5 na hora.</li>
+          <li>A velocidade de comunicação é de milissegundos, com auditoria direta no seu painel.</li>
+        </ul>
       </section>
 
       <section className="rounded-lg border p-4">

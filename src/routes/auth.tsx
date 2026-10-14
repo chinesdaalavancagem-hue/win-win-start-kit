@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { greetings, getDayPeriod, verses, type DayPeriod } from "@/lib/login-greeting-verses";
+import { greetings, getDayPeriod, getDailyVerse, type DayPeriod } from "@/lib/login-greeting-verses";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { registrarAuditoria } from "@/lib/auditoria-registro";
@@ -62,7 +62,9 @@ function AuthPage() {
   const [savedEmailHash, setSavedEmailHash] = useState("");
   const [loginEmail, setLoginEmail] = useState("");
   const [emailMatchesSavedUser, setEmailMatchesSavedUser] = useState(false);
-  const [dayPeriod, setDayPeriod] = useState<DayPeriod>(() => getDayPeriod());
+  const [dayPeriod, setDayPeriod] = useState<DayPeriod>("morning");
+
+  const dailyVerse = getDailyVerse(dayPeriod);
 
   useEffect(() => {
     const refreshGreeting = () => {
@@ -192,12 +194,16 @@ function AuthPage() {
               {greetings[dayPeriod]}, {firstName}!
             </h2>
             <p className="text-sm text-muted-foreground">
-              Que Deus abençoe seu dia e guie seus passos.
+              {dayPeriod === "morning"
+                ? "Que Deus abençoe seu dia."
+                : dayPeriod === "afternoon"
+                  ? "Que Deus abençoe sua tarde."
+                  : "Que Deus abençoe sua noite."}
             </p>
             <blockquote className="pt-2 text-sm leading-relaxed">
-              “{verses[dayPeriod].text}”
+              “{dailyVerse.text}”
               <footer className="mt-1 text-xs text-muted-foreground">
-                {verses[dayPeriod].reference}
+                {dailyVerse.reference}
               </footer>
             </blockquote>
           </section>

@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { challengeAccountSchema } from "@/lib/prop-firms";
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -101,6 +102,16 @@ export const Route = createFileRoute("/api/plataforma/dados")({
         const user = await authenticatedUser(request);
         if (!user) return json({ error: "unauthorized" }, 401);
 
+        try {
+          const { getTermsStatusForUser } = await import("@/lib/terms.server");
+          const termsStatus = await getTermsStatusForUser(user.id);
+          if (!termsStatus.accepted) {
+            return json({ error: "terms_acceptance_required" }, 403);
+          }
+        } catch {
+          return json({ error: "terms_verification_unavailable" }, 503);
+        }
+
         let body: unknown;
         try { body = await request.json(); } catch { return json({ error: "invalid_json" }, 400); }
         if (!body || typeof body !== "object" || typeof (body as Record<string, unknown>).data !== "string") {
@@ -113,6 +124,11 @@ export const Route = createFileRoute("/api/plataforma/dados")({
           const parsed = JSON.parse(value);
           if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return json({ error: "invalid_state" }, 400);
           parsedState = parsed as Record<string, unknown>;
+          if (Array.isArray(parsedState.bancas) && parsedState.bancas.some((banca: unknown) => {
+            if (!banca || typeof banca !== "object") return true;
+            const account = (banca as Record<string, unknown>).challengeAccount;
+            return account !== undefined && !challengeAccountSchema.safeParse(account).success;
+          })) return json({ error: "invalid_state" }, 400);
           const states = Array.isArray(parsedState.bancas)
             ? parsedState.bancas.map((banca: unknown) =>
                 banca && typeof banca === "object" ? (banca as Record<string, unknown>).state : null)
