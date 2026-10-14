@@ -78,6 +78,13 @@
       "when": 1791857683284,
       "tag": "0010_prop_firm_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791945198000,
+      "tag": "0012_topstep_and_50k_prop_firms",
+      "breakpoints": true
     }
   ]
 }
