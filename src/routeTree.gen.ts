@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as TermosRouteImport } from './routes/termos'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedAnaliseIaRouteImport } from './routes/_authenticated/analise-ia'
 import { Route as AuthenticatedAuditoriaRouteImport } from './routes/_authenticated/auditoria'
@@ -23,6 +24,8 @@ import { Route as ApiAssistenteRouteImport } from './routes/api/assistente'
 import { Route as ApiAuditoriaRouteImport } from './routes/api/auditoria'
 import { Route as ApiTelegramTesteRouteImport } from './routes/api/telegram-teste'
 import { Route as ApiPlataformaDadosRouteImport } from './routes/api/plataforma/dados'
+import { Route as ApiTermosAceiteRouteImport } from './routes/api/termos/aceite'
+import { Route as ApiTermosStatusRouteImport } from './routes/api/termos/status'
 import { Route as ApiPublicOrdensIndexRouteImport } from './routes/api/public/ordens/index'
 import { Route as ApiPublicOrdensConfirmarRouteImport } from './routes/api/public/ordens/confirmar'
 import { Route as ApiPublicOrdensPendentesRouteImport } from './routes/api/public/ordens/pendentes'
@@ -44,6 +47,11 @@ const AuthRoute = AuthRouteImport.update({
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermosRoute = TermosRouteImport.update({
+  id: '/termos',
+  path: '/termos',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
@@ -96,6 +104,16 @@ const ApiPlataformaDadosRoute = ApiPlataformaDadosRouteImport.update({
   path: '/api/plataforma/dados',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiTermosAceiteRoute = ApiTermosAceiteRouteImport.update({
+  id: '/api/termos/aceite',
+  path: '/api/termos/aceite',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiTermosStatusRoute = ApiTermosStatusRouteImport.update({
+  id: '/api/termos/status',
+  path: '/api/termos/status',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicOrdensIndexRoute = ApiPublicOrdensIndexRouteImport.update({
   id: '/api/public/ordens/',
   path: '/api/public/ordens/',
@@ -118,6 +136,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/termos': typeof TermosRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/analise-ia': typeof AuthenticatedAnaliseIaRoute
   '/auditoria': typeof AuthenticatedAuditoriaRoute
@@ -128,6 +147,8 @@ export interface FileRoutesByFullPath {
   '/api/auditoria': typeof ApiAuditoriaRoute
   '/api/telegram-teste': typeof ApiTelegramTesteRoute
   '/api/plataforma/dados': typeof ApiPlataformaDadosRoute
+  '/api/termos/aceite': typeof ApiTermosAceiteRoute
+  '/api/termos/status': typeof ApiTermosStatusRoute
   '/api/public/ordens/confirmar': typeof ApiPublicOrdensConfirmarRoute
   '/api/public/ordens/pendentes': typeof ApiPublicOrdensPendentesRoute
   '/api/public/ordens/': typeof ApiPublicOrdensIndexRoute
@@ -136,6 +157,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/termos': typeof TermosRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/analise-ia': typeof AuthenticatedAnaliseIaRoute
   '/auditoria': typeof AuthenticatedAuditoriaRoute
@@ -146,6 +168,8 @@ export interface FileRoutesByTo {
   '/api/auditoria': typeof ApiAuditoriaRoute
   '/api/telegram-teste': typeof ApiTelegramTesteRoute
   '/api/plataforma/dados': typeof ApiPlataformaDadosRoute
+  '/api/termos/aceite': typeof ApiTermosAceiteRoute
+  '/api/termos/status': typeof ApiTermosStatusRoute
   '/api/public/ordens/confirmar': typeof ApiPublicOrdensConfirmarRoute
   '/api/public/ordens/pendentes': typeof ApiPublicOrdensPendentesRoute
   '/api/public/ordens': typeof ApiPublicOrdensIndexRoute
@@ -156,6 +180,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/termos': typeof TermosRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/analise-ia': typeof AuthenticatedAnaliseIaRoute
   '/_authenticated/auditoria': typeof AuthenticatedAuditoriaRoute
@@ -166,6 +191,8 @@ export interface FileRoutesById {
   '/api/auditoria': typeof ApiAuditoriaRoute
   '/api/telegram-teste': typeof ApiTelegramTesteRoute
   '/api/plataforma/dados': typeof ApiPlataformaDadosRoute
+  '/api/termos/aceite': typeof ApiTermosAceiteRoute
+  '/api/termos/status': typeof ApiTermosStatusRoute
   '/api/public/ordens/confirmar': typeof ApiPublicOrdensConfirmarRoute
   '/api/public/ordens/pendentes': typeof ApiPublicOrdensPendentesRoute
   '/api/public/ordens/': typeof ApiPublicOrdensIndexRoute
@@ -176,6 +203,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/reset-password'
+    | '/termos'
     | '/admin'
     | '/analise-ia'
     | '/auditoria'
@@ -186,6 +214,8 @@ export interface FileRouteTypes {
     | '/api/auditoria'
     | '/api/telegram-teste'
     | '/api/plataforma/dados'
+    | '/api/termos/aceite'
+    | '/api/termos/status'
     | '/api/public/ordens/confirmar'
     | '/api/public/ordens/pendentes'
     | '/api/public/ordens/'
@@ -194,6 +224,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/reset-password'
+    | '/termos'
     | '/admin'
     | '/analise-ia'
     | '/auditoria'
@@ -204,6 +235,8 @@ export interface FileRouteTypes {
     | '/api/auditoria'
     | '/api/telegram-teste'
     | '/api/plataforma/dados'
+    | '/api/termos/aceite'
+    | '/api/termos/status'
     | '/api/public/ordens/confirmar'
     | '/api/public/ordens/pendentes'
     | '/api/public/ordens'
@@ -213,6 +246,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/reset-password'
+    | '/termos'
     | '/_authenticated/admin'
     | '/_authenticated/analise-ia'
     | '/_authenticated/auditoria'
@@ -223,6 +257,8 @@ export interface FileRouteTypes {
     | '/api/auditoria'
     | '/api/telegram-teste'
     | '/api/plataforma/dados'
+    | '/api/termos/aceite'
+    | '/api/termos/status'
     | '/api/public/ordens/confirmar'
     | '/api/public/ordens/pendentes'
     | '/api/public/ordens/'
@@ -233,11 +269,14 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  TermosRoute: typeof TermosRoute
   ApiAnaliseIaRoute: typeof ApiAnaliseIaRoute
   ApiAssistenteRoute: typeof ApiAssistenteRoute
   ApiAuditoriaRoute: typeof ApiAuditoriaRoute
   ApiTelegramTesteRoute: typeof ApiTelegramTesteRoute
   ApiPlataformaDadosRoute: typeof ApiPlataformaDadosRoute
+  ApiTermosAceiteRoute: typeof ApiTermosAceiteRoute
+  ApiTermosStatusRoute: typeof ApiTermosStatusRoute
   ApiPublicOrdensConfirmarRoute: typeof ApiPublicOrdensConfirmarRoute
   ApiPublicOrdensPendentesRoute: typeof ApiPublicOrdensPendentesRoute
   ApiPublicOrdensIndexRoute: typeof ApiPublicOrdensIndexRoute
@@ -271,6 +310,13 @@ declare module '@tanstack/react-router' {
       path: '/reset-password'
       fullPath: '/reset-password'
       preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/termos': {
+      id: '/termos'
+      path: '/termos'
+      fullPath: '/termos'
+      preLoaderRoute: typeof TermosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/admin': {
@@ -343,6 +389,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPlataformaDadosRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/termos/aceite': {
+      id: '/api/termos/aceite'
+      path: '/api/termos/aceite'
+      fullPath: '/api/termos/aceite'
+      preLoaderRoute: typeof ApiTermosAceiteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/termos/status': {
+      id: '/api/termos/status'
+      path: '/api/termos/status'
+      fullPath: '/api/termos/status'
+      preLoaderRoute: typeof ApiTermosStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/ordens/': {
       id: '/api/public/ordens/'
       path: '/api/public/ordens'
@@ -391,11 +451,14 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  TermosRoute: TermosRoute,
   ApiAnaliseIaRoute: ApiAnaliseIaRoute,
   ApiAssistenteRoute: ApiAssistenteRoute,
   ApiAuditoriaRoute: ApiAuditoriaRoute,
   ApiTelegramTesteRoute: ApiTelegramTesteRoute,
   ApiPlataformaDadosRoute: ApiPlataformaDadosRoute,
+  ApiTermosAceiteRoute: ApiTermosAceiteRoute,
+  ApiTermosStatusRoute: ApiTermosStatusRoute,
   ApiPublicOrdensConfirmarRoute: ApiPublicOrdensConfirmarRoute,
   ApiPublicOrdensPendentesRoute: ApiPublicOrdensPendentesRoute,
   ApiPublicOrdensIndexRoute: ApiPublicOrdensIndexRoute,

@@ -102,6 +102,16 @@ export const Route = createFileRoute("/api/plataforma/dados")({
         const user = await authenticatedUser(request);
         if (!user) return json({ error: "unauthorized" }, 401);
 
+        try {
+          const { getTermsStatusForUser } = await import("@/lib/terms.server");
+          const termsStatus = await getTermsStatusForUser(user.id);
+          if (!termsStatus.accepted) {
+            return json({ error: "terms_acceptance_required" }, 403);
+          }
+        } catch {
+          return json({ error: "terms_verification_unavailable" }, 503);
+        }
+
         let body: unknown;
         try { body = await request.json(); } catch { return json({ error: "invalid_json" }, 400); }
         if (!body || typeof body !== "object" || typeof (body as Record<string, unknown>).data !== "string") {
