@@ -12,7 +12,7 @@ export interface Params {
   marginPerLot: number; stopoutPct: number; saqueAprovada: number; folgaExtraPct: number; ativoReal?: "ouro" | "nasdaq";
 }
 export interface Attempt { currentDayIndex: number; cycleCost: number; custoProprioAcumulado: number }
-export interface BonusLog { ts: number; tipo: "deposito" | "saque" | "reset"; valor: number; bonusGanho?: number; proporcao?: number; bonusReduzido?: number; depositoZerado?: number }
+export interface BonusLog { ts: number; tipo: "deposito" | "saque" | "reset"; valor: number; dia?: number; bonusGanho?: number; proporcao?: number; bonusReduzido?: number; depositoZerado?: number }
 export interface Bonus { deposito: number; bonusAtual: number; bonusGanhoTotal: number; bonusCap: number; log: BonusLog[] }
 export interface Asset { params: Params; days: Day[]; attempt: Attempt; bonus: Bonus }
 export interface LogEntry {
@@ -280,7 +280,7 @@ export function aplicarDeposito(s: State, key: AssetKey, valor: number) {
   const espaco = Math.max(0, b.bonusCap - b.bonusGanhoTotal);
   const ganho = Math.min(valor, espaco);
   b.deposito += valor; b.bonusAtual += ganho; b.bonusGanhoTotal += ganho;
-  b.log.push({ ts: Date.now(), tipo: "deposito", valor, bonusGanho: ganho });
+  b.log.push({ ts: Date.now(), tipo: "deposito", valor, dia: s.assets[key].attempt.currentDayIndex + 1, bonusGanho: ganho });
 }
 
 export function aplicarSaque(s: State, key: AssetKey, valor: number) {
