@@ -333,9 +333,14 @@ export function calcCaixaCiclo(a: Asset, key: AssetKey, bonusPct: number) {
     proprio += deposito; bonus += bonusGanho; bonusTotal += bonusGanho; depositado += deposito;
     const proprioDisponivel = proprioAntes + deposito;
     const bonusDisponivel = bonusAntes + bonusGanho;
-    // Excedente próprio potencialmente sacável mantendo o total disponível suficiente para a necessidade do dia.
-    const proprioMinimoNecessario = Math.max(0, necessario - bonusDisponivel);
-    const excedenteProprioSacavel = Math.max(0, proprioDisponivel - proprioMinimoNecessario);
+    // Estima o saque máximo do saldo próprio sem deixar a cobertura abaixo do necessário.
+    // O saque também reduz o bônus proporcionalmente, conforme aplicarSaque:
+    // bônusReduzido = bônusDisponível * (saque / saldoPróprioDisponível).
+    // Portanto, cada real sacado reduz o saldo total em (1 + bônus/próprio).
+    const folgaTotal = Math.max(0, proprioDisponivel + bonusDisponivel - necessario);
+    const excedenteProprioSacavel = proprioDisponivel > 0
+      ? Math.min(proprioDisponivel, folgaTotal / (1 + bonusDisponivel / proprioDisponivel))
+      : 0;
     const deProprio = Math.min(perda, proprio);
     proprio -= deProprio; bonus = Math.max(0, bonus - (perda - deProprio));
     return { dia: i + 1, necessario, saldoAntes, proprioAntes, bonusAntes, proprioDisponivel, bonusDisponivel, excedenteProprioSacavel, deposito, bonusGanho, perda, proprioRestante: proprio, bonusRestante: bonus, caixaAcumulado: taxa + depositado };
