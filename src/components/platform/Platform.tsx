@@ -367,7 +367,7 @@ function DayCard({ row, assetKey, mutate }: { row: Row; assetKey: AssetKey; muta
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <NumField label="Contratos" value={d.mnq} onChange={setD("mnq")} helper={<>passa <span className="text-market-down">-${fmt(Math.abs(c.passa))}</span></>} />
-        <NumField label="Lotes (broker CFD)" value={d.lotes} onChange={setD("lotes")} helper={<>reprova <span className="text-market-up">+${fmt(c.reprova)}</span> · Forex: {fmt(c.pontosReprova)} pips ({fmt(c.pontosReprova * 10)} pontos)</>} />
+        <NumField label="Lotes (broker CFD)" value={d.lotes} onChange={setD("lotes")} helper={<>reprova <span className="text-market-up">+${fmt(c.reprova)}</span> · Forex: {fmt(c.pontosReprova)} pips</>} />
         <NumField label="Meta $" value={d.meta} onChange={setD("meta")} helper={`pontos p/ meta ${fmt(c.pontos)}`} />
       </div>
       <p className="mt-3 font-mono text-sm">líquido se reprovar hoje <span className={c.bateuAlvo ? "text-market-up" : "text-market-down"}>${fmt(c.liquidoSeReprovar)}</span></p>
