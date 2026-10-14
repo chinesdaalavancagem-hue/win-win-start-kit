@@ -259,7 +259,11 @@ function AssetView({ state, assetKey, section, setSection, mutate, isAdmin }: { 
     let status: "ok" | "alerta" | "risco" = "ok";
     let statusText = "— sem posição CFD hoje (0 lotes)";
     if (margem > 0 && caixaDia) {
-      const depositoRegistradoNoDia = asset.bonus.log
+      // Um reset representa retirar o saldo da corretora: depósitos anteriores deixam
+      // de contar para os status dos cards. Só valem depósitos registrados depois do último reset.
+      const ultimoReset = asset.bonus.log.map((entry) => entry.tipo).lastIndexOf("reset");
+      const logAtivo = asset.bonus.log.slice(ultimoReset + 1);
+      const depositoRegistradoNoDia = logAtivo
         .filter((entry) => entry.tipo === "deposito" && entry.dia === i + 1)
         .reduce((total, entry) => total + entry.valor, 0);
       const caixaCoberto = caixaDia.deposito <= 0 || depositoRegistradoNoDia >= caixaDia.deposito;
