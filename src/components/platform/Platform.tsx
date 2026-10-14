@@ -368,7 +368,7 @@ function AssetView({ state, assetKey, section, setSection, mutate, isAdmin }: { 
           </div>
           <div className="space-y-3">
             {visibleRows.map((r) => (
-              <DayCard key={r.i} row={r} assetKey={assetKey} mutate={mutate} />
+              <DayCard key={r.i} row={r} assetKey={assetKey} mutate={mutate} excedenteAtualSacavel={excedenteAtualSacavel} />
             ))}
           </div>
           {isAdmin && <Button type="button" variant="outline" className="mt-3 w-full border-dashed" onClick={() => mutate((s) => { s.assets[assetKey].days.push({ mnq: 1, lotes: 1, meta: 150 }); })}>+ adicionar dia</Button>}
@@ -380,7 +380,7 @@ function AssetView({ state, assetKey, section, setSection, mutate, isAdmin }: { 
 
 type Row = { d: { mnq: number; lotes: number; meta: number }; c: ReturnType<typeof computeAssetCalcs>[number]; i: number; isCurrent: boolean; status: "ok" | "alerta" | "risco"; statusText: string; ticks: number; mult: number; caixaDia?: ReturnType<typeof calcCaixaCiclo>["dias"][number] | undefined };
 
-function DayCard({ row, assetKey, mutate }: { row: Row; assetKey: AssetKey; mutate: (fn: (s: State) => void) => void }) {
+function DayCard({ row, assetKey, mutate, excedenteAtualSacavel }: { row: Row; assetKey: AssetKey; mutate: (fn: (s: State) => void) => void; excedenteAtualSacavel: number }) {
   const { d, c, i, isCurrent } = row;
   const ref = useRef<HTMLDivElement>(null);
   const wasCurrent = useRef(isCurrent);
