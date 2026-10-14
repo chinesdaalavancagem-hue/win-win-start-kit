@@ -221,6 +221,8 @@ function AssetView({ state, assetKey, section, setSection, mutate, isAdmin }: { 
   const setP = (k: keyof Asset["params"]) => (v: number) => mutate((s) => { (s.assets[assetKey].params as unknown as Record<string, number>)[k] = v; });
   const bonus = asset.bonus;
   const saldo = (bonus.deposito || 0) + (bonus.bonusAtual || 0);
+  const [bonusPct, setBonusPct] = useState("100");
+  const caixaCiclo = useMemo(() => calcCaixaCiclo(asset, assetKey, parseNum(bonusPct)), [asset, assetKey, bonusPct]);
   // Atalhos: Shift+N = Profit no dia N; Ctrl+N (ou Alt+N) = Stop no dia N. Só vale para o dia atual; usa o valor teórico.
   const curIdx = asset.attempt.currentDayIndex;
   useEffect(() => {
@@ -253,17 +255,18 @@ function AssetView({ state, assetKey, section, setSection, mutate, isAdmin }: { 
     const stopout = asset.params.stopoutPct ?? 30;
     const margemTotal = margem + margem * (stopout / 100);
     if (!isPast && margem > 0) reservaMinima = Math.max(reservaMinima, margemTotal);
+    const caixaDia = caixaCiclo.dias[i];
     let status: "ok" | "alerta" | "risco" = "ok";
     let statusText = "— sem posição CFD hoje (0 lotes)";
-    if (margem > 0) {
-      if (saldoAoEntrar >= margemTotal) { status = "ok"; statusText = "✅ margem OK"; }
-      else if (saldoAoEntrar >= margem) { status = "alerta"; statusText = "⚠️ cobre a margem, mas sem folga pro buffer de stop-out"; }
-      else { status = "risco"; statusText = "🔴 risco de stop-out — saldo abaixo da margem necessária"; }
-      statusText += ` · margem: $${fmt(margem)} (+${fmt(stopout)}% buffer = $${fmt(margemTotal)}) · saldo disponível: $${fmt(saldoAoEntrar)}`;
+    if (margem > 0 && caixaDia) {
+      if (caixaDia.deposito <= 0) { status = "ok"; statusText = "✅ saldo existente cobre o necessário para hoje"; }
+      else if (caixaDia.saldoAntes >= margemTotal) { status = "alerta"; statusText = "⚠️ saldo cobre a margem; falta completar o caixa do dia"; }
+      else { status = "risco"; statusText = "🔴 precisa de depósito para cobrir margem, buffer e perda projetada"; }
+      statusText += ` · depositar hoje: ${fmt(caixaDia.deposito)} · saldo antes: ${fmt(caixaDia.saldoAntes)} · bônus do depósito: ${fmt(caixaDia.bonusGanho)} · necessário no CFD: ${fmt(caixaDia.necessario)}`;
     }
     const ativoTicks = assetKey === "saque2" ? (asset.params.ativoReal === "nasdaq" ? "nasdaq" : "ouro") : assetKey;
     const ticks = c.pontos * (ativoTicks === "ouro" ? 10 : 4);
-    return { d, c, i, isCurrent: i === asset.attempt.currentDayIndex, status, statusText, ticks, mult: d.mnq > 0 ? (d.lotes / d.mnq) * 100 : 0 };
+    return { d, c, i, isCurrent: i === asset.attempt.currentDayIndex, status, statusText, ticks, mult: d.mnq > 0 ? (d.lotes / d.mnq) * 100 : 0, caixaDia };
   });
   const visibleRows = isAdmin ? rows : rows.filter((r) => r.isCurrent);
   const displayedTotalMeta = isAdmin ? totalMeta : visibleRows.reduce((total, r) => total + r.d.meta, 0);
@@ -328,7 +331,7 @@ function AssetView({ state, assetKey, section, setSection, mutate, isAdmin }: { 
       )}
 
       {section === "aporte" && <AportePanel asset={asset} calcs={calcs} />}
-      {section === "caixa" && <CaixaPanel asset={asset} assetKey={assetKey} />}
+      {section === "caixa" && <CaixaPanel asset={asset} assetKey={assetKey} bonusPct={bonusPct} setBonusPct={setBonusPct} /> }
       {section === "bonus" && <BonusPanel state={state} assetKey={assetKey} reserva={reservaComFolga} folga={folga} mutate={mutate} />}
 
       {section === "operacoes" && (
@@ -349,7 +352,7 @@ function AssetView({ state, assetKey, section, setSection, mutate, isAdmin }: { 
   );
 }
 
-type Row = { d: { mnq: number; lotes: number; meta: number }; c: ReturnType<typeof computeAssetCalcs>[number]; i: number; isCurrent: boolean; status: "ok" | "alerta" | "risco"; statusText: string; ticks: number; mult: number };
+type Row = { d: { mnq: number; lotes: number; meta: number }; c: ReturnType<typeof computeAssetCalcs>[number]; i: number; isCurrent: boolean; status: "ok" | "alerta" | "risco"; statusText: string; ticks: number; mult: number; caixaDia?: ReturnType<typeof calcCaixaCiclo>["dias"][number] };
 
 function DayCard({ row, assetKey, mutate }: { row: Row; assetKey: AssetKey; mutate: (fn: (s: State) => void) => void }) {
   const { d, c, i, isCurrent } = row;
@@ -378,6 +381,11 @@ function DayCard({ row, assetKey, mutate }: { row: Row; assetKey: AssetKey; muta
       <p className="mt-2 inline-block rounded bg-secondary px-2 py-1 font-mono text-[11px] text-muted-foreground">dívida a recuperar hoje: ${fmt(c.dividaHoje)} (alvo bruto se reprovar: ${fmt(c.alvoBruto)})</p>
       <p className={cn("mt-2 rounded border px-2 py-1 font-mono text-[11px]",
         row.status === "ok" && "border-market-up/40 text-market-up", row.status === "alerta" && "border-brand-gold/40 text-brand-gold", row.status === "risco" && "border-market-down/40 text-market-down")}>{row.statusText}</p>
+      {row.caixaDia && d.lotes > 0 && <div className="mt-2 grid grid-cols-2 gap-2 rounded-md border border-primary/30 bg-primary/5 p-3 font-mono text-xs sm:grid-cols-3">
+        <div><p className="text-muted-foreground">Depositar na corretora hoje</p><p className="mt-1 text-base font-semibold text-primary">${fmt(row.caixaDia.deposito)}</p></div>
+        <div><p className="text-muted-foreground">Saldo antes do depósito</p><p className="mt-1 text-base font-semibold">${fmt(row.caixaDia.saldoAntes)}</p></div>
+        <div><p className="text-muted-foreground">Bônus deste depósito</p><p className="mt-1 text-base font-semibold">${fmt(row.caixaDia.bonusGanho)}</p></div>
+      </div>}
       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 rounded bg-secondary px-2 py-1 font-mono text-[11px] text-muted-foreground">
         <span>Trade Ovate: <span className="text-foreground">{fmt(row.ticks)} ticks</span></span><span>Forex para reprovar: <span className="text-foreground">{fmt(c.pontosReprova)} pips ({fmt(c.pontosReprova * 10)} pontos)</span></span>
       </div>
@@ -646,7 +654,7 @@ function AportePanel({ asset, calcs }: { asset: Asset; calcs: ReturnType<typeof 
           </select>
         </label>
         <label className="text-sm">Bônus da corretora (%)
-          <input inputMode="decimal" value={pct} onChange={(e) => setPct(e.target.value)} className="mt-1 w-full rounded-md border bg-background px-2 py-1.5" />
+          <input inputMode="decimal" value={bonusPct} onChange={(e) => setBonusPct(e.target.value)} className="mt-1 w-full rounded-md border bg-background px-2 py-1.5" />
         </label>
         <label className="text-sm">Banca integral para comparar ($)
           <input inputMode="decimal" value={banca} onChange={(e) => setBanca(e.target.value)} className="mt-1 w-full rounded-md border bg-background px-2 py-1.5" />
@@ -662,10 +670,9 @@ function AportePanel({ asset, calcs }: { asset: Asset; calcs: ReturnType<typeof 
   );
 }
 
-function CaixaPanel({ asset, assetKey }: { asset: Asset; assetKey: AssetKey }) {
-  const [pct, setPct] = useState("100");
+function CaixaPanel({ asset, assetKey, bonusPct, setBonusPct }: { asset: Asset; assetKey: AssetKey; bonusPct: string; setBonusPct: (value: string) => void }) {
   if (!asset.days.length) return <p className="text-muted-foreground">Cadastre os dias do ciclo em Parâmetros para ver o caixa.</p>;
-  const r = calcCaixaCiclo(asset, assetKey, parseNum(pct));
+  const r = calcCaixaCiclo(asset, assetKey, parseNum(bonusPct));
   const items: [string, number, string, string][] = [
     ["Caixa próprio máximo disponível", r.caixaMaximo, "text-primary", "o pico de dinheiro seu fora do bolso: taxa + todos os depósitos"],
     ["Total depositado no CFD no ciclo", r.totalDepositado, "text-foreground", "depósito é margem de garantia; não significa que todo esse valor será perdido"],
@@ -708,7 +715,7 @@ function CaixaPanel({ asset, assetKey }: { asset: Asset; assetKey: AssetKey }) {
           <li>Pior caso de caixa: a mesa passa em todos os dias até aprovar. Se reprovar antes, o CFD devolve dinheiro e o caixa usado é menor.</li>
           <li>O total depositado no CFD é margem de garantia, não perda total. A perda efetiva é a soma de “Perda se passar” de cada dia; o saldo próprio que sobra permanece recuperável na corretora.</li>
           <li>Cada dia precisa no CFD: margem × (1 + stop out) + a perda do CFD se a mesa passar. Só se deposita o que falta sobre o saldo que já está lá.</li>
-          <li>Bônus de {fmt(parseNum(pct))}% sobre cada depósito, até o teto de ${fmt(asset.bonus.bonusCap)}. A perda consome primeiro o seu dinheiro e depois o bônus.</li>
+          <li>Bônus de {fmt(parseNum(bonusPct))}% sobre cada depósito, até o teto de ${fmt(asset.bonus.bonusCap)}. A perda consome primeiro o seu dinheiro e depois o bônus.</li>
           <li>O ciclo começa com a corretora zerada; o saldo atual da banca não entra na conta.</li>
           <li>No fim, você recupera o saque da mesa e o depósito próprio que sobrou no CFD. O bônus não pode ser sacado.</li>
         </ul>
