@@ -668,9 +668,11 @@ function CaixaPanel({ asset, assetKey }: { asset: Asset; assetKey: AssetKey }) {
   const r = calcCaixaCiclo(asset, assetKey, parseNum(pct));
   const items: [string, number, string, string][] = [
     ["Caixa próprio máximo disponível", r.caixaMaximo, "text-primary", "o pico de dinheiro seu fora do bolso: taxa + todos os depósitos"],
-    ["Total depositado no CFD no ciclo", r.totalDepositado, "text-foreground", "soma dos aportes fracionados de todos os dias"],
-    ["Bônus recebido no ciclo", r.bonusTotal, "text-accent-foreground", `limitado ao teto de $${fmt(asset.bonus.bonusCap)}`],
-    ["Recuperado no fim", r.recuperado, "text-primary", `saque da mesa $${fmt(r.saque)} + depósito próprio que sobra no CFD $${fmt(r.proprioRecuperavel)}`],
+    ["Total depositado no CFD no ciclo", r.totalDepositado, "text-foreground", "depósito é margem de garantia; não significa que todo esse valor será perdido"],
+    ["Perda total no CFD se passar todos os dias", r.totalPerda, "text-destructive", "soma das perdas diárias do CFD; este é o valor efetivamente consumido pelas perdas"],
+    ["Saldo próprio recuperável no CFD", r.proprioRecuperavel, "text-primary", "parte do dinheiro depositado que sobra na corretora e pode ser sacada de volta"],
+    ["Bônus recebido no ciclo", r.bonusTotal, "text-accent-foreground", `limitado ao teto de ${fmt(asset.bonus.bonusCap)}`],
+    ["Recuperado no fim", r.recuperado, "text-primary", `saque da mesa ${fmt(r.saque)} + saldo próprio recuperável no CFD ${fmt(r.proprioRecuperavel)}`],
     ["Resultado do ciclo completo", r.resultadoFinal, r.resultadoFinal >= 0 ? "text-primary" : "text-destructive", "recuperado menos o caixa próprio usado"],
   ];
   return (
@@ -690,6 +692,13 @@ function CaixaPanel({ asset, assetKey }: { asset: Asset; assetKey: AssetKey }) {
           <tbody>{r.dias.map((d) => (
             <tr key={d.dia} className="border-t"><td className="p-1">D{d.dia}</td><td className="p-1">${fmt(d.necessario)}</td><td className="p-1">${fmt(d.saldoAntes)}</td><td className="p-1 font-semibold text-primary">${fmt(d.deposito)}</td><td className="p-1">${fmt(d.bonusGanho)}</td><td className="p-1">${fmt(d.perda)}</td><td className="p-1">${fmt(d.caixaAcumulado)}</td></tr>
           ))}</tbody>
+          <tfoot>
+            <tr className="border-t-2 font-semibold">
+              <td className="p-1" colSpan={5}>Perda total no CFD se passar todos os dias</td>
+              <td className="p-1 text-destructive">${fmt(r.totalPerda)}</td>
+              <td className="p-1">—</td>
+            </tr>
+          </tfoot>
         </table>
       </div>
       <div className="rounded-md border p-3 text-xs text-muted-foreground">
@@ -697,6 +706,7 @@ function CaixaPanel({ asset, assetKey }: { asset: Asset; assetKey: AssetKey }) {
         <ul className="list-disc space-y-1 pl-4">
           <li>Usa o setup salvo desta aba: dias, lotes, contratos, margem por lote (${fmt(asset.params.marginPerLot)}), stop out ({fmt(asset.params.stopoutPct)}%), taxa da mesa (${fmt(r.taxa)}) e saque esperado (${fmt(r.saque)}).</li>
           <li>Pior caso de caixa: a mesa passa em todos os dias até aprovar. Se reprovar antes, o CFD devolve dinheiro e o caixa usado é menor.</li>
+          <li>O total depositado no CFD é margem de garantia, não perda total. A perda efetiva é a soma de “Perda se passar” de cada dia; o saldo próprio que sobra permanece recuperável na corretora.</li>
           <li>Cada dia precisa no CFD: margem × (1 + stop out) + a perda do CFD se a mesa passar. Só se deposita o que falta sobre o saldo que já está lá.</li>
           <li>Bônus de {fmt(parseNum(pct))}% sobre cada depósito, até o teto de ${fmt(asset.bonus.bonusCap)}. A perda consome primeiro o seu dinheiro e depois o bônus.</li>
           <li>O ciclo começa com a corretora zerada; o saldo atual da banca não entra na conta.</li>
