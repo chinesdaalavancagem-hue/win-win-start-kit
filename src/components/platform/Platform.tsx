@@ -654,7 +654,7 @@ function AportePanel({ asset, calcs }: { asset: Asset; calcs: ReturnType<typeof 
           </select>
         </label>
         <label className="text-sm">Bônus da corretora (%)
-          <input inputMode="decimal" value={bonusPct} onChange={(e) => setBonusPct(e.target.value)} className="mt-1 w-full rounded-md border bg-background px-2 py-1.5" />
+          <input inputMode="decimal" value={pct} onChange={(e) => setPct(e.target.value)} className="mt-1 w-full rounded-md border bg-background px-2 py-1.5" />
         </label>
         <label className="text-sm">Banca integral para comparar ($)
           <input inputMode="decimal" value={banca} onChange={(e) => setBanca(e.target.value)} className="mt-1 w-full rounded-md border bg-background px-2 py-1.5" />
@@ -686,7 +686,7 @@ function CaixaPanel({ asset, assetKey, bonusPct, setBonusPct }: { asset: Asset; 
     <section className="space-y-4 rounded-lg border bg-card p-4">
       <h2 className="text-lg font-bold">Caixa necessário para o ciclo inteiro</h2>
       <label className="block max-w-xs text-sm">Bônus da corretora (%)
-        <input inputMode="decimal" value={pct} onChange={(e) => setPct(e.target.value)} className="mt-1 w-full rounded-md border bg-background px-2 py-1.5" />
+        <input inputMode="decimal" value={bonusPct} onChange={(e) => setBonusPct(e.target.value)} className="mt-1 w-full rounded-md border bg-background px-2 py-1.5" />
       </label>
       <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {items.map(([l, v, c, h]) => (
