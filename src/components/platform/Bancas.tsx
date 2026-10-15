@@ -6,6 +6,8 @@ import { fmt, fmtSigned } from "@/lib/platform/engine";
 import { type BancasDoc, novaBanca, parseBancas, relatorioCsv, resumoBanca } from "@/lib/platform/bancas";
 import { ComprarDesafioModal } from "./ComprarDesafioModal";
 import { needsNewChallenge } from "@/lib/platform/challenges";
+import { applyMasterSyncValues } from "@/lib/platform/master-sync";
+import { supabase } from "@/integrations/supabase/client";
 import { Plus, ExternalLink } from "lucide-react";
 
 export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | null>; save: (v: string) => Promise<boolean>; isAdmin: boolean }) {
@@ -15,10 +17,49 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
   const [nome, setNome] = useState("");
   const [purchaseOpen, setPurchaseOpen] = useState(false);
   const docRef = useRef<BancasDoc | null>(null);
+  const syncInFlight = useRef(false);
 
   useEffect(() => { load().then((r) => { const d = parseBancas(r); docRef.current = d; setDoc(d); }).catch(() => setErr(true)); }, [load]);
 
   const persist = useCallback((d: BancasDoc) => { docRef.current = d; setDoc(d); return save(JSON.stringify(d)); }, [save]);
+
+  // Contas comuns consultam a publicação da Master periodicamente e aplicam apenas os campos autorizados.
+  useEffect(() => {
+    if (isAdmin) return;
+    let alive = true;
+    const poll = async () => {
+      if (syncInFlight.current || !docRef.current) return;
+      syncInFlight.current = true;
+      try {
+        const { data } = await supabase.auth.getSession();
+        const token = data.session?.access_token;
+        if (!token) return;
+        const response = await fetch("/api/plataforma/sincronizacao-numeros", {
+          headers: { authorization: "Bearer " + token },
+          cache: "no-store",
+        });
+        if (!response.ok) return;
+        const result = await response.json();
+        if (!alive || !result.enabled || !result.values || typeof result.values !== "object") return;
+        const current = docRef.current;
+        if (!current) return;
+        const merged = applyMasterSyncValues(JSON.stringify(current), result.values as Record<string, number[]>);
+        if (!merged) return;
+        const next = parseBancas(merged);
+        if (await save(merged) && alive) {
+          docRef.current = next;
+          setDoc(next);
+        }
+      } catch {
+        // A sincronização não deve interromper o uso normal da plataforma.
+      } finally {
+        syncInFlight.current = false;
+      }
+    };
+    void poll();
+    const timer = window.setInterval(() => { void poll(); }, 5000);
+    return () => { alive = false; window.clearInterval(timer); };
+  }, [isAdmin, save]);
 
   const activeId = doc?.activeId;
   const loadActive = useCallback(async () => {
