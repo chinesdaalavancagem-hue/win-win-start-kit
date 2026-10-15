@@ -100,8 +100,15 @@ export function applyMasterSyncValues(raw: string, values: Record<string, number
         }
       }
     };
-    if (bancas) bancas.forEach((b) => applyState(b.state));
-    else applyState(parsed);
+    if (bancas) {
+      // A publicação vem da banca ativa da Master; no destinatário, altera somente
+      // a banca ativa. Nunca espalha os mesmos parâmetros por todas as bancas locais.
+      const activeId = typeof parsed.activeId === "string" ? parsed.activeId : "";
+      const active = bancas.find((b) => b.id === activeId) ?? bancas[0];
+      if (active) applyState(active.state);
+    } else {
+      applyState(parsed);
+    }
     return changed ? JSON.stringify(parsed) : null;
   } catch {
     return null;
