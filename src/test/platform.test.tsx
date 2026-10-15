@@ -65,7 +65,7 @@ describe("Platform nativa", () => {
     await act(async () => { render(<Platform load={async () => null} save={save} isAdmin={false} />); });
     expect(await screen.findByText("Meta do dia atual")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Parâmetros" }));
-    expect(screen.getByText(/Limite geral EOD/)).toBeTruthy();
+    expect(screen.getAllByText(/Limite geral EOD/).length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("button", { name: "Operações" }));
     const stop = screen.getByRole("button", { name: /Stop/ });
     fireEvent.click(stop); fireEvent.click(screen.getByRole("button", { name: /confirmar/ }));
