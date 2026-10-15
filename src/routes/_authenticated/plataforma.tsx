@@ -6,6 +6,7 @@ import { getMyAccess, signOut } from "@/lib/session";
 import { registrarAuditoria } from "@/lib/auditoria-registro";
 import { Bancas } from "@/components/platform/Bancas";
 import { MasterNumberSync } from "@/components/platform/MasterNumberSync";
+import { applyMasterSyncValues } from "@/lib/platform/master-sync";
 import { queueSaveUnlessConflicted, readVersionedAppData, recoverVersionConflict } from "@/lib/platform/versioned-save";
 
 export const Route = createFileRoute("/_authenticated/plataforma")({
@@ -22,6 +23,7 @@ function Plataforma() {
   const [masterDataForSync, setMasterDataForSync] = useState<string | null>(null);
   const versionRef = useRef<number | null>(null);
   const conflictRef = useRef(false);
+  const saveRef = useRef<((v: string) => unknown) | null>(null);
 
   useEffect(() => {
     void registrarAuditoria({ category: "navigation", action: "navigation.opened", outcome: "success", details: { page: "platform" } });
@@ -41,8 +43,25 @@ function Plataforma() {
     if (error) throw error;
     const snapshot = readVersionedAppData(data);
     versionRef.current = snapshot.version;
-    return snapshot.data || null;
-  }, [user.id]);
+    const raw = snapshot.data || null;
+    if (!raw || isAdmin) return raw;
+    // Conta comum: aplica somente os campos que a Master liberou, na banca ativa.
+    try {
+      const { data: s } = await supabase.auth.getSession();
+      const token = s.session?.access_token;
+      if (!token) return raw;
+      const res = await fetch("/api/plataforma/sincronizacao-numeros", { headers: { authorization: "Bearer " + token } });
+      if (!res.ok) return raw;
+      const sync = await res.json() as { enabled?: boolean; values?: Record<string, number[]> };
+      if (!sync.enabled || !sync.values) return raw;
+      const applied = applyMasterSyncValues(raw, sync.values);
+      if (!applied) return raw;
+      void saveRef.current?.(applied);
+      return applied;
+    } catch {
+      return raw;
+    }
+  }, [user.id, isAdmin]);
 
   // Todas as gravações (edições locais e sincronização da Master) passam pela
   // mesma fila para preservar a ordem em que foram solicitadas.
@@ -80,6 +99,7 @@ function Plataforma() {
     },
     false,
   ), []);
+  saveRef.current = save;
 
   return (
     <div className="flex min-h-screen flex-col">
