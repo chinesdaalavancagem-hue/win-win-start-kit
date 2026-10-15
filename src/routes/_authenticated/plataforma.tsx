@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { getMyAccess, signOut } from "@/lib/session";
 import { registrarAuditoria } from "@/lib/auditoria-registro";
 import { Bancas } from "@/components/platform/Bancas";
+import { MasterNumberSync } from "@/components/platform/MasterNumberSync";
 
 export const Route = createFileRoute("/_authenticated/plataforma")({
   head: () => ({ meta: [{ title: "Plataforma — Win or Win" }, { name: "description", content: "Sua plataforma Win or Win." }, { property: "og:title", content: "Plataforma — Win or Win" }, { property: "og:description", content: "Planeje contratos, operações, bônus e saques na Win or Win." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
@@ -82,7 +83,7 @@ function Plataforma() {
           <p className="mt-2 text-muted-foreground">Seu cadastro não foi aprovado. Se achar que houve um engano, fale com o administrador.</p>
         </div>
       )}
-      {state === "ok" && <Bancas load={load} save={save} isAdmin={isAdmin} />}
+      {state === "ok" && <>{isAdmin && <MasterNumberSync />}<Bancas load={load} save={save} isAdmin={isAdmin} /></>}
     </div>
   );
 }
