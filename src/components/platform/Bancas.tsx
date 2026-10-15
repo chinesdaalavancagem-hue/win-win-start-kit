@@ -45,8 +45,14 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
         if (!current) return;
         const merged = applyMasterSyncValues(JSON.stringify(current), result.values as Record<string, number[]>);
         if (!merged) return;
+        // Não grave um snapshot se a conta mudou enquanto o polling calculava o merge.
+        // Isso reduz a chance de uma publicação antiga atropelar uma edição local recente.
+        if (docRef.current !== current) return;
         const next = parseBancas(merged);
-        if (await save(merged) && alive) {
+        const saved = await save(merged);
+        // Nunca substitua a interface por um snapshot de sincronização se houve edição
+        // local durante o salvamento.
+        if (saved && alive && docRef.current === current) {
           docRef.current = next;
           setDoc(next);
         }
