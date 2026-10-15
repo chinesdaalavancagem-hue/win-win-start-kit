@@ -179,12 +179,15 @@ export const Route = createFileRoute("/api/plataforma/dados")({
         // Quando a Master estiver com a sincronização liberada, publica apenas os campos autorizados.
         // Falhas nessa publicação não impedem o salvamento dos dados privados da conta.
         try {
+          const configuredMasterId = process.env.MASTER_USER_ID?.trim();
           const { data: adminRole } = await supabaseAdmin.from("user_roles").select("role")
             .eq("user_id", user.id).eq("role", "admin").maybeSingle();
-          if (adminRole) {
+          // A publicação automática exige a mesma identidade explícita da rota de configuração.
+          // Sem MASTER_USER_ID, ou se a configuração pertencer a outro usuário, não publica.
+          if (configuredMasterId && user.id === configuredMasterId && adminRole) {
             const { data: syncConfig } = await supabaseAdmin.from("master_number_sync")
               .select("enabled,allowed_fields,admin_user_id").eq("id", "default").maybeSingle();
-            if (syncConfig?.enabled && syncConfig.admin_user_id === user.id) {
+            if (syncConfig?.enabled && syncConfig.admin_user_id === configuredMasterId) {
               const { extractMasterSyncValues } = await import("@/lib/platform/master-sync");
               const fields = Array.isArray(syncConfig.allowed_fields)
                 ? syncConfig.allowed_fields.filter((field: unknown): field is string => typeof field === "string")
