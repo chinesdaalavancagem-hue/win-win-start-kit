@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { getMyAccess, signOut } from "@/lib/session";
@@ -36,23 +36,30 @@ function Plataforma() {
     return data?.data || null;
   }, [user.id]);
 
-  const save = useCallback(async (v: string) => {
-    try {
-      const { data } = await supabase.auth.getSession();
-      const token = data.session?.access_token;
-      if (!token) return false;
-      const response = await fetch("/api/plataforma/dados", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          authorization: "Bearer " + token,
-        },
-        body: JSON.stringify({ data: v }),
-      });
-      return response.ok;
-    } catch {
-      return false;
-    }
+  // Todas as gravações (edições locais e sincronização da Master) passam pela
+  // mesma fila para preservar a ordem em que foram solicitadas.
+  const saveQueue = useRef<Promise<void>>(Promise.resolve());
+  const save = useCallback((v: string) => {
+    const task = saveQueue.current.then(async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        const token = data.session?.access_token;
+        if (!token) return false;
+        const response = await fetch("/api/plataforma/dados", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            authorization: "Bearer " + token,
+          },
+          body: JSON.stringify({ data: v }),
+        });
+        return response.ok;
+      } catch {
+        return false;
+      }
+    });
+    saveQueue.current = task.then(() => undefined, () => undefined);
+    return task;
   }, [user.id]);
 
   return (
