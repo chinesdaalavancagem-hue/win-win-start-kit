@@ -26,15 +26,27 @@ export function MasterNumberSync({ masterData }: { masterData: string | null }) 
   const masterHasActiveAsset = masterData === null ? null : hasActiveAsset(masterData);
 
   const request = useCallback(async (method: "GET" | "POST", body?: unknown) => {
-    const { data } = await supabase.auth.getSession();
+    const timeout = <T,>(p: Promise<T>, ms: number) => Promise.race([
+      p,
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error("A sincronização demorou para responder. Tente novamente.")), ms)),
+    ]);
+    const { data } = await timeout(supabase.auth.getSession(), 8000);
     const token = data.session?.access_token;
     if (!token) throw new Error("Sua sessão expirou. Entre novamente.");
-    const response = await fetch("/api/plataforma/sincronizacao-numeros", {
-      method,
-      headers: { authorization: "Bearer " + token, "content-type": "application/json" },
-      ...(body ? { body: JSON.stringify(body) } : {}),
-      cache: "no-store",
-    });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15000);
+    let response: Response;
+    try {
+      response = await fetch("/api/plataforma/sincronizacao-numeros", {
+        method,
+        headers: { authorization: "Bearer " + token, "content-type": "application/json" },
+        ...(body ? { body: JSON.stringify(body) } : {}),
+        cache: "no-store",
+        signal: controller.signal,
+      });
+    } catch {
+      throw new Error("A sincronização demorou para responder. Tente novamente.");
+    } finally { clearTimeout(timer); }
     const result = await response.json().catch(() => ({}));
     if (!response.ok) {
       const messages: Record<string, string> = {
