@@ -8,11 +8,21 @@ function json(body: unknown, status = 200) {
   });
 }
 
+type SupabaseAdminModule = typeof import("@/integrations/supabase/client.server");
+let supabaseAdminModulePromise: Promise<SupabaseAdminModule> | undefined;
+
+function getSupabaseAdmin() {
+  // Reuse one lazy import across simultaneous requests; this also keeps the server-only
+  // client out of the browser bundle while avoiding duplicate concurrent module loads.
+  supabaseAdminModulePromise ??= import("@/integrations/supabase/client.server");
+  return supabaseAdminModulePromise;
+}
+
 async function authenticatedUser(request: Request) {
   const header = request.headers.get("authorization") ?? "";
   const token = header.startsWith("Bearer ") ? header.slice(7) : "";
   if (!token) return null;
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { supabaseAdmin } = await getSupabaseAdmin();
   const { data, error } = await supabaseAdmin.auth.getUser(token);
   return error || !data.user ? null : data.user;
 }
@@ -147,7 +157,7 @@ export const Route = createFileRoute("/api/plataforma/dados")({
           return json({ error: "invalid_state" }, 400);
         }
 
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { supabaseAdmin } = await getSupabaseAdmin();
         const { data: profile, error: profileError } = await supabaseAdmin.from("profiles")
           .select("approved,rejected").eq("id", user.id).maybeSingle();
         if (profileError || !profile?.approved || profile.rejected) return json({ error: "account_not_approved" }, 403);
