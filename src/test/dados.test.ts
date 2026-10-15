@@ -1,8 +1,14 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { defaultState } from "@/lib/platform/engine";
 import { novaBanca } from "@/lib/platform/bancas";
 
-const { upsert, insert, previous } = vi.hoisted(() => ({ upsert: vi.fn(), insert: vi.fn(), previous: { data: null as string | null } }));
+const { upsert, insert, update, previous, syncConfig } = vi.hoisted(() => ({
+  upsert: vi.fn(),
+  insert: vi.fn(),
+  update: vi.fn(),
+  previous: { data: null as string | null },
+  syncConfig: { data: null as { enabled: boolean; allowed_fields: string[]; admin_user_id: string } | null },
+}));
 vi.mock("@tanstack/react-router", () => ({ createFileRoute: () => (config: unknown) => config }));
 vi.mock("@/lib/terms.server", () => ({
   getTermsStatusForUser: async () => ({ accepted: true }),
@@ -12,9 +18,17 @@ vi.mock("@/integrations/supabase/client.server", () => ({
     auth: { getUser: async () => ({ data: { user: { id: "test-user" } }, error: null }) },
     from: (table: string) => ({
       select: () => ({ eq: () => ({ maybeSingle: async () => ({
-        data: table === "profiles" ? { approved: true, rejected: false } : { data: previous.data }, error: null,
+        data: table === "profiles" ? { approved: true, rejected: false }
+          : table === "user_roles" ? { role: "admin" }
+          : table === "master_number_sync" ? syncConfig.data
+          : { data: previous.data },
+        error: null,
       }) }) }),
       upsert,
+      update: (values: unknown) => {
+        update(table, values);
+        return { eq: () => ({ eq: async () => ({ error: null }) }) };
+      },
       insert: (rows: unknown) => insert(table, rows),
     }),
   },
@@ -35,8 +49,37 @@ function save(state: unknown) {
 
 describe("validação do salvamento", () => {
   beforeEach(() => {
+    vi.stubEnv("MASTER_USER_ID", "test-user");
     upsert.mockReset(); upsert.mockResolvedValue({ error: null });
-    insert.mockReset(); insert.mockResolvedValue({ error: null }); previous.data = null;
+    insert.mockReset(); insert.mockResolvedValue({ error: null });
+    update.mockReset();
+    previous.data = null;
+    syncConfig.data = null;
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("não publica com configuração antiga pertencente a outro administrador", async () => {
+    syncConfig.data = { enabled: true, allowed_fields: ["nasdaq.params.mnq"], admin_user_id: "other-admin" };
+
+    const response = await save(defaultState());
+
+    expect(response.status).toBe(200);
+    expect(upsert).toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("não publica quando MASTER_USER_ID não está configurado", async () => {
+    vi.stubEnv("MASTER_USER_ID", "");
+    syncConfig.data = { enabled: true, allowed_fields: ["nasdaq.params.mnq"], admin_user_id: "test-user" };
+
+    const response = await save(defaultState());
+
+    expect(response.status).toBe(200);
+    expect(upsert).toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
   });
 
   it("registra cada número alterado por ID da banca, sem confundir reordenação", async () => {
