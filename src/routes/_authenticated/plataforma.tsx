@@ -18,6 +18,7 @@ function Plataforma() {
   const [state, setState] = useState<"loading" | "pending" | "rejected" | "ok">("loading");
   const [isAdmin, setIsAdmin] = useState(false);
   const [name, setName] = useState("");
+  const versionRef = useRef<number | null>(null);
 
   useEffect(() => {
     void registrarAuditoria({ category: "navigation", action: "navigation.opened", outcome: "success", details: { page: "platform" } });
@@ -31,8 +32,9 @@ function Plataforma() {
   }, [user.id]);
 
   const load = useCallback(async () => {
-    const { data, error } = await supabase.from("app_data").select("data").eq("user_id", user.id).maybeSingle();
+    const { data, error } = await supabase.from("app_data").select("data,version").eq("user_id", user.id).maybeSingle();
     if (error) throw error;
+    versionRef.current = typeof data?.version === "number" ? data.version : null;
     return data?.data || null;
   }, [user.id]);
 
@@ -51,9 +53,20 @@ function Plataforma() {
             "content-type": "application/json",
             authorization: "Bearer " + token,
           },
-          body: JSON.stringify({ data: v }),
+          body: JSON.stringify({ data: v, expectedVersion: versionRef.current }),
         });
-        return response.ok;
+        if (response.status === 409) {
+          // Nunca repita o snapshot conflitante: releia a versão e recarregue o estado.
+          // Após o reload, a sincronização automática calcula um merge novo.
+          const latest = await supabase.from("app_data").select("version").eq("user_id", user.id).maybeSingle();
+          versionRef.current = typeof latest.data?.version === "number" ? latest.data.version : null;
+          window.location.reload();
+          return false;
+        }
+        if (!response.ok) return false;
+        const result = await response.json().catch(() => null) as { version?: unknown } | null;
+        if (typeof result?.version === "number") versionRef.current = result.version;
+        return true;
       } catch {
         return false;
       }

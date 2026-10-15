@@ -6,7 +6,8 @@ const { upsert, insert, update, previous, syncConfig } = vi.hoisted(() => ({
   upsert: vi.fn(),
   insert: vi.fn(),
   update: vi.fn(),
-  previous: { data: null as string | null },
+  previous: { data: null as string | null, version: null as number | null },
+  writeFailure: { value: false },
   syncConfig: { data: null as { enabled: boolean; allowed_fields: string[]; admin_user_id: string } | null },
 }));
 vi.mock("@tanstack/react-router", () => ({ createFileRoute: () => (config: unknown) => config }));
@@ -24,7 +25,7 @@ vi.mock("@/integrations/supabase/client.server", () => ({
             data: table === "profiles" ? { approved: true, rejected: false }
               : table === "user_roles" ? { role: "admin" }
               : table === "master_number_sync" ? syncConfig.data
-              : { data: previous.data },
+              : previous.data === null ? null : { data: previous.data, version: previous.version ?? 1 },
             error: null,
           }),
         };
@@ -33,9 +34,30 @@ vi.mock("@/integrations/supabase/client.server", () => ({
       upsert,
       update: (values: unknown) => {
         update(table, values);
-        return { eq: () => ({ eq: async () => ({ error: null }) }) };
+        if (table !== "app_data") return { eq: () => ({ eq: async () => ({ error: null }) }) };
+        let expected: number | null = null;
+        const query = {
+          eq: (column: string, value: unknown) => { if (column === "version" && typeof value === "number") expected = value; return query; },
+          select: () => query,
+          maybeSingle: async () => {
+            if (writeFailure.value) return { data: null, error: { message: "unavailable" } };
+            if (previous.data === null || previous.version !== expected) return { data: null, error: null };
+            previous.data = (values as { data: string }).data;
+            previous.version = (values as { version: number }).version;
+            return { data: { version: previous.version }, error: null };
+          },
+        };
+        return query;
       },
-      insert: (rows: unknown) => insert(table, rows),
+      insert: (rows: unknown) => {
+        const result = insert(table, rows);
+        if (table === "app_data") {
+          if (previous.data !== null) return Promise.resolve({ error: { message: "duplicate key" } });
+          previous.data = (rows as { data: string }).data;
+          previous.version = (rows as { version: number }).version;
+        }
+        return result;
+      },
     }),
   },
 }));
@@ -46,25 +68,55 @@ const post = (Route as unknown as {
   server: { handlers: { POST: (args: { request: Request }) => Promise<Response> } };
 }).server.handlers.POST;
 
-function save(state: unknown) {
+function save(state: unknown, expectedVersion?: number | null) {
+  if (previous.data !== null && previous.version === null) previous.version = 1;
+  const version = expectedVersion === undefined ? previous.version : expectedVersion;
   return post({ request: new Request("http://localhost/api/plataforma/dados", {
     method: "POST", headers: { authorization: "Bearer test-token", "content-type": "application/json" },
-    body: JSON.stringify({ data: JSON.stringify(state) }),
+    body: JSON.stringify({ data: JSON.stringify(state), expectedVersion: version }),
   }) });
 }
 
 describe("validação do salvamento", () => {
   beforeEach(() => {
     vi.stubEnv("MASTER_USER_ID", "test-user");
-    upsert.mockReset(); upsert.mockResolvedValue({ error: null });
+    upsert.mockReset(); upsert.mockResolvedValue({ error: null }); writeFailure.value = false;
     insert.mockReset(); insert.mockResolvedValue({ error: null });
     update.mockReset();
-    previous.data = null;
+    previous.data = null; previous.version = null;
     syncConfig.data = null;
   });
 
   afterEach(() => {
     vi.unstubAllEnvs();
+  });
+
+  it("grava com a versão correta e incrementa a versão", async () => {
+    const initial = defaultState(); previous.data = JSON.stringify(initial); previous.version = 4;
+    const next = { ...initial, cfdBalance: 42 };
+    const response = await save(next, 4);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ ok: true, version: 5 });
+    expect(previous.version).toBe(5);
+    expect(previous.data).toBe(JSON.stringify(next));
+    expect(update).toHaveBeenCalledWith("app_data", expect.objectContaining({ version: 5, data: JSON.stringify(next) }));
+  });
+
+  it("responde 409 sem sobrescrever quando a versão esperada está obsoleta", async () => {
+    const stored = { ...defaultState(), cfdBalance: 11 }; previous.data = JSON.stringify(stored); previous.version = 8;
+    const response = await save({ ...stored, cfdBalance: 99 }, 7);
+    expect(response.status).toBe(409);
+    expect(previous.data).toBe(JSON.stringify(stored));
+    expect(previous.version).toBe(8);
+  });
+
+  it("aceita apenas uma de duas gravações concorrentes com a mesma versão", async () => {
+    const stored = defaultState(); previous.data = JSON.stringify(stored); previous.version = 3;
+    const one = { ...stored, cfdBalance: 101 }; const two = { ...stored, cfdBalance: 202 };
+    const responses = await Promise.all([save(one, 3), save(two, 3)]);
+    expect(responses.map((response) => response.status).sort()).toEqual([200, 409]);
+    expect(previous.version).toBe(4);
+    expect([JSON.stringify(one), JSON.stringify(two)]).toContain(previous.data);
   });
 
   it("não publica com configuração antiga pertencente a outro administrador", async () => {
@@ -73,7 +125,7 @@ describe("validação do salvamento", () => {
     const response = await save(defaultState());
 
     expect(response.status).toBe(200);
-    expect(upsert).toHaveBeenCalled();
+    expect(insert).toHaveBeenCalledWith("app_data", expect.objectContaining({ data: JSON.stringify(defaultState()), version: 1 }));
     expect(update).not.toHaveBeenCalled();
   });
 
@@ -84,7 +136,7 @@ describe("validação do salvamento", () => {
     const response = await save(defaultState());
 
     expect(response.status).toBe(200);
-    expect(upsert).toHaveBeenCalled();
+    expect(insert).toHaveBeenCalledWith("app_data", expect.objectContaining({ data: JSON.stringify(defaultState()), version: 1 }));
     expect(update).not.toHaveBeenCalled();
   });
 
@@ -139,12 +191,12 @@ describe("validação do salvamento", () => {
     const response = await save(state);
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ ok: true });
-    expect(upsert).toHaveBeenCalled();
+    expect(update).toHaveBeenCalledWith("app_data", expect.objectContaining({ version: 2 }));
   });
 
   it("não registra update quando o salvamento falha", async () => {
     const state = defaultState(); previous.data = JSON.stringify(state); state.cfdBalance = 25;
-    upsert.mockResolvedValue({ error: { message: "unavailable" } });
+    writeFailure.value = true;
     expect((await save(state)).status).toBe(500);
     expect(insert.mock.calls.filter(([table]) => table === "activity_logs")).toEqual([]);
   });
@@ -156,13 +208,13 @@ describe("validação do salvamento", () => {
     firstDay.mnq = 7;
     const doc = { bancasVersion: 1, activeId: banca.id, bancas: [banca, novaBanca("Segunda")] };
     expect((await save(doc)).status).toBe(200);
-    expect(upsert).toHaveBeenCalledWith(expect.objectContaining({ data: JSON.stringify(doc), user_id: "test-user" }));
+    expect(update).toHaveBeenCalledWith("app_data", expect.objectContaining({ data: JSON.stringify(doc), version: 2, user_id: "test-user" }));
   });
 
   it("continua salvando o estado legado", async () => {
     const state = defaultState();
     expect((await save(state)).status).toBe(200);
-    expect(upsert).toHaveBeenCalledWith(expect.objectContaining({ data: JSON.stringify(state) }));
+    expect(insert).toHaveBeenCalledWith("app_data", expect.objectContaining({ data: JSON.stringify(state), version: 1 }));
   });
 
   it.each([
@@ -174,6 +226,7 @@ describe("validação do salvamento", () => {
     const response = await save(state);
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({ error: "invalid_state" });
-    expect(upsert).not.toHaveBeenCalled();
+    expect(insert.mock.calls.filter(([table]) => table === "app_data")).toEqual([]);
+    expect(update.mock.calls.filter(([table]) => table === "app_data")).toEqual([]);
   });
 });

@@ -114,10 +114,11 @@ export const Route = createFileRoute("/api/plataforma/dados")({
 
         let body: unknown;
         try { body = await request.json(); } catch { return json({ error: "invalid_json" }, 400); }
-        if (!body || typeof body !== "object" || typeof (body as Record<string, unknown>).data !== "string") {
+        if (!body || typeof body !== "object" || typeof (body as Record<string, unknown>).data !== "string" || !Object.prototype.hasOwnProperty.call(body, "expectedVersion") || !((body as Record<string, unknown>).expectedVersion === null || (Number.isSafeInteger((body as Record<string, unknown>).expectedVersion) && Number((body as Record<string, unknown>).expectedVersion) >= 1))) {
           return json({ error: "invalid_body" }, 400);
         }
         const value = (body as { data: string }).data;
+        const expectedVersion = (body as { data: string; expectedVersion: number | null }).expectedVersion;
         if (value.length > 200_000) return json({ error: "payload_too_large" }, 413);
         let parsedState: Record<string, unknown>;
         try {
@@ -152,17 +153,27 @@ export const Route = createFileRoute("/api/plataforma/dados")({
         if (profileError || !profile?.approved || profile.rejected) return json({ error: "account_not_approved" }, 403);
 
         const { data: previousRow, error: readError } = await supabaseAdmin.from("app_data")
-          .select("data").eq("user_id", user.id).maybeSingle();
+          .select("data,version").eq("user_id", user.id).maybeSingle();
         if (readError) {
           console.error("[strategy] previous state read failed", readError.message);
           return json({ error: "read_failed" }, 500);
         }
 
-        const { error: saveError } = await supabaseAdmin.from("app_data").upsert({
-          user_id: user.id,
-          data: value,
-          updated_at: new Date().toISOString(),
-        });
+        let saveError: { message: string } | null = null;
+        if (expectedVersion === null) {
+          if (previousRow) return json({ error: "version_conflict", version: previousRow.version }, 409);
+          const result = await supabaseAdmin.from("app_data").insert({
+            user_id: user.id, data: value, version: 1, updated_at: new Date().toISOString(),
+          });
+          saveError = result.error;
+          if (saveError && /duplicate|unique/i.test(saveError.message)) return json({ error: "version_conflict" }, 409);
+        } else {
+          const result = await supabaseAdmin.from("app_data").update({
+            data: value, version: expectedVersion + 1, updated_at: new Date().toISOString(),
+          }).eq("user_id", user.id).eq("version", expectedVersion).select("version").maybeSingle();
+          saveError = result.error;
+          if (!saveError && !result.data) return json({ error: "version_conflict", version: previousRow?.version ?? null }, 409);
+        }
         if (saveError) {
           console.error("[strategy] state save failed", saveError.message);
           const { error: auditError } = await supabaseAdmin.from("audit_logs").insert({
@@ -237,7 +248,7 @@ export const Route = createFileRoute("/api/plataforma/dados")({
         } catch {
           console.error("[audit] strategy change logging failed");
         }
-        return json({ ok: true });
+        return json({ ok: true, version: expectedVersion === null ? 1 : expectedVersion + 1 });
       },
     },
   },

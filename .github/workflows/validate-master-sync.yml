@@ -1,6 +1,9 @@
 name: Validate Master sync audit
 
 on:
+  push:
+    branches:
+      - fix/master-sync-compat-versao
   pull_request:
     branches:
       - feat/master-controlled-number-sync
