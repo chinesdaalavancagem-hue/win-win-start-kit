@@ -157,12 +157,12 @@ describe("validação do salvamento", () => {
     const masterDoc = { bancasVersion: 1, activeId: banca.id, bancas: [banca] };
     syncConfig.data = {
       enabled: true, allowed_fields: ["nasdaq.params.mnq", "ouro.params.mnq"],
-      admin_user_id: "test-user", published_values: { "nasdaq.params.mnq": [11] },
+      admin_user_id: "test-user", published_values: { "nasdaq.params.mnq": [11], "ouro.params.mnq": [22] },
     };
     const response = await save(masterDoc);
     expect(response.status).toBe(200);
     expect(update).toHaveBeenCalledWith("master_number_sync", expect.objectContaining({
-      published_values: expect.objectContaining({ "nasdaq.params.mnq": [11] }),
+      published_values: expect.objectContaining({ "nasdaq.params.mnq": [2], "ouro.params.mnq": [22] }),
     }));
   });
 

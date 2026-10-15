@@ -106,7 +106,7 @@ function Plataforma() {
           <p className="mt-2 text-muted-foreground">Seu cadastro não foi aprovado. Se achar que houve um engano, fale com o administrador.</p>
         </div>
       )}
-      {state === "ok" && <>{isAdmin && <MasterNumberSync />}<Bancas load={load} save={save} isAdmin={isAdmin} /></>}
+      {state === "ok" && <>{isAdmin && <MasterNumberSync loadMasterData={load} />}<Bancas load={load} save={save} isAdmin={isAdmin} /></>}
     </div>
   );
 }

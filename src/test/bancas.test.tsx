@@ -5,7 +5,7 @@ import { novaBanca } from "@/lib/platform/bancas";
 
 vi.mock("@/components/platform/Platform", () => ({ Platform: () => <div>Platform mock</div> }));
 vi.mock("@/components/platform/ComprarDesafioModal", () => ({ ComprarDesafioModal: () => null }));
-vi.mock("@/integrations/supabase/client", () => ({ supabase: { auth: { getSession: vi.fn(async () => ({ data: { session: null } })) } }));
+vi.mock("@/integrations/supabase/client", () => ({ supabase: { auth: { getSession: vi.fn(async () => ({ data: { session: null } })) } } }));
 
 import { Bancas } from "@/components/platform/Bancas";
 
