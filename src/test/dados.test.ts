@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { defaultState } from "@/lib/platform/engine";
 import { novaBanca } from "@/lib/platform/bancas";
 
-const { upsert, insert, update, previous, syncConfig } = vi.hoisted(() => ({
+const { upsert, insert, update, previous, writeFailure, syncConfig } = vi.hoisted(() => ({
   upsert: vi.fn(),
   insert: vi.fn(),
   update: vi.fn(),
@@ -190,7 +190,7 @@ describe("validação do salvamento", () => {
     else insert.mockResolvedValue({ error: { message: "unavailable" } });
     const response = await save(state);
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ ok: true });
+    expect(await response.json()).toEqual({ ok: true, version: 2 });
     expect(update).toHaveBeenCalledWith("app_data", expect.objectContaining({ version: 2 }));
   });
 
