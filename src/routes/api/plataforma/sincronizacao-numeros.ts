@@ -83,10 +83,10 @@ export const Route = createFileRoute("/api/plataforma/sincronizacao-numeros")({
         }
         const { data: masterRow, error: masterError } = await supabaseAdmin.from("app_data")
           .select("data").eq("user_id", user.id).maybeSingle();
-        if (masterError || !masterRow?.data) return json({ error: "master_data_unavailable" }, 409);
+        if (masterError) return json({ error: "master_data_unavailable" }, 409);
         let values: Record<string, Array<number | null>>;
         try {
-          if (hasMasterSyncAsset(masterRow.data)) {
+          if (masterRow?.data && hasMasterSyncAsset(masterRow.data)) {
             values = mergePublishedValues(existingConfig?.published_values, allowedFields, extractMasterSyncValues(masterRow.data, allowedFields));
           } else {
             // Ainda permite salvar trava/campos autorizados, mas não muda a publicação sem ativo.
