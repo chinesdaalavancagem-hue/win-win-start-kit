@@ -14,33 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      master_number_sync: {
-        Row: {
-          id: string
-          admin_user_id: string
-          enabled: boolean
-          allowed_fields: Json
-          published_values: Json
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          admin_user_id: string
-          enabled?: boolean
-          allowed_fields?: Json
-          published_values?: Json
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          admin_user_id?: string
-          enabled?: boolean
-          allowed_fields?: Json
-          published_values?: Json
-          updated_at?: string
-        }
-        Relationships: []
-      }
       activity_logs: {
         Row: {
           action: string
@@ -160,6 +133,33 @@ export type Database = {
           created_at?: string
           token_hash?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      master_number_sync: {
+        Row: {
+          admin_user_id: string
+          allowed_fields: Json
+          enabled: boolean
+          id: string
+          published_values: Json
+          updated_at: string
+        }
+        Insert: {
+          admin_user_id: string
+          allowed_fields?: Json
+          enabled?: boolean
+          id?: string
+          published_values?: Json
+          updated_at?: string
+        }
+        Update: {
+          admin_user_id?: string
+          allowed_fields?: Json
+          enabled?: boolean
+          id?: string
+          published_values?: Json
+          updated_at?: string
         }
         Relationships: []
       }
