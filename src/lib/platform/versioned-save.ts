@@ -14,16 +14,24 @@ export function readVersionedAppData(row: VersionedAppDataRow): VersionedAppData
   };
 }
 
-/** On a 409, fetches the newest document and its version as one snapshot before reloading. */
-export async function recoverVersionConflict(
-  readLatest: () => Promise<{ data: VersionedAppDataRow; error: unknown | null }>,
-  applySnapshot: (snapshot: VersionedAppDataSnapshot) => void,
-  reload: () => void,
-): Promise<void> {
-  try {
-    const latest = await readLatest();
-    if (!latest.error) applySnapshot(readVersionedAppData(latest.data));
-  } finally {
-    reload();
-  }
+/** Enqueues a save but prevents both new and already-queued saves after a 409. */
+export function queueSaveUnlessConflicted<T>(
+  queue: { current: Promise<void> },
+  conflict: { current: boolean },
+  send: () => Promise<T>,
+  blockedResult: T,
+): Promise<T> {
+  if (conflict.current) return Promise.resolve(blockedResult);
+
+  const task = queue.current.then(async () => {
+    if (conflict.current) return blockedResult;
+    return send();
+  });
+  queue.current = task.then(() => undefined, () => undefined);
+  return task;
+}
+
+/** On a 409, reload immediately; the page load reads data and version together. */
+export async function recoverVersionConflict(reload: () => void): Promise<void> {
+  reload();
 }

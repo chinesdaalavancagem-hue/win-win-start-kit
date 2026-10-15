@@ -6,7 +6,7 @@ import { getMyAccess, signOut } from "@/lib/session";
 import { registrarAuditoria } from "@/lib/auditoria-registro";
 import { Bancas } from "@/components/platform/Bancas";
 import { MasterNumberSync } from "@/components/platform/MasterNumberSync";
-import { readVersionedAppData, recoverVersionConflict } from "@/lib/platform/versioned-save";
+import { queueSaveUnlessConflicted, readVersionedAppData, recoverVersionConflict } from "@/lib/platform/versioned-save";
 
 export const Route = createFileRoute("/_authenticated/plataforma")({
   head: () => ({ meta: [{ title: "Plataforma — Win or Win" }, { name: "description", content: "Sua plataforma Win or Win." }, { property: "og:title", content: "Plataforma — Win or Win" }, { property: "og:description", content: "Planeje contratos, operações, bônus e saques na Win or Win." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
@@ -20,6 +20,7 @@ function Plataforma() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [name, setName] = useState("");
   const versionRef = useRef<number | null>(null);
+  const conflictRef = useRef(false);
 
   useEffect(() => {
     void registrarAuditoria({ category: "navigation", action: "navigation.opened", outcome: "success", details: { page: "platform" } });
@@ -43,8 +44,10 @@ function Plataforma() {
   // Todas as gravações (edições locais e sincronização da Master) passam pela
   // mesma fila para preservar a ordem em que foram solicitadas.
   const saveQueue = useRef<Promise<void>>(Promise.resolve());
-  const save = useCallback((v: string) => {
-    const task = saveQueue.current.then(async () => {
+  const save = useCallback((v: string) => queueSaveUnlessConflicted(
+    saveQueue,
+    conflictRef,
+    async () => {
       try {
         const { data } = await supabase.auth.getSession();
         const token = data.session?.access_token;
@@ -58,13 +61,10 @@ function Plataforma() {
           body: JSON.stringify({ data: v, expectedVersion: versionRef.current }),
         });
         if (response.status === 409) {
-          // Nunca repita o snapshot conflitante: releia documento e versão juntos.
-          // O reload fará a sincronização automática calcular um merge novo.
-          await recoverVersionConflict(
-            () => supabase.from("app_data").select("data,version").eq("user_id", user.id).maybeSingle(),
-            (snapshot) => { versionRef.current = snapshot.version; },
-            () => window.location.reload(),
-          );
+          // Bloqueia imediatamente todos os saves até o reload. O load() após
+          // recarregar buscará data e version juntos como um único snapshot.
+          conflictRef.current = true;
+          await recoverVersionConflict(() => window.location.reload());
           return false;
         }
         if (!response.ok) return false;
@@ -74,10 +74,9 @@ function Plataforma() {
       } catch {
         return false;
       }
-    });
-    saveQueue.current = task.then(() => undefined, () => undefined);
-    return task;
-  }, []);
+    },
+    false,
+  ), []);
 
   return (
     <div className="flex min-h-screen flex-col">

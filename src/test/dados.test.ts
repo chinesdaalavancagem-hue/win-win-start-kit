@@ -128,7 +128,7 @@ describe("validação do salvamento", () => {
     expect(update.mock.calls.filter(([table]) => table === "app_data")).toEqual([]);
   });
 
-  it.each([0, 1.5, "1", true, undefined])("rejeita expectedVersion inválido (%s) antes de gravar", async (expectedVersion) => {
+  it.each([-1, 0, 1.5, "1", true, undefined])("rejeita expectedVersion inválido (%s) antes de gravar", async (expectedVersion) => {
     const body: Record<string, unknown> = { data: JSON.stringify(defaultState()) };
     if (expectedVersion !== undefined) body.expectedVersion = expectedVersion;
     const response = await post({ request: new Request("http://localhost/api/plataforma/dados", {
