@@ -11,3 +11,4 @@ CREATE TABLE IF NOT EXISTS public.master_number_sync (
 
 ALTER TABLE public.master_number_sync ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE public.master_number_sync FROM anon, authenticated;
+GRANT ALL ON TABLE public.master_number_sync TO service_role;
