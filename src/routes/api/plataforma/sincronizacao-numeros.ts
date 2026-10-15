@@ -64,6 +64,15 @@ export const Route = createFileRoute("/api/plataforma/sincronizacao-numeros")({
           return json({ error: "invalid_fields" }, 400);
         }
         const allowedFields = [...new Set(input.allowedFields as string[])];
+
+        // Depois que a primeira Master é registrada, nenhum outro administrador pode
+        // assumir a publicação global nem substituir sua configuração.
+        const { data: existingConfig, error: configReadError } = await supabaseAdmin
+          .from("master_number_sync").select("admin_user_id").eq("id", "default").maybeSingle();
+        if (configReadError) return json({ error: "sync_unavailable" }, 503);
+        if (existingConfig && existingConfig.admin_user_id !== user.id) {
+          return json({ error: "master_mismatch" }, 403);
+        }
         const { data: masterRow, error: masterError } = await supabaseAdmin.from("app_data")
           .select("data").eq("user_id", user.id).maybeSingle();
         if (masterError || !masterRow?.data) return json({ error: "master_data_unavailable" }, 409);
