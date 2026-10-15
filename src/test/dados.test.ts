@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { defaultState } from "@/lib/platform/engine";
 import { novaBanca } from "@/lib/platform/bancas";
 
-const { upsert, insert, update, updateFilters, previous, writeFailure, syncConfig } = vi.hoisted(() => ({
+const { getUser, upsert, insert, update, updateFilters, previous, writeFailure, syncConfig } = vi.hoisted(() => ({
+  getUser: vi.fn(async () => ({ data: { user: { id: "test-user" } }, error: null })),
   upsert: vi.fn(),
   insert: vi.fn(),
   update: vi.fn(),
@@ -17,7 +18,7 @@ vi.mock("@/lib/terms.server", () => ({
 }));
 vi.mock("@/integrations/supabase/client.server", () => ({
   supabaseAdmin: {
-    auth: { getUser: async () => ({ data: { user: { id: "test-user" } }, error: null }) },
+    auth: { getUser },
     from: (table: string) => ({
       select: () => {
         const query = {
@@ -81,6 +82,7 @@ function save(state: unknown, expectedVersion?: number | null) {
 describe("validação do salvamento", () => {
   beforeEach(() => {
     vi.stubEnv("MASTER_USER_ID", "test-user");
+    getUser.mockReset(); getUser.mockResolvedValue({ data: { user: { id: "test-user" } }, error: null });
     upsert.mockReset(); upsert.mockResolvedValue({ error: null }); writeFailure.value = false;
     insert.mockReset(); insert.mockResolvedValue({ error: null });
     update.mockReset(); updateFilters.length = 0;
@@ -143,6 +145,7 @@ describe("validação do salvamento", () => {
     const stored = defaultState(); previous.data = JSON.stringify(stored); previous.version = 3;
     const one = { ...stored, cfdBalance: 101 }; const two = { ...stored, cfdBalance: 202 };
     const responses = await Promise.all([save(one, 3), save(two, 3)]);
+    expect(getUser).toHaveBeenCalledTimes(2);
     expect(responses.map((response) => response.status).sort()).toEqual([200, 409]);
     expect(previous.version).toBe(4);
     expect([JSON.stringify(one), JSON.stringify(two)]).toContain(previous.data);
