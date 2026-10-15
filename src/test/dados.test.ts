@@ -14,7 +14,7 @@ vi.mock("@tanstack/react-router", () => ({ createFileRoute: () => (config: unkno
 vi.mock("@/lib/terms.server", () => ({
   getTermsStatusForUser: async () => ({ accepted: true }),
 }));
-vi.mock("@/integrations/supabase/client.server", () => ({
+vi.mock("@/integrations/supabase/client.server.ts", () => ({
   supabaseAdmin: {
     auth: { getUser: async () => ({ data: { user: { id: "test-user" } }, error: null }) },
     from: (table: string) => ({
@@ -110,6 +110,21 @@ describe("validação do salvamento", () => {
     expect(previous.version).toBe(8);
   });
 
+  it("expectedVersion null com linha existente responde 409 sem alterar o documento", async () => {
+    const stored = { ...defaultState(), cfdBalance: 17 };
+    previous.data = JSON.stringify(stored);
+    previous.version = 1;
+
+    const response = await save({ ...stored, cfdBalance: 99 }, null);
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({ error: "version_conflict", version: 1 });
+    expect(previous.data).toBe(JSON.stringify(stored));
+    expect(previous.version).toBe(1);
+    expect(insert.mock.calls.filter(([table]) => table === "app_data")).toEqual([]);
+    expect(update.mock.calls.filter(([table]) => table === "app_data")).toEqual([]);
+  });
+
   it("aceita apenas uma de duas gravações concorrentes com a mesma versão", async () => {
     const stored = defaultState(); previous.data = JSON.stringify(stored); previous.version = 3;
     const one = { ...stored, cfdBalance: 101 }; const two = { ...stored, cfdBalance: 202 };
@@ -203,11 +218,13 @@ describe("validação do salvamento", () => {
 
   it("salva o documento de múltiplas bancas sem alterar seu formato", async () => {
     const banca = novaBanca("Principal");
+    const doc = { bancasVersion: 1, activeId: banca.id, bancas: [banca, novaBanca("Segunda")] };
+    previous.data = JSON.stringify(doc);
+    previous.version = 1;
     const firstDay = banca.state.assets.nasdaq.days[0];
     if (!firstDay) throw new Error("Dia inicial ausente");
     firstDay.mnq = 7;
-    const doc = { bancasVersion: 1, activeId: banca.id, bancas: [banca, novaBanca("Segunda")] };
-    expect((await save(doc)).status).toBe(200);
+    expect((await save(doc, 1)).status).toBe(200);
     expect(update).toHaveBeenCalledWith("app_data", expect.objectContaining({ data: JSON.stringify(doc), version: 2, user_id: "test-user" }));
   });
 
