@@ -117,3 +117,38 @@ export function applyMasterSyncValues(raw: string, values: Record<string, number
     return null;
   }
 }
+
+
+/** True only when the Master document has an explicit supported asset on its active banca. */
+export function hasMasterSyncAsset(raw: string): boolean {
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const bancas = Array.isArray(parsed.bancas) ? parsed.bancas as Array<Record<string, unknown>> : [];
+    const activeId = typeof parsed.activeId === "string" ? parsed.activeId : "";
+    const active = bancas.find((b) => b.id === activeId) ?? bancas[0];
+    return active?.ativo === "nasdaq" || active?.ativo === "ouro";
+  } catch {
+    return false;
+  }
+}
+
+/** Retain still-authorized published fields, then overwrite them with the latest extraction. */
+export function mergePublishedValues(
+  existing: unknown,
+  allowedFields: string[],
+  extracted: Record<string, number[]>,
+): Record<string, number[]> {
+  const allowed = new Set(allowedFields);
+  const merged: Record<string, number[]> = {};
+  if (existing && typeof existing === "object" && !Array.isArray(existing)) {
+    for (const [field, value] of Object.entries(existing as Record<string, unknown>)) {
+      if (allowed.has(field) && Array.isArray(value) && value.every((n) => typeof n === "number" && Number.isFinite(n))) {
+        merged[field] = value as number[];
+      }
+    }
+  }
+  for (const [field, value] of Object.entries(extracted)) {
+    if (allowed.has(field)) merged[field] = value;
+  }
+  return merged;
+}

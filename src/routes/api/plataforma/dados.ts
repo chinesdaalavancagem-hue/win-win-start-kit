@@ -213,18 +213,22 @@ export const Route = createFileRoute("/api/plataforma/dados")({
           // Sem MASTER_USER_ID, ou se a configuração pertencer a outro usuário, não publica.
           if (configuredMasterId && user.id === configuredMasterId && adminRole) {
             const { data: syncConfig } = await supabaseAdmin.from("master_number_sync")
-              .select("enabled,allowed_fields,admin_user_id").eq("id", "default").maybeSingle();
+              .select("enabled,allowed_fields,admin_user_id,published_values").eq("id", "default").maybeSingle();
             if (syncConfig?.enabled && syncConfig.admin_user_id === configuredMasterId) {
-              const { extractMasterSyncValues } = await import("@/lib/platform/master-sync");
+              const { extractMasterSyncValues, hasMasterSyncAsset, mergePublishedValues } = await import("@/lib/platform/master-sync");
               const fields = Array.isArray(syncConfig.allowed_fields)
                 ? syncConfig.allowed_fields.filter((field: unknown): field is string => typeof field === "string")
                 : [];
-              const values = extractMasterSyncValues(value, fields);
-              const { error: publishError } = await supabaseAdmin.from("master_number_sync").update({
-                published_values: values,
-                updated_at: new Date().toISOString(),
-              }).eq("id", "default").eq("admin_user_id", user.id);
-              if (publishError) console.error("[master-number-sync] publish failed", publishError.message);
+              // Sem ativo explícito, não toque na publicação existente.
+              if (hasMasterSyncAsset(value)) {
+                const extracted = extractMasterSyncValues(value, fields);
+                const values = mergePublishedValues(syncConfig.published_values, fields, extracted);
+                const { error: publishError } = await supabaseAdmin.from("master_number_sync").update({
+                  published_values: values,
+                  updated_at: new Date().toISOString(),
+                }).eq("id", "default").eq("admin_user_id", user.id);
+                if (publishError) console.error("[master-number-sync] publish failed", publishError.message);
+              }
             }
           }
         } catch {

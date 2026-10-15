@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MASTER_SYNC_FIELDS, applyMasterSyncValues, extractMasterSyncValues } from "@/lib/platform/master-sync";
+import { MASTER_SYNC_FIELDS, applyMasterSyncValues, extractMasterSyncValues, hasMasterSyncAsset, mergePublishedValues } from "@/lib/platform/master-sync";
 
 const makeState = (mnq: number, lotes: number, deposito: number, saque: number) => ({
   activeTab: "nasdaq",
@@ -126,5 +126,25 @@ describe("Master number sync", () => {
     const raw = JSON.stringify({ bancasVersion: 1, activeId: "b", bancas: [{ id: "b", ativo: "ouro", state }] });
     expect(extractMasterSyncValues(raw, ["saque2.params.mnq"])).toEqual({});
     expect(applyMasterSyncValues(raw, { "saque2.params.mnq": [99] })).toBeNull();
+  });
+  it("preserves published Nasdaq fields when publishing Ouro next", () => {
+    const nasdaq = mergePublishedValues({}, ["nasdaq.params.mnq", "ouro.params.mnq"], { "nasdaq.params.mnq": [4] });
+    const ouro = mergePublishedValues(nasdaq, ["nasdaq.params.mnq", "ouro.params.mnq"], { "ouro.params.mnq": [9] });
+    expect(ouro).toEqual({ "nasdaq.params.mnq": [4], "ouro.params.mnq": [9] });
+  });
+
+  it("removes fields no longer present in allowed_fields", () => {
+    expect(mergePublishedValues(
+      { "nasdaq.params.mnq": [4], "ouro.params.mnq": [9] },
+      ["ouro.params.mnq"],
+      { "ouro.params.mnq": [10] },
+    )).toEqual({ "ouro.params.mnq": [10] });
+  });
+
+  it("detects an unconfigured Master banca with no asset", () => {
+    const raw = JSON.stringify({ bancasVersion: 1, activeId: "master", bancas: [{ id: "master", state: makeState(4, 2.5, 700, 999) }] });
+    expect(hasMasterSyncAsset(raw)).toBe(false);
+    const existing = { "nasdaq.params.mnq": [4], "ouro.params.mnq": [9] };
+    expect(existing).toEqual({ "nasdaq.params.mnq": [4], "ouro.params.mnq": [9] });
   });
 });

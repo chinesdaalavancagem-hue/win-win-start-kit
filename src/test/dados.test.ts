@@ -10,7 +10,7 @@ const { getUser, upsert, insert, update, updateFilters, previous, writeFailure, 
   updateFilters: [] as Array<[string, unknown]>,
   previous: { data: null as string | null, version: null as number | null },
   writeFailure: { value: false },
-  syncConfig: { data: null as { enabled: boolean; allowed_fields: string[]; admin_user_id: string } | null },
+  syncConfig: { data: null as { enabled: boolean; allowed_fields: string[]; admin_user_id: string; published_values?: Record<string, number[]> } | null },
 }));
 vi.mock("@tanstack/react-router", () => ({ createFileRoute: () => (config: unknown) => config }));
 vi.mock("@/lib/terms.server", () => ({
@@ -149,6 +149,33 @@ describe("validação do salvamento", () => {
     expect(responses.map((response) => response.status).sort()).toEqual([200, 409]);
     expect(previous.version).toBe(4);
     expect([JSON.stringify(one), JSON.stringify(two)]).toContain(previous.data);
+  });
+
+  it("preserva campos já publicados durante publicação automática de outro ativo", async () => {
+    const banca = novaBanca("Master");
+    banca.ativo = "nasdaq";
+    const masterDoc = { bancasVersion: 1, activeId: banca.id, bancas: [banca] };
+    syncConfig.data = {
+      enabled: true, allowed_fields: ["nasdaq.params.mnq", "ouro.params.mnq"],
+      admin_user_id: "test-user", published_values: { "nasdaq.params.mnq": [11] },
+    };
+    const response = await save(masterDoc);
+    expect(response.status).toBe(200);
+    expect(update).toHaveBeenCalledWith("master_number_sync", expect.objectContaining({
+      published_values: expect.objectContaining({ "nasdaq.params.mnq": [11] }),
+    }));
+  });
+
+  it("não altera a publicação automática quando a Master não tem ativo", async () => {
+    const banca = novaBanca("Master");
+    const masterDoc = { bancasVersion: 1, activeId: banca.id, bancas: [banca] };
+    syncConfig.data = {
+      enabled: true, allowed_fields: ["nasdaq.params.mnq"],
+      admin_user_id: "test-user", published_values: { "nasdaq.params.mnq": [11] },
+    };
+    const response = await save(masterDoc);
+    expect(response.status).toBe(200);
+    expect(update).not.toHaveBeenCalledWith("master_number_sync", expect.anything());
   });
 
   it("não publica com configuração antiga pertencente a outro administrador", async () => {

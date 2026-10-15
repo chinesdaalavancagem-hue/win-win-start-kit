@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
-import { MASTER_SYNC_FIELDS, extractMasterSyncValues } from "@/lib/platform/master-sync";
+import { MASTER_SYNC_FIELDS, extractMasterSyncValues, hasMasterSyncAsset, mergePublishedValues } from "@/lib/platform/master-sync";
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -76,7 +76,7 @@ export const Route = createFileRoute("/api/plataforma/sincronizacao-numeros")({
         // Depois que a primeira Master é registrada, nenhum outro administrador pode
         // assumir a publicação global nem substituir sua configuração.
         const { data: existingConfig, error: configReadError } = await supabaseAdmin
-          .from("master_number_sync").select("admin_user_id").eq("id", "default").maybeSingle();
+          .from("master_number_sync").select("admin_user_id,published_values").eq("id", "default").maybeSingle();
         if (configReadError) return json({ error: "sync_unavailable" }, 503);
         if (existingConfig && existingConfig.admin_user_id !== configuredMasterId) {
           return json({ error: "sync_unavailable" }, 503);
@@ -85,8 +85,16 @@ export const Route = createFileRoute("/api/plataforma/sincronizacao-numeros")({
           .select("data").eq("user_id", user.id).maybeSingle();
         if (masterError || !masterRow?.data) return json({ error: "master_data_unavailable" }, 409);
         let values: Record<string, number[]>;
-        try { values = extractMasterSyncValues(masterRow.data, allowedFields); }
-        catch { return json({ error: "invalid_master_data" }, 409); }
+        try {
+          if (hasMasterSyncAsset(masterRow.data)) {
+            values = mergePublishedValues(existingConfig?.published_values, allowedFields, extractMasterSyncValues(masterRow.data, allowedFields));
+          } else {
+            // Ainda permite salvar trava/campos autorizados, mas não muda a publicação sem ativo.
+            values = existingConfig?.published_values && typeof existingConfig.published_values === "object"
+              ? existingConfig.published_values as Record<string, number[]>
+              : {};
+          }
+        } catch { return json({ error: "invalid_master_data" }, 409); }
         const { error: saveError } = await supabaseAdmin.from("master_number_sync").upsert({
           id: "default",
           admin_user_id: user.id,
