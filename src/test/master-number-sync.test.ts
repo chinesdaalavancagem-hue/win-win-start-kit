@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyMasterSyncValues, extractMasterSyncValues } from "@/lib/platform/master-sync";
+import { MASTER_SYNC_FIELDS, applyMasterSyncValues, extractMasterSyncValues } from "@/lib/platform/master-sync";
 
 const makeState = (mnq: number, lotes: number, deposito: number, saque: number) => ({
   activeTab: "nasdaq",
@@ -20,6 +20,16 @@ const makeState = (mnq: number, lotes: number, deposito: number, saque: number) 
 });
 
 describe("Master number sync", () => {
+  it("never offers personal balance references or test fees for publication", () => {
+    const ids = MASTER_SYNC_FIELDS.map((field) => field.id);
+    expect(ids).not.toContain("nasdaq.params.saldoInicial");
+    expect(ids).not.toContain("nasdaq.params.taxa");
+    expect(ids).not.toContain("ouro.params.saldoInicial");
+    expect(ids).not.toContain("ouro.params.taxa");
+    expect(ids).not.toContain("saque2.params.saldoInicial");
+    expect(ids).not.toContain("saque2.params.taxa");
+  });
+
   it("extracts only the selected numeric configuration fields", () => {
     const raw = JSON.stringify({ bancasVersion: 1, activeId: "master", bancas: [{ id: "master", state: makeState(4, 2.5, 700, 999) }] });
     expect(extractMasterSyncValues(raw, ["nasdaq.params.mnq", "nasdaq.days.lotes", "nasdaq.params.saqueAprovada"])).toEqual({
