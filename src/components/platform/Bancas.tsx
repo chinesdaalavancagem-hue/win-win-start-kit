@@ -146,6 +146,27 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
                     {isActive ? <span className="text-xs text-primary">ativa</span> :
                       <Button size="sm" variant="ghost" onClick={() => persist({ ...doc, activeId: b.id })}>Abrir</Button>}
                   </div>
+                  <label className="mt-3 flex flex-col gap-1 text-xs text-muted-foreground">
+                    Ativo para sincronização
+                    <select
+                      aria-label={`Ativo para sincronização: ${b.nome}`}
+                      value={b.ativo ?? ""}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        persist({
+                          ...doc,
+                          bancas: doc.bancas.map((x) => x.id === b.id
+                            ? { ...x, ativo: value === "nasdaq" || value === "ouro" ? value : undefined }
+                            : x),
+                        });
+                      }}
+                      className="rounded-md border bg-background px-2 py-1 text-foreground"
+                    >
+                      <option value="">Selecione Nasdaq ou Ouro</option>
+                      <option value="nasdaq">Nasdaq</option>
+                      <option value="ouro">Ouro</option>
+                    </select>
+                  </label>
                   <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
                     <dt className="text-muted-foreground">Ciclos</dt><dd>{r.ciclos}</dd>
                     <dt className="text-muted-foreground">Reprovadas</dt><dd className="text-destructive">{r.reprovadas}</dd>

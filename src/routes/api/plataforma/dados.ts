@@ -136,6 +136,12 @@ export const Route = createFileRoute("/api/plataforma/dados")({
           if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return json({ error: "invalid_state" }, 400);
           parsedState = parsed as Record<string, unknown>;
           if (Array.isArray(parsedState.bancas) && parsedState.bancas.some((banca: unknown) => {
+            if (!banca || typeof banca !== "object" || Array.isArray(banca)) return false;
+            const record = banca as Record<string, unknown>;
+            return Object.prototype.hasOwnProperty.call(record, "ativo")
+              && record.ativo !== "nasdaq" && record.ativo !== "ouro";
+          })) return json({ error: "invalid_asset" }, 400);
+          if (Array.isArray(parsedState.bancas) && parsedState.bancas.some((banca: unknown) => {
             if (!banca || typeof banca !== "object") return true;
             const account = (banca as Record<string, unknown>).challengeAccount;
             return account !== undefined && !challengeAccountSchema.safeParse(account).success;

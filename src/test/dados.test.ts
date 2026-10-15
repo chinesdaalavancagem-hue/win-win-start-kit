@@ -253,6 +253,22 @@ describe("validação do salvamento", () => {
     expect(insert).toHaveBeenCalledWith("app_data", expect.objectContaining({ data: JSON.stringify(state), version: 1 }));
   });
 
+  it("rejeita ativo inválido no servidor antes de gravar", async () => {
+    const banca = novaBanca("Principal");
+    const doc = { bancasVersion: 1, activeId: banca.id, bancas: [{ ...banca, ativo: "GOLD" }] };
+    const response = await save(doc);
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "invalid_asset" });
+    expect(insert.mock.calls.filter(([table]) => table === "app_data")).toEqual([]);
+    expect(update.mock.calls.filter(([table]) => table === "app_data")).toEqual([]);
+  });
+
+  it("aceita Nasdaq e Ouro como ativos explícitos de bancas", async () => {
+    const a = novaBanca("Nasdaq"); const b = novaBanca("Ouro");
+    const doc = { bancasVersion: 1, activeId: a.id, bancas: [{ ...a, ativo: "nasdaq" }, { ...b, ativo: "ouro" }] };
+    expect((await save(doc)).status).toBe(200);
+  });
+
   it.each([
     { bancas: [] },
     { bancas: [null] },
