@@ -1,0 +1,112 @@
+/** Campos de configuração que a Master pode compartilhar. Dados financeiros e históricos não entram nesta lista. */
+export const MASTER_SYNC_FIELDS = [
+  { id: "nasdaq.params.mnq", label: "Nasdaq · contratos MNQ", group: "Parâmetros" },
+  { id: "nasdaq.params.hfm", label: "Nasdaq · valor por ponto", group: "Parâmetros" },
+  { id: "nasdaq.params.mll", label: "Nasdaq · limite de perda (MLL)", group: "Parâmetros" },
+  { id: "nasdaq.params.saldoInicial", label: "Nasdaq · saldo inicial de referência", group: "Parâmetros" },
+  { id: "nasdaq.params.taxa", label: "Nasdaq · taxa do teste", group: "Parâmetros" },
+  { id: "nasdaq.params.lucroDesejado", label: "Nasdaq · meta de lucro", group: "Parâmetros" },
+  { id: "nasdaq.params.marginPerLot", label: "Nasdaq · margem por lote", group: "Parâmetros" },
+  { id: "nasdaq.params.stopoutPct", label: "Nasdaq · stop-out (%)", group: "Parâmetros" },
+  { id: "nasdaq.params.folgaExtraPct", label: "Nasdaq · folga extra (%)", group: "Parâmetros" },
+  { id: "nasdaq.days.mnq", label: "Nasdaq · contratos por dia", group: "Plano diário" },
+  { id: "nasdaq.days.lotes", label: "Nasdaq · lotes por dia", group: "Plano diário" },
+  { id: "nasdaq.days.meta", label: "Nasdaq · meta por dia", group: "Plano diário" },
+  { id: "nasdaq.days.mll", label: "Nasdaq · MLL personalizado por dia", group: "Plano diário" },
+  { id: "ouro.params.mnq", label: "Ouro · contratos", group: "Parâmetros" },
+  { id: "ouro.params.hfm", label: "Ouro · valor por ponto", group: "Parâmetros" },
+  { id: "ouro.params.mll", label: "Ouro · limite de perda (MLL)", group: "Parâmetros" },
+  { id: "ouro.params.saldoInicial", label: "Ouro · saldo inicial de referência", group: "Parâmetros" },
+  { id: "ouro.params.taxa", label: "Ouro · taxa do teste", group: "Parâmetros" },
+  { id: "ouro.params.lucroDesejado", label: "Ouro · meta de lucro", group: "Parâmetros" },
+  { id: "ouro.params.marginPerLot", label: "Ouro · margem por lote", group: "Parâmetros" },
+  { id: "ouro.params.stopoutPct", label: "Ouro · stop-out (%)", group: "Parâmetros" },
+  { id: "ouro.params.folgaExtraPct", label: "Ouro · folga extra (%)", group: "Parâmetros" },
+  { id: "ouro.days.mnq", label: "Ouro · contratos por dia", group: "Plano diário" },
+  { id: "ouro.days.lotes", label: "Ouro · lotes por dia", group: "Plano diário" },
+  { id: "ouro.days.meta", label: "Ouro · meta por dia", group: "Plano diário" },
+  { id: "ouro.days.mll", label: "Ouro · MLL personalizado por dia", group: "Plano diário" },
+  { id: "saque2.params.mnq", label: "Saque 2 · contratos", group: "Parâmetros" },
+  { id: "saque2.params.hfm", label: "Saque 2 · valor por ponto", group: "Parâmetros" },
+  { id: "saque2.params.mll", label: "Saque 2 · limite de perda (MLL)", group: "Parâmetros" },
+  { id: "saque2.params.saldoInicial", label: "Saque 2 · saldo inicial de referência", group: "Parâmetros" },
+  { id: "saque2.params.taxa", label: "Saque 2 · taxa do teste", group: "Parâmetros" },
+  { id: "saque2.params.lucroDesejado", label: "Saque 2 · meta de lucro", group: "Parâmetros" },
+  { id: "saque2.params.marginPerLot", label: "Saque 2 · margem por lote", group: "Parâmetros" },
+  { id: "saque2.params.stopoutPct", label: "Saque 2 · stop-out (%)", group: "Parâmetros" },
+  { id: "saque2.params.folgaExtraPct", label: "Saque 2 · folga extra (%)", group: "Parâmetros" },
+  { id: "saque2.days.mnq", label: "Saque 2 · contratos por dia", group: "Plano diário" },
+  { id: "saque2.days.lotes", label: "Saque 2 · lotes por dia", group: "Plano diário" },
+  { id: "saque2.days.meta", label: "Saque 2 · meta por dia", group: "Plano diário" },
+  { id: "saque2.days.mll", label: "Saque 2 · MLL personalizado por dia", group: "Plano diário" },
+] as const;
+
+export type MasterSyncField = typeof MASTER_SYNC_FIELDS[number]["id"];
+
+export function extractMasterSyncValues(raw: string, allowedFields: string[]): Record<string, number[]> {
+  const parsed = JSON.parse(raw) as Record<string, unknown>;
+  const bancas = Array.isArray(parsed.bancas) ? parsed.bancas as Array<Record<string, unknown>> : [];
+  const activeId = typeof parsed.activeId === "string" ? parsed.activeId : "";
+  const active = bancas.find((b) => b.id === activeId) ?? bancas[0];
+  const state = (active?.state && typeof active.state === "object" ? active.state : parsed) as Record<string, unknown>;
+  const assets = state.assets as Record<string, unknown> | undefined;
+  const result: Record<string, number[]> = {};
+  const allowed = new Set<string>(MASTER_SYNC_FIELDS.map((f) => f.id));
+  for (const field of allowedFields) {
+    if (!allowed.has(field)) continue;
+    const [assetKey, section, key] = field.split(".");
+    const asset = assets?.[assetKey] as Record<string, unknown> | undefined;
+    if (section === "params") {
+      const params = asset?.params as Record<string, unknown> | undefined;
+      const value = params?.[key];
+      if (typeof value === "number" && Number.isFinite(value)) result[field] = [value];
+    } else if (section === "days") {
+      const days = asset?.days;
+      if (Array.isArray(days)) result[field] = days.map((day) => {
+        const value = day && typeof day === "object" ? (day as Record<string, unknown>)[key] : undefined;
+        return typeof value === "number" && Number.isFinite(value) ? value : Number.NaN;
+      });
+    }
+  }
+  return result;
+}
+
+/** Atualiza somente os campos explicitamente publicados; nunca toca em log, depósitos, saques ou totais. */
+export function applyMasterSyncValues(raw: string, values: Record<string, number[]>): string | null {
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const bancas = Array.isArray(parsed.bancas) ? parsed.bancas as Array<Record<string, unknown>> : null;
+    let changed = false;
+    const applyState = (stateValue: unknown) => {
+      if (!stateValue || typeof stateValue !== "object") return;
+      const state = stateValue as Record<string, unknown>;
+      const assets = state.assets as Record<string, unknown> | undefined;
+      if (!assets) return;
+      for (const [field, incoming] of Object.entries(values)) {
+        if (!MASTER_SYNC_FIELDS.some((f) => f.id === field) || !Array.isArray(incoming)) continue;
+        const [assetKey, section, key] = field.split(".");
+        const asset = assets[assetKey] as Record<string, unknown> | undefined;
+        if (!asset) continue;
+        if (section === "params") {
+          const params = asset.params as Record<string, unknown> | undefined;
+          if (params && typeof incoming[0] === "number" && Number.isFinite(incoming[0]) && params[key] !== incoming[0]) {
+            params[key] = incoming[0]; changed = true;
+          }
+        } else if (section === "days" && Array.isArray(asset.days)) {
+          const days = asset.days as Array<Record<string, unknown>>;
+          for (let i = 0; i < Math.min(days.length, incoming.length); i++) {
+            const value = incoming[i];
+            if (typeof value === "number" && Number.isFinite(value) && days[i] && days[i][key] !== value) {
+              days[i][key] = value; changed = true;
+            }
+          }
+        }
+      }
+    };
+    if (bancas) bancas.forEach((b) => applyState(b.state));
+    else applyState(parsed);
+    return changed ? JSON.stringify(parsed) : null;
+  } catch {
+    return null;
+  }
+}
