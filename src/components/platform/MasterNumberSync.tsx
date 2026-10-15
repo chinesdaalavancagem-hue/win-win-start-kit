@@ -11,7 +11,7 @@ function hasActiveAsset(raw: string | null): boolean {
     const parsed = JSON.parse(raw) as { activeId?: unknown; bancas?: Array<{ id?: unknown; ativo?: unknown }> };
     const bancas = Array.isArray(parsed.bancas) ? parsed.bancas : [];
     const active = bancas.find((b) => b.id === parsed.activeId) ?? bancas[0];
-    return active?.ativo === "nasdaq" || active?.ativo === "ouro";
+    return !!active;
   } catch {
     return false;
   }

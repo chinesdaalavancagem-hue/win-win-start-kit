@@ -73,8 +73,7 @@ export function applyMasterSyncValues(raw: string, values: Record<string, number
     const parsed = JSON.parse(raw) as Record<string, unknown>;
     const bancas = Array.isArray(parsed.bancas) ? parsed.bancas as Array<Record<string, unknown>> : null;
     let changed = false;
-    const applyState = (stateValue: unknown, activeAsset: unknown) => {
-      if (activeAsset !== "nasdaq" && activeAsset !== "ouro") return;
+    const applyState = (stateValue: unknown) => {
       if (!stateValue || typeof stateValue !== "object") return;
       const state = stateValue as Record<string, unknown>;
       const assets = state.assets as Record<string, unknown> | undefined;
@@ -82,7 +81,7 @@ export function applyMasterSyncValues(raw: string, values: Record<string, number
       for (const [field, incoming] of Object.entries(values)) {
         if (!MASTER_SYNC_FIELDS.some((f) => f.id === field) || !Array.isArray(incoming)) continue;
         const [assetKey, section, key] = field.split(".");
-        if (!assetKey || assetKey !== activeAsset || !section || !key) continue;
+        if (!assetKey || !section || !key) continue;
         const asset = assets[assetKey] as Record<string, unknown> | undefined;
         if (!asset) continue;
         if (section === "params") {
@@ -107,9 +106,9 @@ export function applyMasterSyncValues(raw: string, values: Record<string, number
       // a banca ativa. Nunca espalha os mesmos parâmetros por todas as bancas locais.
       const activeId = typeof parsed.activeId === "string" ? parsed.activeId : "";
       const active = bancas.find((b) => b.id === activeId) ?? bancas[0];
-      if (active) applyState(active.state, active.ativo);
+      if (active) applyState(active.state);
     } else {
-      applyState(parsed, undefined);
+      applyState(parsed);
     }
     return changed ? JSON.stringify(parsed) : null;
   } catch {
@@ -125,7 +124,7 @@ export function hasMasterSyncAsset(raw: string): boolean {
     const bancas = Array.isArray(parsed.bancas) ? parsed.bancas as Array<Record<string, unknown>> : [];
     const activeId = typeof parsed.activeId === "string" ? parsed.activeId : "";
     const active = bancas.find((b) => b.id === activeId) ?? bancas[0];
-    return active?.ativo === "nasdaq" || active?.ativo === "ouro";
+    return !!active || !Array.isArray(parsed.bancas);
   } catch {
     return false;
   }
