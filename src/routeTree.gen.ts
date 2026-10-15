@@ -105,11 +105,12 @@ const ApiPlataformaDadosRoute = ApiPlataformaDadosRouteImport.update({
   path: '/api/plataforma/dados',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPlataformaSincronizacaoNumerosRoute = ApiPlataformaSincronizacaoNumerosRouteImport.update({
-  id: '/api/plataforma/sincronizacao-numeros',
-  path: '/api/plataforma/sincronizacao-numeros',
-  getParentRoute: () => rootRouteImport,
-} as any)
+const ApiPlataformaSincronizacaoNumerosRoute =
+  ApiPlataformaSincronizacaoNumerosRouteImport.update({
+    id: '/api/plataforma/sincronizacao-numeros',
+    path: '/api/plataforma/sincronizacao-numeros',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiTermosAceiteRoute = ApiTermosAceiteRouteImport.update({
   id: '/api/termos/aceite',
   path: '/api/termos/aceite',
@@ -477,7 +478,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAuditoriaRoute: ApiAuditoriaRoute,
   ApiTelegramTesteRoute: ApiTelegramTesteRoute,
   ApiPlataformaDadosRoute: ApiPlataformaDadosRoute,
-  ApiPlataformaSincronizacaoNumerosRoute: ApiPlataformaSincronizacaoNumerosRoute,
+  ApiPlataformaSincronizacaoNumerosRoute:
+    ApiPlataformaSincronizacaoNumerosRoute,
   ApiTermosAceiteRoute: ApiTermosAceiteRoute,
   ApiTermosStatusRoute: ApiTermosStatusRoute,
   ApiPublicOrdensConfirmarRoute: ApiPublicOrdensConfirmarRoute,
