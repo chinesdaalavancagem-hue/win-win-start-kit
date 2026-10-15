@@ -62,7 +62,7 @@ export function MasterNumberSync({ masterData }: { masterData: string | null }) 
         invalid_body: "Pedido inválido. Recarregue a página e tente novamente.",
         save_failed: "O servidor não conseguiu salvar a configuração. Tente novamente.",
       };
-      throw new Error(messages[String(result.error)] || "Não foi possível acessar a sincronização.");
+      throw new Error(messages[String(result.error)] || `Não foi possível acessar a sincronização (código ${response.status}${result.error ? ": " + String(result.error) : ""}).`);
     }
     return result;
   }, []);
