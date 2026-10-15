@@ -158,9 +158,14 @@ export function Bancas({ load, save, isAdmin, onDocumentChange }: { load: () => 
                         const value = e.target.value;
                         persist({
                           ...doc,
-                          bancas: doc.bancas.map((x) => x.id === b.id
-                            ? { ...x, ativo: value === "nasdaq" || value === "ouro" ? value : undefined }
-                            : x),
+                          bancas: doc.bancas.map((x) => {
+                            if (x.id !== b.id) return x;
+                            const { ativo: _ativo, ...withoutAtivo } = x;
+                            void _ativo;
+                            return value === "nasdaq" || value === "ouro"
+                              ? { ...withoutAtivo, ativo: value }
+                              : withoutAtivo;
+                          }),
                         });
                       }}
                       className="rounded-md border bg-background px-2 py-1 text-foreground"
