@@ -92,6 +92,20 @@
       "when": 1791945198000,
       "tag": "0012_topstep_and_50k_prop_firms",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1791999999000,
+      "tag": "0013_master_number_sync",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1792000000000,
+      "tag": "0014_app_data_version",
+      "breakpoints": true
     }
   ]
 }

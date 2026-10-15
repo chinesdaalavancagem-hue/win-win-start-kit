@@ -1,0 +1,52 @@
+name: Validate Master sync audit
+
+on:
+  push:
+    branches:
+      - fix/master-sync-compat-versao
+      - integracao/master-sync-final
+  pull_request:
+    branches:
+      - feat/master-controlled-number-sync
+    paths:
+      - "src/**"
+      - "drizzle/**"
+      - "package.json"
+      - "vite.config.ts"
+      - ".github/workflows/validate-master-sync.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validate-master-sync-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Pin stable npm version
+        run: npm install --global npm@10.8.2
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund --legacy-peer-deps
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Build application
+        run: npm run build
+
+      - name: Type-check
+        run: npx tsc --noEmit

@@ -8,11 +8,21 @@ function json(body: unknown, status = 200) {
   });
 }
 
+type SupabaseAdminModule = typeof import("@/integrations/supabase/client.server");
+let supabaseAdminModulePromise: Promise<SupabaseAdminModule> | undefined;
+
+function getSupabaseAdmin() {
+  // Reuse one lazy import across simultaneous requests; this also keeps the server-only
+  // client out of the browser bundle while avoiding duplicate concurrent module loads.
+  supabaseAdminModulePromise ??= import("@/integrations/supabase/client.server");
+  return supabaseAdminModulePromise;
+}
+
 async function authenticatedUser(request: Request) {
   const header = request.headers.get("authorization") ?? "";
   const token = header.startsWith("Bearer ") ? header.slice(7) : "";
   if (!token) return null;
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { supabaseAdmin } = await getSupabaseAdmin();
   const { data, error } = await supabaseAdmin.auth.getUser(token);
   return error || !data.user ? null : data.user;
 }
@@ -114,16 +124,23 @@ export const Route = createFileRoute("/api/plataforma/dados")({
 
         let body: unknown;
         try { body = await request.json(); } catch { return json({ error: "invalid_json" }, 400); }
-        if (!body || typeof body !== "object" || typeof (body as Record<string, unknown>).data !== "string") {
+        if (!body || typeof body !== "object" || typeof (body as Record<string, unknown>).data !== "string" || !Object.prototype.hasOwnProperty.call(body, "expectedVersion") || !((body as Record<string, unknown>).expectedVersion === null || (Number.isSafeInteger((body as Record<string, unknown>).expectedVersion) && Number((body as Record<string, unknown>).expectedVersion) >= 1))) {
           return json({ error: "invalid_body" }, 400);
         }
         const value = (body as { data: string }).data;
+        const expectedVersion = (body as { data: string; expectedVersion: number | null }).expectedVersion;
         if (value.length > 200_000) return json({ error: "payload_too_large" }, 413);
         let parsedState: Record<string, unknown>;
         try {
           const parsed = JSON.parse(value);
           if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return json({ error: "invalid_state" }, 400);
           parsedState = parsed as Record<string, unknown>;
+          if (Array.isArray(parsedState.bancas) && parsedState.bancas.some((banca: unknown) => {
+            if (!banca || typeof banca !== "object" || Array.isArray(banca)) return false;
+            const record = banca as Record<string, unknown>;
+            return Object.prototype.hasOwnProperty.call(record, "ativo")
+              && record.ativo !== "nasdaq" && record.ativo !== "ouro";
+          })) return json({ error: "invalid_asset" }, 400);
           if (Array.isArray(parsedState.bancas) && parsedState.bancas.some((banca: unknown) => {
             if (!banca || typeof banca !== "object") return true;
             const account = (banca as Record<string, unknown>).challengeAccount;
@@ -146,23 +163,33 @@ export const Route = createFileRoute("/api/plataforma/dados")({
           return json({ error: "invalid_state" }, 400);
         }
 
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { supabaseAdmin } = await getSupabaseAdmin();
         const { data: profile, error: profileError } = await supabaseAdmin.from("profiles")
           .select("approved,rejected").eq("id", user.id).maybeSingle();
         if (profileError || !profile?.approved || profile.rejected) return json({ error: "account_not_approved" }, 403);
 
         const { data: previousRow, error: readError } = await supabaseAdmin.from("app_data")
-          .select("data").eq("user_id", user.id).maybeSingle();
+          .select("data,version").eq("user_id", user.id).maybeSingle();
         if (readError) {
           console.error("[strategy] previous state read failed", readError.message);
           return json({ error: "read_failed" }, 500);
         }
 
-        const { error: saveError } = await supabaseAdmin.from("app_data").upsert({
-          user_id: user.id,
-          data: value,
-          updated_at: new Date().toISOString(),
-        });
+        let saveError: { message: string } | null = null;
+        if (expectedVersion === null) {
+          if (previousRow) return json({ error: "version_conflict", version: previousRow.version }, 409);
+          const result = await supabaseAdmin.from("app_data").insert({
+            user_id: user.id, data: value, version: 1, updated_at: new Date().toISOString(),
+          });
+          saveError = result.error;
+          if (saveError && /duplicate|unique/i.test(saveError.message)) return json({ error: "version_conflict" }, 409);
+        } else {
+          const result = await supabaseAdmin.from("app_data").update({
+            data: value, version: expectedVersion + 1, updated_at: new Date().toISOString(),
+          }).eq("user_id", user.id).eq("version", expectedVersion).select("version").maybeSingle();
+          saveError = result.error;
+          if (!saveError && !result.data) return json({ error: "version_conflict", version: previousRow?.version ?? null }, 409);
+        }
         if (saveError) {
           console.error("[strategy] state save failed", saveError.message);
           const { error: auditError } = await supabaseAdmin.from("audit_logs").insert({
@@ -174,6 +201,38 @@ export const Route = createFileRoute("/api/plataforma/dados")({
           });
           if (auditError) console.error("[audit] failed-save event could not be stored", auditError.message);
           return json({ error: "save_failed" }, 500);
+        }
+
+        // Quando a Master estiver com a sincronização liberada, publica apenas os campos autorizados.
+        // Falhas nessa publicação não impedem o salvamento dos dados privados da conta.
+        try {
+          const configuredMasterId = process.env.MASTER_USER_ID?.trim();
+          const { data: adminRole } = await supabaseAdmin.from("user_roles").select("role")
+            .eq("user_id", user.id).eq("role", "admin").maybeSingle();
+          // A publicação automática exige a mesma identidade explícita da rota de configuração.
+          // Sem MASTER_USER_ID, ou se a configuração pertencer a outro usuário, não publica.
+          if (configuredMasterId && user.id === configuredMasterId && adminRole) {
+            const { data: syncConfig } = await supabaseAdmin.from("master_number_sync")
+              .select("enabled,allowed_fields,admin_user_id,published_values").eq("id", "default").maybeSingle();
+            if (syncConfig?.enabled && syncConfig.admin_user_id === configuredMasterId) {
+              const { extractMasterSyncValues, hasMasterSyncAsset, mergePublishedValues } = await import("@/lib/platform/master-sync");
+              const fields = Array.isArray(syncConfig.allowed_fields)
+                ? syncConfig.allowed_fields.filter((field: unknown): field is string => typeof field === "string")
+                : [];
+              // Sem ativo explícito, não toque na publicação existente.
+              if (hasMasterSyncAsset(value)) {
+                const extracted = extractMasterSyncValues(value, fields);
+                const values = mergePublishedValues(syncConfig.published_values, fields, extracted);
+                const { error: publishError } = await supabaseAdmin.from("master_number_sync").update({
+                  published_values: values,
+                  updated_at: new Date().toISOString(),
+                }).eq("id", "default").eq("admin_user_id", user.id);
+                if (publishError) console.error("[master-number-sync] publish failed", publishError.message);
+              }
+            }
+          }
+        } catch {
+          console.error("[master-number-sync] publish failed");
         }
 
         try {
@@ -209,7 +268,7 @@ export const Route = createFileRoute("/api/plataforma/dados")({
         } catch {
           console.error("[audit] strategy change logging failed");
         }
-        return json({ ok: true });
+        return json({ ok: true, version: expectedVersion === null ? 1 : expectedVersion + 1 });
       },
     },
   },

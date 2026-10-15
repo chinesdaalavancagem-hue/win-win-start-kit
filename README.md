@@ -24,3 +24,20 @@ cd <repository-name>
 npm i
 npm run dev
 ```
+
+
+## Sincronização numérica Master
+
+A identidade da conta Master é definida explicitamente no servidor pela variável de ambiente `MASTER_USER_ID`. O valor deve ser o UUID da conta de usuário autorizada no Supabase (Authentication → Users), e essa mesma conta precisa ter a role `admin`.
+
+- Configure `MASTER_USER_ID` no ambiente **server-side** onde já ficam `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY`.
+- Não use prefixo `VITE_` nem exponha esse identificador por variáveis de ambiente do cliente.
+- Depois de definir a variável, faça novo deploy/reinício do servidor.
+- Se a variável não estiver configurada, a API de sincronização falha de forma segura e não permite que o primeiro administrador que chegar se torne Master.
+- Se houver uma configuração antiga na tabela `master_number_sync` cujo `admin_user_id` seja diferente do UUID configurado, a API interrompe a sincronização; a configuração deve ser revisada explicitamente no banco antes de liberar o recurso.
+
+A Master publica somente os campos numéricos selecionados. Para publicar, a banca selecionada na conta Master precisa ter o ativo definido como **Nasdaq** ou **Ouro**. Para receber os valores publicados, cada banca da conta destinatária também precisa ter **Nasdaq** ou **Ouro** selecionado; os valores são aplicados somente à banca ativa cujo ativo foi escolhido. Depósitos, saques, saldos, taxas pessoais, gastos, totais, ciclos, logs e históricos não são publicados nem sobrescritos pela rotina de mesclagem (`published_values`).
+
+As migrações `0013_master_number_sync.sql` e `0014_app_data_version.sql` já foram aplicadas no banco do Lovable Cloud. A migração `0014_app_data_version.sql`, que adiciona a coluna `version` à tabela `app_data`, é pré-requisito para o controle de versão e a detecção de conflitos de gravação. A migração `0012_topstep_and_50k_prop_firms.sql` não faz parte desta alteração.
+
+Para validar localmente, execute `npm test`, `npm run build` e `npx tsc --noEmit`.

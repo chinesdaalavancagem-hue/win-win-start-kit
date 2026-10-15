@@ -6,19 +6,69 @@ import { fmt, fmtSigned } from "@/lib/platform/engine";
 import { type BancasDoc, novaBanca, parseBancas, relatorioCsv, resumoBanca } from "@/lib/platform/bancas";
 import { ComprarDesafioModal } from "./ComprarDesafioModal";
 import { needsNewChallenge } from "@/lib/platform/challenges";
+import { applyMasterSyncValues } from "@/lib/platform/master-sync";
+import { supabase } from "@/integrations/supabase/client";
 import { Plus, ExternalLink } from "lucide-react";
 
-export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | null>; save: (v: string) => Promise<boolean>; isAdmin: boolean }) {
+export function Bancas({ load, save, isAdmin, onDocumentChange }: { load: () => Promise<string | null>; save: (v: string) => Promise<boolean>; isAdmin: boolean; onDocumentChange?: (raw: string | null) => void }) {
   const [doc, setDoc] = useState<BancasDoc | null>(null);
   const [err, setErr] = useState(false);
   const [painel, setPainel] = useState(false);
   const [nome, setNome] = useState("");
   const [purchaseOpen, setPurchaseOpen] = useState(false);
   const docRef = useRef<BancasDoc | null>(null);
+  const syncInFlight = useRef(false);
 
   useEffect(() => { load().then((r) => { const d = parseBancas(r); docRef.current = d; setDoc(d); }).catch(() => setErr(true)); }, [load]);
 
+  // Expose the in-memory document to the Master warning; this does not reload app_data.
+  useEffect(() => { if (doc) onDocumentChange?.(JSON.stringify(doc)); }, [doc, onDocumentChange]);
+
   const persist = useCallback((d: BancasDoc) => { docRef.current = d; setDoc(d); return save(JSON.stringify(d)); }, [save]);
+
+  // Contas comuns consultam a publicação da Master periodicamente e aplicam apenas os campos autorizados.
+  useEffect(() => {
+    if (isAdmin) return;
+    let alive = true;
+    const poll = async () => {
+      if (syncInFlight.current || !docRef.current) return;
+      syncInFlight.current = true;
+      try {
+        const { data } = await supabase.auth.getSession();
+        const token = data.session?.access_token;
+        if (!token) return;
+        const response = await fetch("/api/plataforma/sincronizacao-numeros", {
+          headers: { authorization: "Bearer " + token },
+          cache: "no-store",
+        });
+        if (!response.ok) return;
+        const result = await response.json();
+        if (!alive || !result.enabled || !result.values || typeof result.values !== "object") return;
+        const current = docRef.current;
+        if (!current) return;
+        const merged = applyMasterSyncValues(JSON.stringify(current), result.values as Record<string, number[]>);
+        if (!merged) return;
+        // Não grave um snapshot se a conta mudou enquanto o polling calculava o merge.
+        // Isso reduz a chance de uma publicação antiga atropelar uma edição local recente.
+        if (docRef.current !== current) return;
+        const next = parseBancas(merged);
+        const saved = await save(merged);
+        // Nunca substitua a interface por um snapshot de sincronização se houve edição
+        // local durante o salvamento.
+        if (saved && alive && docRef.current === current) {
+          docRef.current = next;
+          setDoc(next);
+        }
+      } catch {
+        // A sincronização não deve interromper o uso normal da plataforma.
+      } finally {
+        syncInFlight.current = false;
+      }
+    };
+    void poll();
+    const timer = window.setInterval(() => { void poll(); }, 5000);
+    return () => { alive = false; window.clearInterval(timer); };
+  }, [isAdmin, save]);
 
   const activeId = doc?.activeId;
   const loadActive = useCallback(async () => {
@@ -99,6 +149,32 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
                     {isActive ? <span className="text-xs text-primary">ativa</span> :
                       <Button size="sm" variant="ghost" onClick={() => persist({ ...doc, activeId: b.id })}>Abrir</Button>}
                   </div>
+                  <label className="mt-3 flex flex-col gap-1 text-xs text-muted-foreground">
+                    Ativo para sincronização
+                    <select
+                      aria-label={`Ativo para sincronização: ${b.nome}`}
+                      value={b.ativo ?? ""}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        persist({
+                          ...doc,
+                          bancas: doc.bancas.map((x) => {
+                            if (x.id !== b.id) return x;
+                            const { ativo: _ativo, ...withoutAtivo } = x;
+                            void _ativo;
+                            return value === "nasdaq" || value === "ouro"
+                              ? { ...withoutAtivo, ativo: value }
+                              : withoutAtivo;
+                          }),
+                        });
+                      }}
+                      className="rounded-md border bg-background px-2 py-1 text-foreground"
+                    >
+                      <option value="">Selecione Nasdaq ou Ouro</option>
+                      <option value="nasdaq">Nasdaq</option>
+                      <option value="ouro">Ouro</option>
+                    </select>
+                  </label>
                   <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
                     <dt className="text-muted-foreground">Ciclos</dt><dd>{r.ciclos}</dd>
                     <dt className="text-muted-foreground">Reprovadas</dt><dd className="text-destructive">{r.reprovadas}</dd>

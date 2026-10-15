@@ -1,10 +1,12 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { getMyAccess, signOut } from "@/lib/session";
 import { registrarAuditoria } from "@/lib/auditoria-registro";
 import { Bancas } from "@/components/platform/Bancas";
+import { MasterNumberSync } from "@/components/platform/MasterNumberSync";
+import { queueSaveUnlessConflicted, readVersionedAppData, recoverVersionConflict } from "@/lib/platform/versioned-save";
 
 export const Route = createFileRoute("/_authenticated/plataforma")({
   head: () => ({ meta: [{ title: "Plataforma — Win or Win" }, { name: "description", content: "Sua plataforma Win or Win." }, { property: "og:title", content: "Plataforma — Win or Win" }, { property: "og:description", content: "Planeje contratos, operações, bônus e saques na Win or Win." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
@@ -17,6 +19,9 @@ function Plataforma() {
   const [state, setState] = useState<"loading" | "pending" | "rejected" | "ok">("loading");
   const [isAdmin, setIsAdmin] = useState(false);
   const [name, setName] = useState("");
+  const [masterDataForSync, setMasterDataForSync] = useState<string | null>(null);
+  const versionRef = useRef<number | null>(null);
+  const conflictRef = useRef(false);
 
   useEffect(() => {
     void registrarAuditoria({ category: "navigation", action: "navigation.opened", outcome: "success", details: { page: "platform" } });
@@ -29,30 +34,52 @@ function Plataforma() {
     });
   }, [user.id]);
 
+  const handleMasterDocumentChange = useCallback((raw: string | null) => setMasterDataForSync(raw), []);
+
   const load = useCallback(async () => {
-    const { data, error } = await supabase.from("app_data").select("data").eq("user_id", user.id).maybeSingle();
+    const { data, error } = await supabase.from("app_data").select("data,version").eq("user_id", user.id).maybeSingle();
     if (error) throw error;
-    return data?.data || null;
+    const snapshot = readVersionedAppData(data);
+    versionRef.current = snapshot.version;
+    return snapshot.data || null;
   }, [user.id]);
 
-  const save = useCallback(async (v: string) => {
-    try {
-      const { data } = await supabase.auth.getSession();
-      const token = data.session?.access_token;
-      if (!token) return false;
-      const response = await fetch("/api/plataforma/dados", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          authorization: "Bearer " + token,
-        },
-        body: JSON.stringify({ data: v }),
-      });
-      return response.ok;
-    } catch {
-      return false;
-    }
-  }, [user.id]);
+  // Todas as gravações (edições locais e sincronização da Master) passam pela
+  // mesma fila para preservar a ordem em que foram solicitadas.
+  const saveQueue = useRef<Promise<void>>(Promise.resolve());
+  const save = useCallback((v: string) => queueSaveUnlessConflicted(
+    saveQueue,
+    conflictRef,
+    async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        const token = data.session?.access_token;
+        if (!token) return false;
+        const response = await fetch("/api/plataforma/dados", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            authorization: "Bearer " + token,
+          },
+          body: JSON.stringify({ data: v, expectedVersion: versionRef.current }),
+        });
+        if (response.status === 409) {
+          // Bloqueia imediatamente todos os saves até o reload. O load() após
+          // recarregar buscará data e version juntos como um único snapshot.
+          conflictRef.current = true;
+          await recoverVersionConflict(() => window.location.reload());
+          return false;
+        }
+        if (!response.ok) return false;
+        const result = await response.json().catch(() => null) as { version?: unknown } | null;
+        if (typeof result?.version === "number") versionRef.current = result.version;
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    false,
+  ), []);
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -82,7 +109,7 @@ function Plataforma() {
           <p className="mt-2 text-muted-foreground">Seu cadastro não foi aprovado. Se achar que houve um engano, fale com o administrador.</p>
         </div>
       )}
-      {state === "ok" && <Bancas load={load} save={save} isAdmin={isAdmin} />}
+      {state === "ok" && <>{isAdmin && <MasterNumberSync masterData={masterDataForSync} />}<Bancas load={load} save={save} isAdmin={isAdmin} onDocumentChange={handleMasterDocumentChange} /></>}
     </div>
   );
 }

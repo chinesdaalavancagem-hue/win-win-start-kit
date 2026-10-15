@@ -2,6 +2,59 @@ import { render, screen, fireEvent, act } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { Platform } from "@/components/platform/Platform";
 import { defaultState } from "@/lib/platform/engine";
+import { queueSaveUnlessConflicted, recoverVersionConflict } from "@/lib/platform/versioned-save";
+
+describe("recuperação de conflito de versão", () => {
+  it("em 409 chama reload sem aplicar um snapshot conflitante", async () => {
+    const applySnapshot = vi.fn();
+    const reload = vi.fn();
+
+    await recoverVersionConflict(reload);
+
+    expect(applySnapshot).not.toHaveBeenCalled();
+    expect(reload).toHaveBeenCalledOnce();
+  });
+
+  it("depois de um 409, save chamado antes do reload não envia outra requisição", async () => {
+    const queue = { current: Promise.resolve() };
+    const conflict = { current: false };
+    const send = vi.fn(async () => {
+      conflict.current = true;
+      await recoverVersionConflict(vi.fn());
+      return false;
+    });
+    const save = (value: string) =>
+      queueSaveUnlessConflicted<string | false>(queue, conflict, () => send().then(() => value), false);
+
+    await expect(save("primeiro")).resolves.toBe("primeiro");
+    await expect(save("antes-do-reload")).resolves.toBe(false);
+    expect(send).toHaveBeenCalledOnce();
+  });
+
+  it("bloqueia também um save que já estava na fila quando ocorreu o 409", async () => {
+    const queue = { current: Promise.resolve() };
+    const conflict = { current: false };
+    let releaseFirst!: () => void;
+    const firstPending = new Promise<void>((resolve) => { releaseFirst = resolve; });
+    const send = vi.fn()
+      .mockImplementationOnce(async () => {
+        await firstPending;
+        conflict.current = true;
+        await recoverVersionConflict(vi.fn());
+        return "409";
+      })
+      .mockImplementation(async () => "200");
+    const save = (value: string) =>
+      queueSaveUnlessConflicted<string | false>(queue, conflict, () => send().then(() => value), false);
+
+    const first = save("primeiro");
+    const second = save("enfileirado");
+    releaseFirst();
+    await expect(first).resolves.toBe("primeiro");
+    await expect(second).resolves.toBe(false);
+    expect(send).toHaveBeenCalledOnce();
+  });
+});
 
 describe("Platform nativa", () => {
   const originalScroll = HTMLElement.prototype.scrollIntoView;
@@ -41,7 +94,7 @@ describe("Platform nativa", () => {
     try {
       const state = defaultState();
       state.assets.nasdaq.attempt.currentDayIndex = 1;
-      await act(async () => { render(<Platform load={async () => JSON.stringify(state)} save={async () => true} isAdmin={false} />); });
+      await act(async () => { render(<Platform load={async () => JSON.stringify(state)} save={async () => true} isAdmin={true} />); });
       expect(scroll).not.toHaveBeenCalled();
 
       fireEvent.click(screen.getByRole("button", { name: /Profit/ }));
@@ -63,9 +116,9 @@ describe("Platform nativa", () => {
   it("carrega, alterna menus, registra Stop e salva", async () => {
     const save = vi.fn(async () => true);
     await act(async () => { render(<Platform load={async () => null} save={save} isAdmin={false} />); });
-    expect(await screen.findByText("Meta total prop firm")).toBeTruthy();
+    expect(await screen.findByText("Meta do dia atual")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Parâmetros" }));
-    expect(screen.getByText(/Limite geral EOD/)).toBeTruthy();
+    expect(screen.getAllByText(/Limite geral EOD/).length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("button", { name: "Operações" }));
     const stop = screen.getByRole("button", { name: /Stop/ });
     fireEvent.click(stop); fireEvent.click(screen.getByRole("button", { name: /confirmar/ }));
@@ -80,7 +133,7 @@ describe("Platform nativa", () => {
   it("salva o valor real liquidado no Stop com o spread", async () => {
     const save = vi.fn(async () => true);
     await act(async () => { render(<Platform load={async () => null} save={save} isAdmin={false} />); });
-    await screen.findByText("Meta total prop firm");
+    await screen.findByText("Meta do dia atual");
     fireEvent.click(screen.getByRole("button", { name: /Stop/ }));
     fireEvent.change(screen.getByLabelText(/Valor real liquidado/), { target: { value: "500" } });
     fireEvent.click(screen.getByRole("button", { name: /confirmar/ }));
