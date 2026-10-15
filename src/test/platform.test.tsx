@@ -24,7 +24,7 @@ describe("recuperação de conflito de versão", () => {
       return false;
     });
     const save = (value: string) =>
-      queueSaveUnlessConflicted(queue, conflict, () => send().then(() => value), false);
+      queueSaveUnlessConflicted<string | false>(queue, conflict, () => send().then(() => value), false);
 
     await expect(save("primeiro")).resolves.toBe("primeiro");
     await expect(save("antes-do-reload")).resolves.toBe(false);
@@ -45,7 +45,7 @@ describe("recuperação de conflito de versão", () => {
       })
       .mockImplementation(async () => "200");
     const save = (value: string) =>
-      queueSaveUnlessConflicted(queue, conflict, () => send().then(() => value), false);
+      queueSaveUnlessConflicted<string | false>(queue, conflict, () => send().then(() => value), false);
 
     const first = save("primeiro");
     const second = save("enfileirado");
