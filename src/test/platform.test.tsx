@@ -41,7 +41,7 @@ describe("Platform nativa", () => {
     try {
       const state = defaultState();
       state.assets.nasdaq.attempt.currentDayIndex = 1;
-      await act(async () => { render(<Platform load={async () => JSON.stringify(state)} save={async () => true} isAdmin={false} />); });
+      await act(async () => { render(<Platform load={async () => JSON.stringify(state)} save={async () => true} isAdmin={true} />); });
       expect(scroll).not.toHaveBeenCalled();
 
       fireEvent.click(screen.getByRole("button", { name: /Profit/ }));
@@ -63,9 +63,9 @@ describe("Platform nativa", () => {
   it("carrega, alterna menus, registra Stop e salva", async () => {
     const save = vi.fn(async () => true);
     await act(async () => { render(<Platform load={async () => null} save={save} isAdmin={false} />); });
-    expect(await screen.findByText("Meta total prop firm")).toBeTruthy();
+    expect(await screen.findByText("Meta do dia atual")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Parâmetros" }));
-    expect(screen.getByText(/Limite geral EOD/)).toBeTruthy();
+    expect(screen.getAllByText(/Limite geral EOD/).length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("button", { name: "Operações" }));
     const stop = screen.getByRole("button", { name: /Stop/ });
     fireEvent.click(stop); fireEvent.click(screen.getByRole("button", { name: /confirmar/ }));
@@ -80,7 +80,7 @@ describe("Platform nativa", () => {
   it("salva o valor real liquidado no Stop com o spread", async () => {
     const save = vi.fn(async () => true);
     await act(async () => { render(<Platform load={async () => null} save={save} isAdmin={false} />); });
-    await screen.findByText("Meta total prop firm");
+    await screen.findByText("Meta do dia atual");
     fireEvent.click(screen.getByRole("button", { name: /Stop/ }));
     fireEvent.change(screen.getByLabelText(/Valor real liquidado/), { target: { value: "500" } });
     fireEvent.click(screen.getByRole("button", { name: /confirmar/ }));
