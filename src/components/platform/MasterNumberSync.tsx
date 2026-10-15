@@ -26,15 +26,27 @@ export function MasterNumberSync({ masterData }: { masterData: string | null }) 
   const masterHasActiveAsset = masterData === null ? null : hasActiveAsset(masterData);
 
   const request = useCallback(async (method: "GET" | "POST", body?: unknown) => {
-    const { data } = await supabase.auth.getSession();
+    const timeout = <T,>(p: Promise<T>, ms: number) => Promise.race([
+      p,
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error("A sincronização demorou para responder. Tente novamente.")), ms)),
+    ]);
+    const { data } = await timeout(supabase.auth.getSession(), 8000);
     const token = data.session?.access_token;
     if (!token) throw new Error("Sua sessão expirou. Entre novamente.");
-    const response = await fetch("/api/plataforma/sincronizacao-numeros", {
-      method,
-      headers: { authorization: "Bearer " + token, "content-type": "application/json" },
-      ...(body ? { body: JSON.stringify(body) } : {}),
-      cache: "no-store",
-    });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15000);
+    let response: Response;
+    try {
+      response = await fetch("/api/plataforma/sincronizacao-numeros", {
+        method,
+        headers: { authorization: "Bearer " + token, "content-type": "application/json" },
+        ...(body ? { body: JSON.stringify(body) } : {}),
+        cache: "no-store",
+        signal: controller.signal,
+      });
+    } catch {
+      throw new Error("A sincronização demorou para responder. Tente novamente.");
+    } finally { clearTimeout(timer); }
     const result = await response.json().catch(() => ({}));
     if (!response.ok) {
       const messages: Record<string, string> = {
@@ -48,8 +60,10 @@ export function MasterNumberSync({ masterData }: { masterData: string | null }) 
     return result;
   }, []);
 
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     let alive = true;
+    setLoading(true); setError("");
     request("GET").then((result) => {
       if (!alive) return;
       const next = { enabled: !!result.enabled, allowedFields: Array.isArray(result.allowedFields) ? result.allowedFields : [], updatedAt: result.updatedAt ?? null };
@@ -57,7 +71,7 @@ export function MasterNumberSync({ masterData }: { masterData: string | null }) 
     }).catch((e) => { if (alive) setError(e instanceof Error ? e.message : "Falha ao carregar configuração."); })
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
-  }, [request]);
+  }, [request, attempt]);
 
   const groups = useMemo(() => [...new Set(MASTER_SYNC_FIELDS.map((field) => field.group))], []);
   const toggleField = (id: string) => setSelected((old) => old.includes(id) ? old.filter((x) => x !== id) : [...old, id]);
@@ -111,7 +125,7 @@ export function MasterNumberSync({ masterData }: { masterData: string | null }) 
             {config.updatedAt && <p className="text-xs text-muted-foreground">Última configuração publicada: {new Date(config.updatedAt).toLocaleString("pt-BR")}</p>}
           </>
         )}
-        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+        {error && <div className="flex flex-wrap items-center gap-2"><p role="alert" className="text-sm text-destructive">{error}</p><Button size="sm" variant="outline" onClick={() => setAttempt((n) => n + 1)}>Tentar novamente</Button></div>}
       </div>
     </section>
   );
