@@ -4,6 +4,9 @@ import { novaBanca } from "@/lib/platform/bancas";
 
 const { upsert, insert, previous } = vi.hoisted(() => ({ upsert: vi.fn(), insert: vi.fn(), previous: { data: null as string | null } }));
 vi.mock("@tanstack/react-router", () => ({ createFileRoute: () => (config: unknown) => config }));
+vi.mock("@/lib/terms.server", () => ({
+  getTermsStatusForUser: async () => ({ accepted: true }),
+}));
 vi.mock("@/integrations/supabase/client.server", () => ({
   supabaseAdmin: {
     auth: { getUser: async () => ({ data: { user: { id: "test-user" } }, error: null }) },
