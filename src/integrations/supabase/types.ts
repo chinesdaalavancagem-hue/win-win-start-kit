@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      master_number_sync: {
+        Row: {
+          id: string
+          admin_user_id: string
+          enabled: boolean
+          allowed_fields: Json
+          published_values: Json
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          admin_user_id: string
+          enabled?: boolean
+          allowed_fields?: Json
+          published_values?: Json
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          admin_user_id?: string
+          enabled?: boolean
+          allowed_fields?: Json
+          published_values?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       activity_logs: {
         Row: {
           action: string
