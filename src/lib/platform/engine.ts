@@ -319,7 +319,7 @@ export function calcCaixaCiclo(a: Asset, key: AssetKey, bonusPct: number) {
   const p = Math.max(0, bonusPct || 0) / 100;
   const cap = a.bonus.bonusCap > 0 ? a.bonus.bonusCap : Infinity;
   const taxa = a.params.taxa || 0;
-  let proprio = 0, bonus = 0, bonusTotal = 0, depositado = 0;
+  let proprio = 0, bonus = 0, bonusTotal = 0, depositado = 0, perdaPropriaTotal = 0, perdaBonusTotal = 0;
   const dias: CaixaDia[] = a.days.map((d, i) => {
     const perda = Math.max(0, calcs[i]?.custoSePassar ?? 0);
     const necessario = (a.params.marginPerLot || 0) * d.lotes * (1 + Math.max(0, a.params.stopoutPct || 0) / 100) + perda;
@@ -342,12 +342,16 @@ export function calcCaixaCiclo(a: Asset, key: AssetKey, bonusPct: number) {
       ? Math.min(proprioDisponivel, folgaTotal / (1 + bonusDisponivel / proprioDisponivel))
       : 0;
     const deProprio = Math.min(perda, proprio);
-    proprio -= deProprio; bonus = Math.max(0, bonus - (perda - deProprio));
-    return { dia: i + 1, necessario, saldoAntes, proprioAntes, bonusAntes, proprioDisponivel, bonusDisponivel, excedenteProprioSacavel, deposito, bonusGanho, perda, proprioRestante: proprio, bonusRestante: bonus, caixaAcumulado: taxa + depositado };
+    const deBonus = Math.min(Math.max(0, perda - deProprio), bonus);
+    perdaPropriaTotal += deProprio;
+    perdaBonusTotal += deBonus;
+    proprio -= deProprio;
+    bonus = Math.max(0, bonus - deBonus);
+    return { dia: i + 1, necessario, saldoAntes, proprioAntes, bonusAntes, proprioDisponivel, bonusDisponivel, excedenteProprioSacavel, deposito, bonusGanho, perda, perdaPropria: deProprio, perdaBonus: deBonus, proprioRestante: proprio, bonusRestante: bonus, caixaAcumulado: taxa + depositado };
   });
   const saque = a.params.saqueAprovada || 0;
   const caixaMaximo = taxa + depositado;
   const recuperado = proprio + saque;
   const totalPerda = dias.reduce((acc, d) => acc + d.perda, 0);
-  return { dias, taxa, totalDepositado: depositado, totalPerda, caixaMaximo, proprioRecuperavel: proprio, saque, recuperado, resultadoFinal: recuperado - caixaMaximo, bonusTotal };
+  return { dias, taxa, totalDepositado: depositado, totalPerda, perdaPropriaTotal, perdaBonusTotal, caixaMaximo, proprioRecuperavel: proprio, saque, recuperado, resultadoFinal: recuperado - caixaMaximo, bonusTotal };
 }
