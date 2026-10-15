@@ -36,14 +36,19 @@ export const Route = createFileRoute("/api/plataforma/sincronizacao-numeros")({
           .eq("id", user.id).maybeSingle();
         if (!profile?.approved || profile.rejected) return json({ error: "account_not_approved" }, 403);
         const admin = await isAdmin(supabaseAdmin, user.id);
+        const configuredMasterId = process.env.MASTER_USER_ID?.trim();
+        // Fail closed: uma role genérica de admin nunca pode reivindicar a Master.
+        // O UUID deve ser configurado explicitamente no ambiente server-side.
+        if (!configuredMasterId) return json({ error: "master_not_configured" }, 503);
+        if (admin && user.id !== configuredMasterId) return json({ error: "master_mismatch" }, 403);
         const { data: config, error } = await supabaseAdmin.from("master_number_sync")
           .select("admin_user_id,enabled,allowed_fields,published_values,updated_at").eq("id", "default").maybeSingle();
         if (error) return json({ error: "sync_unavailable" }, 503);
         if (!config) return json({ enabled: false, allowedFields: [], values: {}, updatedAt: null, isAdmin: admin });
-        if (admin && config.admin_user_id !== user.id) return json({ error: "master_mismatch" }, 403);
+        if (config.admin_user_id !== configuredMasterId) return json({ error: "sync_unavailable" }, 503);
         return json({
           enabled: !!config.enabled,
-          allowedFields: admin ? config.allowed_fields : [],
+          allowedFields: admin && user.id === configuredMasterId ? config.allowed_fields : [],
           values: config.enabled ? config.published_values : {},
           updatedAt: config.updated_at,
           isAdmin: admin,
@@ -54,6 +59,9 @@ export const Route = createFileRoute("/api/plataforma/sincronizacao-numeros")({
         if (!user) return json({ error: "unauthorized" }, 401);
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         if (!(await isAdmin(supabaseAdmin, user.id))) return json({ error: "forbidden" }, 403);
+        const configuredMasterId = process.env.MASTER_USER_ID?.trim();
+        if (!configuredMasterId) return json({ error: "master_not_configured" }, 503);
+        if (user.id !== configuredMasterId) return json({ error: "master_mismatch" }, 403);
         let body: unknown;
         try { body = await request.json(); } catch { return json({ error: "invalid_json" }, 400); }
         if (!body || typeof body !== "object") return json({ error: "invalid_body" }, 400);
@@ -70,8 +78,8 @@ export const Route = createFileRoute("/api/plataforma/sincronizacao-numeros")({
         const { data: existingConfig, error: configReadError } = await supabaseAdmin
           .from("master_number_sync").select("admin_user_id").eq("id", "default").maybeSingle();
         if (configReadError) return json({ error: "sync_unavailable" }, 503);
-        if (existingConfig && existingConfig.admin_user_id !== user.id) {
-          return json({ error: "master_mismatch" }, 403);
+        if (existingConfig && existingConfig.admin_user_id !== configuredMasterId) {
+          return json({ error: "sync_unavailable" }, 503);
         }
         const { data: masterRow, error: masterError } = await supabaseAdmin.from("app_data")
           .select("data").eq("user_id", user.id).maybeSingle();
