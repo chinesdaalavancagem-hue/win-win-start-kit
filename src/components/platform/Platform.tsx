@@ -709,7 +709,9 @@ function CaixaPanel({ asset, assetKey, bonusPct, setBonusPct }: { asset: Asset; 
   const items: [string, number, string, string][] = [
     ["Caixa próprio máximo disponível", r.caixaMaximo, "text-primary", "o pico de dinheiro seu fora do bolso: taxa + todos os depósitos"],
     ["Total depositado no CFD no ciclo", r.totalDepositado, "text-foreground", "depósito é margem de garantia; não significa que todo esse valor será perdido"],
-    ["Perda total no CFD se passar todos os dias", r.totalPerda, "text-destructive", "soma das perdas diárias do CFD; este é o valor efetivamente consumido pelas perdas"],
+    ["Perda total no CFD se passar todos os dias", r.totalPerda, "text-destructive", "soma das perdas diárias do CFD, antes de separar a origem do dinheiro"],
+    ["Perda do meu depósito próprio", r.perdaPropriaTotal, "text-destructive", "parte das perdas coberta pelo dinheiro depositado por você"],
+    ["Perda do bônus da corretora", r.perdaBonusTotal, "text-accent-foreground", "parte das perdas coberta pelo crédito promocional"],
     ["Saldo próprio recuperável no CFD", r.proprioRecuperavel, "text-primary", "parte do dinheiro depositado que sobra na corretora e pode ser sacada de volta"],
     ["Bônus recebido no ciclo", r.bonusTotal, "text-accent-foreground", `limitado ao teto de ${fmt(asset.bonus.bonusCap)}`],
     ["Recuperado no fim", r.recuperado, "text-primary", `saque da mesa ${fmt(r.saque)} + saldo próprio recuperável no CFD ${fmt(r.proprioRecuperavel)}`],
@@ -728,14 +730,16 @@ function CaixaPanel({ asset, assetKey, bonusPct, setBonusPct }: { asset: Asset; 
       </dl>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="text-left text-xs text-muted-foreground"><tr><th className="p-1">Dia</th><th className="p-1">Necessário no CFD</th><th className="p-1">Saldo antes</th><th className="p-1">Depositar</th><th className="p-1">Bônus</th><th className="p-1">Perda se passar</th><th className="p-1">Caixa acumulado</th></tr></thead>
+          <thead className="text-left text-xs text-muted-foreground"><tr><th className="p-1">Dia</th><th className="p-1">Necessário no CFD</th><th className="p-1">Saldo antes</th><th className="p-1">Depositar</th><th className="p-1">Bônus</th><th className="p-1">Perda total</th><th className="p-1">Perda própria</th><th className="p-1">Perda bônus</th><th className="p-1">Caixa acumulado</th></tr></thead>
           <tbody>{r.dias.map((d) => (
-            <tr key={d.dia} className="border-t"><td className="p-1">D{d.dia}</td><td className="p-1">${fmt(d.necessario)}</td><td className="p-1">${fmt(d.saldoAntes)}</td><td className="p-1 font-semibold text-primary">${fmt(d.deposito)}</td><td className="p-1">${fmt(d.bonusGanho)}</td><td className="p-1">${fmt(d.perda)}</td><td className="p-1">${fmt(d.caixaAcumulado)}</td></tr>
+            <tr key={d.dia} className="border-t"><td className="p-1">D{d.dia}</td><td className="p-1">${fmt(d.necessario)}</td><td className="p-1">${fmt(d.saldoAntes)}</td><td className="p-1 font-semibold text-primary">${fmt(d.deposito)}</td><td className="p-1">${fmt(d.bonusGanho)}</td><td className="p-1">${fmt(d.perda)}</td><td className="p-1 text-destructive">${fmt(d.perdaPropria)}</td><td className="p-1">${fmt(d.perdaBonus)}</td><td className="p-1">${fmt(d.caixaAcumulado)}</td></tr>
           ))}</tbody>
           <tfoot>
             <tr className="border-t-2 font-semibold">
-              <td className="p-1" colSpan={5}>Perda total no CFD se passar todos os dias</td>
+              <td className="p-1" colSpan={4}>Totais das perdas no ciclo</td>
               <td className="p-1 text-destructive">${fmt(r.totalPerda)}</td>
+              <td className="p-1 text-destructive">${fmt(r.perdaPropriaTotal)}</td>
+              <td className="p-1">${fmt(r.perdaBonusTotal)}</td>
               <td className="p-1">—</td>
             </tr>
           </tfoot>
@@ -746,7 +750,7 @@ function CaixaPanel({ asset, assetKey, bonusPct, setBonusPct }: { asset: Asset; 
         <ul className="list-disc space-y-1 pl-4">
           <li>Usa o setup salvo desta aba: dias, lotes, contratos, margem por lote (${fmt(asset.params.marginPerLot)}), stop out ({fmt(asset.params.stopoutPct)}%), taxa da mesa (${fmt(r.taxa)}) e saque esperado (${fmt(r.saque)}).</li>
           <li>Pior caso de caixa: a mesa passa em todos os dias até aprovar. Se reprovar antes, o CFD devolve dinheiro e o caixa usado é menor.</li>
-          <li>O total depositado no CFD é margem de garantia, não perda total. A perda efetiva é a soma de “Perda se passar” de cada dia; o saldo próprio que sobra permanece recuperável na corretora.</li>
+          <li>O total depositado no CFD é margem de garantia, não perda total. A perda total é separada entre “Perda do meu depósito próprio” e “Perda do bônus”, conforme o saldo disponível em cada dia; o saldo próprio que sobra permanece recuperável na corretora.</li>
           <li>Cada dia precisa no CFD: margem × (1 + stop out) + a perda do CFD se a mesa passar. Só se deposita o que falta sobre o saldo que já está lá.</li>
           <li>Bônus de {fmt(parseNum(bonusPct))}% sobre cada depósito, até o teto de ${fmt(asset.bonus.bonusCap)}. A perda consome primeiro o seu dinheiro e depois o bônus.</li>
           <li>O ciclo começa com a corretora zerada; o saldo atual da banca não entra na conta.</li>
