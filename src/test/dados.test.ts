@@ -17,13 +17,19 @@ vi.mock("@/integrations/supabase/client.server", () => ({
   supabaseAdmin: {
     auth: { getUser: async () => ({ data: { user: { id: "test-user" } }, error: null }) },
     from: (table: string) => ({
-      select: () => ({ eq: () => ({ maybeSingle: async () => ({
-        data: table === "profiles" ? { approved: true, rejected: false }
-          : table === "user_roles" ? { role: "admin" }
-          : table === "master_number_sync" ? syncConfig.data
-          : { data: previous.data },
-        error: null,
-      }) }) }),
+      select: () => {
+        const query = {
+          eq: () => query,
+          maybeSingle: async () => ({
+            data: table === "profiles" ? { approved: true, rejected: false }
+              : table === "user_roles" ? { role: "admin" }
+              : table === "master_number_sync" ? syncConfig.data
+              : { data: previous.data },
+            error: null,
+          }),
+        };
+        return query;
+      },
       upsert,
       update: (values: unknown) => {
         update(table, values);
