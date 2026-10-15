@@ -137,7 +137,7 @@ export function mergePublishedValues(
   existing: unknown,
   allowedFields: string[],
   extracted: Record<string, number[]>,
-): Record<string, number[]> {
+): Record<string, Array<number | null>> {
   const allowed = new Set(allowedFields);
   const merged: Record<string, Array<number | null>> = {};
   if (existing && typeof existing === "object" && !Array.isArray(existing)) {
