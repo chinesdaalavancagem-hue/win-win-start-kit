@@ -409,13 +409,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPlataformaSincronizacaoNumerosRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/plataforma/sincronizacao-numeros': {
-      id: '/api/plataforma/sincronizacao-numeros'
-      path: '/api/plataforma/sincronizacao-numeros'
-      fullPath: '/api/plataforma/sincronizacao-numeros'
-      preLoaderRoute: typeof ApiPlataformaSincronizacaoNumerosRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/termos/aceite': {
       id: '/api/termos/aceite'
       path: '/api/termos/aceite'
