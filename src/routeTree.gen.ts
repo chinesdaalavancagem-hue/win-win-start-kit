@@ -175,6 +175,7 @@ export interface FileRoutesByTo {
   '/api/auditoria': typeof ApiAuditoriaRoute
   '/api/telegram-teste': typeof ApiTelegramTesteRoute
   '/api/plataforma/dados': typeof ApiPlataformaDadosRoute
+  '/api/plataforma/sincronizacao-numeros': typeof ApiPlataformaSincronizacaoNumerosRoute
   '/api/termos/aceite': typeof ApiTermosAceiteRoute
   '/api/termos/status': typeof ApiTermosStatusRoute
   '/api/public/ordens/confirmar': typeof ApiPublicOrdensConfirmarRoute
@@ -198,6 +199,7 @@ export interface FileRoutesById {
   '/api/auditoria': typeof ApiAuditoriaRoute
   '/api/telegram-teste': typeof ApiTelegramTesteRoute
   '/api/plataforma/dados': typeof ApiPlataformaDadosRoute
+  '/api/plataforma/sincronizacao-numeros': typeof ApiPlataformaSincronizacaoNumerosRoute
   '/api/termos/aceite': typeof ApiTermosAceiteRoute
   '/api/termos/status': typeof ApiTermosStatusRoute
   '/api/public/ordens/confirmar': typeof ApiPublicOrdensConfirmarRoute
@@ -221,6 +223,7 @@ export interface FileRouteTypes {
     | '/api/auditoria'
     | '/api/telegram-teste'
     | '/api/plataforma/dados'
+    | '/api/plataforma/sincronizacao-numeros'
     | '/api/termos/aceite'
     | '/api/termos/status'
     | '/api/public/ordens/confirmar'
@@ -242,6 +245,7 @@ export interface FileRouteTypes {
     | '/api/auditoria'
     | '/api/telegram-teste'
     | '/api/plataforma/dados'
+    | '/api/plataforma/sincronizacao-numeros'
     | '/api/termos/aceite'
     | '/api/termos/status'
     | '/api/public/ordens/confirmar'
@@ -264,6 +268,7 @@ export interface FileRouteTypes {
     | '/api/auditoria'
     | '/api/telegram-teste'
     | '/api/plataforma/dados'
+    | '/api/plataforma/sincronizacao-numeros'
     | '/api/termos/aceite'
     | '/api/termos/status'
     | '/api/public/ordens/confirmar'
@@ -395,6 +400,13 @@ declare module '@tanstack/react-router' {
       path: '/api/plataforma/dados'
       fullPath: '/api/plataforma/dados'
       preLoaderRoute: typeof ApiPlataformaDadosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/plataforma/sincronizacao-numeros': {
+      id: '/api/plataforma/sincronizacao-numeros'
+      path: '/api/plataforma/sincronizacao-numeros'
+      fullPath: '/api/plataforma/sincronizacao-numeros'
+      preLoaderRoute: typeof ApiPlataformaSincronizacaoNumerosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/plataforma/sincronizacao-numeros': {
