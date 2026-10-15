@@ -54,8 +54,15 @@ export function MasterNumberSync({ masterData }: { masterData: string | null }) 
         master_mismatch: "Esta conta não é a Master autorizada para publicar os parâmetros.",
         account_not_approved: "A conta precisa estar aprovada para acessar a sincronização.",
         sync_unavailable: "A configuração da sincronização está indisponível ou precisa ser revisada.",
+        unauthorized: "Sua sessão expirou. Entre novamente.",
+        forbidden: "Somente a conta Master pode alterar a sincronização.",
+        master_data_unavailable: "Não foi possível ler os dados da sua banca. Salve a banca e tente novamente.",
+        invalid_master_data: "Os dados da sua banca estão em formato inválido para publicar.",
+        invalid_fields: "Um dos campos selecionados não é permitido.",
+        invalid_body: "Pedido inválido. Recarregue a página e tente novamente.",
+        save_failed: "O servidor não conseguiu salvar a configuração. Tente novamente.",
       };
-      throw new Error(messages[String(result.error)] || "Não foi possível acessar a sincronização.");
+      throw new Error(messages[String(result.error)] || `Não foi possível acessar a sincronização (código ${response.status}${result.error ? ": " + String(result.error) : ""}).`);
     }
     return result;
   }, []);
