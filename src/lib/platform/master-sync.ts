@@ -42,16 +42,15 @@ export function extractMasterSyncValues(raw: string, allowedFields: string[]): R
   const bancas = Array.isArray(parsed.bancas) ? parsed.bancas as Array<Record<string, unknown>> : [];
   const activeId = typeof parsed.activeId === "string" ? parsed.activeId : "";
   const active = bancas.find((b) => b.id === activeId) ?? bancas[0];
-  const activeAsset = active?.ativo;
   const result: Record<string, number[]> = {};
-  if (activeAsset !== "nasdaq" && activeAsset !== "ouro") return result;
+  // Cada campo já identifica seu ativo (nasdaq./ouro./saque2.), então não exige seleção manual.
   const state = (active?.state && typeof active.state === "object" ? active.state : parsed) as Record<string, unknown>;
   const assets = state.assets as Record<string, unknown> | undefined;
   const allowed = new Set<string>(MASTER_SYNC_FIELDS.map((f) => f.id));
   for (const field of allowedFields) {
     if (!allowed.has(field)) continue;
     const [assetKey, section, key] = field.split(".");
-    if (!assetKey || assetKey !== activeAsset || !section || !key) continue;
+    if (!assetKey || !section || !key) continue;
     const asset = assets?.[assetKey] as Record<string, unknown> | undefined;
     if (section === "params") {
       const params = asset?.params as Record<string, unknown> | undefined;
