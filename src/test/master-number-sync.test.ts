@@ -54,6 +54,23 @@ describe("Master number sync", () => {
     expect(state.totalGasto).toBe(123);
   });
 
+  it("updates only the recipient's active banca", () => {
+    const raw = JSON.stringify({
+      bancasVersion: 1,
+      activeId: "local-active",
+      bancas: [
+        { id: "local-active", state: makeState(1, 0.5, 150, 77) },
+        { id: "local-other", state: makeState(2, 0.75, 250, 88) },
+      ],
+    });
+    const merged = applyMasterSyncValues(raw, { "nasdaq.params.mnq": [5] });
+    expect(merged).not.toBeNull();
+    const result = JSON.parse(merged!);
+    expect(result.bancas[0].state.assets.nasdaq.params.mnq).toBe(5);
+    expect(result.bancas[1].state.assets.nasdaq.params.mnq).toBe(2);
+    expect(result.bancas[1].state.assets.nasdaq.params.saldoInicial).toBe(2000);
+  });
+
   it("does not return a new document when values are unchanged", () => {
     const raw = JSON.stringify({ bancasVersion: 1, activeId: "local", bancas: [{ id: "local", state: makeState(4, 2.5, 150, 77) }] });
     expect(applyMasterSyncValues(raw, { "nasdaq.params.mnq": [4], "nasdaq.days.lotes": [2.5] })).toBeNull();
