@@ -1,4 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 import { MASTER_SYNC_FIELDS, extractMasterSyncValues } from "@/lib/platform/master-sync";
 
 function json(body: unknown, status = 200) {
@@ -17,7 +19,7 @@ async function authenticatedUser(request: Request) {
   return error || !data.user ? null : data.user;
 }
 
-async function isAdmin(supabaseAdmin: any, userId: string) {
+async function isAdmin(supabaseAdmin: SupabaseClient<Database>, userId: string) {
   const { data, error } = await supabaseAdmin.from("user_roles").select("role")
     .eq("user_id", userId).eq("role", "admin").maybeSingle();
   return !error && !!data;
