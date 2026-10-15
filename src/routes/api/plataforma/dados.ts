@@ -176,6 +176,31 @@ export const Route = createFileRoute("/api/plataforma/dados")({
           return json({ error: "save_failed" }, 500);
         }
 
+        // Quando a Master estiver com a sincronização liberada, publica apenas os campos autorizados.
+        // Falhas nessa publicação não impedem o salvamento dos dados privados da conta.
+        try {
+          const { data: adminRole } = await supabaseAdmin.from("user_roles").select("role")
+            .eq("user_id", user.id).eq("role", "admin").maybeSingle();
+          if (adminRole) {
+            const { data: syncConfig } = await supabaseAdmin.from("master_number_sync")
+              .select("enabled,allowed_fields,admin_user_id").eq("id", "default").maybeSingle();
+            if (syncConfig?.enabled && syncConfig.admin_user_id === user.id) {
+              const { extractMasterSyncValues } = await import("@/lib/platform/master-sync");
+              const fields = Array.isArray(syncConfig.allowed_fields)
+                ? syncConfig.allowed_fields.filter((field: unknown): field is string => typeof field === "string")
+                : [];
+              const values = extractMasterSyncValues(value, fields);
+              const { error: publishError } = await supabaseAdmin.from("master_number_sync").update({
+                published_values: values,
+                updated_at: new Date().toISOString(),
+              }).eq("id", "default").eq("admin_user_id", user.id);
+              if (publishError) console.error("[master-number-sync] publish failed", publishError.message);
+            }
+          }
+        } catch {
+          console.error("[master-number-sync] publish failed");
+        }
+
         try {
           const changes = numericChanges(previousRow?.data ?? null, parsedState);
           for (let i = 0; i < changes.length; i += 100) {
