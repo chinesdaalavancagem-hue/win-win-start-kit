@@ -2,10 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { defaultState } from "@/lib/platform/engine";
 import { novaBanca } from "@/lib/platform/bancas";
 
-const { upsert, insert, update, previous, writeFailure, syncConfig } = vi.hoisted(() => ({
+const { upsert, insert, update, updateFilters, previous, writeFailure, syncConfig } = vi.hoisted(() => ({
   upsert: vi.fn(),
   insert: vi.fn(),
   update: vi.fn(),
+  updateFilters: [] as Array<[string, unknown]>,
   previous: { data: null as string | null, version: null as number | null },
   writeFailure: { value: false },
   syncConfig: { data: null as { enabled: boolean; allowed_fields: string[]; admin_user_id: string } | null },
@@ -14,7 +15,7 @@ vi.mock("@tanstack/react-router", () => ({ createFileRoute: () => (config: unkno
 vi.mock("@/lib/terms.server", () => ({
   getTermsStatusForUser: async () => ({ accepted: true }),
 }));
-vi.mock("@/integrations/supabase/client.server.ts", () => ({
+vi.mock("@/integrations/supabase/client.server", () => ({
   supabaseAdmin: {
     auth: { getUser: async () => ({ data: { user: { id: "test-user" } }, error: null }) },
     from: (table: string) => ({
@@ -37,7 +38,7 @@ vi.mock("@/integrations/supabase/client.server.ts", () => ({
         if (table !== "app_data") return { eq: () => ({ eq: async () => ({ error: null }) }) };
         let expected: number | null = null;
         const query = {
-          eq: (column: string, value: unknown) => { if (column === "version" && typeof value === "number") expected = value; return query; },
+          eq: (column: string, value: unknown) => { updateFilters.push([column, value]); if (column === "version" && typeof value === "number") expected = value; return query; },
           select: () => query,
           maybeSingle: async () => {
             if (writeFailure.value) return { data: null, error: { message: "unavailable" } };
@@ -82,7 +83,7 @@ describe("validação do salvamento", () => {
     vi.stubEnv("MASTER_USER_ID", "test-user");
     upsert.mockReset(); upsert.mockResolvedValue({ error: null }); writeFailure.value = false;
     insert.mockReset(); insert.mockResolvedValue({ error: null });
-    update.mockReset();
+    update.mockReset(); updateFilters.length = 0;
     previous.data = null; previous.version = null;
     syncConfig.data = null;
   });
@@ -121,6 +122,19 @@ describe("validação do salvamento", () => {
     expect(await response.json()).toEqual({ error: "version_conflict", version: 1 });
     expect(previous.data).toBe(JSON.stringify(stored));
     expect(previous.version).toBe(1);
+    expect(insert.mock.calls.filter(([table]) => table === "app_data")).toEqual([]);
+    expect(update.mock.calls.filter(([table]) => table === "app_data")).toEqual([]);
+  });
+
+  it.each([0, 1.5, "1", true, undefined])("rejeita expectedVersion inválido (%s) antes de gravar", async (expectedVersion) => {
+    const body: Record<string, unknown> = { data: JSON.stringify(defaultState()) };
+    if (expectedVersion !== undefined) body.expectedVersion = expectedVersion;
+    const response = await post({ request: new Request("http://localhost/api/plataforma/dados", {
+      method: "POST",
+      headers: { authorization: "Bearer test-token", "content-type": "application/json" },
+      body: JSON.stringify(body),
+    }) });
+    expect(response.status).toBe(400);
     expect(insert.mock.calls.filter(([table]) => table === "app_data")).toEqual([]);
     expect(update.mock.calls.filter(([table]) => table === "app_data")).toEqual([]);
   });
@@ -225,7 +239,9 @@ describe("validação do salvamento", () => {
     if (!firstDay) throw new Error("Dia inicial ausente");
     firstDay.mnq = 7;
     expect((await save(doc, 1)).status).toBe(200);
-    expect(update).toHaveBeenCalledWith("app_data", expect.objectContaining({ data: JSON.stringify(doc), version: 2, user_id: "test-user" }));
+    expect(update).toHaveBeenCalledWith("app_data", expect.objectContaining({ version: 2, data: JSON.stringify(doc) }));
+    expect(updateFilters).toContainEqual(["user_id", "test-user"]);
+    expect(updateFilters).toContainEqual(["version", 1]);
   });
 
   it("continua salvando o estado legado", async () => {

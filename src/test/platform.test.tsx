@@ -2,6 +2,34 @@ import { render, screen, fireEvent, act } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { Platform } from "@/components/platform/Platform";
 import { defaultState } from "@/lib/platform/engine";
+import { recoverVersionConflict } from "@/lib/platform/versioned-save";
+
+describe("recuperação de conflito de versão", () => {
+  it("em 409 relê dados e versão como um único snapshot antes do reload", async () => {
+    const latestData = JSON.stringify({ bancasVersion: 1, activeId: "banca-atual" });
+    let localSnapshot: { data: string | null; version: number | null } = { data: "snapshot-obsoleto", version: 4 };
+    const reload = vi.fn();
+
+    await recoverVersionConflict(
+      async () => ({ data: { data: latestData, version: 9 }, error: null }),
+      (snapshot) => { localSnapshot = snapshot; },
+      reload,
+    );
+
+    expect(localSnapshot).toEqual({ data: latestData, version: 9 });
+    expect(reload).toHaveBeenCalledOnce();
+  });
+
+  it("recarrega mesmo se a releitura do conflito falhar", async () => {
+    const reload = vi.fn();
+    await expect(recoverVersionConflict(
+      async () => ({ data: null, error: new Error("unavailable") }),
+      vi.fn(),
+      reload,
+    )).resolves.toBeUndefined();
+    expect(reload).toHaveBeenCalledOnce();
+  });
+});
 
 describe("Platform nativa", () => {
   const originalScroll = HTMLElement.prototype.scrollIntoView;

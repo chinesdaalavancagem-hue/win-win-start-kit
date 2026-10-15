@@ -6,6 +6,7 @@ import { getMyAccess, signOut } from "@/lib/session";
 import { registrarAuditoria } from "@/lib/auditoria-registro";
 import { Bancas } from "@/components/platform/Bancas";
 import { MasterNumberSync } from "@/components/platform/MasterNumberSync";
+import { readVersionedAppData, recoverVersionConflict } from "@/lib/platform/versioned-save";
 
 export const Route = createFileRoute("/_authenticated/plataforma")({
   head: () => ({ meta: [{ title: "Plataforma — Win or Win" }, { name: "description", content: "Sua plataforma Win or Win." }, { property: "og:title", content: "Plataforma — Win or Win" }, { property: "og:description", content: "Planeje contratos, operações, bônus e saques na Win or Win." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
@@ -34,8 +35,9 @@ function Plataforma() {
   const load = useCallback(async () => {
     const { data, error } = await supabase.from("app_data").select("data,version").eq("user_id", user.id).maybeSingle();
     if (error) throw error;
-    versionRef.current = typeof data?.version === "number" ? data.version : null;
-    return data?.data || null;
+    const snapshot = readVersionedAppData(data);
+    versionRef.current = snapshot.version;
+    return snapshot.data || null;
   }, [user.id]);
 
   // Todas as gravações (edições locais e sincronização da Master) passam pela
@@ -56,11 +58,13 @@ function Plataforma() {
           body: JSON.stringify({ data: v, expectedVersion: versionRef.current }),
         });
         if (response.status === 409) {
-          // Nunca repita o snapshot conflitante: releia a versão e recarregue o estado.
-          // Após o reload, a sincronização automática calcula um merge novo.
-          const latest = await supabase.from("app_data").select("version").eq("user_id", user.id).maybeSingle();
-          versionRef.current = typeof latest.data?.version === "number" ? latest.data.version : null;
-          window.location.reload();
+          // Nunca repita o snapshot conflitante: releia documento e versão juntos.
+          // O reload fará a sincronização automática calcular um merge novo.
+          await recoverVersionConflict(
+            () => supabase.from("app_data").select("data,version").eq("user_id", user.id).maybeSingle(),
+            (snapshot) => { versionRef.current = snapshot.version; },
+            () => window.location.reload(),
+          );
           return false;
         }
         if (!response.ok) return false;
