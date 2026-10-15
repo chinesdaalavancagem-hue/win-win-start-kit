@@ -23,7 +23,15 @@ export function MasterNumberSync() {
       cache: "no-store",
     });
     const result = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(result.error || "Não foi possível acessar a sincronização.");
+    if (!response.ok) {
+      const messages: Record<string, string> = {
+        master_not_configured: "A identidade da conta Master ainda não foi configurada no servidor (MASTER_USER_ID).",
+        master_mismatch: "Esta conta não é a Master autorizada para publicar os parâmetros.",
+        account_not_approved: "A conta precisa estar aprovada para acessar a sincronização.",
+        sync_unavailable: "A configuração da sincronização está indisponível ou precisa ser revisada.",
+      };
+      throw new Error(messages[String(result.error)] || "Não foi possível acessar a sincronização.");
+    }
     return result;
   }, []);
 
@@ -58,6 +66,7 @@ export function MasterNumberSync() {
           <div>
             <h2 className="font-semibold">Sincronização de números para contas comuns</h2>
             <p className="mt-1 text-sm text-muted-foreground">Marque somente os parâmetros que você autoriza compartilhar. Depósitos, saques, ciclos e históricos nunca são sincronizados.</p>
+            <p className="mt-1 text-xs text-muted-foreground">Nas contas comuns, os campos publicados são aplicados somente à banca que estiver ativa.</p>
           </div>
           <span className={config.enabled ? "rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300" : "rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground"}>
             {loading ? "Carregando…" : config.enabled ? "Atualizações liberadas" : "Atualizações travadas"}
