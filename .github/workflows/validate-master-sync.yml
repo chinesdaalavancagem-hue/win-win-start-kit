@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - fix/master-sync-compat-versao
+      - integracao/master-sync-final
   pull_request:
     branches:
       - feat/master-controlled-number-sync
@@ -46,3 +47,6 @@ jobs:
 
       - name: Build application
         run: npm run build
+
+      - name: Type-check
+        run: npx tsc --noEmit
