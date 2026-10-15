@@ -17,13 +17,13 @@ function hasActiveAsset(raw: string | null): boolean {
   }
 }
 
-export function MasterNumberSync({ loadMasterData }: { loadMasterData: () => Promise<string | null> }) {
+export function MasterNumberSync({ masterData }: { masterData: string | null }) {
   const [config, setConfig] = useState<SyncConfig>({ enabled: false, allowedFields: [], updatedAt: null });
   const [selected, setSelected] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [masterHasActiveAsset, setMasterHasActiveAsset] = useState<boolean | null>(null);
+  const masterHasActiveAsset = masterData === null ? null : hasActiveAsset(masterData);
 
   const request = useCallback(async (method: "GET" | "POST", body?: unknown) => {
     const { data } = await supabase.auth.getSession();
@@ -58,21 +58,6 @@ export function MasterNumberSync({ loadMasterData }: { loadMasterData: () => Pro
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
   }, [request]);
-
-  useEffect(() => {
-    let alive = true;
-    const refreshMasterAsset = async () => {
-      try {
-        const raw = await loadMasterData();
-        if (alive) setMasterHasActiveAsset(hasActiveAsset(raw));
-      } catch {
-        if (alive) setMasterHasActiveAsset(null);
-      }
-    };
-    void refreshMasterAsset();
-    const timer = window.setInterval(() => { void refreshMasterAsset(); }, 2000);
-    return () => { alive = false; window.clearInterval(timer); };
-  }, [loadMasterData]);
 
   const groups = useMemo(() => [...new Set(MASTER_SYNC_FIELDS.map((field) => field.group))], []);
   const toggleField = (id: string) => setSelected((old) => old.includes(id) ? old.filter((x) => x !== id) : [...old, id]);

@@ -84,7 +84,7 @@ export const Route = createFileRoute("/api/plataforma/sincronizacao-numeros")({
         const { data: masterRow, error: masterError } = await supabaseAdmin.from("app_data")
           .select("data").eq("user_id", user.id).maybeSingle();
         if (masterError || !masterRow?.data) return json({ error: "master_data_unavailable" }, 409);
-        let values: Record<string, number[]>;
+        let values: Record<string, Array<number | null>>;
         try {
           if (hasMasterSyncAsset(masterRow.data)) {
             values = mergePublishedValues(existingConfig?.published_values, allowedFields, extractMasterSyncValues(masterRow.data, allowedFields));

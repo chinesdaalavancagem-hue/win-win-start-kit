@@ -14,8 +14,16 @@ describe("seletor de ativo da banca", () => {
     const a = { ...novaBanca("Nasdaq"), state: defaultState() };
     const b = { ...novaBanca("Ouro"), state: defaultState() };
     const initial = { bancasVersion: 1 as const, activeId: a.id, bancas: [a, b] };
+    const versionRef = { current: 17 };
+    const load = vi.fn(async () => {
+      versionRef.current = 17;
+      return JSON.stringify(initial);
+    });
+    const onDocumentChange = vi.fn();
     const save = vi.fn(async (_serialized: string) => true);
-    await act(async () => { render(<Bancas load={async () => JSON.stringify(initial)} save={save} isAdmin />); });
+    await act(async () => { render(<Bancas load={load} save={save} isAdmin onDocumentChange={onDocumentChange} />); });
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(onDocumentChange).toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: /Gerenciar bancas/ }));
     const selector = screen.getByRole("combobox", { name: "Ativo para sincronização: Nasdaq" });
     fireEvent.change(selector, { target: { value: "nasdaq" } });
@@ -28,5 +36,7 @@ describe("seletor de ativo da banca", () => {
       saved = JSON.parse(save.mock.calls.at(-1)![0] as string);
       expect(saved.bancas[0]).not.toHaveProperty("ativo");
     });
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(versionRef.current).toBe(17);
   });
 });

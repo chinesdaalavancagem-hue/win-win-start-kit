@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MasterNumberSync } from "@/components/platform/MasterNumberSync";
 
@@ -13,19 +13,18 @@ describe("aviso de ativo da Master", () => {
     vi.restoreAllMocks();
   });
 
-  it("mostra o aviso sem ativo e o remove quando Nasdaq ou Ouro é selecionado", async () => {
-    let masterData = JSON.stringify({ bancasVersion: 1, activeId: "a", bancas: [{ id: "a", nome: "Principal" }] });
+  it("mostra e remove o aviso usando o estado em memória, sem polling nem recarga", async () => {
+    const masterSemAtivo = JSON.stringify({ bancasVersion: 1, activeId: "a", bancas: [{ id: "a", nome: "Principal" }] });
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
       enabled: true, allowedFields: ["nasdaq.params.mnq"], updatedAt: null,
     }), { status: 200, headers: { "content-type": "application/json" } })));
-    const loadMasterData = vi.fn(async () => masterData);
-
-    render(<MasterNumberSync loadMasterData={loadMasterData} />);
+    const view = render(<MasterNumberSync masterData={masterSemAtivo} />);
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Selecione Nasdaq ou Ouro na sua banca ativa para publicar");
 
-    masterData = JSON.stringify({ bancasVersion: 1, activeId: "a", bancas: [{ id: "a", nome: "Principal", ativo: "ouro" }] });
-    await waitFor(() => expect(loadMasterData).toHaveBeenCalledTimes(2), { timeout: 4000 });
-    await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument(), { timeout: 4000 });
+    const masterComOuro = JSON.stringify({ bancasVersion: 1, activeId: "a", bancas: [{ id: "a", nome: "Principal", ativo: "ouro" }] });
+    view.rerender(<MasterNumberSync masterData={masterComOuro} />);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    // The component receives a snapshot, not load(); it cannot change Plataforma.versionRef or query app_data.
   });
 });

@@ -10,7 +10,7 @@ import { applyMasterSyncValues } from "@/lib/platform/master-sync";
 import { supabase } from "@/integrations/supabase/client";
 import { Plus, ExternalLink } from "lucide-react";
 
-export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | null>; save: (v: string) => Promise<boolean>; isAdmin: boolean }) {
+export function Bancas({ load, save, isAdmin, onDocumentChange }: { load: () => Promise<string | null>; save: (v: string) => Promise<boolean>; isAdmin: boolean; onDocumentChange?: (raw: string | null) => void }) {
   const [doc, setDoc] = useState<BancasDoc | null>(null);
   const [err, setErr] = useState(false);
   const [painel, setPainel] = useState(false);
@@ -20,6 +20,9 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
   const syncInFlight = useRef(false);
 
   useEffect(() => { load().then((r) => { const d = parseBancas(r); docRef.current = d; setDoc(d); }).catch(() => setErr(true)); }, [load]);
+
+  // Expose the in-memory document to the Master warning; this does not reload app_data.
+  useEffect(() => { if (doc) onDocumentChange?.(JSON.stringify(doc)); }, [doc, onDocumentChange]);
 
   const persist = useCallback((d: BancasDoc) => { docRef.current = d; setDoc(d); return save(JSON.stringify(d)); }, [save]);
 

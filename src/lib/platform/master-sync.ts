@@ -139,11 +139,11 @@ export function mergePublishedValues(
   extracted: Record<string, number[]>,
 ): Record<string, number[]> {
   const allowed = new Set(allowedFields);
-  const merged: Record<string, number[]> = {};
+  const merged: Record<string, Array<number | null>> = {};
   if (existing && typeof existing === "object" && !Array.isArray(existing)) {
     for (const [field, value] of Object.entries(existing as Record<string, unknown>)) {
-      if (allowed.has(field) && Array.isArray(value) && value.every((n) => typeof n === "number" && Number.isFinite(n))) {
-        merged[field] = value as number[];
+      if (allowed.has(field) && Array.isArray(value) && value.every((n) => n === null || (typeof n === "number" && Number.isFinite(n)))) {
+        merged[field] = value as Array<number | null>;
       }
     }
   }

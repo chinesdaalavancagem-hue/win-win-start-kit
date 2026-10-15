@@ -133,6 +133,21 @@ describe("Master number sync", () => {
     expect(ouro).toEqual({ "nasdaq.params.mnq": [4], "ouro.params.mnq": [9] });
   });
 
+  it("preserves null gaps in Nasdaq days.mll when Ouro is published next", () => {
+    const allowed = ["nasdaq.days.mll", "ouro.params.mnq"];
+    const nasdaq = mergePublishedValues(
+      {},
+      allowed,
+      { "nasdaq.days.mll": [1200, Number.NaN, 900, Number.NaN] },
+    );
+    // JSON storage serializes NaN array entries as null.
+    const stored = JSON.parse(JSON.stringify(nasdaq));
+    expect(stored["nasdaq.days.mll"]).toEqual([1200, null, 900, null]);
+    const ouro = mergePublishedValues(stored, allowed, { "ouro.params.mnq": [9] });
+    expect(ouro["nasdaq.days.mll"]).toEqual([1200, null, 900, null]);
+    expect(ouro["ouro.params.mnq"]).toEqual([9]);
+  });
+
   it("removes fields no longer present in allowed_fields", () => {
     expect(mergePublishedValues(
       { "nasdaq.params.mnq": [4], "ouro.params.mnq": [9] },

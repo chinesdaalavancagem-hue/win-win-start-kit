@@ -19,6 +19,7 @@ function Plataforma() {
   const [state, setState] = useState<"loading" | "pending" | "rejected" | "ok">("loading");
   const [isAdmin, setIsAdmin] = useState(false);
   const [name, setName] = useState("");
+  const [masterDataForSync, setMasterDataForSync] = useState<string | null>(null);
   const versionRef = useRef<number | null>(null);
   const conflictRef = useRef(false);
 
@@ -32,6 +33,8 @@ function Plataforma() {
       setState("ok");
     });
   }, [user.id]);
+
+  const handleMasterDocumentChange = useCallback((raw: string | null) => setMasterDataForSync(raw), []);
 
   const load = useCallback(async () => {
     const { data, error } = await supabase.from("app_data").select("data,version").eq("user_id", user.id).maybeSingle();
@@ -106,7 +109,7 @@ function Plataforma() {
           <p className="mt-2 text-muted-foreground">Seu cadastro não foi aprovado. Se achar que houve um engano, fale com o administrador.</p>
         </div>
       )}
-      {state === "ok" && <>{isAdmin && <MasterNumberSync loadMasterData={load} />}<Bancas load={load} save={save} isAdmin={isAdmin} /></>}
+      {state === "ok" && <>{isAdmin && <MasterNumberSync masterData={masterDataForSync} />}<Bancas load={load} save={save} isAdmin={isAdmin} onDocumentChange={handleMasterDocumentChange} /></>}
     </div>
   );
 }
