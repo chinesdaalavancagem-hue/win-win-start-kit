@@ -60,7 +60,7 @@ function Plataforma() {
     });
     saveQueue.current = task.then(() => undefined, () => undefined);
     return task;
-  }, [user.id]);
+  }, []);
 
   return (
     <div className="flex min-h-screen flex-col">
