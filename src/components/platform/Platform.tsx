@@ -736,7 +736,7 @@ function CaixaPanel({ asset, assetKey, bonusPct, setBonusPct }: { asset: Asset; 
           ))}</tbody>
           <tfoot>
             <tr className="border-t-2 font-semibold">
-              <td className="p-1" colSpan={4}>Totais das perdas no ciclo</td>
+              <td className="p-1" colSpan={5}>Totais das perdas no ciclo</td>
               <td className="p-1 text-destructive">${fmt(r.totalPerda)}</td>
               <td className="p-1 text-destructive">${fmt(r.perdaPropriaTotal)}</td>
               <td className="p-1">${fmt(r.perdaBonusTotal)}</td>
