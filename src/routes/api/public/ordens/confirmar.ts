@@ -11,6 +11,7 @@ export const Route = createFileRoute("/api/public/ordens/confirmar")({
         if (auth.status === 401) return json({ error: "unauthorized" }, 401);
         if (auth.status === 500) return json({ error: "auth_unavailable" }, 500);
         const userId = auth.userId;
+        if (!userId) return json({ error: "unauthorized" }, 401);
         let body: unknown;
         try { body = await request.json(); } catch { return json({ error: "invalid json" }, 400); }
         const p = confirmarSchema.safeParse(body);

@@ -312,7 +312,7 @@ export function calcAporteFracionado(o: { margem: number; stopoutPct: number; cu
   return { total, proprio, bonus, economia };
 }
 
-export interface CaixaDia { dia: number; necessario: number; saldoAntes: number; proprioAntes: number; bonusAntes: number; proprioDisponivel: number; bonusDisponivel: number; excedenteProprioSacavel: number; deposito: number; bonusGanho: number; perda: number; proprioRestante: number; bonusRestante: number; caixaAcumulado: number }
+export interface CaixaDia { dia: number; necessario: number; saldoAntes: number; proprioAntes: number; bonusAntes: number; proprioDisponivel: number; bonusDisponivel: number; excedenteProprioSacavel: number; deposito: number; bonusGanho: number; perda: number; perdaPropria: number; perdaBonus: number; proprioRestante: number; bonusRestante: number; caixaAcumulado: number }
 /** Caixa do ciclo completo: simula passar em todos os dias (pior caso de caixa) com aporte fracionado e bônus com teto. */
 export function calcCaixaCiclo(a: Asset, key: AssetKey, bonusPct: number) {
   const calcs = computeAssetCalcs(a, key);
