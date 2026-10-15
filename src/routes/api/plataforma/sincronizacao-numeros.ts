@@ -90,9 +90,7 @@ export const Route = createFileRoute("/api/plataforma/sincronizacao-numeros")({
             values = mergePublishedValues(existingConfig?.published_values, allowedFields, extractMasterSyncValues(masterRow.data, allowedFields));
           } else {
             // Ainda permite salvar trava/campos autorizados, mas não muda a publicação sem ativo.
-            values = existingConfig?.published_values && typeof existingConfig.published_values === "object"
-              ? existingConfig.published_values as Record<string, number[]>
-              : {};
+            values = mergePublishedValues(existingConfig?.published_values, allowedFields, {});
           }
         } catch { return json({ error: "invalid_master_data" }, 409); }
         const { error: saveError } = await supabaseAdmin.from("master_number_sync").upsert({

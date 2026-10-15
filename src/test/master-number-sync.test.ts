@@ -145,6 +145,6 @@ describe("Master number sync", () => {
     const raw = JSON.stringify({ bancasVersion: 1, activeId: "master", bancas: [{ id: "master", state: makeState(4, 2.5, 700, 999) }] });
     expect(hasMasterSyncAsset(raw)).toBe(false);
     const existing = { "nasdaq.params.mnq": [4], "ouro.params.mnq": [9] };
-    expect(existing).toEqual({ "nasdaq.params.mnq": [4], "ouro.params.mnq": [9] });
+    expect(mergePublishedValues(existing, ["nasdaq.params.mnq", "ouro.params.mnq"], {})).toEqual(existing);
   });
 });
