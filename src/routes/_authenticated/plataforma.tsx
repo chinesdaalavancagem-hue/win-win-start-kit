@@ -6,6 +6,7 @@ import { getMyAccess, signOut } from "@/lib/session";
 import { registrarAuditoria } from "@/lib/auditoria-registro";
 import { Bancas } from "@/components/platform/Bancas";
 import { MasterNumberSync } from "@/components/platform/MasterNumberSync";
+import { applyMasterSyncValues } from "@/lib/platform/master-sync";
 import { queueSaveUnlessConflicted, readVersionedAppData, recoverVersionConflict } from "@/lib/platform/versioned-save";
 
 export const Route = createFileRoute("/_authenticated/plataforma")({
@@ -22,6 +23,7 @@ function Plataforma() {
   const [masterDataForSync, setMasterDataForSync] = useState<string | null>(null);
   const versionRef = useRef<number | null>(null);
   const conflictRef = useRef(false);
+  const saveRef = useRef<((v: string) => unknown) | null>(null);
 
   useEffect(() => {
     void registrarAuditoria({ category: "navigation", action: "navigation.opened", outcome: "success", details: { page: "platform" } });
@@ -97,6 +99,7 @@ function Plataforma() {
     },
     false,
   ), []);
+  saveRef.current = save;
 
   return (
     <div className="flex min-h-screen flex-col">
