@@ -55,6 +55,7 @@ export function extractMasterSyncValues(raw: string, allowedFields: string[]): R
   for (const field of allowedFields) {
     if (!allowed.has(field)) continue;
     const [assetKey, section, key] = field.split(".");
+    if (!assetKey || !section || !key) continue;
     const asset = assets?.[assetKey] as Record<string, unknown> | undefined;
     if (section === "params") {
       const params = asset?.params as Record<string, unknown> | undefined;
@@ -85,6 +86,7 @@ export function applyMasterSyncValues(raw: string, values: Record<string, number
       for (const [field, incoming] of Object.entries(values)) {
         if (!MASTER_SYNC_FIELDS.some((f) => f.id === field) || !Array.isArray(incoming)) continue;
         const [assetKey, section, key] = field.split(".");
+        if (!assetKey || !section || !key) continue;
         const asset = assets[assetKey] as Record<string, unknown> | undefined;
         if (!asset) continue;
         if (section === "params") {
@@ -96,8 +98,9 @@ export function applyMasterSyncValues(raw: string, values: Record<string, number
           const days = asset.days as Array<Record<string, unknown>>;
           for (let i = 0; i < Math.min(days.length, incoming.length); i++) {
             const value = incoming[i];
-            if (typeof value === "number" && Number.isFinite(value) && days[i] && days[i][key] !== value) {
-              days[i][key] = value; changed = true;
+            const day = days[i];
+            if (typeof value === "number" && Number.isFinite(value) && day && day[key] !== value) {
+              day[key] = value; changed = true;
             }
           }
         }
