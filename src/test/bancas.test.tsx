@@ -5,7 +5,7 @@ import { novaBanca } from "@/lib/platform/bancas";
 
 vi.mock("@/components/platform/Platform", () => ({ Platform: () => <div>Platform mock</div> }));
 vi.mock("@/components/platform/ComprarDesafioModal", () => ({ ComprarDesafioModal: () => null }));
-vi.mock("@/integrations/supabase/client", () => ({ supabase: { auth: { getSession: vi.fn(async () => ({ data: { session: null } })) } }));
+vi.mock("@/integrations/supabase/client", () => ({ supabase: { auth: { getSession: vi.fn(async () => ({ data: { session: null } })) } } }));
 
 import { Bancas } from "@/components/platform/Bancas";
 
@@ -26,8 +26,8 @@ describe("gestão de bancas sem sincronização automática", () => {
     expect(screen.queryByLabelText(/Ativo para sincronização/i)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /Gerenciar bancas/ }));
-    expect(screen.getByText("Nasdaq")).toBeInTheDocument();
-    expect(screen.getByText("Ouro")).toBeInTheDocument();
+    expect(screen.getAllByText("Nasdaq").some((el) => el.tagName !== "OPTION")).toBe(true);
+    expect(screen.getAllByText("Ouro").some((el) => el.tagName !== "OPTION")).toBe(true);
     expect(screen.queryByLabelText(/Ativo para sincronização/i)).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByRole("combobox", { name: "Banca:" }), { target: { value: b.id } });
