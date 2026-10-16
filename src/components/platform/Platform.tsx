@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Undo2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { registrarAuditoria } from "@/lib/auditoria-registro";
+import { applyOfficialParams, buildOfficialParams, isOfficialParams } from "@/lib/platform/official-params";
 import {
   type AssetKey, type State, type TabKey, type Asset,
   aplicarDeposito, aplicarSaque, calcAporteFracionado, calcCaixaCiclo, clampDayIndex, computeAssetCalcs, defaultState, fmt, fmtSigned, handleProfit, handleStop,
@@ -124,7 +125,7 @@ export function Platform({ load, save, isAdmin }: { load: () => Promise<string |
         <AssetView key={tab} state={state} assetKey={tab} section={section} setSection={setSection} mutate={mutate} isAdmin={isAdmin} />
       )}
 
-      <BackupMenu state={state} mutate={mutate} />
+      <BackupMenu state={state} mutate={mutate} isAdmin={isAdmin} />
       <StrategyNotes />
     </div>
   );
@@ -614,8 +615,31 @@ function LogList({ state }: { state: State }) {
 
 /* ---------- backup e notas ---------- */
 
-function BackupMenu({ state, mutate }: { state: State; mutate: (fn: (s: State) => void) => void }) {
+function BackupMenu({ state, mutate, isAdmin }: { state: State; mutate: (fn: (s: State) => void) => void; isAdmin: boolean }) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const officialFileRef = useRef<HTMLInputElement>(null);
+  function exportarParametrosOficiais() {
+    const payload = buildOfficialParams(state);
+    const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" }));
+    const a = document.createElement("a"); a.href = url; a.download = `WinOrWin_Parametros_${new Date().toISOString().slice(0, 10)}.json`; a.click(); URL.revokeObjectURL(url);
+  }
+  function importarParametrosOficiais(file: File, input: HTMLInputElement) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const payload: unknown = JSON.parse(String(reader.result));
+        if (!isOfficialParams(payload)) {
+          alert("Arquivo inválido. Selecione um JSON oficial de parâmetros WinOrWin.");
+          return;
+        }
+        if (!window.confirm("Importar os parâmetros oficiais? Isso substituirá os parâmetros e os dias operacionais desta banca, mas preservará histórico, saldos e dados pessoais.")) return;
+        mutate((current) => applyOfficialParams(current, payload));
+        alert("Parâmetros oficiais importados. Seu histórico e seus saldos foram preservados.");
+      } catch { alert("Não foi possível ler esse arquivo de parâmetros."); }
+      finally { input.value = ""; }
+    };
+    reader.readAsText(file);
+  }
   return (
     <details className="mt-6 rounded-lg border bg-card p-3 text-sm">
       <summary className="cursor-pointer text-muted-foreground">Backup e dados</summary>
@@ -625,6 +649,8 @@ function BackupMenu({ state, mutate }: { state: State; mutate: (fn: (s: State) =
           const a = document.createElement("a"); a.href = url; a.download = `hedge-multiativo-backup-${new Date().toISOString().slice(0, 10)}.json`; a.click(); URL.revokeObjectURL(url);
         }}>exportar backup (.json)</Button>
         <Button type="button" variant="outline" size="sm" onClick={() => fileRef.current?.click()}>importar backup</Button>
+        {isAdmin && <Button type="button" variant="outline" size="sm" onClick={exportarParametrosOficiais}>exportar parâmetros oficiais (.json)</Button>}
+        <Button type="button" variant="outline" size="sm" onClick={() => officialFileRef.current?.click()}>importar parâmetros oficiais</Button>
         <ConfirmButton variant="ghost" className="text-destructive" confirmText="clique de novo (apaga tudo)" onConfirm={() => mutate((s) => Object.assign(s, defaultState()))}>limpar todos os dados salvos</ConfirmButton>
         <input ref={fileRef} type="file" accept=".json,application/json" className="hidden" onChange={(e) => {
           const f = e.target.files?.[0]; if (!f) return;
@@ -640,6 +666,9 @@ function BackupMenu({ state, mutate }: { state: State; mutate: (fn: (s: State) =
             e.target.value = "";
           };
           r.readAsText(f);
+        }} />
+        <input ref={officialFileRef} type="file" accept=".json,application/json" className="hidden" onChange={(e) => {
+          const file = e.target.files?.[0]; if (file) importarParametrosOficiais(file, e.currentTarget);
         }} />
       </div>
     </details>

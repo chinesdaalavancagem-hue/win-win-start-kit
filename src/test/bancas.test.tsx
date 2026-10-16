@@ -9,34 +9,29 @@ vi.mock("@/integrations/supabase/client", () => ({ supabase: { auth: { getSessio
 
 import { Bancas } from "@/components/platform/Bancas";
 
-describe("seletor de ativo da banca", () => {
-  it("salva o ativo na banca correta e remove a chave ao selecionar vazio", async () => {
+describe("gestão de bancas sem sincronização automática", () => {
+  it("carrega e gerencia bancas sem exibir seletor de sincronização nem recarregar o documento", async () => {
     const a = { ...novaBanca("Nasdaq"), state: defaultState() };
     const b = { ...novaBanca("Ouro"), state: defaultState() };
     const initial = { bancasVersion: 1 as const, activeId: a.id, bancas: [a, b] };
-    const versionRef = { current: 17 };
-    const load = vi.fn(async () => {
-      versionRef.current = 17;
-      return JSON.stringify(initial);
-    });
-    const onDocumentChange = vi.fn();
+    const load = vi.fn(async () => JSON.stringify(initial));
     const save = vi.fn(async (_serialized: string) => true);
-    await act(async () => { render(<Bancas load={load} save={save} isAdmin onDocumentChange={onDocumentChange} />); });
-    expect(load).toHaveBeenCalledTimes(1);
-    expect(onDocumentChange).toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: /Gerenciar bancas/ }));
-    const selector = screen.getByRole("combobox", { name: "Ativo para sincronização: Nasdaq" });
-    fireEvent.change(selector, { target: { value: "nasdaq" } });
-    await waitFor(() => expect(save).toHaveBeenCalled());
-    let saved = JSON.parse(save.mock.calls.at(-1)![0] as string);
-    expect(saved.bancas[0].ativo).toBe("nasdaq");
-    expect(saved.bancas[1]).not.toHaveProperty("ativo");
-    fireEvent.change(screen.getByRole("combobox", { name: "Ativo para sincronização: Nasdaq" }), { target: { value: "" } });
-    await waitFor(() => {
-      saved = JSON.parse(save.mock.calls.at(-1)![0] as string);
-      expect(saved.bancas[0]).not.toHaveProperty("ativo");
+
+    await act(async () => {
+      render(<Bancas load={load} save={save} isAdmin />);
     });
+
+    expect(await screen.findByRole("combobox", { name: "Banca:" })).toBeInTheDocument();
     expect(load).toHaveBeenCalledTimes(1);
-    expect(versionRef.current).toBe(17);
+    expect(screen.queryByLabelText(/Ativo para sincronização/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Gerenciar bancas/ }));
+    expect(screen.getAllByText("Nasdaq").some((el) => el.tagName !== "OPTION")).toBe(true);
+    expect(screen.getAllByText("Ouro").some((el) => el.tagName !== "OPTION")).toBe(true);
+    expect(screen.queryByLabelText(/Ativo para sincronização/i)).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Banca:" }), { target: { value: b.id } });
+    await waitFor(() => expect(save).toHaveBeenCalled());
+    expect(load).toHaveBeenCalledTimes(1);
   });
 });
