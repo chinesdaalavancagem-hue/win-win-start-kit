@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MASTER_SYNC_FIELDS, applyMasterSyncValues, extractMasterSyncValues, hasMasterSyncAsset, mergePublishedValues } from "@/lib/platform/master-sync";
+import { MASTER_SYNC_FIELDS, applyMasterSyncValues, extractMasterSyncValues, mergePublishedValues } from "@/lib/platform/master-sync";
 
 const makeState = (mnq: number, lotes: number, deposito: number, saque: number) => ({
   activeTab: "nasdaq",
@@ -76,7 +76,6 @@ describe("Master number sync", () => {
     expect(applyMasterSyncValues(raw, { "nasdaq.params.mnq": [4], "nasdaq.days.lotes": [2.5] })).toBeNull();
   });
 
-  });
   it("preserves published Nasdaq fields when publishing Ouro next", () => {
     const nasdaq = mergePublishedValues({}, ["nasdaq.params.mnq", "ouro.params.mnq"], { "nasdaq.params.mnq": [4] });
     const ouro = mergePublishedValues(nasdaq, ["nasdaq.params.mnq", "ouro.params.mnq"], { "ouro.params.mnq": [9] });
