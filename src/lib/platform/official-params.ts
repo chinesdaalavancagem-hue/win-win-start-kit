@@ -45,11 +45,14 @@ export function isOfficialParams(payload: unknown): payload is OfficialParamsPay
   });
 }
 
-/** Aplica parâmetros e dias oficiais in-place, preservando tudo o mais da conta. */
+/** Aplica somente os campos oficiais conhecidos; chaves extras do arquivo (ex.: saldoInicial) são ignoradas. */
 export function applyOfficialParams(current: State, payload: OfficialParamsPayload): void {
   for (const key of ASSETS) {
     const incoming = payload.assets[key];
-    current.assets[key].params = { ...current.assets[key].params, ...incoming.params } as State["assets"]["nasdaq"]["params"];
-    current.assets[key].days = incoming.days.map((day) => ({ ...day }));
+    const picked: Record<string, unknown> = {};
+    for (const f of PARAM_FIELDS) picked[f] = incoming.params[f];
+    if (incoming.params.ativoReal !== undefined) picked.ativoReal = incoming.params.ativoReal;
+    current.assets[key].params = { ...current.assets[key].params, ...picked } as State["assets"]["nasdaq"]["params"];
+    current.assets[key].days = incoming.days.map(({ mnq, lotes, meta, mll }) => ({ mnq, lotes, meta, ...(typeof mll === "number" ? { mll } : {}) }));
   }
 }
