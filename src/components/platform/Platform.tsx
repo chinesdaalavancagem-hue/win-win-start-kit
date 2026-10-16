@@ -646,7 +646,7 @@ function BackupMenu({ state, mutate, isAdmin }: { state: State; mutate: (fn: (s:
               Array.isArray(asset.days) && asset.days.every((day) => !!day && typeof day === "object" &&
                 ["mnq", "lotes", "meta"].every((field) => typeof (day as Record<string, unknown>)[field] === "number" && Number.isFinite((day as Record<string, unknown>)[field])) &&
                 ((day as Record<string, unknown>).mll === undefined ||
-                  (typeof (day as Record<string, unknown>).mll === "number" && Number.isFinite((day as Record<string, unknown>).mll)))
+                  (typeof (day as Record<string, unknown>).mll === "number" && Number.isFinite((day as Record<string, unknown>).mll))))
           })) {
           alert("Arquivo inválido. Selecione um JSON oficial de parâmetros WinOrWin.");
           return;
