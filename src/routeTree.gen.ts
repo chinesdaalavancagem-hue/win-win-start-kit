@@ -24,7 +24,6 @@ import { Route as ApiAssistenteRouteImport } from './routes/api/assistente'
 import { Route as ApiAuditoriaRouteImport } from './routes/api/auditoria'
 import { Route as ApiTelegramTesteRouteImport } from './routes/api/telegram-teste'
 import { Route as ApiPlataformaDadosRouteImport } from './routes/api/plataforma/dados'
-import { Route as ApiPlataformaSincronizacaoNumerosRouteImport } from './routes/api/plataforma/sincronizacao-numeros'
 import { Route as ApiTermosAceiteRouteImport } from './routes/api/termos/aceite'
 import { Route as ApiTermosStatusRouteImport } from './routes/api/termos/status'
 import { Route as ApiPublicOrdensIndexRouteImport } from './routes/api/public/ordens/index'
@@ -105,12 +104,6 @@ const ApiPlataformaDadosRoute = ApiPlataformaDadosRouteImport.update({
   path: '/api/plataforma/dados',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPlataformaSincronizacaoNumerosRoute =
-  ApiPlataformaSincronizacaoNumerosRouteImport.update({
-    id: '/api/plataforma/sincronizacao-numeros',
-    path: '/api/plataforma/sincronizacao-numeros',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const ApiTermosAceiteRoute = ApiTermosAceiteRouteImport.update({
   id: '/api/termos/aceite',
   path: '/api/termos/aceite',
@@ -154,7 +147,6 @@ export interface FileRoutesByFullPath {
   '/api/auditoria': typeof ApiAuditoriaRoute
   '/api/telegram-teste': typeof ApiTelegramTesteRoute
   '/api/plataforma/dados': typeof ApiPlataformaDadosRoute
-  '/api/plataforma/sincronizacao-numeros': typeof ApiPlataformaSincronizacaoNumerosRoute
   '/api/termos/aceite': typeof ApiTermosAceiteRoute
   '/api/termos/status': typeof ApiTermosStatusRoute
   '/api/public/ordens/confirmar': typeof ApiPublicOrdensConfirmarRoute
@@ -176,7 +168,6 @@ export interface FileRoutesByTo {
   '/api/auditoria': typeof ApiAuditoriaRoute
   '/api/telegram-teste': typeof ApiTelegramTesteRoute
   '/api/plataforma/dados': typeof ApiPlataformaDadosRoute
-  '/api/plataforma/sincronizacao-numeros': typeof ApiPlataformaSincronizacaoNumerosRoute
   '/api/termos/aceite': typeof ApiTermosAceiteRoute
   '/api/termos/status': typeof ApiTermosStatusRoute
   '/api/public/ordens/confirmar': typeof ApiPublicOrdensConfirmarRoute
@@ -200,7 +191,6 @@ export interface FileRoutesById {
   '/api/auditoria': typeof ApiAuditoriaRoute
   '/api/telegram-teste': typeof ApiTelegramTesteRoute
   '/api/plataforma/dados': typeof ApiPlataformaDadosRoute
-  '/api/plataforma/sincronizacao-numeros': typeof ApiPlataformaSincronizacaoNumerosRoute
   '/api/termos/aceite': typeof ApiTermosAceiteRoute
   '/api/termos/status': typeof ApiTermosStatusRoute
   '/api/public/ordens/confirmar': typeof ApiPublicOrdensConfirmarRoute
@@ -224,7 +214,6 @@ export interface FileRouteTypes {
     | '/api/auditoria'
     | '/api/telegram-teste'
     | '/api/plataforma/dados'
-    | '/api/plataforma/sincronizacao-numeros'
     | '/api/termos/aceite'
     | '/api/termos/status'
     | '/api/public/ordens/confirmar'
@@ -246,7 +235,6 @@ export interface FileRouteTypes {
     | '/api/auditoria'
     | '/api/telegram-teste'
     | '/api/plataforma/dados'
-    | '/api/plataforma/sincronizacao-numeros'
     | '/api/termos/aceite'
     | '/api/termos/status'
     | '/api/public/ordens/confirmar'
@@ -269,7 +257,6 @@ export interface FileRouteTypes {
     | '/api/auditoria'
     | '/api/telegram-teste'
     | '/api/plataforma/dados'
-    | '/api/plataforma/sincronizacao-numeros'
     | '/api/termos/aceite'
     | '/api/termos/status'
     | '/api/public/ordens/confirmar'
@@ -288,7 +275,6 @@ export interface RootRouteChildren {
   ApiAuditoriaRoute: typeof ApiAuditoriaRoute
   ApiTelegramTesteRoute: typeof ApiTelegramTesteRoute
   ApiPlataformaDadosRoute: typeof ApiPlataformaDadosRoute
-  ApiPlataformaSincronizacaoNumerosRoute: typeof ApiPlataformaSincronizacaoNumerosRoute
   ApiTermosAceiteRoute: typeof ApiTermosAceiteRoute
   ApiTermosStatusRoute: typeof ApiTermosStatusRoute
   ApiPublicOrdensConfirmarRoute: typeof ApiPublicOrdensConfirmarRoute
@@ -403,13 +389,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPlataformaDadosRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/plataforma/sincronizacao-numeros': {
-      id: '/api/plataforma/sincronizacao-numeros'
-      path: '/api/plataforma/sincronizacao-numeros'
-      fullPath: '/api/plataforma/sincronizacao-numeros'
-      preLoaderRoute: typeof ApiPlataformaSincronizacaoNumerosRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/termos/aceite': {
       id: '/api/termos/aceite'
       path: '/api/termos/aceite'
@@ -478,8 +457,6 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAuditoriaRoute: ApiAuditoriaRoute,
   ApiTelegramTesteRoute: ApiTelegramTesteRoute,
   ApiPlataformaDadosRoute: ApiPlataformaDadosRoute,
-  ApiPlataformaSincronizacaoNumerosRoute:
-    ApiPlataformaSincronizacaoNumerosRoute,
   ApiTermosAceiteRoute: ApiTermosAceiteRoute,
   ApiTermosStatusRoute: ApiTermosStatusRoute,
   ApiPublicOrdensConfirmarRoute: ApiPublicOrdensConfirmarRoute,
