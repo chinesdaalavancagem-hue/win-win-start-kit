@@ -23,7 +23,7 @@ export function buildOfficialParams(state: State, exportedAt = new Date().toISOS
       params: { mnq, hfm, mll, taxa, lucroDesejado, marginPerLot, stopoutPct, saqueAprovada, folgaExtraPct, ...(ativoReal ? { ativoReal } : {}) },
       days: state.assets[key].days.map(({ mnq, lotes, meta, mll }) => ({ mnq, lotes, meta, ...(typeof mll === "number" ? { mll } : {}) })),
     }];
-  })) as OfficialParamsPayload["assets"];
+  })) as unknown as OfficialParamsPayload["assets"];
   return { format: OFFICIAL_PARAMS_FORMAT, version: 1, exportedAt, assets };
 }
 
