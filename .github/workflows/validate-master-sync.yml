@@ -6,6 +6,7 @@ on:
       - fix/master-sync-compat-versao
       - integracao/master-sync-final
       - test/json-oficial-sem-sync
+      - fix/remover-sync-automatico-legado
   pull_request:
     branches:
       - feat/master-controlled-number-sync
