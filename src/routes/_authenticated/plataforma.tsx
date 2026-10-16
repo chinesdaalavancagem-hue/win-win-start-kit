@@ -38,10 +38,9 @@ function Plataforma() {
     const snapshot = readVersionedAppData(data);
     versionRef.current = snapshot.version;
     return snapshot.data || null;
-  }, [user.id, isAdmin]);
+  }, [user.id]);
 
-  // Todas as gravações (edições locais e sincronização da Master) passam pela
-  // mesma fila para preservar a ordem em que foram solicitadas.
+  // Todas as gravações locais passam pela mesma fila para preservar a ordem em que foram solicitadas.
   const saveQueue = useRef<Promise<void>>(Promise.resolve());
   const save = useCallback((v: string) => queueSaveUnlessConflicted(
     saveQueue,
