@@ -151,7 +151,7 @@ describe("validação do salvamento", () => {
     expect([JSON.stringify(one), JSON.stringify(two)]).toContain(previous.data);
   });
 
-  it("preserva campos já publicados durante publicação automática de outro ativo", async () => {
+  it("não publica números automaticamente ao salvar uma banca Master com ativo definido", async () => {
     const banca = novaBanca("Master");
     banca.ativo = "nasdaq";
     const masterDoc = { bancasVersion: 1, activeId: banca.id, bancas: [banca] };
@@ -159,11 +159,11 @@ describe("validação do salvamento", () => {
       enabled: true, allowed_fields: ["nasdaq.params.mnq", "ouro.params.mnq"],
       admin_user_id: "test-user", published_values: { "nasdaq.params.mnq": [11], "ouro.params.mnq": [22] },
     };
+
     const response = await save(masterDoc);
+
     expect(response.status).toBe(200);
-    expect(update).toHaveBeenCalledWith("master_number_sync", expect.objectContaining({
-      published_values: expect.objectContaining({ "nasdaq.params.mnq": [2], "ouro.params.mnq": [22] }),
-    }));
+    expect(update).not.toHaveBeenCalledWith("master_number_sync", expect.anything());
   });
 
   it("não altera a publicação automática quando a Master não tem ativo", async () => {
