@@ -133,19 +133,21 @@ export function Platform({ load, save, isAdmin }: { load: () => Promise<string |
 
 /* ---------- pequenos componentes ---------- */
 
-function NumField({ label, value, onChange, readOnly, helper, placeholder }: { label: string; value: number; onChange?: (n: number) => void; readOnly?: boolean; helper?: ReactNode; placeholder?: string }) {
+function NumField({ label, value, onChange, readOnly, helper, placeholder, cockpit }: { label: ReactNode; value: number; onChange?: (n: number) => void; readOnly?: boolean; helper?: ReactNode; placeholder?: string; cockpit?: boolean }) {
   const [text, setText] = useState(String(value));
   const focused = useRef(false);
   useEffect(() => { if (!focused.current) setText(String(value)); }, [value]);
   return (
     <label className="block min-w-0">
-      <span className="mb-1 block text-xs text-muted-foreground">{label}</span>
+      <span className={cn("mb-1 block text-xs text-muted-foreground", cockpit && "flex items-center gap-1.5 text-blue-100/90")}>{label}</span>
       <input type="text" inputMode="decimal" value={text} readOnly={readOnly} placeholder={placeholder}
         enterKeyHint="done"
         onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); } }}
         onFocus={() => { focused.current = true; }} onBlur={() => { focused.current = false; setText(String(value)); }}
         onChange={(e) => { setText(e.target.value); onChange?.(parseNum(e.target.value)); }}
-        className={cn("w-full rounded-md border bg-input/40 px-3 py-2 font-mono text-sm outline-none focus:ring-2 focus:ring-ring", readOnly && "opacity-70")} />
+        className={cockpit
+          ? "w-full rounded-md border border-transparent bg-transparent px-0 py-0.5 font-mono text-2xl font-bold text-slate-50 outline-none transition-colors hover:border-[#19334f] focus:border-blue-500/70 focus:bg-[#081320] focus:px-1.5 sm:text-[28px]"
+          : cn("w-full rounded-md border bg-input/40 px-3 py-2 font-mono text-sm outline-none focus:ring-2 focus:ring-ring", readOnly && "opacity-70")} />
       {helper && <span className="mt-1 block font-mono text-[11px] text-muted-foreground">{helper}</span>}
     </label>
   );
