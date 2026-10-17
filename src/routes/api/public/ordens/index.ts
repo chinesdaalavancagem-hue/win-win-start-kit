@@ -23,15 +23,54 @@ export const Route = createFileRoute("/api/public/ordens/")({
             { onConflict: "user_id,external_id", ignoreDuplicates: true })
           .select("id").maybeSingle();
         if (error) { console.error(error); return json({ error: "queue failed" }, 500); }
+
+        const isNewOrder = Boolean(data);
+
         const { error: auditError } = await supabaseAdmin.from("audit_logs").insert({
           user_id: userId,
           category: "integration",
           action: "integration.order_received",
-          outcome: data ? "success" : "unknown",
-          details: { symbol: o.symbol, qty: o.qty, side: o.side, duplicate: !data },
+          outcome: isNewOrder ? "success" : "unknown",
+          details: { symbol: o.symbol, qty: o.qty, side: o.side, duplicate: !isNewOrder },
         });
         if (auditError) console.error("[audit] incoming order event failed", auditError.message);
-        return json({ ok: true, id: data?.id ?? null, duplicate: !data }, data ? 201 : 200);
+
+        // Notifica o usuário no Telegram e via Web Push no celular quando uma ordem nova chega.
+        // O envio é best-effort e não atrasa nem interrompe a resposta da ordem.
+        if (isNewOrder) {
+          void (async () => {
+            try {
+              const [{ enviarTelegram, chatIdDoUsuario }, { enviarPushAoUsuario }] = await Promise.all([
+                import("@/lib/telegram.server"),
+                import("@/lib/push.server"),
+              ]);
+
+              const operacao = o.side === "buy" ? "🟢 COMPRA" : "🔴 VENDA";
+              const espelho = mirrorSide(o.side) === "buy" ? "COMPRA" : "VENDA";
+              const msgTelegram = `⚡ <b>Nova Ordem Recebida — Tradovate</b>\n\n` +
+                `<b>Ativo:</b> ${o.symbol}\n` +
+                `<b>Operação na Mesa:</b> ${operacao} (${o.qty} ctr)\n` +
+                `<b>Espelhamento CFD:</b> ${espelho}\n` +
+                (o.price ? `<b>Preço:</b> ${o.price}\n` : "") +
+                `<b>Status:</b> Na fila para execução no MT5`;
+
+              const chatId = await chatIdDoUsuario(userId);
+              if (chatId) {
+                await enviarTelegram(msgTelegram, { chatId });
+              }
+
+              await enviarPushAoUsuario(userId, {
+                title: `Ordem Tradovate: ${operacao} ${o.qty} ${o.symbol}`,
+                body: `Espelhamento ${espelho} enviado para o MT5.`,
+                url: "/plataforma",
+              });
+            } catch (err) {
+              console.error("[notificacoes] falha silenciosa ao enviar alertas de ordem:", err);
+            }
+          })();
+        }
+
+        return json({ ok: true, id: data?.id ?? null, duplicate: !isNewOrder }, isNewOrder ? 201 : 200);
       },
     },
   },
