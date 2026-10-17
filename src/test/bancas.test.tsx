@@ -25,7 +25,7 @@ describe("gestão de bancas sem sincronização automática", () => {
     expect(load).toHaveBeenCalledTimes(1);
     expect(screen.queryByLabelText(/Ativo para sincronização/i)).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /Gerenciar bancas/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Minhas bancas/i }));
     expect(screen.getAllByText("Nasdaq").some((el) => el.tagName !== "OPTION")).toBe(true);
     expect(screen.getAllByText("Ouro").some((el) => el.tagName !== "OPTION")).toBe(true);
     expect(screen.queryByLabelText(/Ativo para sincronização/i)).not.toBeInTheDocument();
