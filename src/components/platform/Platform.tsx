@@ -87,31 +87,41 @@ export function Platform({ load, save, isAdmin }: { load: () => Promise<string |
   const lastOperation = state.log.at(-1);
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-3 py-4 sm:px-6">
-      <div className="mb-1 flex items-center justify-between gap-3">
-        <h1 className="font-heading text-xl sm:text-2xl">Win or Win Platform</h1>
-        <span className="flex items-center gap-2 font-mono text-xs text-muted-foreground">
-          <span className={cn("size-2 rounded-full", sync.mode === "ok" && "bg-market-up", sync.mode === "busy" && "bg-brand-gold", sync.mode === "err" && "bg-market-down")} />
-          {sync.text}
-        </span>
-      </div>
-      <p className="mb-4 text-sm text-muted-foreground">Digite manualmente os contratos, os lotes do broker CFD e a meta de cada dia.</p>
+    <div className="mx-auto w-full max-w-6xl px-3 py-5 sm:px-5 lg:px-6">
+      <section className="relative mb-5 overflow-hidden rounded-2xl border border-cyan-700/60 bg-[radial-gradient(ellipse_at_90%_30%,rgba(0,190,255,0.14),transparent_45%),linear-gradient(135deg,#07152a_0%,#030b17_65%,#041321_100%)] p-4 shadow-[0_20px_55px_rgba(0,0,0,0.25)] sm:p-6">
+        <div className="pointer-events-none absolute -right-12 top-8 h-40 w-64 rounded-full border border-cyan-400/10 blur-sm" />
+        <div className="relative flex flex-wrap items-start justify-between gap-4">
+          <div className="flex max-w-xl items-start gap-3">
+            <div className="flex size-14 shrink-0 items-center justify-center rounded-2xl border border-cyan-400/25 bg-gradient-to-br from-blue-700/80 to-cyan-950 shadow-[0_0_28px_rgba(0,150,255,0.18)]">
+              <TrendingUp className="size-7 text-cyan-300" />
+            </div>
+            <div>
+              <h1 className="font-heading text-2xl font-extrabold tracking-tight text-slate-50 sm:text-3xl">Win or <span className="text-cyan-400">Win</span> Platform</h1>
+              <p className="mt-2 max-w-lg text-sm leading-relaxed text-blue-100/75 sm:text-base">Digite manualmente os contratos, os lotes do broker CFD e a meta de cada dia.</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 rounded-xl border border-cyan-950/80 bg-[#061322]/80 px-3 py-2.5 font-mono text-xs text-blue-100/75">
+            <span className={cn("size-2.5 rounded-full", sync.mode === "ok" && "bg-emerald-400 shadow-[0_0_12px_rgba(0,255,190,0.75)]", sync.mode === "busy" && "bg-amber-400", sync.mode === "err" && "bg-rose-400")} />
+            <span>{sync.text}</span>
+          </div>
+        </div>
 
-      <div className="mb-4 flex gap-1 overflow-x-auto border-b">
+      <div className="mb-5 grid grid-cols-2 gap-2 rounded-2xl border border-cyan-950/80 bg-[#050d1b]/90 p-2 sm:grid-cols-4">
         {TABS.map((t) => (
           <button key={t.key} type="button" onClick={() => mutate((s) => { s.activeTab = t.key; })}
-            className={cn("flex shrink-0 items-center gap-2 border-b-2 px-3 py-2 text-sm transition-colors",
-              tab === t.key ? "border-foreground text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>
-            <span className={cn("size-2 rounded-full", t.dot)} />{t.label}
+            className={cn("flex min-w-0 items-center justify-center gap-2 rounded-xl border px-2 py-3 text-sm font-semibold transition-all sm:px-3",
+              tab === t.key ? "border-cyan-400/70 bg-gradient-to-b from-blue-950 to-[#07162a] text-white shadow-[0_0_18px_rgba(0,160,255,0.10)]" : "border-transparent text-slate-400 hover:border-cyan-950 hover:bg-[#071426] hover:text-blue-100")}>
+            <span className={cn("size-2.5 shrink-0 rounded-full", t.dot, tab === t.key && "shadow-[0_0_10px_currentColor]")} />{t.label}
           </button>
         ))}
       </div>
 
-      <div className="sticky top-0 z-10 mb-4 flex flex-wrap items-center justify-between gap-2 border-b bg-background py-2">
-        <span className="min-w-0 text-sm text-muted-foreground">
-          {lastOperation ? `${ASSET_NAME[lastOperation.asset]} · D${lastOperation.day} · ${tipoLabel(lastOperation.tipo, lastOperation.asset)}` : "Nenhuma operação registrada"}
-        </span>
-        <Button type="button" variant="outline" disabled={!lastOperation} onClick={() => mutate((s) => {
+      <div className="mb-5 rounded-xl border border-cyan-950/80 bg-[#06101f]/75 p-3 sm:p-4">
+        <div className="mb-3 flex flex-wrap items-center gap-2 text-sm text-blue-100/70">
+          <span className="size-2.5 rounded-full bg-amber-400 shadow-[0_0_10px_rgba(255,190,40,0.4)]" />
+          <span>{lastOperation ? `${ASSET_NAME[lastOperation.asset]} · D${lastOperation.day} · ${tipoLabel(lastOperation.tipo, lastOperation.asset)}` : "Nenhuma operação registrada"}</span>
+        </div>
+        <Button type="button" variant="outline" className="w-full justify-start rounded-xl border-cyan-900/80 bg-[#071426] text-blue-100 hover:border-cyan-400 hover:bg-blue-950/60 sm:w-auto" disabled={!lastOperation} onClick={() => mutate((s) => {
           const last = s.log.at(-1);
           if (!last) return;
           undoLast(s);
@@ -207,9 +217,9 @@ function Panel({ title, children }: { title?: string; children: ReactNode }) {
 
 function Metric({ label, value, tone }: { label: string; value: ReactNode; tone?: "pos" | "neg" | undefined }) {
   return (
-    <div className="rounded-lg border bg-card p-3">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className={cn("mt-1 font-mono text-lg font-semibold", tone === "pos" && "text-market-up", tone === "neg" && "text-market-down")}>{value}</p>
+    <div className="relative overflow-hidden rounded-2xl border border-cyan-950/80 bg-[radial-gradient(ellipse_at_top_right,rgba(0,190,255,0.09),transparent_58%),linear-gradient(135deg,#0b1725,#060d17)] p-4 shadow-[0_10px_28px_rgba(0,0,0,0.18)] sm:p-5">
+      <p className="flex items-center gap-2 text-sm text-blue-100/65"><Target className="size-4 text-cyan-400" />{label}</p>
+      <p className={cn("mt-2 font-mono text-2xl font-bold tracking-tight text-slate-100 sm:text-3xl", tone === "pos" && "text-emerald-400", tone === "neg" && "text-rose-400")}>{value}</p>
     </div>
   );
 }
@@ -313,9 +323,9 @@ function AssetView({ state, assetKey, section, setSection, mutate, isAdmin }: { 
 
   return (
     <div>
-      <nav className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-5" aria-label="Menus da plataforma">
+      <nav className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-5" aria-label="Menus da plataforma">
         {sections.map(([k, l]) => (
-          <Button key={k} type="button" size="sm" variant={section === k ? "default" : "outline"} aria-pressed={section === k} onClick={() => setSection(k)}>{l}</Button>
+          <Button key={k} type="button" size="lg" variant={section === k ? "default" : "outline"} className={cn("min-h-12 rounded-xl border-cyan-900/80 font-semibold transition-all", section === k ? "border-emerald-300/30 bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 shadow-[0_0_22px_rgba(0,220,160,0.12)] hover:from-emerald-300 hover:to-cyan-300" : "bg-[#06101f] text-blue-100 hover:border-cyan-400/70 hover:bg-blue-950/50")} aria-pressed={section === k} onClick={() => setSection(k)}>{l}</Button>
         ))}
       </nav>
 
@@ -366,7 +376,7 @@ function AssetView({ state, assetKey, section, setSection, mutate, isAdmin }: { 
 
       {section === "operacoes" && (
         <div>
-          <div className="mb-4 grid grid-cols-2 gap-3">
+          <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Metric label={isAdmin ? "Meta total prop firm" : "Meta do dia atual"} value={`${fmt(displayedTotalMeta)}`} />
             <Metric label={isAdmin ? "Saldo final se passar — broker CFD" : "Saldo CFD se passar hoje"} value={`${fmt(displayedCum)}`} />
           </div>
