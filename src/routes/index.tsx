@@ -111,8 +111,8 @@ function Index() {
                   <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">Seu ambiente</p>
                   <p className="mt-1 text-lg font-semibold">Win or Win Platform</p>
                 </div>
-                <span className="flex size-14 items-center justify-center rounded-xl border border-cyan-300/20 bg-cyan-300/[0.08]">
-                  <img src="/logo.png" alt="Win or Win" className="size-[52px] object-contain [filter:hue-rotate(150deg)_saturate(1.25)]" />
+                <span className="flex size-16 items-center justify-center rounded-xl border border-cyan-300/20 bg-cyan-300/[0.08]">
+                  <img src="/logo.png" alt="Win or Win" width="60" height="60" className="size-[60px] object-contain [filter:hue-rotate(150deg)_saturate(1.25)]" />
                 </span>
               </div>
               <div className="mt-6 rounded-2xl border border-cyan-300/15 bg-gradient-to-br from-cyan-300/[0.09] to-sky-300/[0.025] p-5">
