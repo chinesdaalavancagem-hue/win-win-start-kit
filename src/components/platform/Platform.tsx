@@ -395,31 +395,77 @@ function DayCard({ row, assetKey, mutate, excedenteAtualSacavel }: { row: Row; a
   }, [isCurrent]);
   const setD = (k: "mnq" | "lotes" | "meta") => (v: number) => mutate((s) => { s.assets[assetKey].days[i]![k] = v; });
   return (
-    <div ref={ref} className={cn("platform-day-card rounded-lg border bg-card p-4", isCurrent && "border-primary ring-1 ring-primary")}>
-      <div className="mb-3 flex items-center justify-between">
-        <span className="font-mono text-sm font-semibold">D{i + 1} {isCurrent && <span className="ml-2 rounded bg-primary px-2 py-0.5 text-[10px] uppercase text-primary-foreground">dia atual</span>}</span>
-        <button type="button" className="text-xs text-muted-foreground hover:text-destructive" onClick={() => mutate((s) => { s.assets[assetKey].days.splice(i, 1); })}>remover</button>
+    <div ref={ref} className={cn("platform-day-card rounded-xl border bg-card p-3 sm:p-4", isCurrent && "border-primary ring-1 ring-primary")}>
+      <div className="mb-3 flex items-center justify-between gap-2 border-b pb-3">
+        <div className="flex items-center gap-2">
+          <span className="rounded-md bg-primary px-2.5 py-1 font-mono text-sm font-bold text-primary-foreground">D{i + 1}</span>
+          {isCurrent && <span className="flex items-center gap-1 text-xs text-market-up"><span className="h-2 w-2 rounded-full bg-market-up" />dia atual</span>}
+        </div>
+        <button type="button" className="rounded-md border px-2 py-1 text-xs text-muted-foreground hover:text-destructive" onClick={() => mutate((s) => { s.assets[assetKey].days.splice(i, 1); })}>remover</button>
       </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <NumField label="Contratos" value={d.mnq} onChange={setD("mnq")} helper={<>se passa <span className="text-market-down">-${fmt(Math.abs(c.passa))}</span></>} />
-        <NumField label="Lotes (broker CFD)" value={d.lotes} onChange={setD("lotes")} helper={<>se reprova <span className="text-market-up">+${fmt(c.reprova)}</span> · alvo p/ reprova: {fmt(c.pontosReprova * 10)} pontos</>} />
-        <NumField label="Meta $" value={d.meta} onChange={setD("meta")} helper={`alvo p/ meta: ${fmt(row.ticks)} ticks`} />
+
+      <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Matriz operacional</p>
+      <div className="grid grid-cols-2 gap-2">
+        <div className="rounded-lg border bg-secondary/30 p-2.5">
+          <NumField label="Contratos" value={d.mnq} onChange={setD("mnq")} />
+          <span className="mt-2 inline-block rounded-full border border-market-down/50 px-2 py-0.5 font-mono text-[11px] text-market-down">-${fmt(Math.abs(c.passa))} se passar</span>
+        </div>
+        <div className="rounded-lg border bg-secondary/30 p-2.5">
+          <NumField label="Lotes CFD" value={d.lotes} onChange={setD("lotes")} />
+          <span className="mt-2 inline-block rounded-full border border-market-up/50 px-2 py-0.5 font-mono text-[11px] text-market-up">+${fmt(c.reprova)} se reprova</span>
+        </div>
+        <div className="rounded-lg border bg-secondary/30 p-2.5">
+          <NumField label="Meta $" value={d.meta} onChange={setD("meta")} />
+          <p className="mt-2 font-mono text-[11px] text-muted-foreground">{fmt(row.ticks)} ticks</p>
+        </div>
+        <div className="rounded-lg border bg-secondary/30 p-2.5">
+          <p className="text-xs text-muted-foreground">Alvo reprova</p>
+          <p className="mt-2 font-mono text-2xl font-bold">{fmt(c.pontosReprova * 10)} <span className="text-sm text-muted-foreground">pts</span></p>
+        </div>
       </div>
-      <p className="mt-3 font-mono text-sm">líquido se reprovar hoje <span className={c.bateuAlvo ? "text-market-up" : "text-market-down"}>${fmt(c.liquidoSeReprovar)}</span></p>
-      <p className="mt-2 inline-block rounded bg-secondary px-2 py-1 font-mono text-[11px] text-muted-foreground">dívida a recuperar hoje: ${fmt(c.dividaHoje)} (alvo bruto se reprovar: ${fmt(c.alvoBruto)})</p>
-      <p className={cn("mt-2 rounded border px-2 py-1 font-mono text-[11px]",
-        row.status === "ok" && "border-market-up/40 text-market-up", row.status === "alerta" && "border-brand-gold/40 text-brand-gold", row.status === "risco" && "border-market-down/40 text-market-down")}>{row.statusText}</p>
-      {row.caixaDia && d.lotes > 0 && <div className="mt-2 grid grid-cols-2 gap-2 rounded-md border border-primary/30 bg-primary/5 p-3 font-mono text-xs sm:grid-cols-3">
-        <div><p className="text-muted-foreground">Depositar na corretora hoje</p><p className="mt-1 text-base font-semibold text-market-up">${fmt(row.caixaDia.deposito)}</p></div>
-        <div><p className="text-muted-foreground">Saldo próprio no CFD</p><p className="mt-1 text-base font-semibold">${fmt(row.caixaDia.proprioAntes)}</p></div>
-        <div><p className="text-muted-foreground">Saldo de bônus no CFD</p><p className="mt-1 text-base font-semibold">${fmt(row.caixaDia.bonusAntes)}</p></div>
-        <div><p className="text-muted-foreground">Necessário no CFD</p><p className="mt-1 text-base font-semibold">${fmt(row.caixaDia.necessario)}</p></div>
-        <div><p className="text-muted-foreground">Excedente próprio potencialmente sacável</p><p className="mt-1 text-base font-semibold text-market-up">${fmt(excedenteAtualSacavel)}</p></div>
-        <div><p className="text-muted-foreground">Bônus deste depósito</p><p className="mt-1 text-base font-semibold">${fmt(row.caixaDia.bonusGanho)}</p></div>
-      </div>}
-      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 rounded bg-secondary px-2 py-1 font-mono text-[11px] text-muted-foreground">
-        <span>Trade Ovate: <span className="text-foreground">{fmt(row.ticks)} ticks</span></span><span>Forex para reprovar: <span className="text-foreground">{fmt(c.pontosReprova * 10)} pontos</span></span>
+
+      <div className={cn("mt-3 flex items-center justify-between gap-3 rounded-lg border p-3", c.bateuAlvo ? "border-market-up/50 bg-market-up/10" : "border-market-down/50 bg-market-down/10")}>
+        <div className="min-w-0">
+          <p className="text-sm font-semibold">Líquido se reprovar hoje</p>
+          <p className="font-mono text-[11px] text-muted-foreground">Dívida: ${fmt(c.dividaHoje)} · Alvo bruto: ${fmt(c.alvoBruto)}</p>
+        </div>
+        <p className={cn("shrink-0 font-mono text-2xl font-bold", c.bateuAlvo ? "text-market-up" : "text-market-down")}>{c.liquidoSeReprovar >= 0 ? "+" : "-"}${fmt(Math.abs(c.liquidoSeReprovar))}</p>
       </div>
+
+      {row.caixaDia && d.lotes > 0 ? (() => {
+        const cx = row.caixaDia;
+        const total = Math.max(cx.necessario, cx.proprioAntes + cx.bonusAntes + cx.deposito, 1);
+        const pct = (v: number) => `${Math.max(0, (v / total) * 100)}%`;
+        const badge = row.status === "ok" ? "Coberto" : row.status === "alerta" ? "Pendente" : "Risco";
+        return (
+          <div className="mt-3 rounded-lg border p-3">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">Caixa & margem</p>
+              <span className={cn("rounded-full border px-2 py-0.5 text-[11px]", row.status === "ok" && "border-market-up/50 text-market-up", row.status === "alerta" && "border-brand-gold/50 text-brand-gold", row.status === "risco" && "border-market-down/50 text-market-down")}>{badge}</span>
+            </div>
+            <div className="flex h-2.5 overflow-hidden rounded-full bg-secondary">
+              <div className="bg-muted-foreground" style={{ width: pct(cx.proprioAntes) }} />
+              <div className="bg-primary" style={{ width: pct(cx.bonusAntes) }} />
+              <div className="bg-market-up" style={{ width: pct(cx.deposito) }} />
+            </div>
+            <div className="mt-2 grid grid-cols-3 gap-1 font-mono text-[11px]">
+              <div><p className="text-muted-foreground">● Próprio</p><p className="text-sm font-semibold">${fmt(cx.proprioAntes)}</p></div>
+              <div><p className="text-primary">● Bônus</p><p className="text-sm font-semibold">${fmt(cx.bonusAntes)}</p></div>
+              <div><p className="text-market-up">● Depósito</p><p className="text-sm font-semibold">${fmt(cx.deposito)}</p></div>
+            </div>
+            <div className="mt-2 flex justify-between rounded-md bg-secondary/50 px-2 py-1.5 font-mono text-xs"><span className="text-muted-foreground">Necessário no CFD</span><span className="font-semibold">${fmt(cx.necessario)}</span></div>
+            <div className="mt-1 grid grid-cols-2 gap-1 font-mono text-[11px] text-muted-foreground">
+              <span>Bônus deste depósito: <span className="text-foreground">${fmt(cx.bonusGanho)}</span></span>
+              <span className="text-right">Sacável: <span className="text-market-up">${fmt(excedenteAtualSacavel)}</span></span>
+            </div>
+            <div className="mt-2 flex items-center justify-between rounded-md border border-primary/50 bg-primary/10 px-3 py-2">
+              <span className="text-xs font-semibold text-primary">Depositar na corretora hoje</span>
+              <span className="font-mono text-lg font-bold text-primary">${fmt(cx.deposito)}</span>
+            </div>
+            <p className="mt-2 font-mono text-[10px] leading-snug text-muted-foreground">{row.statusText}</p>
+          </div>
+        );
+      })() : <p className="mt-2 font-mono text-[11px] text-muted-foreground">{row.statusText}</p>}
       {isCurrent && <Settle risco={row.status === "risco"} custo={c.custoSePassar} reprova={c.reprova}
         onProfit={(real) => mutate((s) => handleProfit(s, assetKey, real))} onStop={(real) => mutate((s) => handleStop(s, assetKey, real))} />}
     </div>
