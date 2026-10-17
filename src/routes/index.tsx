@@ -213,8 +213,8 @@ function Index() {
               </article>
             ))}
           </div>
-          <div className="mt-5 flex items-start gap-3 rounded-2xl border border-amber-300/15 bg-amber-300/[0.04] p-5 text-sm leading-6 text-slate-400">
-            <CircleDollarSign className="mt-0.5 size-5 shrink-0 text-amber-200" />
+          <div className="mt-5 flex items-start gap-3 rounded-2xl border border-cyan-300/15 bg-gradient-to-r from-cyan-300/[0.05] to-sky-300/[0.025] p-5 text-sm leading-6 text-slate-400">
+            <CircleDollarSign className="mt-0.5 size-5 shrink-0 text-cyan-200" />
             <p>A plataforma apoia a organização e o planejamento da operação. Não garante resultados financeiros; os resultados dependem da execução, das regras da prop firm e das condições de mercado.</p>
           </div>
         </div>
