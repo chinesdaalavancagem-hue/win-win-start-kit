@@ -199,8 +199,8 @@ function AuthPage() {
           <div aria-hidden="true" className="absolute -right-12 top-36 h-48 w-48 rounded-full border border-cyan-300/10" />
           <div className="relative">
             <div className="mb-10 flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-cyan-300/20 bg-cyan-300/10 shadow-lg shadow-cyan-950/30">
-                <img src="/logo.png" alt="Win or Win" className="h-10 w-10 object-contain" />
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-300/20 bg-cyan-300/10 shadow-lg shadow-cyan-950/30">
+                <img src="/logo.png" alt="Win or Win" className="h-11 w-11 object-contain [filter:hue-rotate(150deg)_saturate(1.25)]" />
               </div>
               <div>
                 <p className="text-sm font-bold tracking-wide text-white">WIN OR WIN</p>
@@ -242,7 +242,7 @@ function AuthPage() {
         <section className="flex items-center justify-center p-5 sm:p-8 lg:p-10 xl:p-14">
           <div className="w-full max-w-md">
             <div className="mb-7 text-center lg:hidden">
-              <img src="/logo.png" alt="Win or Win Platform" width="112" height="112" className="mx-auto mb-3 h-24 w-24 object-contain drop-shadow-[0_0_22px_rgba(34,211,238,0.18)]" />
+              <img src="/logo.png" alt="Win or Win Platform" width="128" height="128" className="mx-auto mb-3 h-28 w-28 object-contain [filter:hue-rotate(150deg)_saturate(1.25)] drop-shadow-[0_0_22px_rgba(34,211,238,0.18)] />
               <p className="text-xs font-semibold tracking-[0.24em] text-cyan-200">WIN OR WIN PLATFORM</p>
             </div>
 
