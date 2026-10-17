@@ -57,7 +57,7 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
       <header className="border-b border-cyan-950/80 bg-[#050d1b]/90 px-4 py-4 sm:px-6">
         <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-start gap-3">
-            <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl border border-cyan-400/20 bg-cyan-400/10 text-cyan-300 shadow-[0_0_24px_rgba(0,190,255,0.08)]"><Building2 className="size-5" /></div>
+            <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl border border-cyan-400/20 bg-cyan-400/10 shadow-[0_0_24px_rgba(0,190,255,0.08)]"><img src="/logo.png" alt="Win or Win" className="size-8 object-contain [filter:hue-rotate(150deg)_saturate(1.25)]" /></div>
             <div><p className="text-[11px] font-bold uppercase tracking-[0.22em] text-cyan-300/80">Workspace financeiro</p><h2 className="mt-1 text-xl font-bold tracking-tight text-slate-100 sm:text-2xl">Gerenciar bancas</h2><p className="mt-1 text-sm text-slate-400">Organize suas contas, acompanhe resultados e alterne entre ciclos.</p></div>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
