@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
-import { Undo2 } from "lucide-react";
+import { Undo2, FileText, Layers, Target, TrendingUp, ShieldCheck, Wallet, ChevronRight, Crosshair, Calculator, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { registrarAuditoria } from "@/lib/auditoria-registro";
 import { applyOfficialParams, buildOfficialParams, isOfficialParams } from "@/lib/platform/official-params";
@@ -406,23 +406,23 @@ function DayCard({ row, assetKey, mutate, excedenteAtualSacavel }: { row: Row; a
         <button type="button" className="rounded-xl border border-[#19334f] px-3 py-2 text-sm tracking-widest text-slate-300 hover:border-blue-500/60 hover:text-white" onClick={() => mutate((s) => { s.assets[assetKey].days.splice(i, 1); })}>remover</button>
       </div>
 
-      <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.22em] text-blue-200/85">Matriz operacional</p>
+      <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.22em] text-blue-200/85 flex items-center gap-1.5"><Crosshair className="h-3.5 w-3.5 text-blue-400" />Matriz operacional</p>
       <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
         <div className="min-w-0 rounded-xl border border-[#18324e] bg-gradient-to-br from-[#0d1b2b] to-[#080f1a] p-3 sm:p-4">
-          <NumField label="Contratos" value={d.mnq} onChange={setD("mnq")} />
-          <span className="mt-2 inline-block rounded-full border border-market-down/50 px-2 py-0.5 font-mono text-[11px] text-market-down">-${fmt(Math.abs(c.passa))} se passar</span>
+          <NumField cockpit label={<><FileText className="h-3.5 w-3.5 text-blue-400" />Contratos</>} value={d.mnq} onChange={setD("mnq")} />
+          <span className="mt-2 inline-block rounded-full border border-market-down/40 bg-rose-950/40 px-2 py-0.5 font-mono text-[11px] text-market-down">-${fmt(Math.abs(c.passa))} se passar</span>
         </div>
         <div className="min-w-0 rounded-xl border border-[#183b43] bg-gradient-to-br from-[#092126] to-[#080f1a] p-3 sm:p-4">
-          <NumField label="Lotes CFD" value={d.lotes} onChange={setD("lotes")} />
-          <span className="mt-2 inline-block rounded-full border border-market-up/50 px-2 py-0.5 font-mono text-[11px] text-market-up">+${fmt(c.reprova)} se reprova</span>
+          <NumField cockpit label={<><Layers className="h-3.5 w-3.5 text-cyan-400" />Lotes CFD</>} value={d.lotes} onChange={setD("lotes")} />
+          <span className="mt-2 inline-block rounded-full border border-market-up/40 bg-emerald-950/40 px-2 py-0.5 font-mono text-[11px] text-market-up">+${fmt(c.reprova)} se reprova</span>
         </div>
         <div className="min-w-0 rounded-xl border border-[#18324e] bg-gradient-to-br from-[#0d1b2b] to-[#080f1a] p-3 sm:p-4">
-          <NumField label="Meta $" value={d.meta} onChange={setD("meta")} />
+          <NumField cockpit label={<><Target className="h-3.5 w-3.5 text-blue-400" />Meta $</>} value={d.meta} onChange={setD("meta")} />
           <p className="mt-2 font-mono text-[11px] text-muted-foreground">{fmt(row.ticks)} ticks</p>
         </div>
         <div className="min-w-0 rounded-xl border border-[#18324e] bg-gradient-to-br from-[#0d1b2b] to-[#080f1a] p-3 sm:p-4">
-          <p className="text-xs text-blue-100/90">Alvo Reprova</p>
-          <p className="mt-2 font-mono text-2xl font-bold">{fmt(c.pontosReprova * 10)} <span className="text-sm text-muted-foreground">pts</span></p>
+          <p className="flex items-center gap-1.5 text-xs text-blue-100/90"><TrendingUp className="h-3.5 w-3.5 text-emerald-400" />Alvo Reprova</p>
+          <p className="mt-2 font-mono text-2xl font-bold sm:text-[28px]">{fmt(c.pontosReprova * 10)} <span className="text-sm text-muted-foreground">pts</span></p>
         </div>
       </div>
 
@@ -431,7 +431,7 @@ function DayCard({ row, assetKey, mutate, excedenteAtualSacavel }: { row: Row; a
           <p className="text-xs font-bold text-slate-100 sm:text-sm">Líquido se reprovar hoje</p>
           <p className="mt-1 font-mono text-[10px] text-slate-400 sm:text-xs">Dívida: ${fmt(c.dividaHoje)} · Alvo bruto: ${fmt(c.alvoBruto)}</p>
         </div>
-        <p className={cn("shrink-0 font-mono text-2xl font-bold tracking-tight sm:text-4xl", c.liquidoSeReprovar >= 0 ? "text-emerald-400" : "text-rose-400")}>{c.liquidoSeReprovar >= 0 ? "+" : "-"}${fmt(Math.abs(c.liquidoSeReprovar))}</p>
+        <p className={cn("shrink-0 font-mono text-2xl font-bold tracking-tight sm:text-4xl", c.liquidoSeReprovar >= 0 ? "text-emerald-400 drop-shadow-[0_0_12px_rgba(16,185,129,0.65)]" : "text-rose-400")}>{c.liquidoSeReprovar >= 0 ? "+" : "-"}${fmt(Math.abs(c.liquidoSeReprovar))}</p>
       </div>
 
       {row.caixaDia && d.lotes > 0 ? (() => {
@@ -442,8 +442,8 @@ function DayCard({ row, assetKey, mutate, excedenteAtualSacavel }: { row: Row; a
         return (
           <div className="mt-3 rounded-xl border border-[#142b43] bg-gradient-to-b from-[#0a1421] to-[#080f19] p-3.5 sm:p-4">
             <div className="mb-2 flex items-center justify-between gap-2">
-              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-blue-100/90 sm:text-xs">Gestão de caixa & margem</p>
-              <span className={cn("rounded-full border px-2 py-0.5 text-[11px]", row.status === "ok" && "border-market-up/50 text-market-up", row.status === "alerta" && "border-brand-gold/50 text-brand-gold", row.status === "risco" && "border-market-down/50 text-market-down")}>{badge}</span>
+              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-blue-100/90 sm:text-xs flex items-center gap-1.5"><ShieldCheck className="h-4 w-4 text-emerald-400" />Gestão de caixa & margem</p>
+              <span className={cn("rounded-full border px-2 py-0.5 text-[11px]", row.status === "ok" && "border-market-up/50 bg-emerald-950/50 text-market-up shadow-[0_0_12px_rgba(16,185,129,0.35)]", row.status === "alerta" && "border-brand-gold/50 text-brand-gold", row.status === "risco" && "border-market-down/50 text-market-down")}>{row.status === "ok" && <Check className="mr-0.5 inline h-3 w-3" />}{badge}</span>
             </div>
             <div className="flex h-3 overflow-hidden rounded-full bg-slate-800">
               <div className="bg-slate-500" style={{ width: pct(cx.proprioAntes) }} />
@@ -455,16 +455,15 @@ function DayCard({ row, assetKey, mutate, excedenteAtualSacavel }: { row: Row; a
               <div><p className="text-cyan-400">● Bônus</p><p className="text-sm font-semibold">${fmt(cx.bonusAntes)}</p></div>
               <div><p className="text-emerald-400">● Falta</p><p className="text-sm font-semibold">${fmt(cx.deposito)}</p></div>
             </div>
-            <div className="mt-3 flex items-center justify-between gap-2 rounded-lg border border-[#142b43] bg-[#0b1726] px-3 py-2.5 font-mono text-xs"><span className="text-muted-foreground">Necessário no CFD</span><span className="font-semibold">${fmt(cx.necessario)}</span></div>
+            <div className="mt-3 flex items-center justify-between gap-2 rounded-lg border border-[#142b43] bg-[#0b1726] px-3 py-2.5 font-mono text-xs"><span className="flex items-center gap-1.5 text-muted-foreground"><Calculator className="h-3.5 w-3.5" />Necessário no CFD</span><span className="font-semibold">${fmt(cx.necessario)}</span></div>
             <div className="mt-1 grid grid-cols-2 gap-1 font-mono text-[11px] text-muted-foreground">
               <span>Bônus deste depósito: <span className="text-foreground">${fmt(cx.bonusGanho)}</span></span>
               <span className="text-right">Sacável: <span className="text-market-up">${fmt(excedenteAtualSacavel)}</span></span>
             </div>
             <div className="mt-2 flex items-center justify-between gap-2 rounded-xl border border-blue-600/80 bg-gradient-to-r from-blue-950/70 to-[#071a31] px-3 py-3">
-              <span className="text-[11px] font-semibold leading-snug text-cyan-300 sm:text-sm">Aporte Recomendado Hoje</span>
-              <span className="font-mono text-base font-bold text-sky-400 sm:text-2xl">${fmt(cx.deposito)}</span>
+              <span className="flex items-center gap-2 text-[11px] font-semibold leading-snug text-cyan-300 sm:text-sm"><Wallet className="h-4 w-4 shrink-0" />Aporte Recomendado Hoje</span>
+              <span className="font-mono text-base font-bold text-sky-400 sm:text-2xl flex items-center gap-1">${fmt(cx.deposito)}<ChevronRight className="h-5 w-5" /></span>
             </div>
-            <p className="mt-2 font-mono text-[10px] leading-snug text-muted-foreground">{row.statusText}</p>
           </div>
         );
       })() : <p className="mt-2 font-mono text-[11px] text-muted-foreground">{row.statusText}</p>}
