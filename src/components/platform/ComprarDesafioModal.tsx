@@ -25,7 +25,7 @@ export function ComprarDesafioModal({ open, onOpenChange, source, onRegister }: 
 }) {
   const list = useServerFn(listPropFirms);
   const { data: firms = [], isPending, isError } = useQuery({ queryKey: ["prop-firms"], queryFn: () => list(), enabled: open });
-  const [firmId, setFirmId] = useState(source.challengeAccount?.prop_firm_id && source.challengeAccount.prop_firm_id !== "topstep" ? source.challengeAccount.prop_firm_id : "lucid-trading");
+  const [firmId, setFirmId] = useState(source.challengeAccount?.prop_firm_id ?? "lucid-trading");
   const [externalId, setExternalId] = useState("");
   const [usedLink, setUsedLink] = useState("");
   const [busy, setBusy] = useState(false);
@@ -36,7 +36,7 @@ export function ComprarDesafioModal({ open, onOpenChange, source, onRegister }: 
     <DialogContent className="max-h-[90dvh] w-[calc(100%-2rem)] overflow-y-auto">
       <DialogHeader><DialogTitle>Novo teste na mesa</DialogTitle><DialogDescription>Nova conta para {source.nome}. O histórico atual será preservado.</DialogDescription></DialogHeader>
       {isPending ? <p>Carregando mesas…</p> : isError ? <p role="alert" className="text-destructive">Não foi possível carregar as mesas.</p> : <>
-        <label className="space-y-1 text-sm">Mesa<select aria-label="Mesa do desafio" className="w-full rounded-md border bg-background p-2 text-foreground" value={firmId} onChange={(event) => setFirmId(event.target.value as typeof firmId)}>{firms.filter((item) => item.id !== "topstep").map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+        <label className="space-y-1 text-sm">Mesa<select aria-label="Mesa do desafio" className="w-full rounded-md border bg-background p-2 text-foreground" value={firmId} onChange={(event) => setFirmId(event.target.value as typeof firmId)}>{firms.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
         <div className="space-y-1 rounded-md border bg-muted/30 p-3 text-sm">
           <p className="font-medium">Tamanho da conta: US$ 50.000</p>
           <p className="text-muted-foreground">O tamanho é fixo nesta plataforma e não precisa ser selecionado.</p>
