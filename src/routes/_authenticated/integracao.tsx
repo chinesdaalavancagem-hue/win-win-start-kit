@@ -209,21 +209,24 @@ function Integracao() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 p-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Integração Tradovate → MT5</h1>
-        <Button asChild size="sm" variant="outline"><Link to="/plataforma">Voltar</Link></Button>
+    <div className="mx-auto max-w-6xl space-y-6 p-4 md:p-6">
+      <div className="relative overflow-hidden rounded-2xl border border-cyan-900/70 bg-gradient-to-br from-[#071a2d] via-[#0b1224] to-[#111827] p-5 shadow-lg shadow-cyan-950/20 md:p-7">
+        <div className="pointer-events-none absolute -right-12 -top-16 h-48 w-48 rounded-full bg-cyan-400/10 blur-3xl" />
+        <div className="relative flex flex-wrap items-center justify-between gap-4">
+          <div><p className="mb-2 text-xs font-semibold uppercase tracking-[0.22em] text-cyan-300">Central de conexões</p><h1 className="text-2xl font-bold tracking-tight text-white md:text-3xl">Integração Tradovate <span className="text-cyan-300">→</span> MT5</h1><p className="mt-2 max-w-2xl text-sm text-slate-300">Gerencie sua chave, downloads, alertas e acompanhe as ordens enviadas ao robô.</p></div>
+          <Button asChild size="sm" variant="outline" className="border-slate-600 bg-white/5 text-white hover:bg-white/10"><Link to="/plataforma">← Voltar à plataforma</Link></Button>
+        </div>
       </div>
 
-      <section className="space-y-2 rounded-lg border p-4">
-        <h2 className="font-semibold">1. Sua chave</h2>
+      <section className="space-y-3 rounded-2xl border border-border/80 bg-card p-5 shadow-sm transition-colors hover:border-cyan-900/50 md:p-6">
+        <div className="flex items-start gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cyan-500/10 text-lg font-bold text-cyan-300">01</span><div><h2 className="font-semibold text-base">Sua chave de integração</h2><p className="mt-1 text-xs text-muted-foreground">Acesso seguro entre sua conta, a extensão e o robô.</p></div></div>
         <p className="text-sm text-muted-foreground">A chave liga a extensão e o robô do MT5 à sua conta. Ela aparece só uma vez; guarde num lugar seguro.</p>
         {chave && <code className="block break-all rounded bg-muted p-2 text-sm">{chave}</code>}
         <Button size="sm" onClick={novaChave}>{temChave ? "Gerar nova chave" : "Gerar chave"}</Button>
       </section>
 
-      <section className="space-y-3 rounded-lg border p-4 text-sm">
-        <h2 className="font-semibold">2. Downloads</h2>
+      <section className="space-y-4 rounded-2xl border border-border/80 bg-card p-5 text-sm shadow-sm transition-colors hover:border-cyan-900/50 md:p-6">
+        <div className="flex items-start gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cyan-500/10 text-lg font-bold text-cyan-300">02</span><div><h2 className="font-semibold text-base">Arquivos e downloads</h2><p className="mt-1 text-xs text-muted-foreground">Baixe os componentes necessários para configurar a integração.</p></div></div>
         <div className="flex flex-wrap gap-2">
           {(Object.keys(ARQ) as Tipo[]).map((t) => (
             <Button key={t} size="sm" disabled={!disp[t]} onClick={() => baixar(t)}>
@@ -245,7 +248,7 @@ function Integracao() {
       </section>
 
       <section className="space-y-3 rounded-lg border p-4 text-sm">
-        <h2 className="font-semibold">Notificações no Telegram</h2>
+        <div className="flex items-start gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-500/10 text-lg font-bold text-sky-300">03</span><div><h2 className="font-semibold text-base">Notificações no Telegram</h2><p className="mt-1 text-xs text-muted-foreground">Alertas de ordens enviados diretamente ao seu chat.</p></div></div>
         <p className="text-muted-foreground">Receba alertas quando uma ordem chegar da Tradovate e quando o MT5 confirmar a execução. O bot já está configurado na plataforma; você só precisa do seu Chat ID. Para descobri-lo, converse com <a className="underline" href="https://t.me/userinfobot" target="_blank" rel="noreferrer">@userinfobot</a>. Importante: abra uma conversa com o bot <a className="underline" href="https://t.me/Win_or_Win_bot" target="_blank" rel="noreferrer">@Win_or_Win_bot</a> e envie <code>/start</code> — o Telegram só entrega mensagens a quem já iniciou a conversa.</p>
         <label className="block space-y-1">
           <span>Seu Chat ID do Telegram</span>
@@ -259,7 +262,7 @@ function Integracao() {
       </section>
 
       <section className="space-y-3 rounded-lg border p-4 text-sm">
-        <h2 className="font-semibold">Notificações no Dispositivo (PWA Push)</h2>
+        <div className="flex items-start gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-500/10 text-lg font-bold text-violet-300">04</span><div><h2 className="font-semibold text-base">Notificações neste dispositivo</h2><p className="mt-1 text-xs text-muted-foreground">Ative o PWA Push para receber alertas mesmo fora da plataforma.</p></div></div>
         <p className="text-muted-foreground">Receba alertas neste aparelho quando uma ordem for recebida e quando o MetaTrader 5 confirmar a execução ou informar uma falha. Os alertas do Telegram continuam funcionando em paralelo.</p>
         <div className="flex flex-wrap gap-2">
           <Button size="sm" onClick={ativarPush} disabled={pushAtivando}>
@@ -275,8 +278,8 @@ function Integracao() {
         </div>
       </section>
 
-      <section className="space-y-4 rounded-lg border p-4 text-sm">
-        <h2 className="text-lg font-semibold">🚀 Guia de Instalação e Ativação — WinOrWin</h2>
+      <section className="space-y-4 rounded-2xl border border-border/80 bg-card p-5 text-sm shadow-sm transition-colors hover:border-cyan-900/50 md:p-6">
+        <div className="flex items-start gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-lg font-bold text-emerald-300">05</span><div><h2 className="text-lg font-semibold">Guia de instalação e ativação</h2><p className="mt-1 text-xs text-muted-foreground">Siga as etapas para conectar a extensão do Chrome ao MetaTrader 5.</p></div></div>
         <blockquote className="border-l-4 pl-3 text-muted-foreground">
           <p><b>Aviso importante:</b> A extensão WinOrWin roda 100% nativa dentro do Google Chrome. Você NÃO precisa instalar Python, Node, abrir o prompt de comando (CMD) ou fazer configurações avançadas no seu computador. Todo o processo leva menos de 2 minutos.</p>
         </blockquote>
@@ -367,18 +370,21 @@ function Integracao() {
         </ul>
       </section>
 
-      <section className="rounded-lg border p-4">
-        <h2 className="mb-2 font-semibold">4. Fila de ordens</h2>
+      <section className="space-y-4 rounded-2xl border border-border/80 bg-card p-5 shadow-sm md:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-3"><div className="flex items-start gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-lg font-bold text-amber-300">06</span><div><h2 className="text-base font-semibold">Fila de ordens</h2><p className="mt-1 text-xs text-muted-foreground">Acompanhe o estado mais recente das ordens recebidas.</p></div></div><span className="rounded-full border px-3 py-1 text-xs text-muted-foreground">Atualização automática · 10 s</span></div>
         {rows.length === 0 ? <p className="text-sm text-muted-foreground">Nenhuma ordem recebida ainda.</p> : (
-          <table className="w-full text-sm">
-            <thead><tr className="text-left text-muted-foreground"><th>Hora</th><th>Ativo</th><th>Mesa</th><th>CFD</th><th>Qtd</th><th>Situação</th></tr></thead>
-            <tbody>{rows.map((r) => (
-              <tr key={r.id} className="border-t">
-                <td>{new Date(r.created_at).toLocaleTimeString("pt-BR")}</td><td>{r.symbol}</td>
-                <td>{r.side === "buy" ? "Compra" : "Venda"}</td><td>{r.mirror_side === "buy" ? "Compra" : "Venda"}</td>
-                <td>{r.qty}</td><td title={r.error ?? ""}>{STATUS[r.status] ?? r.status}</td>
-              </tr>))}</tbody>
-          </table>
+          <div className="overflow-x-auto rounded-xl border">
+            <table className="w-full min-w-[640px] text-sm">
+              <thead className="bg-muted/50"><tr className="text-left text-muted-foreground"><th className="px-3 py-3">Hora</th><th className="px-3 py-3">Ativo</th><th className="px-3 py-3">Mesa</th><th className="px-3 py-3">CFD</th><th className="px-3 py-3">Qtd</th><th className="px-3 py-3">Situação</th></tr></thead>
+              <tbody>{rows.map((r) => (
+                <tr key={r.id} className="border-t transition-colors hover:bg-muted/30">
+                  <td className="whitespace-nowrap px-3 py-3">{new Date(r.created_at).toLocaleTimeString("pt-BR")}</td><td className="px-3 py-3 font-medium">{r.symbol}</td>
+                  <td className="px-3 py-3">{r.side === "buy" ? "Compra" : "Venda"}</td><td className="px-3 py-3">{r.mirror_side === "buy" ? "Compra" : "Venda"}</td>
+                  <td className="px-3 py-3">{r.qty}</td><td className="px-3 py-3" title={r.error ?? ""}><span className="inline-flex rounded-full border px-2 py-1 text-xs">{STATUS[r.status] ?? r.status}</span></td>
+                </tr>))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
     </div>
