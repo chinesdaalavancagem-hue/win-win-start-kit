@@ -51,19 +51,19 @@ function Auditoria() {
   useEffect(() => { void load(); }, [load]);
 
   return (
-    <main className="mx-auto max-w-6xl space-y-5 px-4 py-8">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">Auditoria da Master</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Histórico de acessos, alterações numéricas, análises de IA, aparelhos e integração.</p>
+    <main className="mx-auto max-w-7xl space-y-6 px-4 py-6 md:px-6 md:py-8">
+      <header className="relative overflow-hidden rounded-2xl border border-cyan-900/70 bg-gradient-to-br from-[#071a2d] via-[#0b1224] to-[#111827] p-5 shadow-lg shadow-cyan-950/20 md:p-7">
+        <div className="pointer-events-none absolute -right-12 -top-16 h-48 w-48 rounded-full bg-cyan-400/10 blur-3xl" />
+        <div className="relative flex flex-wrap items-center justify-between gap-4">
+          <div><p className="mb-2 text-xs font-semibold uppercase tracking-[0.22em] text-cyan-300">Segurança e rastreabilidade</p><h1 className="text-2xl font-bold tracking-tight text-white md:text-3xl">Auditoria da Master</h1><p className="mt-2 max-w-2xl text-sm text-slate-300">Consulte acessos, ações administrativas, análises e eventos de integração com filtros.</p></div>
+          <Button asChild size="sm" variant="outline" className="border-slate-600 bg-white/5 text-white hover:bg-white/10"><Link to="/plataforma">← Voltar à plataforma</Link></Button>
         </div>
-        <Button asChild size="sm" variant="outline"><Link to="/plataforma">Voltar à plataforma</Link></Button>
       </header>
 
-      <section className="flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-end">
+      <section className="flex flex-col gap-4 rounded-2xl border border-border/80 bg-card p-5 shadow-sm sm:flex-row sm:items-end md:p-6">
         <label className="flex-1 space-y-1 text-sm">
           <span className="font-medium">Categoria</span>
-          <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full rounded-md border bg-background px-3 py-2">
+          <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full rounded-xl border border-border bg-background px-3 py-2.5 transition focus:border-cyan-700">
             <option value="">Todas as categorias</option>
             {CATEGORIES.map((item) => <option key={item} value={item}>{item}</option>)}
           </select>
@@ -75,9 +75,9 @@ function Auditoria() {
         <Button onClick={() => { if (userId.trim() === appliedUserId) void load(); else setAppliedUserId(userId.trim()); }} disabled={loading}>Pesquisar</Button>
       </section>
 
-      {error && <p role="alert" className="rounded-md border border-destructive/40 p-3 text-sm text-destructive">{error}</p>}
+      {error && <p role="alert" className="rounded-xl border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">{error}</p>}
       {loading ? <p className="py-8 text-center text-sm text-muted-foreground">Carregando registros...</p> : (
-        <div className="overflow-x-auto rounded-lg border">
+        <div className="overflow-x-auto rounded-2xl border border-border/80 bg-card shadow-sm">
           <table className="w-full min-w-[850px] text-left text-sm">
             <thead className="bg-muted/60">
               <tr>
@@ -90,11 +90,11 @@ function Auditoria() {
             </thead>
             <tbody>
               {rows.map((row) => (
-                <tr key={row.id} className="border-t align-top">
+                <tr key={row.id} className="border-t align-top transition-colors hover:bg-muted/30">
                   <td className="whitespace-nowrap px-3 py-3">{new Date(row.created_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}</td>
                   <td className="px-3 py-3"><p className="font-medium">{row.user || "Usuário"}</p></td>
                   <td className="px-3 py-3"><p>{row.category}</p><p className="text-xs text-muted-foreground">{row.action}</p></td>
-                  <td className="px-3 py-3">{row.outcome}</td>
+                  <td className="px-3 py-3"><span className="inline-flex rounded-full border px-2.5 py-1 text-xs font-medium">{row.outcome}</span></td>
                   <td className="max-w-sm whitespace-pre-wrap break-words px-3 py-3 text-xs text-muted-foreground">{row.details || "—"}</td>
                 </tr>
               ))}
