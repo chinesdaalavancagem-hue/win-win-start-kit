@@ -46,12 +46,12 @@ function Index() {
       <header className="sticky top-0 z-50 border-b border-white/[0.08] bg-[#070b14]/85 backdrop-blur-2xl">
         <div className="mx-auto flex h-[72px] max-w-7xl items-center justify-between px-5 sm:px-8">
           <Link to="/" className="flex items-center gap-3" aria-label="Win or Win — início">
-            <span className="flex size-11 items-center justify-center rounded-2xl border border-cyan-300/20 bg-cyan-300/[0.08] shadow-lg shadow-cyan-950/20">
-              <img src="/logo.png" alt="" className="size-10 object-contain [filter:hue-rotate(150deg)_saturate(1.25)]" />
+            <span className="flex size-11 md:size-14 items-center justify-center rounded-2xl border border-cyan-300/20 bg-cyan-300/[0.08] shadow-lg shadow-cyan-950/20">
+              <img src="/logo.png" alt="" className="size-10 md:size-13 object-contain [filter:hue-rotate(150deg)_saturate(1.25)]" />
             </span>
             <span>
-              <span className="block text-sm font-bold tracking-[0.16em]">WIN OR WIN</span>
-              <span className="mt-0.5 block text-[9px] tracking-[0.25em] text-cyan-200/65">TRADING PLATFORM</span>
+              <span className="block text-sm font-bold tracking-[0.16em] md:text-base lg:text-lg">WIN OR WIN</span>
+              <span className="mt-0.5 block text-[9px] tracking-[0.25em] text-cyan-200/65 md:text-[10px] lg:text-xs">TRADING PLATFORM</span>
             </span>
           </Link>
           <nav className="hidden items-center gap-8 text-sm text-slate-400 md:flex" aria-label="Navegação principal">
@@ -96,7 +96,7 @@ function Index() {
                 <a href="#como-funciona">Conhecer a plataforma <ArrowDown className="ml-1 size-4" /></a>
               </Button>
             </div>
-            <div className="mt-9 flex flex-wrap items-center gap-x-6 gap-y-3 text-xs text-slate-400">
+            <div className="mt-9 flex flex-wrap items-center gap-x-6 gap-y-3 text-xs text-slate-400 md:text-sm">
               <span className="inline-flex items-center gap-2"><ShieldCheck className="size-4 text-emerald-300" /> Área pessoal</span>
               <span className="inline-flex items-center gap-2"><Calculator className="size-4 text-cyan-300" /> Cálculos organizados</span>
               <span className="inline-flex items-center gap-2"><Target className="size-4 text-sky-300" /> Gestão de ciclos</span>
@@ -111,12 +111,12 @@ function Index() {
                   <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">Seu ambiente</p>
                   <p className="mt-1 text-lg font-semibold">Win or Win Platform</p>
                 </div>
-                <span className="flex size-[108px] md:size-[148px] items-center justify-center rounded-xl border border-cyan-300/20 bg-cyan-300/[0.08]">
-                  <img src="/logo.png" alt="Win or Win" width="100" height="100" className="size-[100px] md:size-[140px] object-contain [filter:hue-rotate(150deg)_saturate(1.25)]" />
+                <span className="flex size-[108px] md:size-[168px] items-center justify-center rounded-xl border border-cyan-300/20 bg-cyan-300/[0.08]">
+                  <img src="/logo.png" alt="Win or Win" width="100" height="100" className="size-[100px] md:size-[160px] object-contain [filter:hue-rotate(150deg)_saturate(1.25)]" />
                 </span>
               </div>
               <div className="mt-6 rounded-2xl border border-cyan-300/15 bg-gradient-to-br from-cyan-300/[0.09] to-sky-300/[0.025] p-5">
-                <p className="text-xs text-slate-400">Planejamento da operação</p>
+                <p className="text-xs text-slate-400 md:text-sm">Planejamento da operação</p>
                 <p className="mt-2 text-2xl font-semibold tracking-tight">Mais clareza<span className="text-cyan-300">.</span></p>
                 <div className="mt-5 flex h-20 items-end gap-2" aria-hidden="true">
                   {[28, 42, 34, 57, 45, 65, 53, 76, 61, 88, 72, 96, 80, 100].map((height, index) => (
@@ -128,18 +128,18 @@ function Index() {
               <div className="mt-4 grid grid-cols-2 gap-3">
                 <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4">
                   <span className="flex size-9 items-center justify-center rounded-xl bg-cyan-300/[0.09] text-cyan-200"><Calculator className="size-4" /></span>
-                  <p className="mt-4 text-sm font-semibold">Parâmetros</p>
-                  <p className="mt-1 text-xs leading-5 text-slate-400">Números organizados antes da entrada</p>
+                  <p className="mt-4 text-sm font-semibold md:text-base">Parâmetros</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-400 md:text-sm md:leading-6">Números organizados antes da entrada</p>
                 </div>
                 <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4">
                   <span className="flex size-9 items-center justify-center rounded-xl bg-emerald-300/[0.09] text-emerald-200"><Target className="size-4" /></span>
-                  <p className="mt-4 text-sm font-semibold">Ciclos</p>
-                  <p className="mt-1 text-xs leading-5 text-slate-400">Acompanhamento do seu planejamento</p>
+                  <p className="mt-4 text-sm font-semibold md:text-base">Ciclos</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-400 md:text-sm md:leading-6">Acompanhamento do seu planejamento</p>
                 </div>
               </div>
               <div className="mt-4 flex items-center gap-3 rounded-xl border border-white/[0.07] bg-black/15 px-4 py-3">
                 <span className="size-2 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(110,231,183,0.7)]" />
-                <p className="text-xs text-slate-300">Seu plano. Seus dados. Sua estratégia.</p>
+                <p className="text-xs text-slate-300 md:text-sm lg:text-base">Seu plano. Seus dados. Sua estratégia.</p>
               </div>
             </div>
           </div>
@@ -155,9 +155,9 @@ function Index() {
             ["Ciclos", "Acompanhados", "passo a passo"],
           ].map(([label, value, detail], index) => (
             <div key={label} className={`border-white/[0.08] px-4 py-6 sm:px-6 md:py-8 ${index % 2 === 0 ? "border-r" : ""} ${index < 2 ? "border-b md:border-b-0" : ""} ${index < 3 ? "md:border-r" : ""}`}>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">{label}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500 md:text-xs">{label}</p>
               <p className="mt-3 text-lg font-semibold tracking-tight sm:text-xl">{value}</p>
-              <p className="mt-1 text-xs text-cyan-200/70">{detail}</p>
+              <p className="mt-1 text-xs text-cyan-200/70 md:text-sm">{detail}</p>
             </div>
           ))}
         </div>
@@ -235,8 +235,8 @@ function Index() {
 
       <footer className="border-t border-white/[0.08] bg-black/10">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-5 py-7 text-xs text-slate-500 sm:flex-row sm:px-8">
-          <div className="flex items-center gap-3"><img src="/logo.png" alt="" className="size-10 rounded-lg object-contain [filter:hue-rotate(150deg)_saturate(1.25)]" /><span>Win or Win Platform</span></div>
-          <p>Planejamento, organização e controle.</p>
+          <div className="flex items-center gap-3"><img src="/logo.png" alt="" className="size-10 md:size-12 rounded-lg object-contain [filter:hue-rotate(150deg)_saturate(1.25)]" /><span className="text-xs md:text-sm lg:text-base">Win or Win Platform</span></div>
+          <p className="text-xs md:text-sm lg:text-base">Planejamento, organização e controle.</p>
           <Link to="/auth" className="text-slate-300 transition-colors hover:text-cyan-200">Entrar na plataforma</Link>
         </div>
       </footer>
