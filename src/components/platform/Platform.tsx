@@ -556,31 +556,90 @@ function BonusPanel({ state, assetKey, reserva, folga, mutate }: { state: State;
     else linhas.push("ainda sem histórico de custo suficiente pra projetar quando o bônus zera.");
   }
 
+  const inputClass = "mt-1.5 w-full rounded-xl border border-[#19334f] bg-[#071321] px-3 py-3 font-mono text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-400/70 focus:ring-2 focus:ring-cyan-400/10";
+  const labelClass = "block text-xs font-medium text-blue-100/75";
+  const espacoBonus = Math.max(0, b.bonusCap - b.bonusGanhoTotal);
+  const pctBonus = b.bonusCap > 0 ? Math.min(100, (b.bonusGanhoTotal / b.bonusCap) * 100) : 0;
+
   return (
-    <Panel title="Rastreador de bônus (broker CFD)">
-      <div className="mb-3 grid grid-cols-2 gap-3">
-        <Metric label="Depósito próprio acumulado" value={`$${fmt(b.deposito)}`} />
-        <Metric label="Bônus atual" value={`$${fmt(b.bonusAtual)}`} tone="pos" />
-      </div>
-      <p className="mb-3 font-mono text-xs text-muted-foreground">espaço restante pra ganhar bônus novo: ${fmt(Math.max(0, b.bonusCap - b.bonusGanhoTotal))} de um teto de ${fmt(b.bonusCap)}</p>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <NumField label="Bônus máximo do plano ($)" value={b.bonusCap} onChange={(v) => mutate((s) => { if (v) s.assets[assetKey].bonus.bonusCap = v; })} />
-        <label className="block"><span className="mb-1 block text-xs text-muted-foreground">Registrar depósito próprio ($)</span>
-          <input inputMode="decimal" value={dep} placeholder="ex: 1000" onChange={(e) => setDep(e.target.value)} className="w-full rounded-md border bg-input/40 px-3 py-2 font-mono text-sm" /></label>
-        <Button type="button" className="self-end" onClick={() => { const v = parseNum(dep); mutate((s) => aplicarDeposito(s, assetKey, v)); setDep(""); }}>Aplicar depósito</Button>
-        <div className="hidden sm:block" />
-        <label className="block"><span className="mb-1 block text-xs text-muted-foreground">Registrar saque de lucro ($)</span>
-          <input inputMode="decimal" value={saq} placeholder="ex: 200" onChange={(e) => setSaq(e.target.value)} className="w-full rounded-md border bg-input/40 px-3 py-2 font-mono text-sm" /></label>
-        <div className="flex gap-2 self-end">
-          <Button type="button" variant="destructive" className="flex-1" onClick={() => { const v = parseNum(saq); mutate((s) => aplicarSaque(s, assetKey, v)); setSaq(""); }}>Aplicar saque</Button>
-          <Button type="button" variant="outline" title="Zerar bônus atual e depósito próprio" onClick={() => mutate((s) => resetBonus(s, assetKey))}>↺</Button>
+    <section className="relative overflow-hidden rounded-2xl border border-[#142b43] bg-[radial-gradient(ellipse_at_top_right,rgba(0,190,255,0.09),transparent_45%),linear-gradient(135deg,#0b1422,#060d17_72%)] p-4 text-slate-100 shadow-[0_16px_45px_rgba(0,0,0,0.22)] sm:p-6">
+      <div className="pointer-events-none absolute -right-10 -top-12 size-44 rounded-full border border-cyan-400/10" />
+      <div className="relative">
+        <div className="mb-5 flex items-start gap-3 border-b border-[#142b43] pb-4">
+          <div className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-cyan-400/20 bg-gradient-to-br from-blue-700/70 to-cyan-950">
+            <Wallet className="size-6 text-cyan-300" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300/80">Gestão financeira · CFD</p>
+            <h2 className="mt-1 text-xl font-extrabold tracking-tight text-slate-50 sm:text-2xl">Bônus e saques</h2>
+            <p className="mt-1 text-sm leading-relaxed text-blue-100/65">Acompanhe o dinheiro próprio, o crédito promocional e o valor que pode retirar sem comprometer a margem.</p>
+          </div>
+        </div>
+
+        <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Metric label="Depósito próprio acumulado" value={`$${fmt(b.deposito)}`} />
+          <Metric label="Bônus disponível" value={`$${fmt(b.bonusAtual)}`} tone="pos" />
+        </div>
+
+        <div className="mb-5 rounded-xl border border-[#18324e] bg-[#071321]/90 p-4">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <span className="flex items-center gap-2 text-xs font-semibold text-blue-100/80"><ShieldCheck className="size-4 text-cyan-400" />Limite de bônus do plano</span>
+            <span className="font-mono text-xs font-bold text-cyan-300">{fmt(pctBonus)}%</span>
+          </div>
+          <div className="h-2.5 overflow-hidden rounded-full bg-slate-800">
+            <div className="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-300 transition-all" style={{ width: `${pctBonus}%` }} />
+          </div>
+          <div className="mt-2 flex flex-wrap justify-between gap-1 font-mono text-[11px] text-slate-400">
+            <span>Conquistado: ${fmt(b.bonusGanhoTotal)}</span>
+            <span>Disponível para ganhar: ${fmt(espacoBonus)} de ${fmt(b.bonusCap)}</span>
+          </div>
+        </div>
+
+        <div className="mb-5 rounded-xl border border-[#18324e] bg-[#081321]/80 p-4 sm:p-5">
+          <div className="mb-4 flex items-center gap-2">
+            <Calculator className="size-4 text-cyan-400" />
+            <h3 className="text-sm font-bold text-slate-100">Configuração e movimentações</h3>
+          </div>
+          <div className="mb-4">
+            <NumField label="Teto de bônus do plano ($)" value={b.bonusCap} onChange={(v) => mutate((s) => { if (v) s.assets[assetKey].bonus.bonusCap = v; })} />
+          </div>
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+            <div className="rounded-xl border border-[#183b43] bg-gradient-to-br from-[#092126]/80 to-[#080f1a] p-3.5 sm:p-4">
+              <p className="mb-1 flex items-center gap-2 text-sm font-bold text-emerald-300"><TrendingUp className="size-4" />Adicionar depósito</p>
+              <p className="mb-3 text-xs leading-relaxed text-slate-400">Informe apenas o valor que saiu do seu bolso. O bônus será calculado separadamente.</p>
+              <label className={labelClass}>Valor do depósito ($)
+                <input inputMode="decimal" value={dep} placeholder="Ex.: 1000" onChange={(e) => setDep(e.target.value)} className={inputClass} />
+              </label>
+              <Button type="button" className="mt-3 w-full rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 font-bold text-slate-950 hover:from-emerald-400 hover:to-cyan-300" onClick={() => { const v = parseNum(dep); mutate((s) => aplicarDeposito(s, assetKey, v)); setDep(""); }}>Aplicar depósito</Button>
+            </div>
+            <div className="rounded-xl border border-[#482d39] bg-gradient-to-br from-[#27131e]/70 to-[#0b101b] p-3.5 sm:p-4">
+              <p className="mb-1 flex items-center gap-2 text-sm font-bold text-rose-300"><Wallet className="size-4" />Registrar saque</p>
+              <p className="mb-3 text-xs leading-relaxed text-slate-400">Registre o lucro retirado. O sistema calcula a redução proporcional do bônus.</p>
+              <label className={labelClass}>Valor do saque ($)
+                <input inputMode="decimal" value={saq} placeholder="Ex.: 200" onChange={(e) => setSaq(e.target.value)} className={inputClass} />
+              </label>
+              <div className="mt-3 grid grid-cols-[1fr_auto] gap-2">
+                <Button type="button" variant="destructive" className="rounded-xl font-bold" onClick={() => { const v = parseNum(saq); mutate((s) => aplicarSaque(s, assetKey, v)); setSaq(""); }}>Aplicar saque</Button>
+                <Button type="button" variant="outline" title="Zerar bônus atual e depósito próprio" aria-label="Zerar bônus atual e depósito próprio" className="rounded-xl border-[#35465b] bg-[#111c2b] text-slate-200 hover:border-rose-400/60 hover:bg-rose-950/40" onClick={() => mutate((s) => resetBonus(s, assetKey))}>↺</Button>
+              </div>
+              <p className="mt-2 text-[10px] text-slate-500">O botão ↺ zera o saldo próprio e o bônus registrados.</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mb-4 rounded-xl border border-[#142b43] bg-[#071321]/75 p-3.5">
+          <p className="mb-1 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-blue-100/80"><Check className="size-4 text-emerald-400" />Última movimentação</p>
+          <p className="text-xs leading-relaxed text-slate-400">{ultima}</p>
+        </div>
+
+        <div className="space-y-2">
+          <h3 className="flex items-center gap-2 text-sm font-bold text-slate-100"><ShieldCheck className="size-4 text-cyan-400" />Análise de saque e proteção de margem</h3>
+          {linhas.map((l, i) => (
+            <div key={i} className="rounded-xl border border-[#142b43] bg-[#071321]/75 px-3.5 py-3 text-xs leading-relaxed text-blue-100/75">{l}</div>
+          ))}
         </div>
       </div>
-      <Note>{ultima}</Note>
-      <div className="mt-3 space-y-1 rounded border bg-secondary p-3 font-mono text-xs leading-relaxed text-muted-foreground">
-        {linhas.map((l, i) => <p key={i}>{l}</p>)}
-      </div>
-    </Panel>
+    </section>
   );
 }
 
