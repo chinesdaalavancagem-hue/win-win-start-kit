@@ -873,56 +873,105 @@ function CaixaPanel({ asset, assetKey, bonusPct, setBonusPct }: { asset: Asset; 
   if (!asset.days.length) return <p className="text-muted-foreground">Cadastre os dias do ciclo em Parâmetros para ver o caixa.</p>;
   const r = calcCaixaCiclo(asset, assetKey, parseNum(bonusPct));
   const items: [string, number, string, string][] = [
-    ["Caixa próprio máximo disponível", r.caixaMaximo, "text-primary", "o pico de dinheiro seu fora do bolso: taxa + todos os depósitos"],
-    ["Total depositado no CFD no ciclo", r.totalDepositado, "text-foreground", "depósito é margem de garantia; não significa que todo esse valor será perdido"],
-    ["Perda total no CFD se passar todos os dias", r.totalPerda, "text-destructive", "soma das perdas diárias do CFD, antes de separar a origem do dinheiro"],
-    ["Perda do meu depósito próprio", r.perdaPropriaTotal, "text-destructive", "parte das perdas coberta pelo dinheiro depositado por você"],
-    ["Perda do bônus da corretora", r.perdaBonusTotal, "text-accent-foreground", "parte das perdas coberta pelo crédito promocional"],
-    ["Saldo próprio recuperável no CFD", r.proprioRecuperavel, "text-primary", "parte do dinheiro depositado que sobra na corretora e pode ser sacada de volta"],
-    ["Bônus recebido no ciclo", r.bonusTotal, "text-accent-foreground", `limitado ao teto de ${fmt(asset.bonus.bonusCap)}`],
-    ["Recuperado no fim", r.recuperado, "text-primary", `saque da mesa ${fmt(r.saque)} + saldo próprio recuperável no CFD ${fmt(r.proprioRecuperavel)}`],
-    ["Resultado do ciclo completo", r.resultadoFinal, r.resultadoFinal >= 0 ? "text-primary" : "text-destructive", "recuperado menos o caixa próprio usado"],
+    ["Caixa próprio máximo disponível", r.caixaMaximo, "text-cyan-300", "Taxa da mesa + todos os depósitos próprios do cenário"],
+    ["Total depositado no CFD", r.totalDepositado, "text-slate-100", "Garantia operacional; não significa perda total"],
+    ["Perda total no CFD", r.totalPerda, "text-rose-300", "Cenário em que a mesa passa por todos os dias"],
+    ["Perda do depósito próprio", r.perdaPropriaTotal, "text-rose-300", "Parte das perdas coberta pelo seu dinheiro"],
+    ["Perda do bônus", r.perdaBonusTotal, "text-amber-300", "Parte das perdas coberta pelo crédito promocional"],
+    ["Saldo próprio recuperável", r.proprioRecuperavel, "text-emerald-300", "Dinheiro que sobra no CFD e pode ser sacado"],
+    ["Bônus recebido no ciclo", r.bonusTotal, "text-amber-300", `Limitado ao teto de ${fmt(asset.bonus.bonusCap)}`],
+    ["Recuperação total no fim", r.recuperado, "text-emerald-300", `Saque da mesa ${fmt(r.saque)} + saldo próprio recuperável`],
+    ["Resultado do ciclo", r.resultadoFinal, r.resultadoFinal >= 0 ? "text-emerald-300" : "text-rose-300", "Valor recuperado menos o caixa próprio utilizado"],
   ];
+  const money = (value: number) => `${value < 0 ? "−" : ""}$${fmt(Math.abs(value))}`;
   return (
-    <section className="space-y-4 rounded-lg border bg-card p-4">
-      <h2 className="text-lg font-bold">Caixa necessário para o ciclo inteiro</h2>
-      <label className="block max-w-xs text-sm">Bônus da corretora (%)
-        <input inputMode="decimal" value={bonusPct} onChange={(e) => setBonusPct(e.target.value)} className="mt-1 w-full rounded-md border bg-background px-2 py-1.5" />
-      </label>
-      <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {items.map(([l, v, c, h]) => (
-          <div key={l} className="rounded-md border p-3"><dt className="text-sm text-muted-foreground">{l}</dt><dd className={cn("text-2xl font-bold", c)}>{v < 0 ? "-" : ""}${fmt(Math.abs(v))}</dd><p className="text-xs text-muted-foreground">{h}</p></div>
+    <section className="relative isolate space-y-5 overflow-hidden rounded-2xl border border-cyan-800/60 bg-[radial-gradient(ellipse_at_95%_0%,rgba(0,190,255,0.13),transparent_38%),linear-gradient(145deg,#081626_0%,#050c17_58%,#071321_100%)] p-4 shadow-[0_18px_50px_rgba(0,0,0,0.22)] sm:p-6">
+      <div className="pointer-events-none absolute -right-16 -top-16 -z-10 size-56 rounded-full border border-cyan-400/10" />
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-cyan-400/25 bg-gradient-to-br from-blue-700/70 to-cyan-950 text-cyan-300 shadow-[0_0_25px_rgba(0,150,255,0.15)]">
+            <Wallet aria-hidden="true" className="size-6" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300/80">Planejamento financeiro</p>
+            <h2 className="mt-1 text-xl font-extrabold tracking-tight text-slate-50 sm:text-2xl">Caixa do ciclo</h2>
+            <p className="mt-1 max-w-2xl text-sm leading-relaxed text-blue-100/65">Veja quanto capital próprio pode ser necessário, quanto pode ser perdido e o que permanece recuperável no cenário completo.</p>
+          </div>
+        </div>
+        <div className="min-w-[150px] rounded-xl border border-cyan-900/80 bg-[#06101f]/90 p-3">
+          <label className="block text-xs font-medium text-blue-100/70">Bônus da corretora (%)</label>
+          <input inputMode="decimal" value={bonusPct} onChange={(e) => setBonusPct(e.target.value)} className="mt-1 w-full rounded-lg border border-cyan-900/80 bg-[#030b15] px-3 py-2 font-mono text-lg font-bold text-slate-50 outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/15" />
+        </div>
+      </header>
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {items.map(([label, value, tone, helper], index) => (
+          <article key={label} className={cn("relative min-w-0 overflow-hidden rounded-xl border p-4 shadow-[0_8px_24px_rgba(0,0,0,0.16)] transition-colors", index === 2 ? "border-rose-500/35 bg-[radial-gradient(ellipse_at_top_right,rgba(244,63,94,0.12),transparent_65%),#0a1422]" : index === 5 || index === 7 ? "border-emerald-500/25 bg-[radial-gradient(ellipse_at_top_right,rgba(16,185,129,0.10),transparent_65%),#0a1422]" : "border-cyan-950 bg-[radial-gradient(ellipse_at_top_right,rgba(0,190,255,0.07),transparent_65%),#0a1422]")}>
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-sm leading-snug text-blue-100/70">{label}</p>
+              {index === 2 ? <ShieldCheck aria-hidden="true" className="size-4 shrink-0 text-rose-300/80" /> : <Wallet aria-hidden="true" className="size-4 shrink-0 text-cyan-400/70" />}
+            </div>
+            <p className={cn("mt-3 break-words font-mono text-2xl font-extrabold tracking-tight sm:text-3xl", tone)}>{money(value)}</p>
+            <p className="mt-2 text-xs leading-relaxed text-blue-100/45">{helper}</p>
+          </article>
         ))}
-      </dl>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="text-left text-xs text-muted-foreground"><tr><th className="p-1">Dia</th><th className="p-1">Necessário no CFD</th><th className="p-1">Saldo antes</th><th className="p-1">Depositar</th><th className="p-1">Bônus</th><th className="p-1">Perda total</th><th className="p-1">Perda própria</th><th className="p-1">Perda bônus</th><th className="p-1">Caixa acumulado</th></tr></thead>
-          <tbody>{r.dias.map((d) => (
-            <tr key={d.dia} className="border-t"><td className="p-1">D{d.dia}</td><td className="p-1">${fmt(d.necessario)}</td><td className="p-1">${fmt(d.saldoAntes)}</td><td className="p-1 font-semibold text-primary">${fmt(d.deposito)}</td><td className="p-1">${fmt(d.bonusGanho)}</td><td className="p-1">${fmt(d.perda)}</td><td className="p-1 text-destructive">${fmt(d.perdaPropria)}</td><td className="p-1">${fmt(d.perdaBonus)}</td><td className="p-1">${fmt(d.caixaAcumulado)}</td></tr>
-          ))}</tbody>
-          <tfoot>
-            <tr className="border-t-2 font-semibold">
-              <td className="p-1" colSpan={5}>Totais das perdas no ciclo</td>
-              <td className="p-1 text-destructive">${fmt(r.totalPerda)}</td>
-              <td className="p-1 text-destructive">${fmt(r.perdaPropriaTotal)}</td>
-              <td className="p-1">${fmt(r.perdaBonusTotal)}</td>
-              <td className="p-1">—</td>
-            </tr>
-          </tfoot>
-        </table>
       </div>
-      <div className="rounded-md border p-3 text-xs text-muted-foreground">
-        <p className="mb-1 font-semibold text-foreground">Premissas do cálculo</p>
-        <ul className="list-disc space-y-1 pl-4">
-          <li>Usa o setup salvo desta aba: dias, lotes, contratos, margem por lote (${fmt(asset.params.marginPerLot)}), stop out ({fmt(asset.params.stopoutPct)}%), taxa da mesa (${fmt(r.taxa)}) e saque esperado (${fmt(r.saque)}).</li>
-          <li>Pior caso de caixa: a mesa passa em todos os dias até aprovar. Se reprovar antes, o CFD devolve dinheiro e o caixa usado é menor.</li>
-          <li>O total depositado no CFD é margem de garantia, não perda total. A perda total é separada entre “Perda do meu depósito próprio” e “Perda do bônus”, conforme o saldo disponível em cada dia; o saldo próprio que sobra permanece recuperável na corretora.</li>
-          <li>Cada dia precisa no CFD: margem × (1 + stop out) + a perda do CFD se a mesa passar. Só se deposita o que falta sobre o saldo que já está lá.</li>
-          <li>Bônus de {fmt(parseNum(bonusPct))}% sobre cada depósito, até o teto de ${fmt(asset.bonus.bonusCap)}. A perda consome primeiro o seu dinheiro e depois o bônus.</li>
-          <li>O ciclo começa com a corretora zerada; o saldo atual da banca não entra na conta.</li>
-          <li>No fim, você recupera o saque da mesa e o depósito próprio que sobrou no CFD. O bônus não pode ser sacado.</li>
+
+      <div className="overflow-hidden rounded-xl border border-cyan-950/90 bg-[#050d19]/85">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cyan-950/90 px-4 py-3">
+          <div>
+            <h3 className="font-semibold text-slate-100">Projeção dia a dia</h3>
+            <p className="mt-0.5 text-xs text-blue-100/50">Depósitos, bônus e perdas estimadas em cada etapa.</p>
+          </div>
+          <span className="rounded-full border border-cyan-900/80 bg-cyan-950/40 px-2.5 py-1 text-[11px] font-medium text-cyan-200">D1–D{r.dias.length}</span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[900px] text-sm">
+            <thead className="bg-[#081727] text-left text-[11px] uppercase tracking-wide text-blue-100/55">
+              <tr>{["Dia", "Necessário CFD", "Saldo antes", "Depositar", "Bônus", "Perda total", "Perda própria", "Perda bônus", "Caixa acumulado"].map((heading) => <th key={heading} className="whitespace-nowrap px-3 py-3 font-semibold">{heading}</th>)}</tr>
+            </thead>
+            <tbody>
+              {r.dias.map((d) => (
+                <tr key={d.dia} className="border-t border-cyan-950/70 text-slate-200/85 transition-colors hover:bg-cyan-950/20">
+                  <td className="px-3 py-3 font-bold text-cyan-300">D{d.dia}</td>
+                  <td className="whitespace-nowrap px-3 py-3 font-mono">{money(d.necessario)}</td>
+                  <td className="whitespace-nowrap px-3 py-3 font-mono">{money(d.saldoAntes)}</td>
+                  <td className="whitespace-nowrap px-3 py-3 font-mono font-bold text-cyan-300">{money(d.deposito)}</td>
+                  <td className="whitespace-nowrap px-3 py-3 font-mono text-amber-300">{money(d.bonusGanho)}</td>
+                  <td className="whitespace-nowrap px-3 py-3 font-mono text-rose-300">{money(d.perda)}</td>
+                  <td className="whitespace-nowrap px-3 py-3 font-mono text-rose-200/80">{money(d.perdaPropria)}</td>
+                  <td className="whitespace-nowrap px-3 py-3 font-mono text-amber-200/80">{money(d.perdaBonus)}</td>
+                  <td className="whitespace-nowrap px-3 py-3 font-mono">{money(d.caixaAcumulado)}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot className="border-t-2 border-cyan-900 bg-[#081727] font-semibold">
+              <tr>
+                <td className="px-3 py-3 text-blue-100/80" colSpan={5}>Perdas acumuladas no ciclo</td>
+                <td className="whitespace-nowrap px-3 py-3 font-mono text-rose-300">{money(r.totalPerda)}</td>
+                <td className="whitespace-nowrap px-3 py-3 font-mono text-rose-200">{money(r.perdaPropriaTotal)}</td>
+                <td className="whitespace-nowrap px-3 py-3 font-mono text-amber-300">{money(r.perdaBonusTotal)}</td>
+                <td className="px-3 py-3 text-blue-100/40">—</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <details className="group rounded-xl border border-cyan-950/90 bg-[#050d19]/75 p-4">
+        <summary className="cursor-pointer list-none font-semibold text-blue-100/80 marker:hidden">
+          <span className="flex items-center justify-between gap-3">Premissas do cálculo <ChevronRight aria-hidden="true" className="size-4 text-cyan-400 transition-transform group-open:rotate-90" /></span>
+        </summary>
+        <ul className="mt-3 space-y-2 border-t border-cyan-950/80 pt-3 text-xs leading-relaxed text-blue-100/55">
+          <li>• Usa o setup salvo desta aba: dias, lotes, contratos, margem por lote (${fmt(asset.params.marginPerLot)}), stop out (${fmt(asset.params.stopoutPct)}%), taxa da mesa (${fmt(r.taxa)}) e saque esperado (${fmt(r.saque)}).</li>
+          <li>• Pior cenário de caixa: a mesa passa em todos os dias até aprovar. Se reprovar antes, o caixa utilizado tende a ser menor.</li>
+          <li>• O total depositado no CFD é margem de garantia, não perda total. As perdas são separadas entre depósito próprio e bônus; o saldo próprio que sobra permanece recuperável.</li>
+          <li>• Cada dia precisa no CFD: margem × (1 + stop out) + a perda do CFD se a mesa passar. Só se deposita o que falta sobre o saldo que já está lá.</li>
+          <li>• Bônus de ${fmt(parseNum(bonusPct))}% sobre cada depósito, até o teto de $${fmt(asset.bonus.bonusCap)}. A perda consome primeiro o seu dinheiro e depois o bônus.</li>
+          <li>• O ciclo começa com a corretora zerada; o saldo atual da banca não entra na conta.</li>
+          <li>• No fim, você recupera o saque da mesa e o depósito próprio que sobrou no CFD. O bônus não pode ser sacado.</li>
         </ul>
-      </div>
+      </details>
     </section>
   );
 }
