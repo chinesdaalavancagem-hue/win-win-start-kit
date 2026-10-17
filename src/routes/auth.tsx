@@ -61,6 +61,7 @@ function AuthPage() {
   const [firstName, setFirstName] = useState("");
   const [savedEmailHash, setSavedEmailHash] = useState("");
   const [loginEmail, setLoginEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [emailMatchesSavedUser, setEmailMatchesSavedUser] = useState(false);
   const [dayPeriod, setDayPeriod] = useState<DayPeriod>("morning");
 
@@ -210,7 +211,16 @@ function AuthPage() {
         )}
         <h1 className="text-center text-2xl font-bold">{mode === "login" ? "Entrar" : "Criar conta"}</h1>
         <p className="mt-1 text-center text-sm text-muted-foreground">Win or Win Platform</p>
-        <form onSubmit={onSubmit} className="mt-6 space-y-4">
+        <form
+          onSubmit={onSubmit}
+          onKeyDown={(event) => {
+            const target = event.target as HTMLElement;
+            if (event.key !== "Enter" || event.nativeEvent.isComposing || target.tagName !== "INPUT") return;
+            event.preventDefault();
+            if (!loading) event.currentTarget.requestSubmit();
+          }}
+          className="mt-6 space-y-4"
+        >
           {mode === "signup" && (
             <>
               <Field name="full_name" label="Nome completo" autoComplete="name" />
@@ -223,9 +233,17 @@ function AuthPage() {
             label="E-mail"
             type="email"
             autoComplete="email"
+            value={loginEmail}
             onChange={(event) => setLoginEmail(event.currentTarget.value)}
           />
-          <Field name="password" label="Senha" type="password" autoComplete={mode === "login" ? "current-password" : "new-password"} />
+          <Field
+            name="password"
+            label="Senha"
+            type="password"
+            autoComplete={mode === "login" ? "current-password" : "new-password"}
+            value={password}
+            onChange={(event) => setPassword(event.currentTarget.value)}
+          />
           {error && <p className="text-sm text-destructive">{error}</p>}
           {info && <p className="text-sm text-primary">{info}</p>}
           <Button type="submit" className="w-full" disabled={loading}>
