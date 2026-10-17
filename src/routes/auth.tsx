@@ -61,7 +61,6 @@ function AuthPage() {
   const [firstName, setFirstName] = useState("");
   const [savedEmailHash, setSavedEmailHash] = useState("");
   const [loginEmail, setLoginEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [emailMatchesSavedUser, setEmailMatchesSavedUser] = useState(false);
   const [dayPeriod, setDayPeriod] = useState<DayPeriod>("morning");
 
@@ -266,10 +265,17 @@ function AuthPage() {
             <form
               onSubmit={onSubmit}
               onKeyDown={(event) => {
-                const target = event.target as HTMLElement;
-                if (event.key !== "Enter" || event.nativeEvent.isComposing || target.tagName !== "INPUT") return;
-                event.preventDefault();
-                if (!loading) event.currentTarget.requestSubmit();
+                if (event.key === "Enter" && !event.nativeEvent.isComposing) {
+                  if (loading) {
+                    event.preventDefault();
+                    return;
+                  }
+                  // Permite o submit nativo ou força caso o foco esteja em input
+                  const target = event.target as HTMLElement;
+                  if (target.tagName === "INPUT") {
+                    event.currentTarget.requestSubmit();
+                  }
+                }
               }}
               className="space-y-5"
             >
@@ -293,8 +299,6 @@ function AuthPage() {
                 label="Senha"
                 type="password"
                 autoComplete={mode === "login" ? "current-password" : "new-password"}
-                value={password}
-                onChange={(event) => setPassword(event.currentTarget.value)}
               />
               {error && <p role="alert" className="rounded-xl border border-rose-400/20 bg-rose-400/[0.08] px-4 py-3 text-sm leading-5 text-rose-200">{error}</p>}
               {info && <p role="status" className="rounded-xl border border-emerald-400/20 bg-emerald-400/[0.08] px-4 py-3 text-sm leading-5 text-emerald-200">{info}</p>}
