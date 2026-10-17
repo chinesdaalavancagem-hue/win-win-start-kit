@@ -242,7 +242,7 @@ function AuthPage() {
         <section className="flex items-center justify-center p-5 sm:p-8 lg:p-10 xl:p-14">
           <div className="w-full max-w-md">
             <div className="mb-7 text-center lg:hidden">
-              <img src="/logo.png" alt="Win or Win Platform" width="128" height="128" className="mx-auto mb-3 h-28 w-28 object-contain [filter:hue-rotate(150deg)_saturate(1.25)] drop-shadow-[0_0_22px_rgba(34,211,238,0.18)] />
+              <img src="/logo.png" alt="Win or Win Platform" width="128" height="128" className="mx-auto mb-3 h-28 w-28 object-contain [filter:hue-rotate(150deg)_saturate(1.25)] drop-shadow-[0_0_22px_rgba(34,211,238,0.18)]" />
               <p className="text-xs font-semibold tracking-[0.24em] text-cyan-200">WIN OR WIN PLATFORM</p>
             </div>
 
