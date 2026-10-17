@@ -48,18 +48,26 @@ function Admin() {
   if (!allowed) return <p className="p-8">Acesso negado.</p>;
 
   return (
-    <main className="mx-auto max-w-5xl px-4 py-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Cadastros</h1>
-        <Button asChild variant="outline" size="sm"><Link to="/plataforma">Voltar</Link></Button>
+    <main className="mx-auto max-w-6xl space-y-6 px-4 py-6 md:px-6 md:py-8">
+      <header className="relative overflow-hidden rounded-2xl border border-cyan-900/70 bg-gradient-to-br from-[#071a2d] via-[#0b1224] to-[#111827] p-5 shadow-lg shadow-cyan-950/20 md:p-7">
+        <div className="pointer-events-none absolute -right-12 -top-16 h-48 w-48 rounded-full bg-cyan-400/10 blur-3xl" />
+        <div className="relative flex flex-wrap items-center justify-between gap-4">
+          <div><p className="mb-2 text-xs font-semibold uppercase tracking-[0.22em] text-cyan-300">Área administrativa</p><h1 className="text-2xl font-bold tracking-tight text-white md:text-3xl">Aprovar cadastros</h1><p className="mt-2 text-sm text-slate-300">Revise os pedidos de acesso e gerencie o estado de cada conta.</p></div>
+          <Button asChild variant="outline" size="sm" className="border-slate-600 bg-white/5 text-white hover:bg-white/10"><Link to="/plataforma">← Voltar à plataforma</Link></Button>
+        </div>
+      </header>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="rounded-2xl border border-amber-500/30 bg-gradient-to-br from-amber-500/10 to-transparent p-4"><p className="text-sm text-muted-foreground">Aguardando análise</p><p className="mt-2 text-2xl font-bold tabular-nums">{rows.filter((p) => !p.approved && !p.rejected).length}</p></div>
+        <div className="rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-transparent p-4"><p className="text-sm text-muted-foreground">Aprovados</p><p className="mt-2 text-2xl font-bold tabular-nums">{rows.filter((p) => p.approved && !p.rejected).length}</p></div>
+        <div className="rounded-2xl border border-rose-500/30 bg-gradient-to-br from-rose-500/10 to-transparent p-4"><p className="text-sm text-muted-foreground">Rejeitados</p><p className="mt-2 text-2xl font-bold tabular-nums">{rows.filter((p) => p.rejected).length}</p></div>
       </div>
-      <div className="mt-6 space-y-3">
+      <div className="space-y-3">
         {rows.map((p) => (
-          <div key={p.id} className="flex flex-col gap-3 rounded-lg border bg-card p-4 md:flex-row md:items-center md:justify-between">
+          <div key={p.id} className="flex flex-col gap-4 rounded-2xl border border-border/80 bg-card p-5 shadow-sm transition-colors hover:border-cyan-900/50 md:flex-row md:items-center md:justify-between">
             <div className="text-sm">
-              <p className="font-semibold">{p.full_name || "(sem nome)"} {p.id === user.id && <span className="text-muted-foreground">(você)</span>}</p>
+              <p className="font-semibold text-base">{p.full_name || "(sem nome)"} {p.id === user.id && <span className="text-muted-foreground">(você)</span>}</p>
               <p className="text-muted-foreground">{p.email} · {p.phone}</p>
-              <p className="text-muted-foreground">Nascimento: {p.birth_date ? new Date(p.birth_date + "T00:00").toLocaleDateString("pt-BR") : "-"}</p>
+              <p className="mt-1 text-xs text-muted-foreground">Nascimento: {p.birth_date ? new Date(p.birth_date + "T00:00").toLocaleDateString("pt-BR") : "-"}</p>
             </div>
             {p.id !== user.id && (
               <div className="flex items-center gap-2">
@@ -85,7 +93,7 @@ function Admin() {
         ))}
         {rows.length === 0 && <p className="text-muted-foreground">Nenhum cadastro ainda.</p>}
       </div>
-      <PropFirmSettings />
+      <div className="rounded-2xl border border-border/80 bg-card p-5 shadow-sm md:p-6"><PropFirmSettings /></div>
     </main>
   );
 }
