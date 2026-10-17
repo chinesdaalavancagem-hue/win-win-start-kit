@@ -395,18 +395,18 @@ function DayCard({ row, assetKey, mutate, excedenteAtualSacavel }: { row: Row; a
   }, [isCurrent]);
   const setD = (k: "mnq" | "lotes" | "meta") => (v: number) => mutate((s) => { s.assets[assetKey].days[i]![k] = v; });
   return (
-    <div ref={ref} className={cn("platform-day-card rounded-xl border bg-card p-3 sm:p-4", isCurrent && "border-primary ring-1 ring-primary")}>
-      <div className="mb-3 flex items-center justify-between gap-2 border-b pb-3">
+    <div ref={ref} className={cn("platform-day-card overflow-hidden rounded-2xl border border-[#142b43] bg-[#0b0f19] p-3 text-slate-100 shadow-[0_12px_40px_rgba(0,0,0,0.22)] sm:p-5", isCurrent && "border-[#087cff]/70 ring-1 ring-[#087cff]/25")}>
+      <div className="mb-4 flex items-center justify-between gap-2 border-b border-[#142b43] pb-3">
         <div className="flex items-center gap-2">
-          <span className="rounded-md bg-primary px-2.5 py-1 font-mono text-sm font-bold text-primary-foreground">D{i + 1}</span>
+          <span className="rounded-xl border border-blue-500 bg-blue-600 px-3 py-1.5 font-mono text-base font-bold text-white shadow-[0_0_18px_rgba(0,119,255,0.18)]">D{i + 1}</span>
           {isCurrent && <span className="flex items-center gap-1 text-xs text-market-up"><span className="h-2 w-2 rounded-full bg-market-up" />dia atual</span>}
         </div>
         <button type="button" className="rounded-md border px-2 py-1 text-xs text-muted-foreground hover:text-destructive" onClick={() => mutate((s) => { s.assets[assetKey].days.splice(i, 1); })}>remover</button>
       </div>
 
-      <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Matriz operacional</p>
-      <div className="grid grid-cols-2 gap-2">
-        <div className="rounded-lg border bg-secondary/30 p-2.5">
+      <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.22em] text-blue-200/85">Matriz operacional</p>
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
+        <div className="min-w-0 rounded-xl border border-[#18324e] bg-gradient-to-br from-[#0d1b2b] to-[#080f1a] p-3 sm:p-4">
           <NumField label="Contratos" value={d.mnq} onChange={setD("mnq")} />
           <span className="mt-2 inline-block rounded-full border border-market-down/50 px-2 py-0.5 font-mono text-[11px] text-market-down">-${fmt(Math.abs(c.passa))} se passar</span>
         </div>
@@ -424,7 +424,7 @@ function DayCard({ row, assetKey, mutate, excedenteAtualSacavel }: { row: Row; a
         </div>
       </div>
 
-      <div className={cn("mt-3 flex items-center justify-between gap-3 rounded-lg border p-3", c.bateuAlvo ? "border-market-up/50 bg-market-up/10" : "border-market-down/50 bg-market-down/10")}>
+      <div className={cn("mt-3 flex items-center justify-between gap-3 rounded-xl border p-3.5 sm:p-4", c.liquidoSeReprovar >= 0 ? "border-emerald-500/80 bg-gradient-to-r from-emerald-950/80 via-[#052b2a] to-[#071b20] shadow-[0_0_22px_rgba(0,220,160,0.10)]" : "border-rose-800/80 bg-gradient-to-r from-rose-950/60 to-[#10131f]")}>
         <div className="min-w-0">
           <p className="text-sm font-semibold">Líquido se reprovar hoje</p>
           <p className="font-mono text-[11px] text-muted-foreground">Dívida: ${fmt(c.dividaHoje)} · Alvo bruto: ${fmt(c.alvoBruto)}</p>
