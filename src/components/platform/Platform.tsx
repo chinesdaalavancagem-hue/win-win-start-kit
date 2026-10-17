@@ -623,9 +623,9 @@ function BonusPanel({ state, assetKey, reserva, folga, mutate }: { state: State;
   const last = b.log[b.log.length - 1];
   const dateStr = (ts: number) => { const d = new Date(ts); return d.toLocaleDateString("pt-BR") + " " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); };
   let ultima = "nenhum depósito ou saque registrado ainda.";
-  if (last?.tipo === "deposito") ultima = `última ação: depósito de ${fmt(last.valor)} (+${fmt(last.bonusGanho || 0)} de bônus) em ${dateStr(last.ts)}`;
-  else if (last?.tipo === "saque") ultima = `última ação: saque de ${fmt(last.valor)} (proporção ${fmt((last.proporcao || 0) * 100)}% · bônus reduzido em ${fmt(last.bonusReduzido || 0)}) em ${dateStr(last.ts)}`;
-  else if (last) ultima = `última ação: bônus e depósito próprio zerados (bônus ${fmt(last.valor)}${last.depositoZerado ? ` + depósito ${fmt(last.depositoZerado)}` : ""}) em ${dateStr(last.ts)}`;
+  if (last?.tipo === "deposito") ultima = `última ação: depósito de $${fmt(last.valor)} (+$${fmt(last.bonusGanho || 0)} de bônus) em ${dateStr(last.ts)}`;
+  else if (last?.tipo === "saque") ultima = `última ação: saque de $${fmt(last.valor)} (proporção ${fmt((last.proporcao || 0) * 100)}% · bônus reduzido em $${fmt(last.bonusReduzido || 0)}) em ${dateStr(last.ts)}`;
+  else if (last) ultima = `última ação: bônus e depósito próprio zerados (bônus $${fmt(last.valor)}${last.depositoZerado ? ` + depósito $${fmt(last.depositoZerado)}` : ""}) em ${dateStr(last.ts)}`;
 
   const linhas: ReactNode[] = [];
   if (total <= 0 && reserva <= 0) linhas.push("estratégia de saque: registre um depósito e pelo menos 1 dia do ciclo atual pra calcular.");
@@ -667,8 +667,8 @@ function BonusPanel({ state, assetKey, reserva, folga, mutate }: { state: State;
         </div>
 
         <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Metric label="Depósito próprio acumulado" value={`${fmt(b.deposito)}`} />
-          <Metric label="Bônus disponível" value={`${fmt(b.bonusAtual)}`} tone="pos" />
+          <Metric label="Depósito próprio acumulado" value={`$${fmt(b.deposito)}`} />
+          <Metric label="Bônus disponível" value={`$${fmt(b.bonusAtual)}`} tone="pos" />
         </div>
 
         <div className="mb-5 rounded-xl border border-[#18324e] bg-[#071321]/90 p-4">
@@ -753,7 +753,7 @@ function Historico({ state, mutate }: { state: State; mutate: (fn: (s: State) =>
         {total > 0 ? `taxa de aprovação: ${fmt((state.counts.aprovadas / total) * 100)}% (${total} ciclo${total === 1 ? "" : "s"} concluído${total === 1 ? "" : "s"})` : "nenhum ciclo concluído ainda — use os botões Profit / Stop nos cards de dia."}
       </p>
       <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-4">
-        <Metric label="Custo próprio real (todos os ciclos)" value={`${fmt(custoProprio)}`} tone="neg" />
+        <Metric label="Custo próprio real (todos os ciclos)" value={`$${fmt(custoProprio)}`} tone="neg" />
         <Metric label="Contas compradas" value={total} />
         <Metric label="ROI (resultado real)" value={roi == null ? "-" : `${roi >= 0 ? "+" : ""}${fmt(roi)}%`} tone={roi == null ? undefined : roi >= 0 ? "pos" : "neg"} />
         <Metric label="Margem do resultado real" value={margem == null ? "-" : `${margem >= 0 ? "+" : ""}${fmt(margem)}%`} tone={margem == null ? undefined : margem >= 0 ? "pos" : "neg"} />
@@ -835,18 +835,18 @@ function LogList({ state }: { state: State }) {
         const dt = new Date(e.ts);
         const date = dt.toLocaleDateString("pt-BR") + " " + dt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
         let extra = "";
-        if (e.tipo === "reprovada" && typeof e.bruto === "number") extra = ` · bruto +${fmt(e.bruto)}${e.taxaCobrada ? ` − taxa mesa -${fmt(e.taxaCobrada)}` : ""}`;
+        if (e.tipo === "reprovada" && typeof e.bruto === "number") extra = ` · bruto +$${fmt(e.bruto)}${e.taxaCobrada ? ` − taxa mesa -$${fmt(e.taxaCobrada)}` : ""}`;
         else if (typeof e.custoDia === "number") {
-          extra = ` · custo do dia -${fmt(e.custoDia)}${e.taxaCobrada ? ` + taxa mesa -${fmt(e.taxaCobrada)}` : ""}${e.tipo === "aprovada" && e.saque ? ` + saque +${fmt(e.saque)}` : ""}`;
-          if (e.tipo === "profit" && typeof e.custoProprioDia === "number") extra += ` (própria -${fmt(e.custoProprioDia)}${e.custoBonusDia > 0 ? ` + bônus -${fmt(e.custoBonusDia)}` : ""})`;
+          extra = ` · custo do dia -$${fmt(e.custoDia)}${e.taxaCobrada ? ` + taxa mesa -$${fmt(e.taxaCobrada)}` : ""}${e.tipo === "aprovada" && e.saque ? ` + saque +$${fmt(e.saque)}` : ""}`;
+          if (e.tipo === "profit" && typeof e.custoProprioDia === "number") extra += ` (própria -$${fmt(e.custoProprioDia)}${e.custoBonusDia > 0 ? ` + bônus -$${fmt(e.custoBonusDia)}` : ""})`;
         }
         if (e.tipo === "aprovada" && typeof e.resultadoReal === "number") {
           const cb = Math.max(0, (e.custoCiclo || 0) - (e.custoProprioCiclo || 0));
-          extra += ` · resultado real ${e.resultadoReal >= 0 ? "+$" : "-$"}${fmt(Math.abs(e.resultadoReal))} (custo do ciclo: -${fmt(e.custoProprioCiclo || 0)} próprio${cb > 0 ? ` + -${fmt(cb)} bônus` : ""})`;
+          extra += ` · resultado real ${e.resultadoReal >= 0 ? "+$" : "-$"}${fmt(Math.abs(e.resultadoReal))} (custo do ciclo: -$${fmt(e.custoProprioCiclo || 0)} próprio${cb > 0 ? ` + -$${fmt(cb)} bônus` : ""})`;
         } else if (e.tipo === "reprovada" && typeof e.resultadoReal === "number") {
           const tx = state.assets[e.asset]?.params.taxa ?? e.taxaCobrada ?? 0;
           const p = e.resultadoReal + tx;
-          extra += ` · profit = líquido ${e.resultadoReal >= 0 ? "+$" : "-$"}${fmt(Math.abs(e.resultadoReal))} + taxa mesa +${fmt(tx)} = ${p >= 0 ? "+$" : "-$"}${fmt(Math.abs(p))}`;
+          extra += ` · profit = líquido ${e.resultadoReal >= 0 ? "+$" : "-$"}${fmt(Math.abs(e.resultadoReal))} + taxa mesa +$${fmt(tx)} = ${p >= 0 ? "+$" : "-$"}${fmt(Math.abs(p))}`;
         }
         return (
           <div key={e.id} className="flex flex-wrap items-start gap-2 p-3 font-mono text-xs">
@@ -973,7 +973,7 @@ function CaixaPanel({ asset, assetKey, bonusPct, setBonusPct }: { asset: Asset; 
     ["Recuperação total no fim", r.recuperado, "text-emerald-300", `Saque da mesa ${fmt(r.saque)} + saldo próprio recuperável`],
     ["Resultado do ciclo", r.resultadoFinal, r.resultadoFinal >= 0 ? "text-emerald-300" : "text-rose-300", "Valor recuperado menos o caixa próprio utilizado"],
   ];
-  const money = (value: number) => `${value < 0 ? "−" : ""}${fmt(Math.abs(value))}`;
+  const money = (value: number) => `${value < 0 ? "−" : ""}$${fmt(Math.abs(value))}`;
   return (
     <section className="relative isolate space-y-5 overflow-hidden rounded-2xl border border-cyan-800/60 bg-[radial-gradient(ellipse_at_95%_0%,rgba(0,190,255,0.13),transparent_38%),linear-gradient(145deg,#081626_0%,#050c17_58%,#071321_100%)] p-4 shadow-[0_18px_50px_rgba(0,0,0,0.22)] sm:p-6">
       <div className="pointer-events-none absolute -right-16 -top-16 -z-10 size-56 rounded-full border border-cyan-400/10" />
@@ -1057,7 +1057,7 @@ function CaixaPanel({ asset, assetKey, bonusPct, setBonusPct }: { asset: Asset; 
           <li>• Pior cenário de caixa: a mesa passa em todos os dias até aprovar. Se reprovar antes, o caixa utilizado tende a ser menor.</li>
           <li>• O total depositado no CFD é margem de garantia, não perda total. As perdas são separadas entre depósito próprio e bônus; o saldo próprio que sobra permanece recuperável.</li>
           <li>• Cada dia precisa no CFD: margem × (1 + stop out) + a perda do CFD se a mesa passar. Só se deposita o que falta sobre o saldo que já está lá.</li>
-          <li>• Bônus de ${fmt(parseNum(bonusPct))}% sobre cada depósito, até o teto de ${fmt(asset.bonus.bonusCap)}. A perda consome primeiro o seu dinheiro e depois o bônus.</li>
+          <li>• Bônus de ${fmt(parseNum(bonusPct))}% sobre cada depósito, até o teto de $${fmt(asset.bonus.bonusCap)}. A perda consome primeiro o seu dinheiro e depois o bônus.</li>
           <li>• O ciclo começa com a corretora zerada; o saldo atual da banca não entra na conta.</li>
           <li>• No fim, você recupera o saque da mesa e o depósito próprio que sobrou no CFD. O bônus não pode ser sacado.</li>
         </ul>
