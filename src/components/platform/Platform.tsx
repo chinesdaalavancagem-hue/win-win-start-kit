@@ -616,7 +616,6 @@ function LogList({ state }: { state: State }) {
 /* ---------- backup e notas ---------- */
 
 function BackupMenu({ state, mutate, isAdmin }: { state: State; mutate: (fn: (s: State) => void) => void; isAdmin: boolean }) {
-  const fileRef = useRef<HTMLInputElement>(null);
   const officialFileRef = useRef<HTMLInputElement>(null);
   function exportarParametrosOficiais() {
     const payload = buildOfficialParams(state);
@@ -644,29 +643,9 @@ function BackupMenu({ state, mutate, isAdmin }: { state: State; mutate: (fn: (s:
     <details className="mt-6 rounded-lg border bg-card p-3 text-sm">
       <summary className="cursor-pointer text-muted-foreground">Backup e dados</summary>
       <div className="mt-3 flex flex-wrap gap-2">
-        <Button type="button" variant="outline" size="sm" onClick={() => {
-          const url = URL.createObjectURL(new Blob([JSON.stringify(state, null, 2)], { type: "application/json" }));
-          const a = document.createElement("a"); a.href = url; a.download = `hedge-multiativo-backup-${new Date().toISOString().slice(0, 10)}.json`; a.click(); URL.revokeObjectURL(url);
-        }}>exportar backup (.json)</Button>
-        <Button type="button" variant="outline" size="sm" onClick={() => fileRef.current?.click()}>importar backup</Button>
         {isAdmin && <Button type="button" variant="outline" size="sm" onClick={exportarParametrosOficiais}>exportar parâmetros oficiais (.json)</Button>}
         <Button type="button" variant="outline" size="sm" onClick={() => officialFileRef.current?.click()}>importar parâmetros oficiais</Button>
         <ConfirmButton variant="ghost" className="text-destructive" confirmText="clique de novo (apaga tudo)" onConfirm={() => mutate((s) => Object.assign(s, defaultState()))}>limpar todos os dados salvos</ConfirmButton>
-        <input ref={fileRef} type="file" accept=".json,application/json" className="hidden" onChange={(e) => {
-          const f = e.target.files?.[0]; if (!f) return;
-          const r = new FileReader();
-          r.onload = () => {
-            try {
-              const p = JSON.parse(String(r.result));
-              if (!isValidState(p)) return alert("Arquivo inválido: não parece um backup desta plataforma.");
-              const n = normalizeState(p);
-              mutate((s) => Object.assign(s, n));
-              alert("Backup importado com sucesso.");
-            } catch { alert("Não foi possível ler esse arquivo."); }
-            e.target.value = "";
-          };
-          r.readAsText(f);
-        }} />
         <input ref={officialFileRef} type="file" accept=".json,application/json" className="hidden" onChange={(e) => {
           const file = e.target.files?.[0]; if (file) importarParametrosOficiais(file, e.currentTarget);
         }} />
