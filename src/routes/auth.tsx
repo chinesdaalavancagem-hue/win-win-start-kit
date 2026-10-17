@@ -186,103 +186,164 @@ function AuthPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-4 py-10">
-      <div className="w-full max-w-md rounded-xl border bg-card p-8">
-        <img src="/logo.png" width="240" height="240" className="mx-auto block object-contain" />
-        {mode === "login" && firstName && emailMatchesSavedUser && (
-          <section className="mb-5 mt-2 space-y-2 text-center" aria-label="Saudação e versículo bíblico">
-            <h2 className="text-xl font-semibold">
-              {greetings[dayPeriod]}, {firstName}!
+    <main className="relative isolate flex min-h-screen items-center justify-center overflow-hidden bg-[#070b14] px-4 py-8 text-white sm:px-6 lg:px-8">
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+        <div className="absolute -left-32 -top-28 h-80 w-80 rounded-full bg-cyan-500/15 blur-3xl" />
+        <div className="absolute -bottom-40 -right-24 h-96 w-96 rounded-full bg-emerald-500/10 blur-3xl" />
+        <div className="absolute inset-0 opacity-[0.08] [background-image:linear-gradient(rgba(148,163,184,0.35)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.35)_1px,transparent_1px)] [background-size:36px_36px]" />
+      </div>
+
+      <div className="grid w-full max-w-6xl overflow-hidden rounded-[28px] border border-white/10 bg-[#0b1220]/90 shadow-2xl shadow-black/40 backdrop-blur-xl lg:min-h-[680px] lg:grid-cols-[1.05fr_0.95fr]">
+        <section className="relative hidden flex-col justify-between overflow-hidden border-r border-white/10 bg-gradient-to-br from-[#101e31] via-[#0b1423] to-[#071019] p-10 lg:flex xl:p-14">
+          <div aria-hidden="true" className="absolute -right-24 top-24 h-72 w-72 rounded-full border border-cyan-300/10" />
+          <div aria-hidden="true" className="absolute -right-12 top-36 h-48 w-48 rounded-full border border-cyan-300/10" />
+          <div className="relative">
+            <div className="mb-10 flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-cyan-300/20 bg-cyan-300/10 shadow-lg shadow-cyan-950/30">
+                <img src="/logo.png" alt="Win or Win" className="h-10 w-10 object-contain" />
+              </div>
+              <div>
+                <p className="text-sm font-bold tracking-wide text-white">WIN OR WIN</p>
+                <p className="text-xs tracking-[0.2em] text-cyan-200/70">TRADING PLATFORM</p>
+              </div>
+            </div>
+            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/[0.07] px-3 py-1.5 text-xs font-medium text-emerald-200">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(110,231,183,0.9)]" />
+              Seu foco. Sua estratégia. Sua evolução.
+            </div>
+            <h2 className="max-w-lg text-4xl font-semibold leading-tight tracking-tight xl:text-5xl">
+              Mais clareza para operar.
+              <span className="mt-2 block bg-gradient-to-r from-cyan-300 via-sky-300 to-emerald-300 bg-clip-text text-transparent">
+                Mais controle em cada ciclo.
+              </span>
             </h2>
-            <p className="text-sm text-muted-foreground">
-              {dayPeriod === "morning"
-                ? "Que Deus abençoe seu dia."
-                : dayPeriod === "afternoon"
-                  ? "Que Deus abençoe sua tarde."
-                  : "Que Deus abençoe sua noite."}
+            <p className="mt-6 max-w-md text-base leading-7 text-slate-300/80">
+              Acesse seu ambiente e acompanhe seus parâmetros, bancas e integrações em um só lugar.
             </p>
-            <blockquote className="pt-2 text-sm leading-relaxed">
-              “{dailyVerse.text}”
-              <footer className="mt-1 text-xs text-muted-foreground">
-                {dailyVerse.reference}
-              </footer>
-            </blockquote>
-          </section>
-        )}
-        <h1 className="text-center text-2xl font-bold">{mode === "login" ? "Entrar" : "Criar conta"}</h1>
-        <p className="mt-1 text-center text-sm text-muted-foreground">Win or Win Platform</p>
-        <form
-          onSubmit={onSubmit}
-          onKeyDown={(event) => {
-            const target = event.target as HTMLElement;
-            if (event.key !== "Enter" || event.nativeEvent.isComposing || target.tagName !== "INPUT") return;
-            event.preventDefault();
-            if (!loading) event.currentTarget.requestSubmit();
-          }}
-          className="mt-6 space-y-4"
-        >
-          {mode === "signup" && (
-            <>
-              <Field name="full_name" label="Nome completo" autoComplete="name" />
-              <Field name="phone" label="Telefone / WhatsApp" type="tel" placeholder="(11) 99999-9999" autoComplete="tel" />
-              <Field name="birth_date" label="Data de nascimento" type="date" />
-            </>
-          )}
-          <Field
-            name="email"
-            label="E-mail"
-            type="email"
-            autoComplete="email"
-            value={loginEmail}
-            onChange={(event) => setLoginEmail(event.currentTarget.value)}
-          />
-          <Field
-            name="password"
-            label="Senha"
-            type="password"
-            autoComplete={mode === "login" ? "current-password" : "new-password"}
-            value={password}
-            onChange={(event) => setPassword(event.currentTarget.value)}
-          />
-          {error && <p className="text-sm text-destructive">{error}</p>}
-          {info && <p className="text-sm text-primary">{info}</p>}
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Aguarde..." : mode === "login" ? "Entrar" : "Cadastrar"}
-          </Button>
-        </form>
-        {mode === "login" && (
-          <button
-            type="button"
-            onClick={async (e) => {
-              setError(null);
-              setInfo(null);
-              const form = e.currentTarget.form;
-              const raw = form ? String(new FormData(form).get("email") ?? "") : "";
-              const email = raw.trim();
-              if (!z.string().email().safeParse(email).success) {
-                setError("Digite seu e-mail acima para recuperar a senha.");
-                return;
-              }
-              setLoading(true);
-              const { error } = await supabase.auth.resetPasswordForEmail(email, {
-                redirectTo: window.location.origin + "/reset-password",
-              });
-              setLoading(false);
-              if (error) setError("Não foi possível enviar o e-mail. Tente novamente em instantes.");
-              else setInfo("Enviamos um link para redefinir sua senha. Verifique seu e-mail.");
-            }}
-            className="mt-4 w-full text-center text-sm text-muted-foreground hover:text-foreground"
-          >
-            Esqueci minha senha
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={() => { setMode(mode === "login" ? "signup" : "login"); setError(null); setInfo(null); }}
-          className="mt-4 w-full text-center text-sm text-muted-foreground hover:text-foreground"
-        >
-          {mode === "login" ? "Não tem conta? Cadastre-se" : "Já tem conta? Entrar"}
-        </button>
+          </div>
+          <div className="relative mt-12 space-y-3">
+            {[
+              ["01", "Gestão do seu ciclo", "Acompanhe seus números com mais organização."],
+              ["02", "Integrações em um só lugar", "Consulte o estado das suas conexões de trading."],
+              ["03", "Acesso protegido", "Entre na sua conta pessoal com segurança."],
+            ].map(([number, title, description]) => (
+              <div key={number} className="flex items-start gap-4 rounded-2xl border border-white/[0.07] bg-white/[0.025] p-4">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-cyan-300/20 bg-cyan-300/[0.08] text-xs font-semibold text-cyan-200">{number}</span>
+                <div>
+                  <p className="text-sm font-semibold text-slate-100">{title}</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-400">{description}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="relative mt-8 text-xs text-slate-500">WIN OR WIN PLATFORM <span className="px-2 text-slate-700">•</span> AMBIENTE DE ACESSO</p>
+        </section>
+
+        <section className="flex items-center justify-center p-5 sm:p-8 lg:p-10 xl:p-14">
+          <div className="w-full max-w-md">
+            <div className="mb-7 text-center lg:hidden">
+              <img src="/logo.png" alt="Win or Win Platform" width="112" height="112" className="mx-auto mb-3 h-24 w-24 object-contain drop-shadow-[0_0_22px_rgba(34,211,238,0.18)]" />
+              <p className="text-xs font-semibold tracking-[0.24em] text-cyan-200">WIN OR WIN PLATFORM</p>
+            </div>
+
+            <div className="mb-8">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-cyan-300/80">{mode === "login" ? "Bem-vindo de volta" : "Comece sua jornada"}</p>
+              <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">{mode === "login" ? "Acesse sua conta" : "Criar sua conta"}</h1>
+              <p className="mt-3 text-sm leading-6 text-slate-400">{mode === "login" ? "Entre para continuar no seu ambiente de trading." : "Preencha seus dados para solicitar seu acesso à plataforma."}</p>
+            </div>
+
+            {mode === "login" && firstName && emailMatchesSavedUser && (
+              <section className="mb-6 rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.06] p-4" aria-label="Saudação e versículo bíblico">
+                <h2 className="text-base font-semibold text-white">{greetings[dayPeriod]}, {firstName}!</h2>
+                <p className="mt-1 text-sm text-slate-300">{dayPeriod === "morning" ? "Que Deus abençoe seu dia." : dayPeriod === "afternoon" ? "Que Deus abençoe sua tarde." : "Que Deus abençoe sua noite."}</p>
+                <blockquote className="mt-3 border-l-2 border-cyan-300/40 pl-3 text-sm leading-relaxed text-slate-200">
+                  “{dailyVerse.text}”
+                  <footer className="mt-1 text-xs text-slate-400">{dailyVerse.reference}</footer>
+                </blockquote>
+              </section>
+            )}
+
+            <form
+              onSubmit={onSubmit}
+              onKeyDown={(event) => {
+                const target = event.target as HTMLElement;
+                if (event.key !== "Enter" || event.nativeEvent.isComposing || target.tagName !== "INPUT") return;
+                event.preventDefault();
+                if (!loading) event.currentTarget.requestSubmit();
+              }}
+              className="space-y-5"
+            >
+              {mode === "signup" && (
+                <>
+                  <Field name="full_name" label="Nome completo" autoComplete="name" />
+                  <Field name="phone" label="Telefone / WhatsApp" type="tel" placeholder="(11) 99999-9999" autoComplete="tel" />
+                  <Field name="birth_date" label="Data de nascimento" type="date" />
+                </>
+              )}
+              <Field
+                name="email"
+                label="E-mail"
+                type="email"
+                autoComplete="email"
+                value={loginEmail}
+                onChange={(event) => setLoginEmail(event.currentTarget.value)}
+              />
+              <Field
+                name="password"
+                label="Senha"
+                type="password"
+                autoComplete={mode === "login" ? "current-password" : "new-password"}
+                value={password}
+                onChange={(event) => setPassword(event.currentTarget.value)}
+              />
+              {error && <p role="alert" className="rounded-xl border border-rose-400/20 bg-rose-400/[0.08] px-4 py-3 text-sm leading-5 text-rose-200">{error}</p>}
+              {info && <p role="status" className="rounded-xl border border-emerald-400/20 bg-emerald-400/[0.08] px-4 py-3 text-sm leading-5 text-emerald-200">{info}</p>}
+              <Button type="submit" className="h-12 w-full rounded-xl border border-cyan-200/20 bg-gradient-to-r from-cyan-500 to-sky-500 font-semibold text-slate-950 shadow-lg shadow-cyan-950/30 transition hover:brightness-110" disabled={loading}>
+                {loading ? "Aguarde..." : mode === "login" ? "Entrar na plataforma" : "Solicitar cadastro"}
+              </Button>
+            </form>
+
+            {mode === "login" && (
+              <button
+                type="button"
+                onClick={async (e) => {
+                  setError(null);
+                  setInfo(null);
+                  const form = e.currentTarget.form;
+                  const raw = form ? String(new FormData(form).get("email") ?? "") : "";
+                  const email = raw.trim();
+                  if (!z.string().email().safeParse(email).success) {
+                    setError("Digite seu e-mail acima para recuperar a senha.");
+                    return;
+                  }
+                  setLoading(true);
+                  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                    redirectTo: window.location.origin + "/reset-password",
+                  });
+                  setLoading(false);
+                  if (error) setError("Não foi possível enviar o e-mail. Tente novamente em instantes.");
+                  else setInfo("Enviamos um link para redefinir sua senha. Verifique seu e-mail.");
+                }}
+                className="mt-5 w-full text-center text-sm text-slate-400 transition hover:text-cyan-200"
+              >
+                Esqueci minha senha
+              </button>
+            )}
+            <div className="my-6 flex items-center gap-3">
+              <span className="h-px flex-1 bg-white/10" />
+              <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-slate-600">Acesso seguro</span>
+              <span className="h-px flex-1 bg-white/10" />
+            </div>
+            <button
+              type="button"
+              onClick={() => { setMode(mode === "login" ? "signup" : "login"); setError(null); setInfo(null); }}
+              className="w-full rounded-xl border border-white/10 bg-white/[0.025] px-4 py-3 text-sm font-medium text-slate-300 transition hover:border-cyan-300/25 hover:bg-cyan-300/[0.05] hover:text-white"
+            >
+              {mode === "login" ? "Não tem conta? Cadastre-se" : "Já tem conta? Entrar"}
+            </button>
+            <p className="mt-6 text-center text-xs leading-5 text-slate-500">Ao continuar, você acessa sua área pessoal da Win or Win Platform.</p>
+          </div>
+        </section>
       </div>
     </main>
   );
