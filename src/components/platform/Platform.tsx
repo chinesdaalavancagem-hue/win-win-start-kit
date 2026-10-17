@@ -601,9 +601,7 @@ function BonusPanel({ state, assetKey, reserva, folga, mutate }: { state: State;
             <h3 className="text-sm font-bold text-slate-100">Configuração e movimentações</h3>
           </div>
           <div className="mb-4">
-            <label className={labelClass}>Teto de bônus do plano ($)
-              <NumField label="" value={b.bonusCap} onChange={(v) => mutate((s) => { if (v) s.assets[assetKey].bonus.bonusCap = v; })} />
-            </label>
+            <NumField label="Teto de bônus do plano ($)" value={b.bonusCap} onChange={(v) => mutate((s) => { if (v) s.assets[assetKey].bonus.bonusCap = v; })} />
           </div>
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             <div className="rounded-xl border border-[#183b43] bg-gradient-to-br from-[#092126]/80 to-[#080f1a] p-3.5 sm:p-4">
