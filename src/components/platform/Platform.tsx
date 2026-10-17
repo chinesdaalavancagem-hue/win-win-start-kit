@@ -540,15 +540,14 @@ function DayCard({ row, assetKey, mutate, excedenteAtualSacavel }: { row: Row; a
   const setD = (k: "mnq" | "lotes" | "meta") => (v: number) => mutate((s) => { s.assets[assetKey].days[i]![k] = v; });
   return (
     <div ref={ref} className={cn("platform-day-card overflow-hidden rounded-2xl border border-[#142b43] bg-[#0b0f19] p-3 text-slate-100 shadow-[0_12px_40px_rgba(0,0,0,0.22)] sm:p-5", isCurrent && "border-[#087cff]/70 ring-1 ring-[#087cff]/25")}>
-      <div className="mb-4 flex items-center justify-between gap-2 border-b border-[#142b43] pb-3">
-        <div className="flex items-center gap-2">
-          <span className="rounded-xl border border-blue-500 bg-blue-600 px-3 py-1.5 font-mono text-base font-bold text-white shadow-[0_0_18px_rgba(0,119,255,0.18)]">D{i + 1}</span>
-          {isCurrent && <span className="flex items-center gap-1 text-xs font-semibold text-emerald-400"><span className="h-2 w-2 rounded-full bg-market-up" />dia atual</span>}
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-[#142b43] pb-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <span className="rounded-lg border border-blue-500 bg-blue-600 px-2.5 py-1 font-mono text-sm font-bold text-white shadow-[0_0_18px_rgba(0,119,255,0.18)]">D{i + 1}</span>
+          <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-blue-200/85 sm:text-[11px]"><Crosshair className="h-3.5 w-3.5 shrink-0 text-blue-400" />Matriz operacional</p>
+          {isCurrent && <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-400 sm:text-xs"><span className="h-2 w-2 rounded-full bg-market-up" />dia atual</span>}
         </div>
-        <button type="button" className="rounded-xl border border-[#19334f] px-3 py-2 text-sm tracking-widest text-slate-300 hover:border-blue-500/60 hover:text-white" onClick={() => mutate((s) => { s.assets[assetKey].days.splice(i, 1); })}>remover</button>
+        <button type="button" className="shrink-0 rounded-lg border border-[#19334f] px-2.5 py-1.5 text-xs font-medium text-slate-300 hover:border-blue-500/60 hover:text-white" onClick={() => mutate((s) => { s.assets[assetKey].days.splice(i, 1); })}>remover</button>
       </div>
-
-      <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.22em] text-blue-200/85 flex items-center gap-1.5"><Crosshair className="h-3.5 w-3.5 text-blue-400" />Matriz operacional</p>
       <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
         <div className="min-w-0 rounded-xl border border-[#18324e] bg-gradient-to-br from-[#0d1b2b] to-[#080f1a] p-3 sm:p-4">
           <NumField cockpit label={<><FileText className="h-3.5 w-3.5 text-blue-400" />Contratos</>} value={d.mnq} onChange={setD("mnq")} />
