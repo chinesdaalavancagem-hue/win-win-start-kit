@@ -372,44 +372,134 @@ function AssetView({ state, assetKey, section, setSection, mutate, isAdmin }: { 
       </nav>
 
       {section === "parametros" && (
-        <Panel title="Parâmetros">
+        <div className="space-y-4">
+          <section className="relative overflow-hidden rounded-2xl border border-cyan-700/50 bg-[radial-gradient(ellipse_at_top_right,rgba(0,190,255,0.13),transparent_45%),linear-gradient(135deg,#0a192b,#050c17_72%)] p-4 shadow-[0_18px_48px_rgba(0,0,0,0.22)] sm:p-6">
+            <div className="pointer-events-none absolute -right-10 -top-12 size-44 rounded-full border border-cyan-400/10" />
+            <div className="relative flex items-start gap-3">
+              <div className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-cyan-400/25 bg-cyan-400/10 text-cyan-300">
+                <Calculator className="size-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-cyan-300">Configuração operacional</p>
+                <h2 className="mt-1 text-xl font-extrabold tracking-tight text-white sm:text-2xl">Parâmetros da estratégia</h2>
+                <p className="mt-1 max-w-2xl text-sm leading-relaxed text-blue-100/65">Ajuste os valores usados nos cálculos de contratos, CFD, margem e aprovação. As alterações são salvas automaticamente.</p>
+              </div>
+            </div>
+            <div className="relative mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3">
+              <div className="rounded-xl border border-cyan-950 bg-[#061322]/80 p-3">
+                <p className="text-[10px] uppercase tracking-wider text-blue-100/55">Ativo</p>
+                <p className="mt-1 font-semibold text-slate-100">${ASSET_NAME[assetKey]}</p>
+              </div>
+              <div className="rounded-xl border border-cyan-950 bg-[#061322]/80 p-3">
+                <p className="text-[10px] uppercase tracking-wider text-blue-100/55">Saldo CFD atual</p>
+                <p className="mt-1 font-mono font-bold text-cyan-300">$${fmt(saldo)}</p>
+              </div>
+              <div className="col-span-2 rounded-xl border border-cyan-950 bg-[#061322]/80 p-3 sm:col-span-1">
+                <p className="text-[10px] uppercase tracking-wider text-blue-100/55">Limite geral EOD</p>
+                <p className="mt-1 font-mono font-bold text-amber-300">$${fmt(asset.params.mll)}</p>
+              </div>
+            </div>
+          </section>
+
           {assetKey === "saque2" && (
-            <label className="mb-4 block max-w-xs">
-              <span className="mb-1 block text-xs text-muted-foreground">Ativo real operado (Saque 2)</span>
-              <select value={asset.params.ativoReal === "nasdaq" ? "nasdaq" : "ouro"} className="w-full rounded-md border bg-input/40 px-3 py-2 text-sm"
-                onChange={(e) => mutate((s) => {
-                  const p = s.assets.saque2.params; const v = e.target.value === "nasdaq" ? "nasdaq" : "ouro";
-                  p.ativoReal = v; if (v === "nasdaq") { p.mnq = 2; p.hfm = 1; } else { p.mnq = 10; p.hfm = 100; }
-                })}>
-                <option value="ouro">Ouro (MGC)</option>
-                <option value="nasdaq">Nasdaq</option>
-              </select>
-            </label>
+            <section className="rounded-2xl border border-cyan-950/80 bg-[#071321] p-4 sm:p-5">
+              <div className="mb-3 flex items-center gap-2">
+                <span className="flex size-8 items-center justify-center rounded-lg bg-violet-400/10 text-violet-300"><Crosshair className="size-4" /></span>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-100">Ativo real</h3>
+                  <p className="text-xs text-blue-100/55">Define a referência de cálculo do Saque 2.</p>
+                </div>
+              </div>
+              <label className="block max-w-sm">
+                <span className="mb-1.5 block text-xs font-medium text-blue-100/75">Ativo real operado</span>
+                <select value={asset.params.ativoReal === "nasdaq" ? "nasdaq" : "ouro"} className="w-full rounded-xl border border-cyan-950 bg-[#030b15] px-3 py-3 text-sm text-slate-100 outline-none transition focus:border-cyan-400/70"
+                  onChange={(e) => mutate((s) => {
+                    const p = s.assets.saque2.params; const v = e.target.value === "nasdaq" ? "nasdaq" : "ouro";
+                    p.ativoReal = v; if (v === "nasdaq") { p.mnq = 2; p.hfm = 1; } else { p.mnq = 10; p.hfm = 100; }
+                  })}>
+                  <option value="ouro">Ouro (MGC)</option>
+                  <option value="nasdaq">Nasdaq</option>
+                </select>
+              </label>
+            </section>
           )}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <NumField label="$/ponto do contrato futuro" value={asset.params.mnq} onChange={setP("mnq")} />
-            <NumField label="Broker CFD $/ponto/lote" value={asset.params.hfm} onChange={setP("hfm")} />
-            <NumField label="Limite geral EOD da mesa (reprovação $)" value={asset.params.mll} onChange={setP("mll")} helper="só o limite geral, que anda no fim do dia — nunca limite diário" />
-            <NumField label="Saldo broker CFD ($)" value={saldo} readOnly helper={`depósito próprio $${fmt(bonus.deposito || 0)} + bônus $${fmt(bonus.bonusAtual || 0)}`} />
-            <NumField label="Taxa da mesa (fee $)" value={asset.params.taxa} onChange={setP("taxa")} />
-            <NumField label="Lucro líquido desejado ($, sem a taxa)" value={asset.params.lucroDesejado} onChange={setP("lucroDesejado")} />
-            <NumField label="Margem exigida por 1 lote ($)" value={asset.params.marginPerLot} onChange={setP("marginPerLot")} />
-            <NumField label="Stop-out da corretora (%)" value={asset.params.stopoutPct} onChange={setP("stopoutPct")} />
-            <NumField label="Saque esperado por conta aprovada ($)" value={asset.params.saqueAprovada} onChange={setP("saqueAprovada")} />
-            <NumField label="Folga extra de segurança p/ saque (%)" value={asset.params.folgaExtraPct} onChange={setP("folgaExtraPct")} />
+
+          <section className="rounded-2xl border border-cyan-950/80 bg-[#071321] p-4 sm:p-5">
+            <div className="mb-4 flex items-start gap-3">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-blue-400/15 bg-blue-400/10 text-blue-300"><Layers className="size-4" /></span>
+              <div>
+                <h3 className="font-bold text-slate-100">Mercado e execução</h3>
+                <p className="mt-0.5 text-xs leading-relaxed text-blue-100/55">Valores de referência para converter pontos e dimensionar os contratos.</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="rounded-xl border border-[#18324e] bg-[#091827] p-3"><NumField label="$/ponto do contrato futuro" value={asset.params.mnq} onChange={setP("mnq")} /></div>
+              <div className="rounded-xl border border-[#183b43] bg-[#091a20] p-3"><NumField label="Broker CFD $/ponto/lote" value={asset.params.hfm} onChange={setP("hfm")} /></div>
+              <div className="rounded-xl border border-cyan-950 bg-[#091522] p-3"><NumField label="Saldo broker CFD ($)" value={saldo} readOnly helper={`próprio $${fmt(bonus.deposito || 0)} + bônus $${fmt(bonus.bonusAtual || 0)}`} /></div>
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-cyan-950/80 bg-[#071321] p-4 sm:p-5">
+            <div className="mb-4 flex items-start gap-3">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-emerald-400/15 bg-emerald-400/10 text-emerald-300"><Wallet className="size-4" /></span>
+              <div>
+                <h3 className="font-bold text-slate-100">Financeiro e margem</h3>
+                <p className="mt-0.5 text-xs leading-relaxed text-blue-100/55">Custos, alvo líquido e requisitos da corretora.</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="rounded-xl border border-[#18324e] bg-[#091827] p-3"><NumField label="Taxa da mesa (fee $)" value={asset.params.taxa} onChange={setP("taxa")} /></div>
+              <div className="rounded-xl border border-[#18324e] bg-[#091827] p-3"><NumField label="Lucro líquido desejado ($, sem a taxa)" value={asset.params.lucroDesejado} onChange={setP("lucroDesejado")} /></div>
+              <div className="rounded-xl border border-[#183b43] bg-[#091a20] p-3"><NumField label="Margem exigida por 1 lote ($)" value={asset.params.marginPerLot} onChange={setP("marginPerLot")} /></div>
+              <div className="rounded-xl border border-[#18324e] bg-[#091827] p-3"><NumField label="Stop-out da corretora (%)" value={asset.params.stopoutPct} onChange={setP("stopoutPct")} /></div>
+              <div className="rounded-xl border border-[#183b43] bg-[#091a20] p-3"><NumField label="Saque esperado por conta aprovada ($)" value={asset.params.saqueAprovada} onChange={setP("saqueAprovada")} /></div>
+              <div className="rounded-xl border border-[#18324e] bg-[#091827] p-3"><NumField label="Folga extra de segurança p/ saque (%)" value={asset.params.folgaExtraPct} onChange={setP("folgaExtraPct")} /></div>
+            </div>
+          </section>
+
+          <section className="overflow-hidden rounded-2xl border border-amber-500/25 bg-[#0b1520]">
+            <div className="border-b border-amber-500/15 bg-gradient-to-r from-amber-500/10 to-transparent p-4 sm:p-5">
+              <div className="flex items-start gap-3">
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-amber-400/20 bg-amber-400/10 text-amber-300"><ShieldCheck className="size-4" /></span>
+                <div>
+                  <h3 className="font-bold text-slate-100">Limite de perda da mesa · EOD</h3>
+                  <p className="mt-1 text-xs leading-relaxed text-blue-100/60">Configure o limite geral e, se necessário, uma exceção para cada dia do ciclo.</p>
+                </div>
+              </div>
+              <div className="mt-4 max-w-sm rounded-xl border border-amber-400/20 bg-[#080f18] p-3">
+                <NumField label="Limite geral EOD da mesa (reprovação $)" value={asset.params.mll} onChange={setP("mll")} helper="Limite móvel calculado no fechamento do dia — não é limite diário." />
+              </div>
+            </div>
+            <div className="p-4 sm:p-5">
+              <div className="mb-3">
+                <h4 className="text-sm font-semibold text-slate-100">Limite geral EOD por dia do ciclo</h4>
+                <p className="mt-1 text-xs leading-relaxed text-blue-100/60">Use 0 para herdar o limite geral de $${fmt(asset.params.mll)}. Preencha um valor personalizado quando o limite mudar após um dia lucrativo.</p>
+              </div>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+                {asset.days.map((d, i) => (
+                  <div key={i} className="rounded-xl border border-[#273342] bg-[#07101a] p-3">
+                    <div className="mb-2 flex items-center justify-between gap-1">
+                      <span className="font-mono text-xs font-bold text-amber-300">D{i + 1}</span>
+                      <span className={cn("rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide", d.mll && d.mll > 0 ? "bg-amber-400/10 text-amber-300" : "bg-slate-700/50 text-slate-400")}>{d.mll && d.mll > 0 ? "Personalizado" : "Geral"}</span>
+                    </div>
+                    <NumField label="Limite ($)" value={d.mll ?? 0}
+                      onChange={(v) => mutate((s) => { const day = s.assets[assetKey].days[i]!; if (v > 0) day.mll = v; else delete day.mll; })}
+                      helper={d.mll && d.mll > 0 ? "Exceção ativa" : `herda $${fmt(asset.params.mll)}`} />
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 rounded-xl border border-amber-400/15 bg-amber-400/5 p-3 text-xs leading-relaxed text-amber-100/75">
+                <p className="font-semibold text-amber-200">Importante</p>
+                <p className="mt-1">A estratégia exige limite geral do tipo EOD, atualizado no fechamento do dia. Mesas com limite de perda diário não servem para esta estratégia. Os pontos até a reprovação são calculados por dia e exibidos nos cards de operações.</p>
+              </div>
+            </div>
+          </section>
+
+          <div className="flex items-start gap-2 rounded-xl border border-cyan-950/70 bg-[#06101b] p-3 text-xs leading-relaxed text-blue-100/60">
+            <Check className="mt-0.5 size-4 shrink-0 text-emerald-400" />
+            <p>Após a aprovação, o primeiro saque pode devolver o gasto no CFD e gerar lucro. Informe o saque esperado por conta aprovada para que a plataforma credite essa estimativa automaticamente.</p>
           </div>
-          <h3 className="mb-2 mt-5 text-sm font-semibold">Limite geral EOD por dia do ciclo</h3>
-          <p className="mb-3 text-xs text-muted-foreground">Deixe 0 para usar o limite geral acima (${fmt(asset.params.mll)}). Ex.: na conta financiada, após lucro no D4, coloque no D5 o novo limite.</p>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {asset.days.map((d, i) => (
-              <NumField key={i} label={`D${i + 1} limite ($)`} value={d.mll ?? 0}
-                onChange={(v) => mutate((s) => { const day = s.assets[assetKey].days[i]!; if (v > 0) day.mll = v; else delete day.mll; })}
-                helper={d.mll && d.mll > 0 ? "personalizado" : `usa geral $${fmt(asset.params.mll)}`} />
-            ))}
-          </div>
-          <Note>A mesa proprietária precisa ter só limite geral do tipo EOD (ele só se move no fechamento do dia). Mesa com limite diário não serve para esta estratégia. Os pontos até a reprovação variam por dia e aparecem em cada card.</Note>
-          <Note>Quando uma conta é aprovada, o primeiro saque devolve o que foi gasto no CFD e ainda gera lucro. Preencha o saque esperado por conta aprovada para a plataforma creditar esse valor automaticamente.</Note>
-        </Panel>
+        </div>
       )}
 
       {section === "aporte" && <AportePanel asset={asset} calcs={calcs} />}
