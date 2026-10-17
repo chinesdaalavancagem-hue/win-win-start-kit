@@ -21,7 +21,7 @@ describe("gestão de bancas sem sincronização automática", () => {
       render(<Bancas load={load} save={save} isAdmin />);
     });
 
-    expect(await screen.findByRole("combobox", { name: "Banca:" })).toBeInTheDocument();
+    expect(await screen.findByRole("combobox", { name: "Banca ativa" })).toBeInTheDocument();
     expect(load).toHaveBeenCalledTimes(1);
     expect(screen.queryByLabelText(/Ativo para sincronização/i)).not.toBeInTheDocument();
 
@@ -30,7 +30,7 @@ describe("gestão de bancas sem sincronização automática", () => {
     expect(screen.getAllByText("Ouro").some((el) => el.tagName !== "OPTION")).toBe(true);
     expect(screen.queryByLabelText(/Ativo para sincronização/i)).not.toBeInTheDocument();
 
-    fireEvent.change(screen.getByRole("combobox", { name: "Banca:" }), { target: { value: b.id } });
+    fireEvent.change(screen.getByRole("combobox", { name: "Banca ativa" }), { target: { value: b.id } });
     await waitFor(() => expect(save).toHaveBeenCalled());
     expect(load).toHaveBeenCalledTimes(1);
   });
