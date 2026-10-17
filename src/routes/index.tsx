@@ -47,7 +47,7 @@ function Index() {
         <div className="mx-auto flex h-[72px] max-w-7xl items-center justify-between px-5 sm:px-8">
           <Link to="/" className="flex items-center gap-3" aria-label="Win or Win — início">
             <span className="flex size-11 items-center justify-center rounded-2xl border border-cyan-300/20 bg-cyan-300/[0.08] shadow-lg shadow-cyan-950/20">
-              <img src="/logo.png" alt="" className="size-9 object-contain [filter:hue-rotate(150deg)_saturate(1.25)]" />
+              <img src="/logo.png" alt="" className="size-10 object-contain [filter:hue-rotate(150deg)_saturate(1.25)]" />
             </span>
             <span>
               <span className="block text-sm font-bold tracking-[0.16em]">WIN OR WIN</span>
@@ -112,7 +112,7 @@ function Index() {
                   <p className="mt-1 text-lg font-semibold">Win or Win Platform</p>
                 </div>
                 <span className="flex size-10 items-center justify-center rounded-xl border border-cyan-300/20 bg-cyan-300/[0.08]">
-                  <img src="/logo.png" alt="Win or Win" className="size-8 object-contain [filter:hue-rotate(150deg)_saturate(1.25)]" />
+                  <img src="/logo.png" alt="Win or Win" className="size-9 object-contain [filter:hue-rotate(150deg)_saturate(1.25)]" />
                 </span>
               </div>
               <div className="mt-6 rounded-2xl border border-cyan-300/15 bg-gradient-to-br from-cyan-300/[0.09] to-sky-300/[0.025] p-5">
@@ -235,7 +235,7 @@ function Index() {
 
       <footer className="border-t border-white/[0.08] bg-black/10">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-5 py-7 text-xs text-slate-500 sm:flex-row sm:px-8">
-          <div className="flex items-center gap-3"><img src="/favicon.ico" alt="" className="size-8 rounded-lg object-cover" /><span>Win or Win Platform</span></div>
+          <div className="flex items-center gap-3"><img src="/logo.png" alt="" className="size-10 rounded-lg object-contain [filter:hue-rotate(150deg)_saturate(1.25)]" /><span>Win or Win Platform</span></div>
           <p>Planejamento, organização e controle.</p>
           <Link to="/auth" className="text-slate-300 transition-colors hover:text-cyan-200">Entrar na plataforma</Link>
         </div>
