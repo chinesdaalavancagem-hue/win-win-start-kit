@@ -53,17 +53,17 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
   }
 
   return (
-    <div className="flex flex-1 flex-col">
-      <div className="flex flex-wrap items-center gap-2 border-b px-4 py-2 text-sm">
+    <div className="flex flex-1 flex-col bg-[radial-gradient(ellipse_at_top,rgba(0,111,255,0.10),transparent_58%)]">
+      <div className="flex flex-wrap items-center gap-2 border-b border-cyan-950/80 bg-[#050d1b]/80 px-4 py-3 text-sm sm:px-5">
         <label htmlFor="banca-sel" className="text-muted-foreground">Banca:</label>
         <select id="banca-sel" value={doc.activeId} onChange={(e) => persist({ ...doc, activeId: e.target.value })}
-          className="rounded-md border bg-background px-2 py-1 font-semibold text-foreground">
+          className="rounded-xl border border-cyan-900/80 bg-[#071426] px-3 py-2 font-mono font-bold text-blue-100 outline-none focus:border-cyan-400">
           {doc.bancas.map((b) => <option key={b.id} value={b.id}>{b.nome}</option>)}
         </select>
-        <Button size="sm" variant="outline" onClick={() => setPainel(!painel)} aria-expanded={painel}>
+        <Button size="sm" variant="outline" className="rounded-xl border-cyan-900/80 bg-[#071426] text-blue-100 hover:border-cyan-400 hover:bg-blue-950/60" onClick={() => setPainel(!painel)} aria-expanded={painel}>
           {painel ? "Fechar gestão" : `Gerenciar bancas (${doc.bancas.length})`}
         </Button>
-        <Button size="sm" onClick={() => setPurchaseOpen(true)}><Plus className="size-4" />Adquirir novo teste</Button>
+        <Button size="sm" className="rounded-xl border border-emerald-300/20 bg-gradient-to-r from-emerald-400 to-teal-400 font-semibold text-slate-950 shadow-[0_0_24px_rgba(0,220,160,0.14)] hover:from-emerald-300 hover:to-cyan-300" onClick={() => setPurchaseOpen(true)}><Plus className="size-4" />Adquirir novo teste</Button>
       </div>
       {needsNewChallenge(ativa.state) && <div className="flex flex-wrap items-center justify-between gap-3 border-b border-primary/30 bg-primary/10 px-4 py-3 text-sm"><p>Ciclo encerrado na mesa. Adquira ou renove seu teste para iniciar o próximo ciclo.</p><Button size="sm" variant="outline" onClick={() => setPurchaseOpen(true)}><ExternalLink className="size-4" />Novo teste</Button></div>}
       {ativa.challengeAccount && <p className="border-b px-4 py-2 text-xs text-muted-foreground">Conta {ativa.challengeAccount.account_external_id} · ${fmt(ativa.challengeAccount.account_size)}</p>}
@@ -78,7 +78,7 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
       }} />}
 
       {painel && (
-        <section className="space-y-4 border-b px-4 py-4">
+        <section className="space-y-4 border-b border-cyan-950/70 bg-[#06101f]/70 px-4 py-4">
           <form className="flex flex-wrap gap-2" onSubmit={(e) => {
             e.preventDefault(); if (!nome.trim()) return;
             const b = novaBanca(nome); setNome("");
@@ -93,7 +93,7 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
               const r = resumoBanca(b);
               const isActive = b.id === doc.activeId;
               return (
-                <div key={b.id} className={`rounded-lg border bg-card p-3 ${isActive ? "border-primary" : ""}`}>
+                <div key={b.id} className={`rounded-xl border border-cyan-950/80 bg-gradient-to-br from-[#09182a] to-[#050c17] p-3 ${isActive ? "border-cyan-400/80 shadow-[0_0_20px_rgba(0,190,255,0.10)]" : ""}`}>
                   <div className="flex items-center justify-between gap-2">
                     <strong className="truncate">{b.nome}</strong>
                     {isActive ? <span className="text-xs text-primary">ativa</span> :
