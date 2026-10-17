@@ -199,8 +199,8 @@ function AuthPage() {
           <div aria-hidden="true" className="absolute -right-12 top-36 h-48 w-48 rounded-full border border-cyan-300/10" />
           <div className="relative">
             <div className="mb-10 flex items-center gap-3">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-300/20 bg-cyan-300/10 shadow-lg shadow-cyan-950/30">
-                <img src="/logo.png" alt="Win or Win" className="h-11 w-11 object-contain [filter:hue-rotate(150deg)_saturate(1.25)]" />
+              <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-cyan-300/20 bg-cyan-300/10 shadow-lg shadow-cyan-950/30">
+                <img src="/logo.png" alt="Win or Win" width="72" height="72" className="h-[72px] w-[72px] object-contain [filter:hue-rotate(150deg)_saturate(1.25)]" />
               </div>
               <div>
                 <p className="text-sm font-bold tracking-wide text-white">WIN OR WIN</p>
