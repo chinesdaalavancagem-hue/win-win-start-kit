@@ -282,14 +282,21 @@ function AssetView({ state, assetKey, section, setSection, mutate, isAdmin }: { 
       const bonusAtual = Math.max(0, asset.bonus.bonusAtual || 0);
       const saldoAtual = proprioAtual + bonusAtual;
       const faltaAtual = Math.max(0, caixaProjetado.necessario - saldoAtual);
+      const bonusRate = Math.max(0, parseNum(bonusPct)) / 100;
       const espacoBonus = Math.max(0, asset.bonus.bonusCap - (asset.bonus.bonusGanhoTotal || 0));
+      // Aporte recomendado é somente dinheiro próprio; o bônus futuro entra à parte.
+      const aporteProprio = faltaAtual <= 0
+        ? 0
+        : bonusRate > 0 && espacoBonus > 0
+          ? (faltaAtual <= espacoBonus ? faltaAtual / (1 + bonusRate) : faltaAtual - espacoBonus)
+          : faltaAtual;
       return {
         ...caixaProjetado,
         saldoAntes: saldoAtual,
         proprioAntes: proprioAtual,
         bonusAntes: bonusAtual,
-        deposito: faltaAtual,
-        bonusGanho: Math.min(faltaAtual * Math.max(0, parseNum(bonusPct)) / 100, espacoBonus),
+        deposito: Math.max(0, aporteProprio),
+        bonusGanho: Math.min(Math.max(0, aporteProprio) * bonusRate, espacoBonus),
       };
     })() : caixaProjetado;
     let status: "ok" | "alerta" | "risco" = "ok";
