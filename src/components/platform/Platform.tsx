@@ -927,34 +927,97 @@ function AportePanel({ asset, calcs }: { asset: Asset; calcs: ReturnType<typeof 
   const stopout = asset.params.stopoutPct ?? 30;
   const custoDia = calcs[dia]?.custoSePassar ?? 0;
   const r = calcAporteFracionado({ margem, stopoutPct: stopout, custoDia, bonusPct: parseNum(pct), bonusCap: asset.bonus.bonusCap, bancaIntegral: parseNum(banca) });
-  const items: [string, number, string][] = [
-    ["1. Total necessário para aguentar o stop out", r.total, "text-foreground"],
-    ["2. Depósito do próprio bolso", r.proprio, "text-primary"],
-    ["3. Bônus recebido da corretora", r.bonus, "text-accent-foreground"],
-    ["4. Economia de capital próprio em risco", r.economia, "text-primary"],
+  const money = (v: number) => `$${fmt(v)}`;
+  const ownPct = r.total > 0 ? Math.min(100, Math.max(0, r.proprio / r.total * 100)) : 0;
+  const bonusPctBar = r.total > 0 ? Math.min(100 - ownPct, Math.max(0, r.bonus / r.total * 100)) : 0;
+  const fields = [
+    { label: "Dia do ciclo", content: <select value={dia} onChange={(e) => setDia(Number(e.target.value))} className="mt-1.5 w-full rounded-xl border border-cyan-950 bg-[#030b15] px-3 py-3 text-sm text-slate-100 outline-none transition focus:border-cyan-400/70">{asset.days.map((x, i) => <option key={i} value={i}>D{i + 1} · {x.lotes} lotes{i === asset.attempt.currentDayIndex ? " (atual)" : ""}</option>)}</select> },
+    { label: "Bônus da corretora (%)", content: <input inputMode="decimal" value={pct} onChange={(e) => setPct(e.target.value)} className="mt-1.5 w-full rounded-xl border border-cyan-950 bg-[#030b15] px-3 py-3 font-mono text-sm text-slate-100 outline-none transition focus:border-cyan-400/70" /> },
+    { label: "Banca integral para comparar ($)", content: <input inputMode="decimal" value={banca} onChange={(e) => setBanca(e.target.value)} className="mt-1.5 w-full rounded-xl border border-cyan-950 bg-[#030b15] px-3 py-3 font-mono text-sm text-slate-100 outline-none transition focus:border-cyan-400/70" /> },
   ];
   return (
-    <section className="space-y-4 rounded-lg border bg-card p-4">
-      <h2 className="text-lg font-bold">Calculadora de aporte fracionado</h2>
-      <div className="grid gap-3 sm:grid-cols-3">
-        <label className="text-sm">Dia do ciclo
-          <select value={dia} onChange={(e) => setDia(Number(e.target.value))} className="mt-1 w-full rounded-md border bg-background px-2 py-1.5">
-            {asset.days.map((x, i) => <option key={i} value={i}>D{i + 1} · {x.lotes} lotes{i === asset.attempt.currentDayIndex ? " (atual)" : ""}</option>)}
-          </select>
-        </label>
-        <label className="text-sm">Bônus da corretora (%)
-          <input inputMode="decimal" value={pct} onChange={(e) => setPct(e.target.value)} className="mt-1 w-full rounded-md border bg-background px-2 py-1.5" />
-        </label>
-        <label className="text-sm">Banca integral para comparar ($)
-          <input inputMode="decimal" value={banca} onChange={(e) => setBanca(e.target.value)} className="mt-1 w-full rounded-md border bg-background px-2 py-1.5" />
-        </label>
+    <section className="relative isolate space-y-4 overflow-hidden rounded-2xl border border-cyan-800/60 bg-[radial-gradient(ellipse_at_95%_0%,rgba(0,190,255,0.13),transparent_38%),linear-gradient(145deg,#081626_0%,#050c17_58%,#071321_100%)] p-4 shadow-[0_18px_50px_rgba(0,0,0,0.22)] sm:space-y-5 sm:p-6">
+      <div className="pointer-events-none absolute -right-16 -top-16 -z-10 size-56 rounded-full border border-cyan-400/10" />
+      <header className="flex flex-wrap items-start gap-3">
+        <div className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-cyan-400/25 bg-gradient-to-br from-blue-700/70 to-cyan-950 text-cyan-300 shadow-[0_0_25px_rgba(0,150,255,0.15)]">
+          <Calculator aria-hidden="true" className="size-6" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-cyan-300/85">Planejamento de capital</p>
+          <h2 className="mt-1 text-xl font-extrabold tracking-tight text-slate-50 sm:text-2xl">Aporte financeiro</h2>
+          <p className="mt-1 max-w-2xl text-sm leading-relaxed text-blue-100/65">Calcule o capital necessário para suportar a margem, o stop-out e a perda projetada do dia — separando seu dinheiro do bônus promocional.</p>
+        </div>
+        <div className="rounded-xl border border-cyan-900/80 bg-[#06101f]/90 px-3 py-2">
+          <p className="text-[10px] uppercase tracking-wider text-blue-100/50">Dia selecionado</p>
+          <p className="mt-0.5 font-mono text-lg font-bold text-cyan-300">D${dia + 1}</p>
+        </div>
+      </header>
+
+      <section className="rounded-xl border border-cyan-950/90 bg-[#06101f]/85 p-4 sm:p-5">
+        <div className="mb-3 flex items-center gap-2">
+          <div className="flex size-8 items-center justify-center rounded-lg border border-blue-400/15 bg-blue-400/10 text-blue-300"><Layers aria-hidden="true" className="size-4" /></div>
+          <div>
+            <h3 className="text-sm font-bold text-slate-100">Configurar simulação</h3>
+            <p className="text-xs text-blue-100/50">Altere os valores para recalcular os resultados.</p>
+          </div>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {fields.map((field) => <label key={field.label} className="block min-w-0 text-xs font-medium text-blue-100/75">{field.label}{field.content}</label>)}
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-cyan-700/40 bg-[linear-gradient(120deg,rgba(0,190,255,0.08),transparent_60%),#071321] p-4 sm:p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-cyan-300/80">Aporte próprio estimado</p>
+            <h3 className="mt-2 font-mono text-3xl font-extrabold tracking-tight text-cyan-200 sm:text-4xl">{money(r.proprio)}</h3>
+            <p className="mt-2 max-w-xl text-xs leading-relaxed text-blue-100/60">Este é o valor estimado que sai do seu bolso. O bônus é mostrado separadamente e não é somado ao aporte próprio.</p>
+          </div>
+          <div className="hidden size-10 shrink-0 items-center justify-center rounded-xl bg-cyan-400/10 text-cyan-300 sm:flex"><Wallet aria-hidden="true" className="size-5" /></div>
+        </div>
+        <div className="mt-5">
+          <div className="mb-2 flex items-center justify-between gap-2 text-xs">
+            <span className="text-blue-100/65">Composição do valor necessário</span>
+            <span className="font-mono font-semibold text-slate-100">{money(r.total)}</span>
+          </div>
+          <div className="flex h-3.5 overflow-hidden rounded-full bg-slate-800">
+            <div className="h-full bg-cyan-400 transition-all" style={{ width: `${ownPct}%` }} />
+            <div className="h-full bg-amber-400 transition-all" style={{ width: `${bonusPctBar}%` }} />
+          </div>
+          <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-xs">
+            <span className="flex items-center gap-2 text-blue-100/75"><span className="size-2.5 rounded-sm bg-cyan-400" />Seu dinheiro <strong className="font-mono text-cyan-200">{money(r.proprio)}</strong></span>
+            <span className="flex items-center gap-2 text-blue-100/75"><span className="size-2.5 rounded-sm bg-amber-400" />Bônus estimado <strong className="font-mono text-amber-200">{money(r.bonus)}</strong></span>
+          </div>
+        </div>
+      </section>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <article className="rounded-xl border border-cyan-950 bg-[radial-gradient(ellipse_at_top_right,rgba(0,190,255,0.08),transparent_65%),#0a1422] p-4">
+          <div className="flex items-center gap-2 text-sm text-blue-100/70"><Target aria-hidden="true" className="size-4 text-cyan-300" />Total necessário no CFD</div>
+          <p className="mt-3 break-words font-mono text-2xl font-extrabold text-slate-50 sm:text-3xl">{money(r.total)}</p>
+          <p className="mt-2 text-xs leading-relaxed text-blue-100/45">Margem com stop-out, mais a perda estimada se a mesa passar neste dia.</p>
+        </article>
+        <article className="rounded-xl border border-amber-500/20 bg-[radial-gradient(ellipse_at_top_right,rgba(251,191,36,0.09),transparent_65%),#0a1422] p-4">
+          <div className="flex items-center gap-2 text-sm text-blue-100/70"><Wallet aria-hidden="true" className="size-4 text-amber-300" />Bônus da corretora</div>
+          <p className="mt-3 break-words font-mono text-2xl font-extrabold text-amber-200 sm:text-3xl">{money(r.bonus)}</p>
+          <p className="mt-2 text-xs leading-relaxed text-blue-100/45">Crédito promocional estimado, limitado ao teto de {money(asset.bonus.bonusCap)}.</p>
+        </article>
+        <article className="rounded-xl border border-emerald-500/20 bg-[radial-gradient(ellipse_at_top_right,rgba(16,185,129,0.09),transparent_65%),#0a1422] p-4">
+          <div className="flex items-center gap-2 text-sm text-blue-100/70"><TrendingUp aria-hidden="true" className="size-4 text-emerald-300" />Economia frente à banca integral</div>
+          <p className="mt-3 break-words font-mono text-2xl font-extrabold text-emerald-300 sm:text-3xl">{money(r.economia)}</p>
+          <p className="mt-2 text-xs leading-relaxed text-blue-100/45">Diferença entre a banca integral informada e o aporte próprio estimado.</p>
+        </article>
+        <article className="rounded-xl border border-cyan-950 bg-[#0a1422] p-4">
+          <div className="flex items-center gap-2 text-sm text-blue-100/70"><ShieldCheck aria-hidden="true" className="size-4 text-cyan-300" />Premissas do dia</div>
+          <div className="mt-3 space-y-2 text-xs text-blue-100/65">
+            <div className="flex items-center justify-between gap-3"><span>Margem ({d.lotes} lotes)</span><strong className="font-mono text-slate-100">{money(margem)}</strong></div>
+            <div className="flex items-center justify-between gap-3"><span>Stop-out ({fmt(stopout)}%)</span><strong className="font-mono text-slate-100">{money(margem * stopout / 100)}</strong></div>
+            <div className="flex items-center justify-between gap-3"><span>Perda se passar</span><strong className="font-mono text-rose-300">{money(custoDia)}</strong></div>
+            <div className="flex items-center justify-between gap-3 border-t border-cyan-950 pt-2"><span>Teto de bônus</span><strong className="font-mono text-amber-200">{money(asset.bonus.bonusCap)}</strong></div>
+          </div>
+        </article>
       </div>
-      <p className="text-xs text-muted-foreground">Margem ${fmt(margem)} + {fmt(stopout)}% de stop out = ${fmt(margem * (1 + stopout / 100))} · perda CFD se a mesa passar no dia: ${fmt(custoDia)} · teto de bônus: ${fmt(asset.bonus.bonusCap)}</p>
-      <dl className="grid gap-3 sm:grid-cols-2">
-        {items.map(([l, v, c]) => (
-          <div key={l} className="rounded-md border p-3"><dt className="text-sm text-muted-foreground">{l}</dt><dd className={cn("text-2xl font-bold", c)}>${fmt(v)}</dd></div>
-        ))}
-      </dl>
+      <p className="flex items-start gap-2 rounded-xl border border-cyan-950/80 bg-[#050d19]/80 p-3 text-xs leading-relaxed text-blue-100/55"><ShieldCheck aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-emerald-300" />Estimativa de planejamento: o depósito próprio e o bônus são parcelas distintas. Os valores são recalculados conforme o dia, os lotes, a margem, o stop-out, a perda projetada e o teto de bônus.</p>
     </section>
   );
 }
