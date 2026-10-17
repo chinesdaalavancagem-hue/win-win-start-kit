@@ -105,6 +105,8 @@ export function Platform({ load, save, isAdmin }: { load: () => Promise<string |
             <span>{sync.text}</span>
           </div>
         </div>
+      </section>
+
 
       <div className="mb-5 grid grid-cols-2 gap-2 rounded-2xl border border-cyan-950/80 bg-[#050d1b]/90 p-2 sm:grid-cols-4">
         {TABS.map((t) => (
