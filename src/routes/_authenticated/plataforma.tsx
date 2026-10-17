@@ -77,18 +77,18 @@ function Plataforma() {
   ), []);
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="flex items-center justify-between gap-2 border-b px-4 py-2 text-sm">
-        <span className="flex min-w-0 items-center gap-2 text-muted-foreground">
+    <div className="flex min-h-screen flex-col bg-[#030914] text-slate-100">
+      <header className="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-3 border-b border-cyan-950/80 bg-[#050d1b]/95 px-3 py-3 text-sm shadow-[0_8px_28px_rgba(0,0,0,0.28)] backdrop-blur-md sm:px-5">
+        <span className="flex min-w-0 items-center gap-2 text-blue-100/75">
           <span className="truncate">Olá, {name.split(" ")[0] || user.email}</span>
           {isAdmin && <span className="shrink-0 rounded-full bg-primary px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-primary-foreground">Master</span>}
         </span>
-        <div className="flex gap-2">
-          {state === "ok" && <Button asChild size="sm" variant="outline"><Link to="/integracao">Integração</Link></Button>}
-          {state === "ok" && <Button asChild size="sm" variant="outline"><Link to="/analise-ia">Análise IA</Link></Button>}
-          {isAdmin === true && <Button asChild size="sm" variant="outline"><Link to="/admin">Aprovar cadastros</Link></Button>}
-          {isAdmin === true && <Button asChild size="sm" variant="outline"><Link to="/auditoria">Auditoria</Link></Button>}
-          <Button size="sm" variant="ghost" onClick={() => signOut(navigate)}>Sair</Button>
+        <div className="flex max-w-full gap-2 overflow-x-auto pb-0.5">
+          {state === "ok" && <Button asChild size="sm" variant="outline" className="shrink-0 rounded-xl border-cyan-800/70 bg-[#07162a] text-blue-100 hover:border-cyan-400 hover:bg-blue-950/70"><Link to="/integracao">▦ Integração</Link></Button>}
+          {state === "ok" && <Button asChild size="sm" variant="outline" className="shrink-0 rounded-xl border-cyan-950 bg-[#07101f] text-blue-100 hover:border-cyan-500 hover:bg-blue-950/70"><Link to="/analise-ia">◉ Análise IA</Link></Button>}
+          {isAdmin === true && <Button asChild size="sm" variant="outline" className="shrink-0 rounded-xl border-cyan-950 bg-[#07101f] text-blue-100 hover:border-cyan-500 hover:bg-blue-950/70"><Link to="/admin">♙ Aprovar cadastros</Link></Button>}
+          {isAdmin === true && <Button asChild size="sm" variant="outline" className="shrink-0 rounded-xl border-cyan-950 bg-[#07101f] text-blue-100 hover:border-cyan-500 hover:bg-blue-950/70"><Link to="/auditoria">⛨ Auditoria</Link></Button>}
+          <Button size="sm" variant="ghost" className="shrink-0 text-slate-400 hover:text-white" onClick={() => signOut(navigate)}>Sair</Button>
         </div>
       </header>
       {state === "loading" && <p className="m-auto text-muted-foreground">Carregando...</p>}
