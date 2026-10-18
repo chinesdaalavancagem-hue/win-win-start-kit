@@ -61,7 +61,6 @@ function AuthPage() {
   const [firstName, setFirstName] = useState("");
   const [savedEmailHash, setSavedEmailHash] = useState("");
   const [loginEmail, setLoginEmail] = useState("");
-  const [password, setPassword] = useState("");
   const passwordInputRef = useRef<HTMLInputElement>(null);
   const [emailMatchesSavedUser, setEmailMatchesSavedUser] = useState(false);
   const [dayPeriod, setDayPeriod] = useState<DayPeriod>("morning");
@@ -90,6 +89,22 @@ function AuthPage() {
     refreshGreeting();
     const intervalId = window.setInterval(refreshGreeting, 60_000);
     return () => window.clearInterval(intervalId);
+  }, []);
+
+  useEffect(() => {
+    const syncAutofill = () => {
+      const el = document.getElementById("email") as HTMLInputElement | null;
+      if (el?.value && el.value !== loginEmail) {
+        setLoginEmail(el.value);
+      }
+    };
+    syncAutofill();
+    const t1 = window.setTimeout(syncAutofill, 200);
+    const t2 = window.setTimeout(syncAutofill, 600);
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+    };
   }, []);
 
   useEffect(() => {
@@ -274,7 +289,7 @@ function AuthPage() {
                   }
                   const target = event.target as HTMLElement;
                   if (target.id === "email") {
-                    const pwdVal = passwordInputRef.current?.value || password;
+                    const pwdVal = passwordInputRef.current?.value || "";
                     if (!pwdVal.trim()) {
                       event.preventDefault();
                       passwordInputRef.current?.focus();
@@ -299,7 +314,8 @@ function AuthPage() {
                 label="E-mail"
                 type="email"
                 autoComplete="email"
-                value={loginEmail}
+                autoFocus
+                defaultValue={loginEmail}
                 onChange={(event) => setLoginEmail(event.currentTarget.value)}
               />
               <Field
@@ -308,8 +324,6 @@ function AuthPage() {
                 type="password"
                 autoComplete={mode === "login" ? "current-password" : "new-password"}
                 ref={passwordInputRef}
-                value={password}
-                onChange={(event) => setPassword(event.currentTarget.value)}
               />
               {error && <p role="alert" className="rounded-xl border border-rose-400/20 bg-rose-400/[0.08] px-4 py-3 text-sm leading-5 text-rose-200">{error}</p>}
               {info && <p role="status" className="rounded-xl border border-emerald-400/20 bg-emerald-400/[0.08] px-4 py-3 text-sm leading-5 text-emerald-200">{info}</p>}
