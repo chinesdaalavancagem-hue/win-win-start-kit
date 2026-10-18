@@ -2,7 +2,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { mirrorSide, ordemSchema } from "@/lib/integracao";
 import { autenticarToken, json } from "@/lib/integracao.server";
 
-// Recebe uma ordem da mesa e coloca na fila para o robô do MT5.
 export const Route = createFileRoute("/api/public/ordens/")({
   server: {
     handlers: {
@@ -12,17 +11,38 @@ export const Route = createFileRoute("/api/public/ordens/")({
         if (auth.status === 500) return json({ error: "auth_unavailable" }, 500);
         const userId = auth.userId;
         if (!userId) return json({ error: "unauthorized" }, 401);
+
         let body: unknown;
-        try { body = await request.json(); } catch { return json({ error: "invalid json" }, 400); }
+        try {
+          body = await request.json();
+        } catch {
+          return json({ error: "invalid json" }, 400);
+        }
+
         const parsed = ordemSchema.safeParse(body);
-        if (!parsed.success) return json({ error: "invalid order", issues: parsed.error.flatten().fieldErrors }, 400);
+        if (!parsed.success) {
+          return json({ error: "invalid order", issues: parsed.error.flatten().fieldErrors }, 400);
+        }
         const o = parsed.data;
+
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const { data, error } = await supabaseAdmin.from("order_queue")
-          .upsert({ user_id: userId, external_id: o.id, symbol: o.symbol, side: o.side, mirror_side: mirrorSide(o.side), qty: o.qty, price: o.price ?? null },
-            { onConflict: "user_id,external_id", ignoreDuplicates: true })
-          .select("id").maybeSingle();
-        if (error) { console.error(error); return json({ error: "queue failed" }, 500); }
+        const { data, error } = await supabaseAdmin.from("order_queue").upsert(
+          {
+            user_id: userId,
+            external_id: o.id,
+            symbol: o.symbol,
+            side: o.side,
+            mirror_side: mirrorSide(o.side),
+            qty: o.qty,
+            price: o.price ?? null,
+          },
+          { onConflict: "user_id,external_id", ignoreDuplicates: true },
+        ).select("id").maybeSingle();
+
+        if (error) {
+          console.error(error);
+          return json({ error: "queue failed" }, 500);
+        }
 
         const isNewOrder = Boolean(data);
 
@@ -35,8 +55,7 @@ export const Route = createFileRoute("/api/public/ordens/")({
         });
         if (auditError) console.error("[audit] incoming order event failed", auditError.message);
 
-        // Notifica o usuário no Telegram e via Web Push no celular quando uma ordem nova chega.
-        // O envio é best-effort e não atrasa nem interrompe a resposta da ordem.
+        // Notifica o trader via Telegram e Push no celular quando uma ordem real for recebida
         if (isNewOrder) {
           void (async () => {
             try {
@@ -47,12 +66,7 @@ export const Route = createFileRoute("/api/public/ordens/")({
 
               const operacao = o.side === "buy" ? "🟢 COMPRA" : "🔴 VENDA";
               const espelho = mirrorSide(o.side) === "buy" ? "COMPRA" : "VENDA";
-              const msgTelegram = `⚡ <b>Nova Ordem Recebida — Tradovate</b>\n\n` +
-                `<b>Ativo:</b> ${o.symbol}\n` +
-                `<b>Operação na Mesa:</b> ${operacao} (${o.qty} ctr)\n` +
-                `<b>Espelhamento CFD:</b> ${espelho}\n` +
-                (o.price ? `<b>Preço:</b> ${o.price}\n` : "") +
-                `<b>Status:</b> Na fila para execução no MT5`;
+              const msgTelegram = `⚡ <b>Nova Ordem Recebida — Tradovate</b>\n\n<b>Ativo:</b> ${o.symbol}\n<b>Operação na Mesa:</b> ${operacao} (${o.qty} ctr)\n<b>Espelhamento CFD:</b> ${espelho}\n${o.price ? `<b>Preço:</b> ${o.price}\n` : ""}<b>Status:</b> Na fila para execução no MT5</` + `b>`;
 
               const chatId = await chatIdDoUsuario(userId);
               if (chatId) {
