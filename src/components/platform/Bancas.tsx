@@ -4,16 +4,13 @@ import { Input } from "@/components/ui/input";
 import { Platform } from "./Platform";
 import { fmt, fmtSigned } from "@/lib/platform/engine";
 import { type BancasDoc, novaBanca, parseBancas, relatorioCsv, resumoBanca } from "@/lib/platform/bancas";
-import { ComprarDesafioModal } from "./ComprarDesafioModal";
-import { needsNewChallenge } from "@/lib/platform/challenges";
-import { Plus, ExternalLink, Building2, CheckCircle2, Pencil, Trash2, Download, ArrowUpRight, WalletCards, Activity } from "lucide-react";
+import { Plus, Building2, CheckCircle2, Pencil, Trash2, Download, ArrowUpRight, WalletCards, Activity } from "lucide-react";
 
 export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | null>; save: (v: string) => Promise<boolean>; isAdmin: boolean }) {
   const [doc, setDoc] = useState<BancasDoc | null>(null);
   const [err, setErr] = useState(false);
   const [painel, setPainel] = useState(false);
   const [nome, setNome] = useState("");
-  const [purchaseOpen, setPurchaseOpen] = useState(false);
   const docRef = useRef<BancasDoc | null>(null);
 
   useEffect(() => { load().then((r) => { const d = parseBancas(r); docRef.current = d; setDoc(d); }).catch(() => setErr(true)); }, [load]);
@@ -31,11 +28,7 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
     const next = { ...d, bancas: d.bancas.map((b) => (b.id === id ? { ...b, state: JSON.parse(v) } : b)) };
     docRef.current = next;
     setDoc(next);
-    const before = d.bancas.find((b) => b.id === id);
-    const after = next.bancas.find((b) => b.id === id);
-    const ok = await save(JSON.stringify(next));
-    if (ok && before && after && needsNewChallenge(after.state) && after.state.log.at(-1)?.id !== before.state.log.at(-1)?.id) setPurchaseOpen(true);
-    return ok;
+    return save(JSON.stringify(next));
   }, [activeId, save]);
 
   if (err) return <p className="m-auto text-destructive">Falha ao carregar as bancas.</p>;
@@ -73,22 +66,9 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
             <Button size="sm" variant="outline" className="h-10 rounded-xl border-cyan-900/80 bg-[#071426] text-blue-100 hover:border-cyan-400 hover:bg-blue-950/60" onClick={() => setPainel(!painel)} aria-expanded={painel}>
               <WalletCards className="size-4" />{painel ? "Fechar gestão" : `Minhas bancas · ${doc.bancas.length}`}
             </Button>
-            <Button size="sm" className="h-10 rounded-xl border border-emerald-300/20 bg-gradient-to-r from-emerald-400 to-teal-400 font-semibold text-slate-950 shadow-[0_0_24px_rgba(0,220,160,0.14)] hover:from-emerald-300 hover:to-cyan-300" onClick={() => setPurchaseOpen(true)}><Plus className="size-4" />Adquirir novo teste</Button>
           </div>
         </div>
       </header>
-      {needsNewChallenge(ativa.state) && <div className="flex flex-wrap items-center justify-between gap-3 border-b border-primary/30 bg-primary/10 px-4 py-3 text-sm"><p>Ciclo encerrado na mesa. Adquira ou renove seu teste para iniciar o próximo ciclo.</p><Button size="sm" variant="outline" onClick={() => setPurchaseOpen(true)}><ExternalLink className="size-4" />Novo teste</Button></div>}
-      {ativa.challengeAccount && <div className="border-b border-cyan-950/70 bg-[#071426]/70 px-4 py-2.5 sm:px-6"><div className="mx-auto flex max-w-[1600px] items-center gap-2 text-xs text-slate-400"><CheckCircle2 className="size-4 text-emerald-300" /><span>Conta vinculada</span><span className="text-slate-600">/</span><span className="font-mono text-slate-200">{ativa.challengeAccount.account_external_id}</span><span className="text-slate-600">·</span><span className="font-mono text-cyan-200">${fmt(ativa.challengeAccount.account_size)}</span></div></div>}
-      {purchaseOpen && <ComprarDesafioModal open={purchaseOpen} onOpenChange={setPurchaseOpen} source={ativa} onRegister={async (banca) => {
-        const current = docRef.current;
-        if (!current) return false;
-        if (current.bancas.some((b) => b.challengeAccount?.prop_firm_id === banca.challengeAccount?.prop_firm_id && b.challengeAccount?.account_external_id === banca.challengeAccount?.account_external_id)) throw new Error("Conta já cadastrada");
-        const next = { ...current, activeId: banca.id, bancas: [...current.bancas, banca] };
-        const ok = await save(JSON.stringify(next));
-        if (ok) { docRef.current = next; setDoc(next); }
-        return ok;
-      }} />}
-
       {painel && (
         <section className="border-b border-cyan-950/70 bg-[#06101f]/80 px-4 py-5 sm:px-6">
           <div className="mx-auto max-w-[1600px] space-y-5">
