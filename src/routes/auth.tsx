@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { greetings, getDayPeriod, getDailyVerse, type DayPeriod } from "@/lib/login-greeting-verses";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
@@ -61,6 +61,8 @@ function AuthPage() {
   const [firstName, setFirstName] = useState("");
   const [savedEmailHash, setSavedEmailHash] = useState("");
   const [loginEmail, setLoginEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const passwordInputRef = useRef<HTMLInputElement>(null);
   const [emailMatchesSavedUser, setEmailMatchesSavedUser] = useState(false);
   const [dayPeriod, setDayPeriod] = useState<DayPeriod>("morning");
 
@@ -270,11 +272,17 @@ function AuthPage() {
                     event.preventDefault();
                     return;
                   }
-                  // Permite o submit nativo ou força caso o foco esteja em input
                   const target = event.target as HTMLElement;
-                  if (target.tagName === "INPUT") {
-                    event.currentTarget.requestSubmit();
+                  if (target.id === "email") {
+                    const pwdVal = passwordInputRef.current?.value || password;
+                    if (!pwdVal.trim()) {
+                      event.preventDefault();
+                      passwordInputRef.current?.focus();
+                      return;
+                    }
                   }
+                  event.preventDefault();
+                  event.currentTarget.requestSubmit();
                 }
               }}
               className="space-y-5"
@@ -299,6 +307,9 @@ function AuthPage() {
                 label="Senha"
                 type="password"
                 autoComplete={mode === "login" ? "current-password" : "new-password"}
+                ref={passwordInputRef}
+                value={password}
+                onChange={(event) => setPassword(event.currentTarget.value)}
               />
               {error && <p role="alert" className="rounded-xl border border-rose-400/20 bg-rose-400/[0.08] px-4 py-3 text-sm leading-5 text-rose-200">{error}</p>}
               {info && <p role="status" className="rounded-xl border border-emerald-400/20 bg-emerald-400/[0.08] px-4 py-3 text-sm leading-5 text-emerald-200">{info}</p>}
@@ -353,11 +364,14 @@ function AuthPage() {
   );
 }
 
-function Field({ name, label, ...rest }: { name: string; label: string } & React.InputHTMLAttributes<HTMLInputElement>) {
+const Field = React.forwardRef<
+  HTMLInputElement,
+  { name: string; label: string } & React.InputHTMLAttributes<HTMLInputElement>
+>(function Field({ name, label, ...rest }, ref) {
   return (
     <div className="space-y-1.5">
       <Label htmlFor={name}>{label}</Label>
-      <Input id={name} name={name} required {...rest} />
+      <Input ref={ref} id={name} name={name} required {...rest} />
     </div>
   );
-}
+});
