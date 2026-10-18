@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { forwardRef, useEffect, useRef, useState } from "react";
 import { greetings, getDayPeriod, getDailyVerse, type DayPeriod } from "@/lib/login-greeting-verses";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
@@ -364,7 +364,7 @@ function AuthPage() {
   );
 }
 
-const Field = React.forwardRef<
+const Field = forwardRef<
   HTMLInputElement,
   { name: string; label: string } & React.InputHTMLAttributes<HTMLInputElement>
 >(function Field({ name, label, ...rest }, ref) {
