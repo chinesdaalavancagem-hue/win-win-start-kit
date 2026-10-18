@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { getMyAccess, requireAdmin } from "@/lib/session";
-import { PropFirmSettings } from "@/components/platform/PropFirmSettings";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   beforeLoad: async ({ context }) => {
@@ -93,7 +92,6 @@ function Admin() {
         ))}
         {rows.length === 0 && <p className="text-muted-foreground">Nenhum cadastro ainda.</p>}
       </div>
-      <div className="rounded-2xl border border-border/80 bg-card p-5 shadow-sm md:p-6"><PropFirmSettings /></div>
     </main>
   );
 }
