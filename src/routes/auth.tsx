@@ -108,6 +108,40 @@ function AuthPage() {
   }, []);
 
   useEffect(() => {
+    const handleGlobalKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Enter" || event.isComposing) return;
+      if (loading) {
+        event.preventDefault();
+        return;
+      }
+      const target = event.target as HTMLElement | null;
+      const tag = target?.tagName;
+      // Não interfere se o usuário estiver em um botão ou link
+      if (tag === "BUTTON" || tag === "A" || tag === "TEXTAREA") return;
+
+      // Se estiver com o cursor no e-mail e a senha estiver vazia, vai para a senha
+      if (target?.id === "email") {
+        const pwdVal = passwordInputRef.current?.value || "";
+        if (!pwdVal.trim()) {
+          event.preventDefault();
+          passwordInputRef.current?.focus();
+          return;
+        }
+      }
+
+      // Em qualquer outro lugar, submete o formulário
+      const form = document.querySelector<HTMLFormElement>("form");
+      if (form) {
+        event.preventDefault();
+        form.requestSubmit();
+      }
+    };
+
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+  }, [loading]);
+
+  useEffect(() => {
     let cancelled = false;
     if (!loginEmail.trim() || !savedEmailHash) {
       setEmailMatchesSavedUser(false);
@@ -279,29 +313,7 @@ function AuthPage() {
               </section>
             )}
 
-            <form
-              onSubmit={onSubmit}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && !event.nativeEvent.isComposing) {
-                  if (loading) {
-                    event.preventDefault();
-                    return;
-                  }
-                  const target = event.target as HTMLElement;
-                  if (target.id === "email") {
-                    const pwdVal = passwordInputRef.current?.value || "";
-                    if (!pwdVal.trim()) {
-                      event.preventDefault();
-                      passwordInputRef.current?.focus();
-                      return;
-                    }
-                  }
-                  event.preventDefault();
-                  event.currentTarget.requestSubmit();
-                }
-              }}
-              className="space-y-5"
-            >
+            <form onSubmit={onSubmit} className="space-y-5">
               {mode === "signup" && (
                 <>
                   <Field name="full_name" label="Nome completo" autoComplete="name" />
