@@ -66,7 +66,7 @@ export const Route = createFileRoute("/api/public/ordens/")({
 
               const operacao = o.side === "buy" ? "🟢 COMPRA" : "🔴 VENDA";
               const espelho = mirrorSide(o.side) === "buy" ? "COMPRA" : "VENDA";
-              const msgTelegram = `⚡ <b>Nova Ordem Recebida — Tradovate</b>\n\n<b>Ativo:</b> ${o.symbol}\n<b>Operação na Mesa:</b> ${operacao} (${o.qty} ctr)\n<b>Espelhamento CFD:</b> ${espelho}\n${o.price ? `<b>Preço:</b> ${o.price}\n` : ""}<b>Status:</b> Na fila para execução no MT5</b>`;
+              const msgTelegram = `⚡ <b>Nova Ordem Recebida — Tradovate</b>\n\n<b>Ativo:</b> ${o.symbol}\n<b>Operação na Mesa:</b> ${operacao} (${o.qty} ctr)\n<b>Espelhamento CFD:</b> ${espelho}\n${o.price ? `<b>Preço:</b> ${o.price}\n` : ""}<b>Status:</b> Na fila para execução no MT5`;
 
               const chatId = await chatIdDoUsuario(userId);
               if (chatId) {
