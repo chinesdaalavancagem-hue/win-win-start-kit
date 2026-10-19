@@ -297,8 +297,7 @@ function AssetView({ state, assetKey, section, setSection, mutate, isAdmin }: { 
         bonusAntes: bonusAtual,
         deposito: Math.max(0, aporteProprio),
         bonusGanho: Math.min(Math.max(0, aporteProprio) * bonusRate, espacoBonus),
-      };
-    })() : caixaProjetado;
+      };    })() : caixaProjetado;
     let status: "ok" | "alerta" | "risco" = "ok";
     let statusText = "— sem posição CFD hoje (0 lotes)";
     if (margem > 0 && caixaDia) {
@@ -572,7 +571,7 @@ function DayCard({ row, assetKey, mutate, excedenteAtualSacavel }: { row: Row; a
           <p className="text-xs font-bold text-slate-100 sm:text-sm">Líquido se reprovar hoje</p>
           <p className="mt-1 font-mono text-[10px] text-slate-400 sm:text-xs">Dívida: ${fmt(c.dividaHoje)} · Alvo bruto: ${fmt(c.alvoBruto)}</p>
         </div>
-        <p className={cn("shrink-0 font-mono text-2xl font-bold tracking-tight sm:text-4xl", c.liquidoSeReprovar >= 0 ? "text-emerald-400 drop-shadow-[0_0_12px_rgba(16,185,129,0.65)]" : "text-rose-400")}>{c.liquidoSeReprovar >= 0 ? "+" : "-"}${fmt(Math.abs(c.liquidoSeReprovar))}</p>
+        <p className={cn("shrink-0 font-mono text-3xl font-extrabold tracking-tight sm:text-4xl lg:text-[44px]", c.liquidoSeReprovar >= 0 ? "text-emerald-300 drop-shadow-[0_0_18px_rgba(16,185,129,0.8)]" : "text-rose-400")}>{c.liquidoSeReprovar >= 0 ? "+" : "-"}${fmt(Math.abs(c.liquidoSeReprovar))}</p>
       </div>
 
       {row.caixaDia && d.lotes > 0 ? (() => {
@@ -597,8 +596,7 @@ function DayCard({ row, assetKey, mutate, excedenteAtualSacavel }: { row: Row; a
               <div><p className="text-emerald-400">● Falta</p><p className="text-sm font-semibold">${fmt(cx.deposito)}</p></div>
             </div>
             <div className="mt-3 flex items-center justify-between gap-2 rounded-lg border border-[#142b43] bg-[#0b1726] px-3 py-2.5 font-mono text-xs"><span className="flex items-center gap-1.5 text-muted-foreground"><Calculator className="h-3.5 w-3.5" />Necessário no CFD</span><span className="font-semibold">${fmt(cx.necessario)}</span></div>
-            <div className="mt-1 grid grid-cols-2 gap-1 font-mono text-[11px] text-muted-foreground">
-              <span>Bônus deste depósito: <span className="text-foreground">${fmt(cx.bonusGanho)}</span></span>
+            <div className="mt-1 grid grid-cols-2 gap-1 font-mono text-[11px] text-muted-foreground">              <span>Bônus deste depósito: <span className="text-foreground">${fmt(cx.bonusGanho)}</span></span>
               <span className="text-right">Sacável: <span className="text-market-up">${fmt(excedenteAtualSacavel)}</span></span>
             </div>
             <div className="mt-2 flex items-center justify-between gap-2 rounded-xl border border-blue-600/80 bg-gradient-to-r from-blue-950/70 to-[#071a31] px-3 py-3">
@@ -897,8 +895,7 @@ function BackupMenu({ state, mutate, isAdmin }: { state: State; mutate: (fn: (s:
           const file = e.target.files?.[0]; if (file) importarParametrosOficiais(file, e.currentTarget);
         }} />
       </div>
-    </details>
-  );
+    </details>  );
 }
 
 function StrategyNotes() {
