@@ -944,7 +944,7 @@ function BackupMenu({ state, mutate, save, onApplied, isAdmin }: { state: State;
   }
   return (
     <details className="mt-6 rounded-lg border bg-card p-3 text-sm">
-      <summary className="cursor-pointer text-muted-foreground">Backup e dados</summary>
+      <summary className="cursor-pointer text-muted-foreground">{!isAdmin && published && acceptedAt !== published.updatedAt && dismissedAt !== published.updatedAt ? "🔔 Novos parâmetros oficiais disponíveis — toque para decidir" : isAdmin ? "Publicar parâmetros oficiais / Backup e dados" : "Backup e dados"}</summary>
       <div className="mt-3 flex flex-wrap gap-2">
         {isAdmin && <Button type="button" size="sm" disabled={officialBusy} onClick={() => void publishOfficial()}>Publicar parâmetros oficiais</Button>}
         {!isAdmin && published && acceptedAt !== published.updatedAt && dismissedAt !== published.updatedAt && <div className="w-full rounded-lg border border-cyan-500/50 bg-cyan-950/30 p-3">
