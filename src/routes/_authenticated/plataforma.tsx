@@ -105,6 +105,21 @@ function Plataforma() {
         </div>
       )}
       {state === "ok" && <Bancas load={load} save={save} isAdmin={isAdmin} />}
+      {state === "ok" && (
+        <a
+          href="https://t.me/yansignal"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Falar com o suporte pelo Telegram"
+          title="Suporte pelo Telegram"
+          className="fixed bottom-5 right-4 z-40 flex items-center gap-2 rounded-full border border-sky-300/40 bg-[#229ED9] px-4 py-3 text-sm font-semibold text-white shadow-[0_8px_28px_rgba(0,0,0,0.45)] transition hover:bg-[#168ac4] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300 sm:bottom-6 sm:right-6"
+        >
+          <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 fill-current">
+            <path d="M21.5 3.5 2.8 10.7c-1.2.5-1.2 1.2-.2 1.5l4.8 1.5 1.9 5.8c.2.6.1.9.8.9.5 0 .8-.2 1.1-.5l2.7-2.6 5.6 4.1c1 .5 1.7.2 2-1L24 4.8c.4-1.4-.5-2-2.5-1.3ZM8.1 13.3l10.8-6.8c.5-.3 1-.1.6.3-8.9 8-.3 3.1-2.2-4.6Z" />
+          </svg>
+          <span>Suporte</span>
+        </a>
+      )}
     </div>
   );
 }
