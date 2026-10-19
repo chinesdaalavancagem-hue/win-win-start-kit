@@ -276,95 +276,85 @@ function Integracao() {
         </div>
       </section>
 
-      <section className="space-y-4 rounded-2xl border border-border/80 bg-card p-5 text-sm shadow-sm transition-colors hover:border-cyan-900/50 md:p-6">
-        <div className="flex items-start gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-lg font-bold text-emerald-300">05</span><div><h2 className="text-lg font-semibold">Guia de instalação e ativação</h2><p className="mt-1 text-xs text-muted-foreground">Siga as etapas para conectar a extensão do Chrome ao MetaTrader 5.</p></div></div>
-        <blockquote className="border-l-4 pl-3 text-muted-foreground">
-          <p><b>Aviso importante:</b> A extensão WinOrWin roda 100% nativa dentro do Google Chrome. Você NÃO precisa instalar Python, Node, abrir o prompt de comando (CMD) ou fazer configurações avançadas no seu computador. Todo o processo leva menos de 2 minutos.</p>
-        </blockquote>
+      <section className="space-y-4 rounded-2xl border border-border/80 bg-card p-5 text-sm shadow-sm transition-colors hover:border-emerald-900/50 md:p-6">
+        <div className="flex items-start gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-lg font-bold text-emerald-300">05</span><div><h2 className="text-lg font-semibold">Guia de instalação e ativação</h2><p className="mt-1 text-xs text-muted-foreground">Configure o robô Win or Win com Python, a extensão do Chrome e o MetaTrader 5.</p></div></div>
 
-        <h3 className="font-semibold">📋 O que você precisa antes de começar:</h3>
+        <p>🚀 Este guia ensina a configurar a automação do Win or Win no seu computador. O sistema conecta a sua plataforma de operações (Tradovate / TopstepX) diretamente ao seu MetaTrader 5, abrindo automaticamente a ponta contrária (hedge) com o lote exato calculado para o dia na plataforma.</p>
+
+        <h3 className="text-base font-semibold">📋 Pré-requisitos</h3>
+        <p>Antes de começar, certifique-se de ter instalado no seu computador:</p>
         <ol className="list-decimal space-y-1 pl-5">
-          <li>Ter uma conta aprovada na plataforma WinOrWin;</li>
-          <li>Ter o navegador Google Chrome instalado;</li>
-          <li>Baixar o arquivo da extensão (<code>WinOrWin_Extensao.zip</code>);</li>
-          <li>Ter o MetaTrader 5 aberto no seu computador.</li>
+          <li>Google Chrome (onde você acessa a plataforma e opera a mesa).</li>
+          <li>MetaTrader 5 da sua corretora CFD/Forex (ex.: FortMarkets).</li>
+          <li>Python 3.10 ou superior. Baixe no site oficial: <a className="underline" href="https://www.python.org/downloads/" target="_blank" rel="noreferrer">python.org/downloads</a>.</li>
         </ol>
+        <blockquote className="border-l-4 pl-3 text-muted-foreground">⚠️ Muito importante na instalação do Python: logo na primeira tela do instalador, marque a caixinha <code>Add python.exe to PATH</code> antes de clicar em Install Now.</blockquote>
 
-        <h3 className="text-base font-semibold">📌 PARTE 1: Instalando a Extensão no Chrome</h3>
-        <h4 className="font-semibold">Passo 1: Extrair os arquivos</h4>
+        <h3 className="text-base font-semibold">Passo 1: Instalar as bibliotecas necessárias</h3>
         <ol className="list-decimal space-y-1 pl-5">
-          <li>Localize o arquivo <code>WinOrWin_Extensao.zip</code> que você baixou.</li>
-          <li>Clique com o botão direito nele e escolha Extrair Tudo... (ou use o WinRAR/7-Zip).</li>
-          <li>Salve em um local definitivo do seu computador (ex: na pasta Documentos ou Área de Trabalho).</li>
+          <li>No teclado, pressione <code>Windows + R</code>.</li>
+          <li>Digite <code>cmd</code> e aperte Enter para abrir o Prompt de Comando.</li>
+          <li>Copie o comando abaixo, cole na janela preta e aperte Enter:</li>
         </ol>
-        <blockquote className="border-l-4 pl-3 text-muted-foreground">⚠️ Atenção: Mantenha essa pasta no computador e não a apague após a instalação.</blockquote>
+        <pre className="overflow-x-auto rounded-md bg-muted p-3 text-xs"><code>pip install MetaTrader5 flask flask-cors requests</code></pre>
+        <p>Aguarde até aparecer a mensagem de conclusão com sucesso. Pode fechar essa janela.</p>
 
-        <h4 className="font-semibold">Passo 2: Carregar no Google Chrome</h4>
+        <h3 className="text-base font-semibold">Passo 2: Configurar o seu MetaTrader 5</h3>
+        <p>Para que o robô tenha permissão de enviar ordens:</p>
         <ol className="list-decimal space-y-1 pl-5">
-          <li>Abra o Google Chrome.</li>
-          <li>Na barra de endereços, digite <code>chrome://extensions/</code> (e aperte Enter).</li>
-          <li>No canto superior direito da tela, ative a chave: Modo do desenvolvedor.</li>
-          <li>No canto superior esquerdo, clique no botão: Carregar sem compactação.</li>
-          <li>Selecione a pasta descompactada da extensão (onde estão os arquivos <code>manifest.json</code>, <code>content.js</code>, etc.) e clique em Selecionar pasta.</li>
-          <li>Pronto! A extensão WinOrWin Tradovate Bridge aparecerá na sua lista.</li>
-        </ol>
-
-        <h4 className="font-semibold">Passo 3: Fixar o ícone no navegador</h4>
-        <ol className="list-decimal space-y-1 pl-5">
-          <li>No canto superior direito do Chrome, clique no ícone de Quebra-cabeça (Extensões).</li>
-          <li>Localize a WinOrWin Tradovate Bridge e clique no ícone de Alfinete (Fixar) para deixá-la sempre visível na barra do navegador.</li>
-        </ol>
-
-        <h4 className="font-semibold">Passo 4: Conectar sua Conta</h4>
-        <ol className="list-decimal space-y-1 pl-5">
-          <li>Acesse sua conta na plataforma WinOrWin e vá no menu Integração.</li>
-          <li>Copie a sua Chave de Integração Pessoal (Token).</li>
-          <li>Clique no ícone da extensão no topo do Chrome.</li>
-          <li>Preencha os campos:
-            <ul className="list-disc space-y-1 pl-5">
-              <li>URL da Plataforma: <code>https://win-or-win.lovable.app</code></li>
-              <li>Chave de Integração: Cole a sua chave copiada.</li>
-            </ul>
-          </li>
-          <li>Clique em Salvar Configurações.</li>
-          <li>Ao abrir a plataforma Tradovate no Chrome, você verá no topo direito da tela o selo verde:<br />🟢 WinOrWin: Conectado e Pronto.</li>
-        </ol>
-
-        <h3 className="text-base font-semibold">📌 PARTE 2: Configurando o Robô no MetaTrader 5</h3>
-        <h4 className="font-semibold">Passo 1: Permitir a conexão no MT5 (Apenas uma vez)</h4>
-        <ol className="list-decimal space-y-1 pl-5">
-          <li>No MetaTrader 5, clique no menu superior em Ferramentas &gt; Opções (ou aperte <code>Ctrl + O</code>).</li>
-          <li>Vá até a aba Expert Advisors.</li>
-          <li>Marque a caixinha: Permitir WebRequest para as URLs listadas.</li>
-          <li>Clique no botão de adicionar (+ ou duplo clique) e insira exatamente o endereço: <code>https://win-or-win.lovable.app</code></li>
+          <li>Abra o MetaTrader 5 e conecte-se à sua conta (demo ou real).</li>
+          <li>No menu superior, clique em Ferramentas → Opções (ou aperte <code>Ctrl + O</code>).</li>
+          <li>Clique na aba Expert Advisors e marque: <strong>Permitir algotrading</strong> e <strong>Permitir importação de DLL</strong>.</li>
           <li>Clique em OK.</li>
+          <li>No topo do MetaTrader, certifique-se de que o botão Algo Trading esteja verde (ativado).</li>
         </ol>
 
-        <h4 className="font-semibold">Passo 2: Inserir o Robô no Gráfico</h4>
+        <h3 className="text-base font-semibold">Passo 3: Colocar a sua conta no Robô</h3>
         <ol className="list-decimal space-y-1 pl-5">
-          <li>Abra o gráfico do ativo correspondente na sua corretora (ex: <code>GOLD</code> ou <code>US100Cash</code>).</li>
-          <li>No menu do MT5, arraste o Expert Advisor WinOrWin_Hedge para dentro do gráfico.</li>
-          <li>Na aba Comum:
-            <ul className="list-disc space-y-1 pl-5"><li>Marque a caixinha: Permitir Algo Trading (Negociação Automatizada).</li></ul>
-          </li>
-          <li>Na aba Parâmetros de Entrada (Inputs):
-            <ul className="list-disc space-y-1 pl-5">
-              <li>URL do Site: <code>https://win-or-win.lovable.app</code></li>
-              <li>Chave de Integração: Cole a mesma chave pessoal da plataforma.</li>
-              <li>Mapa de Ativos: Verifique o nome exato dos ativos na sua corretora (ex: <code>MNQ=US100Cash;MGC=GOLD</code>).</li>
-              <li>Magic Number: Deixe <code>0</code> (o robô gera um número exclusivo automático para a sua conta).</li>
-            </ul>
-          </li>
-          <li>Clique em OK.</li>
-          <li>No topo do MetaTrader 5, certifique-se de que o botão Algo Trading está verde (ativado).</li>
+          <li>Extraia os arquivos do robô fornecidos pela plataforma para uma pasta do computador (recomendado: Documentos).</li>
+          <li>Abra o arquivo <code>executor_mt5.py</code> com o Bloco de Notas (clique com o botão direito → Abrir com → Bloco de Notas).</li>
+          <li>Localize as primeiras linhas com a lista de contas:</li>
+        </ol>
+        <pre className="overflow-x-auto rounded-md bg-muted p-3 text-xs"><code>{'CONTAS_PERMITIDAS = [\n    SEU_NUMERO_DE_CONTA,  # Substitua pelo número do seu login no MT5\n]'}</code></pre>
+        <p>Troque <code>SEU_NUMERO_DE_CONTA</code> pelo número do seu login no MetaTrader 5 (o número que aparece no topo da barra de título do MT5) e salve o arquivo com <code>Ctrl + S</code>.</p>
+        <blockquote className="border-l-4 pl-3 text-muted-foreground">🔒 Essa trava garante que o robô só opere na sua conta autorizada, impedindo operações em contas erradas.</blockquote>
+
+        <h3 className="text-base font-semibold">Passo 4: Instalar a Extensão no Google Chrome</h3>
+        <ol className="list-decimal space-y-1 pl-5">
+          <li>Descompacte a pasta da Extensão Win or Win em um local seguro do computador.</li>
+          <li>Abra o Google Chrome e digite na barra de endereços <code>chrome://extensions</code>.</li>
+          <li>No canto superior direito, ative a chave Modo do desenvolvedor.</li>
+          <li>No canto superior esquerdo, clique em Carregar sem compactação.</li>
+          <li>Selecione a pasta descompactada da extensão.</li>
+          <li>Clique no ícone de quebra-cabeça (extensões) no topo do Chrome e fixe o ícone do Win or Win na barra de ferramentas.</li>
         </ol>
 
-        <h3 className="text-base font-semibold">✅ Como Funciona no Dia a Dia</h3>
-        <ul className="list-disc space-y-1 pl-5">
-          <li>Quando você der um clique de Compra na Tradovate, o robô entra Vendido no MT5.</li>
-          <li>Quando você der um clique de Venda na Tradovate, o robô entra Comprado no MT5.</li>
-          <li>Se você apertar o botão de Fechar/Zerar na Tradovate ou atingir alvo/stop, o robô encerra a ordem no MT5 na hora.</li>
-          <li>A velocidade de comunicação é de milissegundos, com auditoria direta no seu painel.</li>
+        <h3 className="text-base font-semibold">🎯 Rotina Operacional do Dia a Dia (4 passos simples)</h3>
+        <p>Toda vez que for operar, siga esta sequência:</p>
+        <ol className="list-decimal space-y-1 pl-5">
+          <li>Abra o MetaTrader 5 na sua conta e verifique se o botão Algo Trading está verde.</li>
+          <li>Abra a Plataforma Win or Win no Chrome e clique na aba do ativo que vai operar (Ouro ou Nasdaq), deixando o card do dia visível.</li>
+          <li>Dê dois cliques no arquivo <code>LIGAR_ROBO.bat</code>. Uma tela preta se abrirá confirmando a conexão com a conta do MT5 e exibindo a mensagem abaixo. Deixe essa janela minimizada enquanto opera:</li>
+        </ol>
+        <pre className="overflow-x-auto rounded-md bg-muted p-3 text-xs"><code>* Running on http://127.0.0.1:5000</code></pre>
+        <ol start={4} className="list-decimal space-y-1 pl-5">
+          <li>Opere normalmente na Tradovate / TopstepX. Ao abrir ou zerar uma posição na mesa proprietária, o robô executará o hedge inverso no MetaTrader 5 com o lote exato do dia indicado na plataforma.</li>
+        </ol>
+
+        <h3 className="text-base font-semibold">🔍 Como Fazer um Teste Rápido</h3>
+        <p>Antes de enviar ordens reais, faça um teste no navegador:</p>
+        <ol className="list-decimal space-y-1 pl-5">
+          <li>Abra a extensão no Chrome clicando no ícone do Win or Win.</li>
+          <li>Verifique se o lote do dia está verde: <strong>🟢 Ouro (GOLD): Dia X · 0.XX lotes</strong>.</li>
+          <li>Clique em <strong>Teste Ouro (MGC)</strong> ou <strong>Teste Nasdaq (MNQ)</strong>.</li>
+          <li>Confira na tela preta do robô a confirmação do recebimento do pacote com o lote do card e o envio da ordem de teste ao MetaTrader.</li>
+        </ol>
+
+        <h3 className="text-base font-semibold">⚠️ Dúvidas Frequentes &amp; Resolução de Problemas</h3>
+        <ul className="list-disc space-y-2 pl-5">
+          <li><strong>A extensão mostra “Card ainda não lido”:</strong> dê F5 na aba da plataforma Win or Win com a aba do ativo (Ouro ou Nasdaq) aberta e reabra o ícone da extensão.</li>
+          <li><strong>O robô avisa “Mercado Fechado” (código 10018):</strong> o mercado de Forex/CFDs fecha nas sextas-feiras à tarde e reabre no domingo à noite. Durante o fim de semana, o robô valida a comunicação, mas o terminal só aceita ordens com o pregão aberto.</li>
+          <li><strong>Erro de conexão ao clicar no .bat:</strong> verifique se o Python foi instalado com a opção <code>Add python.exe to PATH</code> marcada e se o MetaTrader 5 está aberto.</li>
         </ul>
       </section>
 
