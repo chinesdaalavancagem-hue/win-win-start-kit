@@ -571,7 +571,7 @@ function DayCard({ row, assetKey, mutate, excedenteAtualSacavel }: { row: Row; a
           <p className="text-xs font-bold text-slate-100 sm:text-sm">Líquido se reprovar hoje</p>
           <p className="mt-1 font-mono text-[10px] text-slate-400 sm:text-xs">Dívida: ${fmt(c.dividaHoje)} · Alvo bruto: ${fmt(c.alvoBruto)}</p>
         </div>
-        <p className={cn("shrink-0 font-mono text-3xl font-extrabold tracking-tight sm:text-4xl lg:text-[44px]", c.liquidoSeReprovar >= 0 ? "text-emerald-300 drop-shadow-[0_0_18px_rgba(16,185,129,0.8)]" : "text-rose-400")}>{c.liquidoSeReprovar >= 0 ? "+" : "-"}${fmt(Math.abs(c.liquidoSeReprovar))}</p>
+        <p className={cn("shrink-0 font-mono text-3xl font-extrabold tracking-tight sm:text-4xl lg:!text-[56px] xl:!text-[64px]", c.liquidoSeReprovar >= 0 ? "text-emerald-300 drop-shadow-[0_0_18px_rgba(16,185,129,0.8)]" : "text-rose-400")}>{c.liquidoSeReprovar >= 0 ? "+" : "-"}${fmt(Math.abs(c.liquidoSeReprovar))}</p>
       </div>
 
       {row.caixaDia && d.lotes > 0 ? (() => {
