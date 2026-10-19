@@ -120,7 +120,7 @@ export function Platform({ load, save, isAdmin }: { load: () => Promise<string |
           <button key={t.key} type="button" onClick={() => mutate((s) => { s.activeTab = t.key; })}
             className={cn("flex min-w-0 items-center justify-center gap-2 rounded-xl border px-2 py-3 text-sm font-semibold transition-all sm:px-3",
               tab === t.key ? "border-cyan-400/70 bg-gradient-to-b from-blue-950 to-[#07162a] text-white shadow-[0_0_18px_rgba(0,160,255,0.10)]" : "border-transparent text-slate-400 hover:border-cyan-950 hover:bg-[#071426] hover:text-blue-100")}>
-            {t.key === "ouro" ? <span aria-hidden="true" className="text-base leading-none drop-shadow-[0_0_6px_rgba(251,191,36,0.4)]">🪙</span> : t.key === "nasdaq" ? <ChartNoAxesCombined aria-hidden="true" className="size-4 shrink-0 text-sky-400" /> : t.key === "saque2" ? <Landmark aria-hidden="true" className="size-4 shrink-0 text-violet-400" /> : <History aria-hidden="true" className="size-4 shrink-0 text-slate-300" />}{t.label}
+            {t.key === "ouro" ? <span aria-hidden="true" className="inline-flex size-5 shrink-0 items-center justify-center rounded bg-gradient-to-br from-amber-300 via-yellow-500 to-amber-700 text-[10px] font-black leading-none text-amber-950 shadow-[0_0_9px_rgba(251,191,36,0.35)]">Au</span> : t.key === "nasdaq" ? <ChartNoAxesCombined aria-hidden="true" className="size-4 shrink-0 text-sky-400" /> : t.key === "saque2" ? <Landmark aria-hidden="true" className="size-4 shrink-0 text-violet-400" /> : <History aria-hidden="true" className="size-4 shrink-0 text-slate-300" />}{t.label}
           </button>
         ))}
       </div>
