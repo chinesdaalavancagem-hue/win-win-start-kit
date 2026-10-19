@@ -68,6 +68,8 @@ describe("Platform nativa", () => {
     for (const asset of Object.values(initial.assets)) asset.params.saldoInicial = 0;
     const save = vi.fn(async () => true);
     await act(async () => { render(<Platform load={async () => JSON.stringify(initial)} save={save} isAdmin={false} />); });
+    // A plataforma só aparece depois do carregamento dos dados e da tentativa de sincronização do Storage.
+    await screen.findByText("Meta do dia atual");
 
     if (shortcut) {
       fireEvent.keyDown(window, { code: "Digit2", shiftKey: operation === "profit", ctrlKey: operation === "stop" });
@@ -95,6 +97,7 @@ describe("Platform nativa", () => {
       const state = defaultState();
       state.assets.nasdaq.attempt.currentDayIndex = 1;
       await act(async () => { render(<Platform load={async () => JSON.stringify(state)} save={async () => true} isAdmin={true} />); });
+      await screen.findByText("Meta do dia atual");
       expect(scroll).not.toHaveBeenCalled();
 
       fireEvent.click(screen.getByRole("button", { name: /Profit/ }));
