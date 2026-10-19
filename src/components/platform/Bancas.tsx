@@ -6,7 +6,7 @@ import { fmt, fmtSigned } from "@/lib/platform/engine";
 import { type BancasDoc, novaBanca, parseBancas, relatorioCsv, resumoBanca } from "@/lib/platform/bancas";
 import { Plus, Building2, CheckCircle2, Pencil, Trash2, Download, ArrowUpRight, WalletCards, Activity } from "lucide-react";
 
-export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | null>; save: (v: string) => Promise<boolean>; isAdmin: boolean }) {
+export function Bancas({ load, save, isAdmin, userId }: { load: () => Promise<string | null>; save: (v: string) => Promise<boolean>; isAdmin: boolean; userId: string }) {
   const [doc, setDoc] = useState<BancasDoc | null>(null);
   const [err, setErr] = useState(false);
   const [painel, setPainel] = useState(false);
@@ -132,7 +132,7 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
         </section>
       )}
 
-      <Platform key={ativa.id} load={loadActive} save={saveActive} isAdmin={isAdmin} />
+      <Platform key={ativa.id} load={loadActive} save={saveActive} isAdmin={isAdmin} officialScope={userId + ":" + ativa.id} />
     </div>
   );
 }
