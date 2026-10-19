@@ -97,39 +97,65 @@
 }
 
 @layer utilities {
+  /* Compactação restrita aos cards diários em desktop/notebook.
+     A altura disponível importa mais que a largura; mobile fica inalterado. */
   @media (min-width: 768px) {
     .platform-day-card {
-      padding: 1.5rem;
-    }
-
-    .platform-day-card label > span,
-    .platform-day-card p,
-    .platform-day-card > div.font-mono {
-      font-size: 0.875rem;
-      line-height: 1.6;
+      padding: 1rem;
     }
 
     .platform-day-card input {
-      min-height: 3rem;
-      font-size: 1.125rem;
-      padding-block: 0.75rem;
-    }
-
-    .platform-day-card > p:first-of-type {
-      margin-top: 1.25rem;
-      font-size: 1.125rem;
-    }
-
-    .platform-day-card > div:first-child > span {
-      font-size: 1.125rem;
+      min-height: 2.25rem;
+      font-size: 1rem;
+      padding-block: 0.35rem;
     }
 
     .platform-day-card button {
-      min-height: 2.75rem;
-      font-size: 1rem;
+      min-height: 2.1rem;
+      font-size: 0.875rem;
     }
   }
 
+  @media (min-width: 768px) and (max-height: 850px) {
+    .platform-day-card {
+      padding: 0.75rem;
+    }
+
+    .platform-day-card > div:first-child {
+      margin-bottom: 0.65rem;
+      padding-bottom: 0.55rem;
+    }
+
+    .platform-day-card > div.grid {
+      gap: 0.5rem;
+    }
+
+    .platform-day-card > div.grid > div {
+      padding: 0.65rem;
+    }
+
+    .platform-day-card > div.mt-3 {
+      margin-top: 0.55rem;
+      padding: 0.65rem 0.8rem;
+    }
+
+    .platform-day-card > div.mt-3 .mt-3 {
+      margin-top: 0.5rem;
+    }
+
+    .platform-day-card > div.mt-3 .mt-2 {
+      margin-top: 0.35rem;
+    }
+
+    .platform-day-card input {
+      min-height: 2rem;
+      padding-block: 0.25rem;
+    }
+
+    .platform-day-card button {
+      min-height: 2rem;
+    }
+  }
 }
 
 @layer components {
