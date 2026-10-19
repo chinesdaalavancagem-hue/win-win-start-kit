@@ -10,7 +10,7 @@ const hedgeSchema = z.object({
   simbolo: z.string().trim().min(1).max(40),
   acao: z.string().trim().toUpperCase().pipe(z.enum(["BUY", "SELL"])),
   lote: z.number().finite().positive().max(10000),
-  ticket: z.union([z.string().regex(/^\d{1,20}$/), z.number().int().nonnegative()]).optional(),
+  ticket: z.union([z.string().regex(/^[0-9]{1,20}$/), z.number().int().nonnegative()]).optional(),
   preco: z.number().finite().positive().optional(),
   status: z.enum(["executado", "erro"]),
   horario: z.string().max(40).optional(),
@@ -52,6 +52,7 @@ export const Route = createFileRoute("/api/public/notificacoes-hedge")({
           return json({ error: "auth_unavailable" }, 500);
         }
 
+        const userId = auth.userId;
         const sucesso = status === "executado";
         const titulo = sucesso ? "Ordem de Hedge Executada" : "Falha na Execução do Hedge";
         const descricao = `${acao} ${lote} no ${simbolo}`;
@@ -69,18 +70,18 @@ export const Route = createFileRoute("/api/public/notificacoes-hedge")({
         // Telegram sem chat próprio não deve cair no chat global da Master.
         const [telegram, push] = await Promise.allSettled([
           (async () => {
-            const chatId = await chatIdDoUsuario(auth.userId);
+            const chatId = await chatIdDoUsuario(userId);
             return chatId ? enviarTelegram(`${sucesso ? "✅" : "❌"} <b>${titulo} — MT5</b>\n\n${detalhes}`, { chatId }) : false;
           })(),
-          enviarPushAoUsuario(auth.userId, {
+          enviarPushAoUsuario(userId, {
             title: `${titulo}: ${descricao}`,
             body: mensagem || (sucesso ? "Execução confirmada pelo MetaTrader 5." : "O MT5 informou erro na execução."),
             url: "/plataforma",
           }),
         ]);
         const telegramEnviado = telegram.status === "fulfilled" && telegram.value;
-        const pushProcessado = push.status === "fulfilled";
-        return json({ ok: true, notificado: Boolean(telegramEnviado || pushProcessado) });
+        // O serviço Push é best-effort e não informa confirmação de entrega.
+        return json({ ok: true, notificado: Boolean(telegramEnviado) });
       },
     },
   },
