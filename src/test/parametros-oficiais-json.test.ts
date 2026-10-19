@@ -87,6 +87,18 @@ describe("JSON oficial de parâmetros", () => {
     expect(s.assets.nasdaq.attempt).toEqual(before.assets.nasdaq.attempt);
   });
 
+  it("preserva ativos nao selecionados", () => {
+    const payload = roundTrip(masterState());
+    const common = commonState();
+    const ouro = structuredClone(common.assets.ouro);
+    const saque2 = structuredClone(common.assets.saque2);
+    applyOfficialParams(common, payload, "nasdaq");
+    expect(common.assets.nasdaq.params.mnq).toBe(7);
+    expect(common.assets.ouro).toEqual(ouro);
+    expect(common.assets.saque2).toEqual(saque2);
+    expect(common.cfdBalance).toBe(777);
+  });
+
   it("ignora campos pessoais injetados no arquivo (saldoInicial, chaves extras)", () => {
     const payload = roundTrip(masterState());
     payload.assets.nasdaq.params.saldoInicial = 1;
