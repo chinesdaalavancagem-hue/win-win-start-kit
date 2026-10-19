@@ -56,11 +56,17 @@ export function Platform({ load, save, isAdmin }: { load: () => Promise<string |
         // O arquivo oficial é opcional: se não existir ou estiver inválido, mantém o estado carregado.
         // A aplicação altera somente parâmetros permitidos e dias, preservando dados pessoais e histórico.
         try {
-          const { data, error } = await supabase.storage
+          let file = await supabase.storage
             .from("platform-files")
             .download("parametros/WinOrWin_Parametros.json");
-          if (!error && data) {
-            const payload: unknown = JSON.parse(await data.text());
+          // Compatibilidade com a publicação oficial já existente na tela Integração.
+          if (file.error || !file.data) {
+            file = await supabase.storage
+              .from("downloads")
+              .download("parametros/WinOrWin_Parametros.json");
+          }
+          if (!file.error && file.data) {
+            const payload: unknown = JSON.parse(await file.data.text());
             if (isOfficialParams(payload)) {
               const before = JSON.stringify(s.assets);
               applyOfficialParams(s, payload);
