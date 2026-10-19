@@ -67,7 +67,7 @@ describe("Platform nativa", () => {
     initial.assets.nasdaq.attempt.currentDayIndex = 1;
     for (const asset of Object.values(initial.assets)) asset.params.saldoInicial = 0;
     const save = vi.fn(async () => true);
-    await act(async () => { render(<Platform load={async () => JSON.stringify(initial)} save={save} isAdmin={false} />); });
+    await act(async () => { render(<Platform load={async () => JSON.stringify(initial)} save={save} isAdmin={false} officialAcceptedAt={null} />); });
     // A plataforma só aparece depois do carregamento dos dados e da tentativa de sincronização do Storage.
     await screen.findByText("Meta do dia atual");
 
@@ -118,7 +118,7 @@ describe("Platform nativa", () => {
 
   it("carrega, alterna menus, registra Stop e salva", async () => {
     const save = vi.fn(async () => true);
-    await act(async () => { render(<Platform load={async () => null} save={save} isAdmin={false} />); });
+    await act(async () => { render(<Platform load={async () => null} save={save} isAdmin={false} officialAcceptedAt={null} />); });
     expect(await screen.findByText("Meta do dia atual")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Parâmetros" }));
     expect(screen.getAllByText(/Limite geral EOD/).length).toBeGreaterThan(0);
@@ -135,7 +135,7 @@ describe("Platform nativa", () => {
 
   it("salva o valor real liquidado no Stop com o spread", async () => {
     const save = vi.fn(async () => true);
-    await act(async () => { render(<Platform load={async () => null} save={save} isAdmin={false} />); });
+    await act(async () => { render(<Platform load={async () => null} save={save} isAdmin={false} officialAcceptedAt={null} />); });
     await screen.findByText("Meta do dia atual");
     fireEvent.click(screen.getByRole("button", { name: /Stop/ }));
     fireEvent.change(screen.getByLabelText(/Valor real liquidado/), { target: { value: "500" } });
