@@ -96,8 +96,8 @@ describe("Platform nativa", () => {
     try {
       const state = defaultState();
       state.assets.nasdaq.attempt.currentDayIndex = 1;
-      await act(async () => { render(<Platform load={async () => JSON.stringify(state)} save={async () => true} isAdmin={false} officialAcceptedAt={null} />); });
-      await screen.findByText("Meta do dia atual");
+      await act(async () => { render(<Platform load={async () => JSON.stringify(state)} save={async () => true} isAdmin={true} officialAcceptedAt={null} />); });
+      await screen.findByText("Meta total prop firm");
       expect(scroll).not.toHaveBeenCalled();
 
       fireEvent.click(screen.getByRole("button", { name: /Profit/ }));
