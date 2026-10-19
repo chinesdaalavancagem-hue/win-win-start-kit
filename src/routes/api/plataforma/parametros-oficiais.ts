@@ -43,8 +43,8 @@ export const Route = createFileRoute("/api/plataforma/parametros-oficiais")({
       const published_values = { ...fields, official_parameters: payload as unknown as Json };
       const updated_at = new Date().toISOString();
       const result = old
-        ? await ctx.db.from("master_number_sync").update({ published_values, updated_at }).eq("id", "default")
-        : await ctx.db.from("master_number_sync").insert({ id: "default", admin_user_id: ctx.userId, enabled: false, allowed_fields: [], published_values, updated_at });
+        ? await ctx.db.from("master_number_sync").update({ published_values, updated_at }).eq("id", "default").select("id").single()
+        : await ctx.db.from("master_number_sync").insert({ id: "default", admin_user_id: ctx.userId, enabled: false, allowed_fields: [], published_values, updated_at }).select("id").single();
       if (result.error) return reply({ error: "publish_failed" }, 503);
       return reply({ ok: true, updatedAt: updated_at });
     },
