@@ -145,7 +145,7 @@ export function Platform({ load, save, isAdmin }: { load: () => Promise<string |
         <AssetView key={tab} state={state} assetKey={tab} section={section} setSection={setSection} mutate={mutate} isAdmin={isAdmin} />
       )}
 
-      <BackupMenu state={state} mutate={mutate} isAdmin={isAdmin} />
+      <BackupMenu state={state} mutate={mutate} save={save} onApplied={setState} isAdmin={isAdmin} />
       <StrategyNotes />
     </div>
   );
@@ -868,7 +868,7 @@ function LogList({ state }: { state: State }) {
 
 /* ---------- backup e notas ---------- */
 
-function BackupMenu({ state, mutate, isAdmin }: { state: State; mutate: (fn: (s: State) => void) => void; isAdmin: boolean }) {
+function BackupMenu({ state, mutate, save, onApplied, isAdmin }: { state: State; mutate: (fn: (s: State) => void) => void; save: (v: string) => Promise<boolean>; onApplied: (s: State) => void; isAdmin: boolean }) {
   const [published, setPublished] = useState<{ payload: ReturnType<typeof buildOfficialParams>; updatedAt: string } | null>(null);
   const [officialBusy, setOfficialBusy] = useState(false);
   const [officialMessage, setOfficialMessage] = useState("");
@@ -912,7 +912,7 @@ function BackupMenu({ state, mutate, isAdmin }: { state: State; mutate: (fn: (s:
       applyOfficialParams(next, published.payload);
       const ok = await save(JSON.stringify(next));
       if (!ok) throw Error("save_failed");
-      setState(next);
+      onApplied(next);
       setAcceptedAt(published.updatedAt);
       setOfficialMessage("Parâmetros aplicados e salvos na nuvem.");
     } catch {
