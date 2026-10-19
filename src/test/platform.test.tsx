@@ -101,15 +101,13 @@ describe("Platform nativa", () => {
       expect(scroll).not.toHaveBeenCalled();
 
       fireEvent.click(screen.getByRole("button", { name: /Profit/ }));
-      const confirmProfit = screen.queryByRole("button", { name: /confirmar/ });
-      if (confirmProfit) fireEvent.click(confirmProfit);
-      await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+      const confirmProfit = screen.getByRole("button", { name: /confirmar/ });
+      await act(async () => { fireEvent.click(confirmProfit); });
       expect(scroll).toHaveBeenCalledTimes(1);
       expect((scroll.mock.instances[0] as HTMLElement).textContent).toContain("D3");
 
       fireEvent.click(screen.getByRole("button", { name: /Stop/ }));
-      fireEvent.click(screen.getByRole("button", { name: /confirmar/ }));
-      await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+      await act(async () => { fireEvent.click(screen.getByRole("button", { name: /confirmar/ })); });
       expect(scroll).toHaveBeenCalledTimes(2);
       expect((scroll.mock.instances[1] as HTMLElement).textContent).toContain("D1");
       expect(scroll).toHaveBeenLastCalledWith({ behavior: "smooth", block: "center" });
