@@ -22,7 +22,7 @@ const TABS: { key: TabKey; label: string; dot: string }[] = [
 ];
 const ASSET_NAME: Record<AssetKey, string> = { nasdaq: "NASDAQ", ouro: "OURO", saque2: "SAQUE 2" };
 
-export function Platform({ load, save, isAdmin, officialScope }: { load: () => Promise<string | null>; save: (v: string) => Promise<boolean>; isAdmin: boolean; officialScope: string }) {
+export function Platform({ load, save, isAdmin, officialAcceptedAt }: { load: () => Promise<string | null>; save: (v: string, acceptedAt?: string) => Promise<boolean>; isAdmin: boolean; officialAcceptedAt: string | null }) {
   const [state, setState] = useState<State | null>(null);
   const [section, setSection] = useState<Section>("operacoes");
   const [sync, setSync] = useState<Sync>({ mode: "busy", text: "carregando…" });
@@ -145,7 +145,7 @@ export function Platform({ load, save, isAdmin, officialScope }: { load: () => P
         <AssetView key={tab} state={state} assetKey={tab} section={section} setSection={setSection} mutate={mutate} isAdmin={isAdmin} />
       )}
 
-      <BackupMenu state={state} mutate={mutate} save={save} onApplied={setState} isAdmin={isAdmin} officialScope={officialScope} />
+      <BackupMenu state={state} mutate={mutate} save={save} onApplied={setState} isAdmin={isAdmin} officialAcceptedAt={officialAcceptedAt} />
       <StrategyNotes />
     </div>
   );
@@ -868,14 +868,13 @@ function LogList({ state }: { state: State }) {
 
 /* ---------- backup e notas ---------- */
 
-function BackupMenu({ state, mutate, save, onApplied, isAdmin, officialScope }: { state: State; mutate: (fn: (s: State) => void) => void; save: (v: string) => Promise<boolean>; onApplied: (s: State) => void; isAdmin: boolean; officialScope: string }) {
+function BackupMenu({ state, mutate, save, onApplied, isAdmin, officialAcceptedAt }: { state: State; mutate: (fn: (s: State) => void) => void; save: (v: string, acceptedAt?: string) => Promise<boolean>; onApplied: (s: State) => void; isAdmin: boolean; officialAcceptedAt: string | null }) {
   const [published, setPublished] = useState<{ payload: ReturnType<typeof buildOfficialParams>; updatedAt: string } | null>(null);
   const [officialBusy, setOfficialBusy] = useState(false);
   const [officialMessage, setOfficialMessage] = useState("");
-  const [acceptedAt, setAcceptedAt] = useState<string | null>(null);
+  const [acceptedAt, setAcceptedAt] = useState<string | null>(officialAcceptedAt);
   const [dismissedAt, setDismissedAt] = useState<string | null>(null);
   useEffect(() => {
-    try { setAcceptedAt(localStorage.getItem("wow-official-accepted:" + officialScope)); } catch { /* storage disabled */ }
     let active = true;
     void (async () => {
       try {
@@ -910,11 +909,10 @@ function BackupMenu({ state, mutate, save, onApplied, isAdmin, officialScope }: 
     try {
       const next = structuredClone(state);
       applyOfficialParams(next, published.payload);
-      const ok = await save(JSON.stringify(next));
+      const ok = await save(JSON.stringify(next), published.updatedAt);
       if (!ok) throw Error("save_failed");
       onApplied(next);
       setAcceptedAt(published.updatedAt);
-      try { localStorage.setItem("wow-official-accepted:" + officialScope, published.updatedAt); } catch { /* storage disabled */ }
       setOfficialMessage("Parâmetros aplicados e salvos na nuvem.");
     } catch {
       setOfficialMessage("Não foi possível salvar os parâmetros. Seus números foram mantidos.");
