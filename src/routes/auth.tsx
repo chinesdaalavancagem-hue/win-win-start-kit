@@ -347,25 +347,34 @@ function AuthPage() {
             {mode === "login" && (
               <button
                 type="button"
-                onClick={async (e) => {
+                onClick={async () => {
                   setError(null);
                   setInfo(null);
-                  const form = e.currentTarget.form;
-                  const raw = form ? String(new FormData(form).get("email") ?? "") : "";
-                  const email = raw.trim();
+                  const emailEl = document.getElementById("email") as HTMLInputElement | null;
+                  const email = (emailEl?.value || loginEmail).trim();
                   if (!z.string().email().safeParse(email).success) {
                     setError("Digite seu e-mail acima para recuperar a senha.");
                     return;
                   }
+
                   setLoading(true);
-                  const { error } = await supabase.auth.resetPasswordForEmail(email, {
-                    redirectTo: window.location.origin + "/reset-password",
-                  });
-                  setLoading(false);
-                  if (error) setError("Não foi possível enviar o e-mail. Tente novamente em instantes.");
-                  else setInfo("Enviamos um link para redefinir sua senha. Verifique seu e-mail.");
+                  try {
+                    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                      redirectTo: window.location.origin + "/reset-password",
+                    });
+                    if (error) {
+                      setError("Não foi possível enviar o e-mail. Tente novamente em instantes.");
+                    } else {
+                      setInfo("Enviamos um link para redefinir sua senha. Verifique seu e-mail.");
+                    }
+                  } catch {
+                    setError("Não foi possível enviar o e-mail. Tente novamente em instantes.");
+                  } finally {
+                    setLoading(false);
+                  }
                 }}
-                className="mt-5 w-full text-center text-sm text-slate-400 transition hover:text-cyan-200"
+                disabled={loading}
+                className="mt-5 w-full text-center text-sm text-slate-400 transition hover:text-cyan-200 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Esqueci minha senha
               </button>
