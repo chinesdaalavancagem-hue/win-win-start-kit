@@ -21,8 +21,7 @@ export const Route = createFileRoute("/_authenticated/integracao")({
 type Row = { id: string; symbol: string; side: string; mirror_side: string; qty: number; status: string; error: string | null; created_at: string };
 const STATUS: Record<string, string> = { pending: "Na fila", sent: "Enviada ao MT5", done: "Executada no CFD", error: "Falhou" };
 const ARQ = {
-  robo: { path: "robo/WinOrWin_Hedge.ex5", nome: "WinOrWin_Hedge.ex5", accept: ".ex5", label: "Robô MT5 (.ex5)" },
-  ext: { path: "extensao/WinOrWin_Extensao.zip", nome: "WinOrWin_Extensao.zip", accept: ".zip", label: "Extensão Chrome (.zip)" },
+  ext: { path: "extensao/WinOrWin_Extensao.zip", nome: "WinOrWin_Extensao.zip", accept: ".zip", label: "Robô de Python (.zip)" },
   parametros: { path: "parametros/WinOrWin_Parametros.json", nome: "WinOrWin_Parametros.json", accept: ".json", label: "Parâmetros oficiais (.json)" },
 } as const;
 type Tipo = keyof typeof ARQ;
@@ -56,7 +55,7 @@ function Integracao() {
   const [chave, setChave] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [disp, setDisp] = useState<Record<Tipo, boolean>>({ robo: false, ext: false, parametros: false });
+  const [disp, setDisp] = useState<Record<Tipo, boolean>>({ ext: false, parametros: false });
   const [base, setBase] = useState("");
   const [telegramChatId, setTelegramChatId] = useState("");
   const telegramChatIdAlterado = useRef(false);
@@ -76,9 +75,8 @@ function Integracao() {
     if (!telegramChatIdAlterado.current) setTelegramChatId(p?.telegram_chat_id ?? "");
   }
   async function loadArquivos() {
-    const [r, e, p] = await Promise.all([supabase.storage.from("downloads").list("robo"), supabase.storage.from("downloads").list("extensao"), supabase.storage.from("downloads").list("parametros")]);
+    const [e, p] = await Promise.all([supabase.storage.from("downloads").list("extensao"), supabase.storage.from("downloads").list("parametros")]);
     setDisp({
-      robo: !!r.data?.some((f) => f.name === ARQ.robo.nome),
       ext: !!e.data?.some((f) => f.name === ARQ.ext.nome),
       parametros: !!p.data?.some((f) => f.name === ARQ.parametros.nome),
     });
@@ -230,7 +228,7 @@ function Integracao() {
         <div className="flex flex-wrap gap-2">
           {(Object.keys(ARQ) as Tipo[]).map((t) => (
             <Button key={t} size="sm" disabled={!disp[t]} onClick={() => baixar(t)}>
-              Baixar {ARQ[t].label}{!disp[t] && " — em breve"}
+              {t === "ext" ? "Baixar Robô de Python" : `Baixar ${ARQ[t].label}`}{!disp[t] && " — em breve"}
             </Button>
           ))}
         </div>
