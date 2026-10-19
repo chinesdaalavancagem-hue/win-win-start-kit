@@ -888,8 +888,8 @@ function BackupMenu({ state, mutate, save, onApplied, isAdmin, officialAcceptedA
     })();
     return () => { active = false; };
   }, []);
-  async function publishOfficial() {
-    if (!window.confirm("Publicar os parâmetros desta banca como nova versão oficial?")) return;
+  async function publishOfficial(): Promise<boolean> {
+    if (!window.confirm("Publicar os parâmetros desta banca como nova versão oficial?")) return false;
     setOfficialBusy(true);
     try {
       const { data } = await supabase.auth.getSession();
@@ -900,9 +900,16 @@ function BackupMenu({ state, mutate, save, onApplied, isAdmin, officialAcceptedA
       });
       if (!response.ok) throw Error("Não foi possível publicar");
       setOfficialMessage("Parâmetros publicados na nuvem.");
-    } catch { setOfficialMessage("Falha ao publicar. Tente novamente."); }
+      return true;
+    } catch { setOfficialMessage("Falha ao publicar. Tente novamente."); return false; }
     finally { setOfficialBusy(false); }
   }
+  useEffect(() => {
+    if (!isAdmin) return;
+    const target = window as Window & { __wowOfficialParams?: () => Promise<boolean> };
+    target.__wowOfficialParams = publishOfficial;
+    return () => { delete target.__wowOfficialParams; };
+  });
   async function acceptOfficial() {
     if (!published || officialBusy || !window.confirm("Aplicar os parâmetros oficiais? Seus saldos, depósitos e histórico serão preservados.")) return;
     setOfficialBusy(true);
