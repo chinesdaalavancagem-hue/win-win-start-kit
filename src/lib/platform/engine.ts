@@ -65,24 +65,34 @@ export const ASSETS: AssetKey[] = ["nasdaq", "ouro", "saque2"];
 
 const defaultAssetsBase = {
   nasdaq: {
-    params: { mnq: 2, hfm: 1, mll: 2000, saldoInicial: 2000, taxa: 100, lucroDesejado: 150, marginPerLot: 58, stopoutPct: 30, saqueAprovada: 0, folgaExtraPct: 20 },
+    params: { mnq: 2, hfm: 1, mll: 2000, saldoInicial: 2000, taxa: 100, lucroDesejado: 100, marginPerLot: 59, stopoutPct: 50, saqueAprovada: 0, folgaExtraPct: 20 },
     days: [
-      { mnq: 20, lotes: 5.2, meta: 1500 }, { mnq: 20, lotes: 9.1, meta: 1500 }, { mnq: 20, lotes: 15.9, meta: 2000 },
-      { mnq: 1, lotes: 1.59, meta: 150 }, { mnq: 1, lotes: 1.71, meta: 150 }, { mnq: 1, lotes: 1.84, meta: 150 }, { mnq: 1, lotes: 1.98, meta: 150 },
+      { mnq: 20, lotes: 4.0, meta: 1500 }, { mnq: 20, lotes: 7.0, meta: 1500 },
+      { mnq: 10, lotes: 6.2, meta: 1000 }, { mnq: 10, lotes: 9.3, meta: 1000 },
+      { mnq: 3, lotes: 4.2, meta: 150 }, { mnq: 3, lotes: 4.5, meta: 150 }, { mnq: 3, lotes: 4.8, meta: 150 },
     ],
   },
   ouro: {
-    params: { mnq: 10, hfm: 100, mll: 2000, saldoInicial: 2200, taxa: 100, lucroDesejado: 100, marginPerLot: 873, stopoutPct: 30, saqueAprovada: 0, folgaExtraPct: 20 },
+    params: { mnq: 10, hfm: 100, mll: 2000, saldoInicial: 416, taxa: 100, lucroDesejado: 100, marginPerLot: 873, stopoutPct: 50, saqueAprovada: 1700, folgaExtraPct: 20 },
     days: [
-      { mnq: 40, lotes: 0.2, meta: 1000 }, { mnq: 40, lotes: 0.3, meta: 1000 }, { mnq: 40, lotes: 0.45, meta: 1000 }, { mnq: 20, lotes: 0.68, meta: 2000 },
-      { mnq: 10, lotes: 0.68, meta: 150 }, { mnq: 10, lotes: 0.73, meta: 150 }, { mnq: 10, lotes: 0.79, meta: 150 }, { mnq: 10, lotes: 0.84, meta: 150 },
+      { mnq: 20, lotes: 0.21, meta: 1080, mll: 2000 },
+      { mnq: 20, lotes: 0.33, meta: 1080, mll: 2000 },
+      { mnq: 20, lotes: 0.51, meta: 1080, mll: 2000 },
+      { mnq: 20, lotes: 0.80, meta: 3000, mll: 2000 },
+      { mnq: 2, lotes: 0.19, meta: 200, mll: 2120 },
+      { mnq: 2, lotes: 0.21, meta: 200, mll: 2130 },
+      { mnq: 2, lotes: 0.23, meta: 200, mll: 2140 },
+      { mnq: 2, lotes: 0.25, meta: 200, mll: 2150 },
     ],
   },
   saque2: {
-    params: { mnq: 10, hfm: 100, mll: 2000, saldoInicial: 300, taxa: 0, lucroDesejado: 800, marginPerLot: 873, stopoutPct: 30, saqueAprovada: 0, folgaExtraPct: 20, ativoReal: "ouro" },
+    params: { mnq: 10, hfm: 100, mll: 2000, saldoInicial: 732, taxa: 0, lucroDesejado: 0, marginPerLot: 873, stopoutPct: 50, saqueAprovada: 1300, folgaExtraPct: 20, ativoReal: "ouro" },
     days: [
-      { mnq: 20, lotes: 0, meta: 1000 }, { mnq: 20, lotes: 0.8, meta: 150 }, { mnq: 20, lotes: 0.86, meta: 150 },
-      { mnq: 20, lotes: 0.92, meta: 150 }, { mnq: 20, lotes: 0.99, meta: 150 },
+      { mnq: 5, lotes: 0.03, meta: 200, mll: 2080 },
+      { mnq: 5, lotes: 0.03, meta: 200, mll: 2090 },
+      { mnq: 5, lotes: 0.03, meta: 200, mll: 2090 },
+      { mnq: 5, lotes: 0.04, meta: 200, mll: 2100 },
+      { mnq: 5, lotes: 0.04, meta: 200, mll: 2110 },
     ],
   },
 };
