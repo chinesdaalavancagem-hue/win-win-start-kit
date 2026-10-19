@@ -560,7 +560,7 @@ function DayCard({ row, assetKey, mutate, excedenteAtualSacavel }: { row: Row; a
           <span className="mt-2 inline-block rounded-full border border-market-down/40 bg-rose-950/40 px-2 py-0.5 font-mono text-[11px] text-market-down">-${fmt(Math.abs(c.passa))} se passar</span>
         </div>
         <div className="min-w-0 rounded-xl border border-[#183b43] bg-gradient-to-br from-[#092126] to-[#080f1a] p-3 sm:p-4">
-          <NumField cockpit label={<><Layers className="h-3.5 w-3.5 text-cyan-400" />Lotes CFD</>} value={d.lotes} onChange={setD("lotes")} />
+          <NumField cockpit label={<><Layers className="h-3.5 w-3.5 text-amber-400 drop-shadow-[0_0_6px_rgba(251,191,36,0.45)]" />Lotes CFD</>} value={d.lotes} onChange={setD("lotes")} />
           <span className="mt-2 inline-block rounded-full border border-market-up/40 bg-emerald-950/40 px-2 py-0.5 font-mono text-[11px] text-market-up">+${fmt(c.reprova)} se reprova</span>
         </div>
         <div className="min-w-0 rounded-xl border border-[#18324e] bg-gradient-to-br from-[#0d1b2b] to-[#080f1a] p-3 sm:p-4">
@@ -573,12 +573,13 @@ function DayCard({ row, assetKey, mutate, excedenteAtualSacavel }: { row: Row; a
         </div>
       </div>
 
-      <div className={cn("mt-3 flex items-center justify-between gap-3 rounded-xl border p-3.5 sm:p-4", c.liquidoSeReprovar >= 0 ? "border-emerald-500/80 bg-gradient-to-r from-emerald-950/80 via-[#052b2a] to-[#071b20] shadow-[0_0_22px_rgba(0,220,160,0.10)]" : "border-rose-800/80 bg-gradient-to-r from-rose-950/60 to-[#10131f]")}>
+      <div className="mt-3 grid grid-cols-2 items-stretch gap-2.5 sm:gap-3">
+       <div className={cn("flex min-w-0 flex-col justify-between gap-2 rounded-xl border p-3 sm:p-4", c.liquidoSeReprovar >= 0 ? "border-emerald-500/80 bg-gradient-to-r from-emerald-950/80 via-[#052b2a] to-[#071b20] shadow-[0_0_22px_rgba(0,220,160,0.10)]" : "border-rose-800/80 bg-gradient-to-r from-rose-950/60 to-[#10131f]")}>
         <div className="min-w-0">
           <p className="text-xs font-bold text-slate-100 sm:text-sm">Líquido se reprovar hoje</p>
-          <p className="mt-1 font-mono text-[10px] text-slate-400 sm:text-xs">Dívida: ${fmt(c.dividaHoje)} · Alvo bruto: ${fmt(c.alvoBruto)}</p>
+          <p className="mt-1 break-words font-mono text-[10px] leading-relaxed text-slate-400 sm:text-xs">Dívida: ${fmt(c.dividaHoje)} · Alvo bruto: ${fmt(c.alvoBruto)}</p>
         </div>
-        <p className={cn("shrink-0 font-mono text-2xl font-extrabold tracking-tight sm:text-3xl lg:!text-[36px] xl:!text-[40px]", c.liquidoSeReprovar >= 0 ? "text-emerald-300 drop-shadow-[0_0_18px_rgba(16,185,129,0.8)]" : "text-rose-400")}>{c.liquidoSeReprovar >= 0 ? "+" : "-"}${fmt(Math.abs(c.liquidoSeReprovar))}</p>
+        <p className={cn("min-w-0 break-words font-mono text-xl font-extrabold tracking-tight sm:text-2xl lg:!text-[30px]", c.liquidoSeReprovar >= 0 ? "text-emerald-300 drop-shadow-[0_0_18px_rgba(16,185,129,0.8)]" : "text-rose-400")}>{c.liquidoSeReprovar >= 0 ? "+" : "-"}${fmt(Math.abs(c.liquidoSeReprovar))}</p>
       </div>
 
       {row.caixaDia && d.lotes > 0 ? (() => {
@@ -587,8 +588,8 @@ function DayCard({ row, assetKey, mutate, excedenteAtualSacavel }: { row: Row; a
         const pct = (v: number) => `${Math.max(0, (v / total) * 100)}%`;
         const badge = row.status === "ok" ? "Coberto" : row.status === "alerta" ? "Pendente" : "Risco";
         return (
-          <div className="mt-3 rounded-xl border border-[#142b43] bg-gradient-to-b from-[#0a1421] to-[#080f19] p-3.5 sm:p-4">
-            <div className="mb-2 flex items-center justify-between gap-2">
+          <div className="min-w-0 rounded-xl border border-[#142b43] bg-gradient-to-b from-[#0a1421] to-[#080f19] p-3 sm:p-4">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-blue-100/90 sm:text-xs flex items-center gap-1.5"><ShieldCheck className="h-4 w-4 text-emerald-400" />Gestão de caixa & margem</p>
               <span className={cn("rounded-full border px-2 py-0.5 text-[11px]", row.status === "ok" && "border-market-up/50 bg-emerald-950/50 text-market-up shadow-[0_0_12px_rgba(16,185,129,0.35)]", row.status === "alerta" && "border-brand-gold/50 text-brand-gold", row.status === "risco" && "border-market-down/50 text-market-down")}>{row.status === "ok" && <Check className="mr-0.5 inline h-3 w-3" />}{badge}</span>
             </div>
@@ -597,23 +598,24 @@ function DayCard({ row, assetKey, mutate, excedenteAtualSacavel }: { row: Row; a
               <div className="bg-gradient-to-r from-sky-500 to-cyan-400" style={{ width: pct(cx.bonusAntes) }} />
               <div className="bg-gradient-to-r from-emerald-500 to-teal-400" style={{ width: pct(cx.deposito) }} />
             </div>
-            <div className="mt-3 grid grid-cols-3 gap-2 font-mono text-[11px]">
+            <div className="mt-3 grid grid-cols-2 gap-2 font-mono text-[10px] sm:text-[11px]">
               <div><p className="text-slate-400">● Saldo Próprio</p><p className="text-sm font-semibold">${fmt(cx.proprioAntes)}</p></div>
               <div><p className="text-cyan-400">● Bônus</p><p className="text-sm font-semibold">${fmt(cx.bonusAntes)}</p></div>
               <div><p className="text-emerald-400">● Falta</p><p className="text-sm font-semibold">${fmt(cx.deposito)}</p></div>
             </div>
-            <div className="mt-3 flex items-center justify-between gap-2 rounded-lg border border-[#142b43] bg-[#0b1726] px-3 py-2.5 font-mono text-xs"><span className="flex items-center gap-1.5 text-muted-foreground"><Calculator className="h-3.5 w-3.5" />Necessário no CFD</span><span className="font-semibold">${fmt(cx.necessario)}</span></div>
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#142b43] bg-[#0b1726] px-3 py-2.5 font-mono text-xs"><span className="flex items-center gap-1.5 text-muted-foreground"><Calculator className="h-3.5 w-3.5" />Necessário no CFD</span><span className="font-semibold">${fmt(cx.necessario)}</span></div>
             <div className="mt-1 grid grid-cols-2 gap-1 font-mono text-[11px] text-muted-foreground">              <span>Bônus deste depósito: <span className="text-foreground">${fmt(cx.bonusGanho)}</span></span>
               <span className="text-right">Sacável: <span className="text-market-up">${fmt(excedenteAtualSacavel)}</span></span>
             </div>
-            <div className="mt-2 flex items-center justify-between gap-2 rounded-xl border border-blue-600/80 bg-gradient-to-r from-blue-950/70 to-[#071a31] px-3 py-3">
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-blue-600/80 bg-gradient-to-r from-blue-950/70 to-[#071a31] px-3 py-3">
               <span className="flex items-center gap-2 text-[11px] font-semibold leading-snug text-cyan-300 sm:text-sm"><Wallet className="h-4 w-4 shrink-0" />Aporte Recomendado Hoje</span>
-              <span className="font-mono text-base font-bold text-sky-400 sm:text-2xl flex items-center gap-1">${fmt(cx.deposito)}<ChevronRight className="h-5 w-5" /></span>
+              <span className="font-mono text-base font-bold text-sky-400 sm:text-xl flex items-center gap-1">${fmt(cx.deposito)}<ChevronRight className="h-5 w-5" /></span>
             </div>
           </div>
         );
-      })() : <p className="mt-2 font-mono text-[11px] text-muted-foreground">{row.statusText}</p>}
-      {isCurrent && <Settle risco={row.status === "risco"} custo={c.custoSePassar} reprova={c.reprova}
+      })() : <p className="min-w-0 rounded-xl border border-[#142b43] p-3 font-mono text-[11px] text-muted-foreground">{row.statusText}</p>}
+             </div>
+       {isCurrent && <Settle risco={row.status === "risco"} custo={c.custoSePassar} reprova={c.reprova}
         onProfit={(real) => mutate((s) => handleProfit(s, assetKey, real))} onStop={(real) => mutate((s) => handleStop(s, assetKey, real))} />}
     </div>
   );
