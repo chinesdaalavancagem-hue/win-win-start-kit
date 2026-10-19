@@ -28,7 +28,9 @@ export function Bancas({ load, save, isAdmin, userId }: { load: () => Promise<st
     const next = { ...d, bancas: d.bancas.map((b) => (b.id === id ? { ...b, state: JSON.parse(v), ...(acceptedAt ? { officialAcceptedAt: acceptedAt } : {}) } : b)) };
     docRef.current = next;
     setDoc(next);
-    return save(JSON.stringify(next));
+    const ok = await save(JSON.stringify(next));
+    if (!ok && acceptedAt && docRef.current === next) { docRef.current = d; setDoc(d); }
+    return ok;
   }, [activeId, save]);
 
   if (err) return <p className="m-auto text-destructive">Falha ao carregar as bancas.</p>;
