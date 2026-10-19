@@ -18,6 +18,8 @@ function Plataforma() {
   const [state, setState] = useState<"loading" | "pending" | "rejected" | "ok">("loading");
   const [isAdmin, setIsAdmin] = useState(false);
   const [name, setName] = useState("");
+  const [publishBusy, setPublishBusy] = useState(false);
+  const [publishMessage, setPublishMessage] = useState("");
   const versionRef = useRef<number | null>(null);
   const conflictRef = useRef(false);
 
@@ -76,6 +78,18 @@ function Plataforma() {
     false,
   ), []);
 
+  const publishOfficial = async () => {
+    if (publishBusy || !isAdmin) return;
+    const current = (window as Window & { __wowOfficialParams?: () => Promise<boolean> }).__wowOfficialParams;
+    if (!current) { setPublishMessage("Aguarde o carregamento da banca."); return; }
+    setPublishBusy(true);
+    try {
+      const ok = await current();
+      setPublishMessage(ok ? "Parâmetros enviados aos usuários." : "Publicação cancelada ou não concluída.");
+    } catch { setPublishMessage("Falha ao publicar parâmetros."); }
+    finally { setPublishBusy(false); }
+  };
+
   return (
     <div className="flex min-h-screen flex-col bg-[#030914] text-slate-100">
       <header className="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-3 border-b border-cyan-950/80 bg-[#050d1b]/95 px-3 py-3 text-sm shadow-[0_8px_28px_rgba(0,0,0,0.28)] backdrop-blur-md sm:px-5">
@@ -87,10 +101,12 @@ function Plataforma() {
           {state === "ok" && <Button asChild size="sm" variant="outline" className="shrink-0 rounded-xl border-cyan-800/70 bg-[#07162a] text-blue-100 hover:border-cyan-400 hover:bg-blue-950/70"><Link to="/integracao">▦ Integração</Link></Button>}
           {state === "ok" && <Button asChild size="sm" variant="outline" className="shrink-0 rounded-xl border-cyan-950 bg-[#07101f] text-blue-100 hover:border-cyan-500 hover:bg-blue-950/70"><Link to="/analise-ia">◉ Análise IA</Link></Button>}
           {isAdmin === true && <Button asChild size="sm" variant="outline" className="shrink-0 rounded-xl border-cyan-950 bg-[#07101f] text-blue-100 hover:border-cyan-500 hover:bg-blue-950/70"><Link to="/admin">♙ Aprovar cadastros</Link></Button>}
+          {state === "ok" && isAdmin && <Button size="sm" disabled={publishBusy} className="shrink-0 rounded-xl bg-cyan-600 text-white hover:bg-cyan-500" onClick={() => void publishOfficial()}>↗ Enviar parâmetros aos usuários</Button>}
           {isAdmin === true && <Button asChild size="sm" variant="outline" className="shrink-0 rounded-xl border-cyan-950 bg-[#07101f] text-blue-100 hover:border-cyan-500 hover:bg-blue-950/70"><Link to="/auditoria">⛨ Auditoria</Link></Button>}
           <Button size="sm" variant="ghost" className="shrink-0 text-slate-400 hover:text-white" onClick={() => signOut(navigate)}>Sair</Button>
         </div>
       </header>
+      {publishMessage && <p role="status" className="px-4 py-2 text-xs text-cyan-200">{publishMessage}</p>}
       {state === "loading" && <p className="m-auto text-muted-foreground">Carregando...</p>}
       {state === "pending" && (
         <div className="m-auto max-w-sm px-6 text-center">

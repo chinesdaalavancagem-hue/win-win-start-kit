@@ -22,13 +22,15 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
     const d = docRef.current; const b = d?.bancas.find((x) => x.id === d.activeId);
     return b ? JSON.stringify(b.state) : null;
   }, [activeId]); // eslint-disable-line react-hooks/exhaustive-deps
-  const saveActive = useCallback(async (v: string) => {
+  const saveActive = useCallback(async (v: string, acceptedAt?: string) => {
     const d = docRef.current; if (!d) return false;
     const id = activeId;
-    const next = { ...d, bancas: d.bancas.map((b) => (b.id === id ? { ...b, state: JSON.parse(v) } : b)) };
+    const next = { ...d, bancas: d.bancas.map((b) => (b.id === id ? { ...b, state: JSON.parse(v), ...(acceptedAt ? { officialAcceptedAt: acceptedAt } : {}) } : b)) };
     docRef.current = next;
     setDoc(next);
-    return save(JSON.stringify(next));
+    const ok = await save(JSON.stringify(next));
+    if (!ok && acceptedAt && docRef.current === next) { docRef.current = d; setDoc(d); }
+    return ok;
   }, [activeId, save]);
 
   if (err) return <p className="m-auto text-destructive">Falha ao carregar as bancas.</p>;
@@ -132,7 +134,7 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
         </section>
       )}
 
-      <Platform key={ativa.id} load={loadActive} save={saveActive} isAdmin={isAdmin} />
+      <Platform key={ativa.id} load={loadActive} save={saveActive} isAdmin={isAdmin} officialAcceptedAt={ativa.officialAcceptedAt ?? null} />
     </div>
   );
 }

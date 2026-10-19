@@ -2,7 +2,7 @@ import { type State, defaultState, historicoTotals, isValidState, normalizeState
 import { challengeAccountSchema, type ChallengeAccount } from "../prop-firms";
 
 export type BancaAtivo = "nasdaq" | "ouro";
-export interface Banca { id: string; nome: string; criadaEm: number; state: State; ativo?: BancaAtivo; challengeAccount?: ChallengeAccount }
+export interface Banca { id: string; nome: string; criadaEm: number; state: State; ativo?: BancaAtivo; officialAcceptedAt?: string; challengeAccount?: ChallengeAccount }
 export interface BancasDoc { bancasVersion: 1; activeId: string; bancas: Banca[] }
 
 const newId = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
@@ -23,6 +23,7 @@ export function parseBancas(raw: string | null): BancasDoc {
       id: String(b.id || newId()), nome: String(b.nome || `Banca ${i + 1}`), criadaEm: Number(b.criadaEm) || Date.now(),
       state: isValidState(b.state) ? normalizeState(b.state) : defaultState(),
       ...(b.ativo === "nasdaq" || b.ativo === "ouro" ? { ativo: b.ativo } : {}),
+      ...(typeof b.officialAcceptedAt === "string" ? { officialAcceptedAt: b.officialAcceptedAt } : {}),
       ...(challengeAccountSchema.safeParse(b.challengeAccount).success ? { challengeAccount: challengeAccountSchema.parse(b.challengeAccount) } : {}),
     }));
     const activeId = bancas.some((b) => b.id === p.activeId) ? p.activeId : bancas[0]?.id ?? "";

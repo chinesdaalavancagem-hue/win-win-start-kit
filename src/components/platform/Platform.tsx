@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
 import { Undo2, FileText, Layers, Target, TrendingUp, ShieldCheck, Wallet, ChevronRight, Crosshair, Calculator, Check, ChartNoAxesCombined, Landmark, History } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { registrarAuditoria } from "@/lib/auditoria-registro";
@@ -21,7 +22,7 @@ const TABS: { key: TabKey; label: string; dot: string }[] = [
 ];
 const ASSET_NAME: Record<AssetKey, string> = { nasdaq: "NASDAQ", ouro: "OURO", saque2: "SAQUE 2" };
 
-export function Platform({ load, save, isAdmin }: { load: () => Promise<string | null>; save: (v: string) => Promise<boolean>; isAdmin: boolean }) {
+export function Platform({ load, save, isAdmin, officialAcceptedAt }: { load: () => Promise<string | null>; save: (v: string, acceptedAt?: string) => Promise<boolean>; isAdmin: boolean; officialAcceptedAt: string | null }) {
   const [state, setState] = useState<State | null>(null);
   const [section, setSection] = useState<Section>("operacoes");
   const [sync, setSync] = useState<Sync>({ mode: "busy", text: "carregando…" });
@@ -144,7 +145,7 @@ export function Platform({ load, save, isAdmin }: { load: () => Promise<string |
         <AssetView key={tab} state={state} assetKey={tab} section={section} setSection={setSection} mutate={mutate} isAdmin={isAdmin} />
       )}
 
-      <BackupMenu state={state} mutate={mutate} isAdmin={isAdmin} />
+      <BackupMenu state={state} mutate={mutate} save={save} onApplied={setState} isAdmin={isAdmin} officialAcceptedAt={officialAcceptedAt} />
       <StrategyNotes />
     </div>
   );
@@ -867,7 +868,63 @@ function LogList({ state }: { state: State }) {
 
 /* ---------- backup e notas ---------- */
 
-function BackupMenu({ state, mutate, isAdmin }: { state: State; mutate: (fn: (s: State) => void) => void; isAdmin: boolean }) {
+function BackupMenu({ state, mutate, save, onApplied, isAdmin, officialAcceptedAt }: { state: State; mutate: (fn: (s: State) => void) => void; save: (v: string, acceptedAt?: string) => Promise<boolean>; onApplied: (s: State) => void; isAdmin: boolean; officialAcceptedAt: string | null }) {
+  const [published, setPublished] = useState<{ payload: ReturnType<typeof buildOfficialParams>; updatedAt: string } | null>(null);
+  const [officialBusy, setOfficialBusy] = useState(false);
+  const [officialMessage, setOfficialMessage] = useState("");
+  const [acceptedAt, setAcceptedAt] = useState<string | null>(officialAcceptedAt);
+  const [dismissedAt, setDismissedAt] = useState<string | null>(null);
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (!data.session?.access_token) return;
+        const response = await fetch("/api/plataforma/parametros-oficiais", { headers: { authorization: "Bearer " + data.session.access_token }, cache: "no-store" });
+        if (!response.ok) return;
+        const result = await response.json() as { published?: { payload: unknown; updatedAt: string } | null };
+        if (active && result.published && isOfficialParams(result.published.payload)) setPublished({ payload: result.published.payload, updatedAt: result.published.updatedAt });
+      } catch { /* keep personal parameters unchanged */ }
+    })();
+    return () => { active = false; };
+  }, []);
+  async function publishOfficial(): Promise<boolean> {
+    if (!window.confirm("Publicar os parâmetros desta banca como nova versão oficial?")) return false;
+    setOfficialBusy(true);
+    try {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session?.access_token) throw Error("Sessão expirada");
+      const response = await fetch("/api/plataforma/parametros-oficiais", {
+        method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + data.session.access_token },
+        body: JSON.stringify({ payload: buildOfficialParams(state) }),
+      });
+      if (!response.ok) throw Error("Não foi possível publicar");
+      setOfficialMessage("Parâmetros publicados na nuvem.");
+      return true;
+    } catch { setOfficialMessage("Falha ao publicar. Tente novamente."); return false; }
+    finally { setOfficialBusy(false); }
+  }
+  useEffect(() => {
+    if (!isAdmin) return;
+    const target = window as Window & { __wowOfficialParams?: () => Promise<boolean> };
+    target.__wowOfficialParams = publishOfficial;
+    return () => { delete target.__wowOfficialParams; };
+  });
+  async function acceptOfficial() {
+    if (!published || officialBusy || !window.confirm("Aplicar os parâmetros oficiais? Seus saldos, depósitos e histórico serão preservados.")) return;
+    setOfficialBusy(true);
+    try {
+      const next = structuredClone(state);
+      applyOfficialParams(next, published.payload);
+      const ok = await save(JSON.stringify(next), published.updatedAt);
+      if (!ok) throw Error("save_failed");
+      onApplied(next);
+      setAcceptedAt(published.updatedAt);
+      setOfficialMessage("Parâmetros aplicados e salvos na nuvem.");
+    } catch {
+      setOfficialMessage("Não foi possível salvar os parâmetros. Seus números foram mantidos.");
+    } finally { setOfficialBusy(false); }
+  }
   const officialFileRef = useRef<HTMLInputElement>(null);
   function exportarParametrosOficiais() {
     const payload = buildOfficialParams(state);
@@ -892,9 +949,23 @@ function BackupMenu({ state, mutate, isAdmin }: { state: State; mutate: (fn: (s:
     reader.readAsText(file);
   }
   return (
+    <>
+    {!isAdmin && published && acceptedAt !== published.updatedAt && dismissedAt !== published.updatedAt && <aside role="status" className="fixed right-4 top-20 z-40 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-cyan-400 bg-[#06192b] p-4 text-white shadow-2xl">
+      <p className="font-semibold text-cyan-200">Novos parâmetros oficiais disponíveis</p>
+      <p className="my-2 text-xs">Você decide se quer atualizar sua banca.</p>
+      <div className="flex flex-wrap gap-2"><Button type="button" size="sm" disabled={officialBusy} onClick={() => void acceptOfficial()}>Atualizar parâmetros</Button><Button type="button" size="sm" variant="outline" onClick={() => setDismissedAt(published.updatedAt)}>Manter meus números</Button></div>
+    </aside>}
     <details className="mt-6 rounded-lg border bg-card p-3 text-sm">
-      <summary className="cursor-pointer text-muted-foreground">Backup e dados</summary>
+      <summary className="cursor-pointer text-muted-foreground">{!isAdmin && published && acceptedAt !== published.updatedAt && dismissedAt !== published.updatedAt ? "🔔 Novos parâmetros oficiais disponíveis — toque para decidir" : isAdmin ? "Publicar parâmetros oficiais / Backup e dados" : "Backup e dados"}</summary>
       <div className="mt-3 flex flex-wrap gap-2">
+        {isAdmin && <Button type="button" size="sm" disabled={officialBusy} onClick={() => void publishOfficial()}>Publicar parâmetros oficiais</Button>}
+        {!isAdmin && published && acceptedAt !== published.updatedAt && dismissedAt !== published.updatedAt && <div className="w-full rounded-lg border border-cyan-500/50 bg-cyan-950/30 p-3">
+          <p className="mb-2 font-semibold text-cyan-200">Novos parâmetros oficiais disponíveis</p>
+          <p className="mb-2 text-xs text-slate-300">Você decide se quer receber os novos números. Suas alterações não serão substituídas automaticamente.</p>
+          <Button type="button" size="sm" disabled={officialBusy} onClick={() => void acceptOfficial()}>Atualizar parâmetros</Button>
+          <Button type="button" variant="ghost" size="sm" onClick={() => setDismissedAt(published.updatedAt)}>Manter meus números</Button>
+        </div>}
+        {officialMessage && <p role="status" className="w-full text-xs text-cyan-200">{officialMessage}</p>}
         {isAdmin && <Button type="button" variant="outline" size="sm" onClick={exportarParametrosOficiais}>exportar parâmetros oficiais (.json)</Button>}
         <Button type="button" variant="outline" size="sm" onClick={() => officialFileRef.current?.click()}>importar parâmetros oficiais</Button>
         <ConfirmButton variant="ghost" className="text-destructive" confirmText="clique de novo (apaga tudo)" onConfirm={() => mutate((s) => Object.assign(s, defaultState()))}>limpar todos os dados salvos</ConfirmButton>
@@ -902,7 +973,9 @@ function BackupMenu({ state, mutate, isAdmin }: { state: State; mutate: (fn: (s:
           const file = e.target.files?.[0]; if (file) importarParametrosOficiais(file, e.currentTarget);
         }} />
       </div>
-    </details>  );
+    </details>
+    </>
+  );
 }
 
 function StrategyNotes() {
