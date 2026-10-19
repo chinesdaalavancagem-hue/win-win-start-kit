@@ -22,7 +22,7 @@ const TABS: { key: TabKey; label: string; dot: string }[] = [
 ];
 const ASSET_NAME: Record<AssetKey, string> = { nasdaq: "NASDAQ", ouro: "OURO", saque2: "SAQUE 2" };
 
-export function Platform({ load, save, isAdmin }: { load: () => Promise<string | null>; save: (v: string) => Promise<boolean>; isAdmin: boolean }) {
+export function Platform({ load, save, isAdmin, officialScope }: { load: () => Promise<string | null>; save: (v: string) => Promise<boolean>; isAdmin: boolean; officialScope: string }) {
   const [state, setState] = useState<State | null>(null);
   const [section, setSection] = useState<Section>("operacoes");
   const [sync, setSync] = useState<Sync>({ mode: "busy", text: "carregando…" });
@@ -145,7 +145,7 @@ export function Platform({ load, save, isAdmin }: { load: () => Promise<string |
         <AssetView key={tab} state={state} assetKey={tab} section={section} setSection={setSection} mutate={mutate} isAdmin={isAdmin} />
       )}
 
-      <BackupMenu state={state} mutate={mutate} save={save} onApplied={setState} isAdmin={isAdmin} />
+      <BackupMenu state={state} mutate={mutate} save={save} onApplied={setState} isAdmin={isAdmin} officialScope={officialScope} />
       <StrategyNotes />
     </div>
   );
@@ -868,14 +868,14 @@ function LogList({ state }: { state: State }) {
 
 /* ---------- backup e notas ---------- */
 
-function BackupMenu({ state, mutate, save, onApplied, isAdmin }: { state: State; mutate: (fn: (s: State) => void) => void; save: (v: string) => Promise<boolean>; onApplied: (s: State) => void; isAdmin: boolean }) {
+function BackupMenu({ state, mutate, save, onApplied, isAdmin, officialScope }: { state: State; mutate: (fn: (s: State) => void) => void; save: (v: string) => Promise<boolean>; onApplied: (s: State) => void; isAdmin: boolean; officialScope: string }) {
   const [published, setPublished] = useState<{ payload: ReturnType<typeof buildOfficialParams>; updatedAt: string } | null>(null);
   const [officialBusy, setOfficialBusy] = useState(false);
   const [officialMessage, setOfficialMessage] = useState("");
   const [acceptedAt, setAcceptedAt] = useState<string | null>(null);
   const [dismissedAt, setDismissedAt] = useState<string | null>(null);
   useEffect(() => {
-    // O aceite pertence à banca e à conta; não deve vazar para outras bancas.
+    try { setAcceptedAt(localStorage.getItem("wow-official-accepted:" + officialScope)); } catch { /* storage disabled */ }
     let active = true;
     void (async () => {
       try {
@@ -914,6 +914,7 @@ function BackupMenu({ state, mutate, save, onApplied, isAdmin }: { state: State;
       if (!ok) throw Error("save_failed");
       onApplied(next);
       setAcceptedAt(published.updatedAt);
+      try { localStorage.setItem("wow-official-accepted:" + officialScope, published.updatedAt); } catch { /* storage disabled */ }
       setOfficialMessage("Parâmetros aplicados e salvos na nuvem.");
     } catch {
       setOfficialMessage("Não foi possível salvar os parâmetros. Seus números foram mantidos.");
