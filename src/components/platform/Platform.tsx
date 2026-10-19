@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
 import { Undo2, FileText, Layers, Target, TrendingUp, ShieldCheck, Wallet, ChevronRight, Crosshair, Calculator, Check, ChartNoAxesCombined, Landmark, History } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { registrarAuditoria } from "@/lib/auditoria-registro";
@@ -868,6 +869,47 @@ function LogList({ state }: { state: State }) {
 /* ---------- backup e notas ---------- */
 
 function BackupMenu({ state, mutate, isAdmin }: { state: State; mutate: (fn: (s: State) => void) => void; isAdmin: boolean }) {
+  const [published, setPublished] = useState<{ payload: ReturnType<typeof buildOfficialParams>; updatedAt: string } | null>(null);
+  const [officialBusy, setOfficialBusy] = useState(false);
+  const [officialMessage, setOfficialMessage] = useState("");
+  const [acceptedAt, setAcceptedAt] = useState<string | null>(null);
+  useEffect(() => {
+    try { setAcceptedAt(localStorage.getItem("wow-official-accepted")); } catch { /* unavailable */ }
+    let active = true;
+    void (async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (!data.session?.access_token) return;
+        const response = await fetch("/api/plataforma/parametros-oficiais", { headers: { authorization: "Bearer " + data.session.access_token }, cache: "no-store" });
+        if (!response.ok) return;
+        const result = await response.json() as { published?: { payload: unknown; updatedAt: string } | null };
+        if (active && result.published && isOfficialParams(result.published.payload)) setPublished({ payload: result.published.payload, updatedAt: result.published.updatedAt });
+      } catch { /* keep personal parameters unchanged */ }
+    })();
+    return () => { active = false; };
+  }, []);
+  async function publishOfficial() {
+    if (!window.confirm("Publicar os parâmetros desta banca como nova versão oficial?")) return;
+    setOfficialBusy(true);
+    try {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session?.access_token) throw Error("Sessão expirada");
+      const response = await fetch("/api/plataforma/parametros-oficiais", {
+        method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + data.session.access_token },
+        body: JSON.stringify({ payload: buildOfficialParams(state) }),
+      });
+      if (!response.ok) throw Error("Não foi possível publicar");
+      setOfficialMessage("Parâmetros publicados na nuvem.");
+    } catch { setOfficialMessage("Falha ao publicar. Tente novamente."); }
+    finally { setOfficialBusy(false); }
+  }
+  function acceptOfficial() {
+    if (!published || !window.confirm("Aplicar os parâmetros oficiais? Seus saldos, depósitos e histórico serão preservados.")) return;
+    mutate(current => applyOfficialParams(current, published.payload));
+    try { localStorage.setItem("wow-official-accepted", published.updatedAt); } catch { /* unavailable */ }
+    setAcceptedAt(published.updatedAt);
+    setOfficialMessage("Parâmetros aplicados. Aguarde a confirmação de salvamento na nuvem.");
+  }
   const officialFileRef = useRef<HTMLInputElement>(null);
   function exportarParametrosOficiais() {
     const payload = buildOfficialParams(state);
@@ -895,6 +937,14 @@ function BackupMenu({ state, mutate, isAdmin }: { state: State; mutate: (fn: (s:
     <details className="mt-6 rounded-lg border bg-card p-3 text-sm">
       <summary className="cursor-pointer text-muted-foreground">Backup e dados</summary>
       <div className="mt-3 flex flex-wrap gap-2">
+        {isAdmin && <Button type="button" size="sm" disabled={officialBusy} onClick={() => void publishOfficial()}>Publicar parâmetros oficiais</Button>}
+        {!isAdmin && published && acceptedAt !== published.updatedAt && <div className="w-full rounded-lg border border-cyan-500/50 bg-cyan-950/30 p-3">
+          <p className="mb-2 font-semibold text-cyan-200">Novos parâmetros oficiais disponíveis</p>
+          <p className="mb-2 text-xs text-slate-300">Você decide se quer receber os novos números. Suas alterações não serão substituídas automaticamente.</p>
+          <Button type="button" size="sm" onClick={acceptOfficial}>Atualizar parâmetros</Button>
+          <Button type="button" variant="ghost" size="sm" onClick={() => setAcceptedAt(published.updatedAt)}>Manter meus números</Button>
+        </div>}
+        {officialMessage && <p role="status" className="w-full text-xs text-cyan-200">{officialMessage}</p>}
         {isAdmin && <Button type="button" variant="outline" size="sm" onClick={exportarParametrosOficiais}>exportar parâmetros oficiais (.json)</Button>}
         <Button type="button" variant="outline" size="sm" onClick={() => officialFileRef.current?.click()}>importar parâmetros oficiais</Button>
         <ConfirmButton variant="ghost" className="text-destructive" confirmText="clique de novo (apaga tudo)" onConfirm={() => mutate((s) => Object.assign(s, defaultState()))}>limpar todos os dados salvos</ConfirmButton>
