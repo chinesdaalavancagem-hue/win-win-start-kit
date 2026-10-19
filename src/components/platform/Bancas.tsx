@@ -134,7 +134,7 @@ export function Bancas({ load, save, isAdmin, userId }: { load: () => Promise<st
         </section>
       )}
 
-      <Platform key={ativa.id} load={loadActive} save={saveActive} isAdmin={isAdmin} officialScope={userId + ":" + ativa.id} officialAcceptedAt={ativa.officialAcceptedAt ?? null} />
+      <Platform key={ativa.id} load={loadActive} save={saveActive} isAdmin={isAdmin} officialAcceptedAt={ativa.officialAcceptedAt ?? null} />
     </div>
   );
 }
