@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Undo2, FileText, Layers, Target, TrendingUp, ShieldCheck, Wallet, ChevronRight, Crosshair, Calculator, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { registrarAuditoria } from "@/lib/auditoria-registro";
-import { supabase } from "@/integrations/supabase/client";
 import { applyOfficialParams, buildOfficialParams, isOfficialParams } from "@/lib/platform/official-params";
 import {
   type AssetKey, type State, type TabKey, type Asset,
@@ -53,33 +52,12 @@ export function Platform({ load, save, isAdmin }: { load: () => Promise<string |
         let s = defaultState();
         if (raw) { try { const p = JSON.parse(raw); if (isValidState(p)) s = normalizeState(p); } catch { /* usa padrão */ } }
 
-        // O arquivo oficial é opcional: se não existir ou estiver inválido, mantém o estado carregado.
-        // A aplicação altera somente parâmetros permitidos e dias, preservando dados pessoais e histórico.
-        try {
-          let file = await supabase.storage
-            .from("platform-files")
-            .download("parametros/WinOrWin_Parametros.json");
-          // Compatibilidade com a publicação oficial já existente na tela Integração.
-          if (file.error || !file.data) {
-            file = await supabase.storage
-              .from("downloads")
-              .download("parametros/WinOrWin_Parametros.json");
-          }
-          if (!file.error && file.data) {
-            const payload: unknown = JSON.parse(await file.data.text());
-            if (isOfficialParams(payload)) {
-              const before = JSON.stringify(s.assets);
-              applyOfficialParams(s, payload);
-              if (JSON.stringify(s.assets) !== before) dirty.current = true;
-            }
-          }
-        } catch {
-          // Storage indisponível, arquivo ausente ou JSON inválido: segue com os dados atuais.
-        }
+        // O estado persistido é a fonte de verdade. Os números padrão são usados
+        // apenas quando ainda não existe um estado válido salvo para esta conta.
 
         if (alive) {
           setState(s);
-          setSync({ mode: "ok", text: dirty.current ? "parâmetros oficiais atualizados" : "sincronizado (nuvem)" });
+          setSync({ mode: "ok", text: "sincronizado (nuvem)" });
         }
       })
       .catch(() => { if (alive) { setState(defaultState()); setSync({ mode: "err", text: "falha ao carregar" }); } });
