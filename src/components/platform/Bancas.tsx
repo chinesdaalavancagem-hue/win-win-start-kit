@@ -22,10 +22,10 @@ export function Bancas({ load, save, isAdmin, userId }: { load: () => Promise<st
     const d = docRef.current; const b = d?.bancas.find((x) => x.id === d.activeId);
     return b ? JSON.stringify(b.state) : null;
   }, [activeId]); // eslint-disable-line react-hooks/exhaustive-deps
-  const saveActive = useCallback(async (v: string) => {
+  const saveActive = useCallback(async (v: string, acceptedAt?: string) => {
     const d = docRef.current; if (!d) return false;
     const id = activeId;
-    const next = { ...d, bancas: d.bancas.map((b) => (b.id === id ? { ...b, state: JSON.parse(v) } : b)) };
+    const next = { ...d, bancas: d.bancas.map((b) => (b.id === id ? { ...b, state: JSON.parse(v), ...(acceptedAt ? { officialAcceptedAt: acceptedAt } : {}) } : b)) };
     docRef.current = next;
     setDoc(next);
     return save(JSON.stringify(next));
@@ -132,7 +132,7 @@ export function Bancas({ load, save, isAdmin, userId }: { load: () => Promise<st
         </section>
       )}
 
-      <Platform key={ativa.id} load={loadActive} save={saveActive} isAdmin={isAdmin} officialScope={userId + ":" + ativa.id} />
+      <Platform key={ativa.id} load={loadActive} save={saveActive} isAdmin={isAdmin} officialScope={userId + ":" + ativa.id} officialAcceptedAt={ativa.officialAcceptedAt ?? null} />
     </div>
   );
 }
