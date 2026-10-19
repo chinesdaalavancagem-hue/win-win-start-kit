@@ -96,7 +96,7 @@ describe("Platform nativa", () => {
     try {
       const state = defaultState();
       state.assets.nasdaq.attempt.currentDayIndex = 1;
-      await act(async () => { render(<Platform load={async () => JSON.stringify(state)} save={async () => true} isAdmin={true} />); });
+      await act(async () => { render(<Platform load={async () => JSON.stringify(state)} save={async () => true} isAdmin={false} officialAcceptedAt={null} />); });
       await screen.findByText("Meta do dia atual");
       expect(scroll).not.toHaveBeenCalled();
 
