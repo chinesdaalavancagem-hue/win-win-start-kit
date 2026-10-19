@@ -942,6 +942,12 @@ function BackupMenu({ state, mutate, save, onApplied, isAdmin, officialAcceptedA
     reader.readAsText(file);
   }
   return (
+    <>
+    {!isAdmin && published && acceptedAt !== published.updatedAt && dismissedAt !== published.updatedAt && <aside role="status" className="fixed right-4 top-20 z-40 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-cyan-400 bg-[#06192b] p-4 text-white shadow-2xl">
+      <p className="font-semibold text-cyan-200">Novos parâmetros oficiais disponíveis</p>
+      <p className="my-2 text-xs">Você decide se quer atualizar sua banca.</p>
+      <div className="flex flex-wrap gap-2"><Button type="button" size="sm" disabled={officialBusy} onClick={() => void acceptOfficial()}>Atualizar parâmetros</Button><Button type="button" size="sm" variant="outline" onClick={() => setDismissedAt(published.updatedAt)}>Manter meus números</Button></div>
+    </aside>}
     <details className="mt-6 rounded-lg border bg-card p-3 text-sm">
       <summary className="cursor-pointer text-muted-foreground">{!isAdmin && published && acceptedAt !== published.updatedAt && dismissedAt !== published.updatedAt ? "🔔 Novos parâmetros oficiais disponíveis — toque para decidir" : isAdmin ? "Publicar parâmetros oficiais / Backup e dados" : "Backup e dados"}</summary>
       <div className="mt-3 flex flex-wrap gap-2">
@@ -960,7 +966,9 @@ function BackupMenu({ state, mutate, save, onApplied, isAdmin, officialAcceptedA
           const file = e.target.files?.[0]; if (file) importarParametrosOficiais(file, e.currentTarget);
         }} />
       </div>
-    </details>  );
+    </details>
+    </>
+  );
 }
 
 function StrategyNotes() {
