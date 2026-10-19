@@ -873,8 +873,9 @@ function BackupMenu({ state, mutate, isAdmin }: { state: State; mutate: (fn: (s:
   const [officialBusy, setOfficialBusy] = useState(false);
   const [officialMessage, setOfficialMessage] = useState("");
   const [acceptedAt, setAcceptedAt] = useState<string | null>(null);
+  const [dismissedAt, setDismissedAt] = useState<string | null>(null);
   useEffect(() => {
-    try { setAcceptedAt(localStorage.getItem("wow-official-accepted")); } catch { /* unavailable */ }
+    // O aceite pertence à banca e à conta; não deve vazar para outras bancas.
     let active = true;
     void (async () => {
       try {
@@ -903,12 +904,20 @@ function BackupMenu({ state, mutate, isAdmin }: { state: State; mutate: (fn: (s:
     } catch { setOfficialMessage("Falha ao publicar. Tente novamente."); }
     finally { setOfficialBusy(false); }
   }
-  function acceptOfficial() {
-    if (!published || !window.confirm("Aplicar os parâmetros oficiais? Seus saldos, depósitos e histórico serão preservados.")) return;
-    mutate(current => applyOfficialParams(current, published.payload));
-    try { localStorage.setItem("wow-official-accepted", published.updatedAt); } catch { /* unavailable */ }
-    setAcceptedAt(published.updatedAt);
-    setOfficialMessage("Parâmetros aplicados. Aguarde a confirmação de salvamento na nuvem.");
+  async function acceptOfficial() {
+    if (!published || officialBusy || !window.confirm("Aplicar os parâmetros oficiais? Seus saldos, depósitos e histórico serão preservados.")) return;
+    setOfficialBusy(true);
+    try {
+      const next = structuredClone(state);
+      applyOfficialParams(next, published.payload);
+      const ok = await save(JSON.stringify(next));
+      if (!ok) throw Error("save_failed");
+      setState(next);
+      setAcceptedAt(published.updatedAt);
+      setOfficialMessage("Parâmetros aplicados e salvos na nuvem.");
+    } catch {
+      setOfficialMessage("Não foi possível salvar os parâmetros. Seus números foram mantidos.");
+    } finally { setOfficialBusy(false); }
   }
   const officialFileRef = useRef<HTMLInputElement>(null);
   function exportarParametrosOficiais() {
@@ -938,11 +947,11 @@ function BackupMenu({ state, mutate, isAdmin }: { state: State; mutate: (fn: (s:
       <summary className="cursor-pointer text-muted-foreground">Backup e dados</summary>
       <div className="mt-3 flex flex-wrap gap-2">
         {isAdmin && <Button type="button" size="sm" disabled={officialBusy} onClick={() => void publishOfficial()}>Publicar parâmetros oficiais</Button>}
-        {!isAdmin && published && acceptedAt !== published.updatedAt && <div className="w-full rounded-lg border border-cyan-500/50 bg-cyan-950/30 p-3">
+        {!isAdmin && published && acceptedAt !== published.updatedAt && dismissedAt !== published.updatedAt && <div className="w-full rounded-lg border border-cyan-500/50 bg-cyan-950/30 p-3">
           <p className="mb-2 font-semibold text-cyan-200">Novos parâmetros oficiais disponíveis</p>
           <p className="mb-2 text-xs text-slate-300">Você decide se quer receber os novos números. Suas alterações não serão substituídas automaticamente.</p>
-          <Button type="button" size="sm" onClick={acceptOfficial}>Atualizar parâmetros</Button>
-          <Button type="button" variant="ghost" size="sm" onClick={() => setAcceptedAt(published.updatedAt)}>Manter meus números</Button>
+          <Button type="button" size="sm" disabled={officialBusy} onClick={() => void acceptOfficial()}>Atualizar parâmetros</Button>
+          <Button type="button" variant="ghost" size="sm" onClick={() => setDismissedAt(published.updatedAt)}>Manter meus números</Button>
         </div>}
         {officialMessage && <p role="status" className="w-full text-xs text-cyan-200">{officialMessage}</p>}
         {isAdmin && <Button type="button" variant="outline" size="sm" onClick={exportarParametrosOficiais}>exportar parâmetros oficiais (.json)</Button>}
