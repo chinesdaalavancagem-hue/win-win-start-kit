@@ -100,8 +100,8 @@ function Plataforma() {
         <div className="flex max-w-full gap-2 overflow-x-auto pb-0.5">
           {state === "ok" && <Button asChild size="sm" variant="outline" className="shrink-0 rounded-xl border-cyan-800/70 bg-[#07162a] text-blue-100 hover:border-cyan-400 hover:bg-blue-950/70"><Link to="/integracao">▦ Integração</Link></Button>}
           {state === "ok" && <Button asChild size="sm" variant="outline" className="shrink-0 rounded-xl border-cyan-950 bg-[#07101f] text-blue-100 hover:border-cyan-500 hover:bg-blue-950/70"><Link to="/analise-ia">◉ Análise IA</Link></Button>}
-          {isAdmin === true && <Button asChild size="sm" variant="outline" className="shrink-0 rounded-xl border-cyan-950 bg-[#07101f] text-blue-100 hover:border-cyan-500 hover:bg-blue-950/70"><Link to="/admin">♙ Aprovar cadastros</Link></Button>
-          {state === "ok" && isAdmin && <Button size="sm" disabled={publishBusy} className="shrink-0 rounded-xl bg-cyan-600 text-white hover:bg-cyan-500" onClick={() => void publishOfficial()}>↗ Enviar parâmetros aos usuários</Button>}}
+          {isAdmin === true && <Button asChild size="sm" variant="outline" className="shrink-0 rounded-xl border-cyan-950 bg-[#07101f] text-blue-100 hover:border-cyan-500 hover:bg-blue-950/70"><Link to="/admin">♙ Aprovar cadastros</Link></Button>}
+          {state === "ok" && isAdmin && <Button size="sm" disabled={publishBusy} className="shrink-0 rounded-xl bg-cyan-600 text-white hover:bg-cyan-500" onClick={() => void publishOfficial()}>↗ Enviar parâmetros aos usuários</Button>}
           {isAdmin === true && <Button asChild size="sm" variant="outline" className="shrink-0 rounded-xl border-cyan-950 bg-[#07101f] text-blue-100 hover:border-cyan-500 hover:bg-blue-950/70"><Link to="/auditoria">⛨ Auditoria</Link></Button>}
           <Button size="sm" variant="ghost" className="shrink-0 text-slate-400 hover:text-white" onClick={() => signOut(navigate)}>Sair</Button>
         </div>
