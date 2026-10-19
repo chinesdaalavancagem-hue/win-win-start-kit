@@ -46,8 +46,8 @@ export function isOfficialParams(payload: unknown): payload is OfficialParamsPay
 }
 
 /** Aplica somente os campos oficiais conhecidos; chaves extras do arquivo (ex.: saldoInicial) são ignoradas. */
-export function applyOfficialParams(current: State, payload: OfficialParamsPayload): void {
-  for (const key of ASSETS) {
+export function applyOfficialParams(current: State, payload: OfficialParamsPayload, onlyAsset?: AssetKey): void {
+  for (const key of onlyAsset ? [onlyAsset] : ASSETS) {
     const incoming = payload.assets[key];
     const picked: Record<string, unknown> = {};
     for (const f of PARAM_FIELDS) picked[f] = incoming.params[f];
