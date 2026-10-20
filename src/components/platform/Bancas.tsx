@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Platform } from "./Platform";
-import { fmt, fmtSigned, historicoTotals, tipoLabel } from "@/lib/platform/engine";
+import { fmt } from "@/lib/platform/engine";
 import { type BancasDoc, aplicarForex, extrairForex, forexDoDocumento, novaBanca, parseBancas, relatorioCsv, resumoBanca } from "@/lib/platform/bancas";
 import { Plus, Building2, CheckCircle2, Pencil, Trash2, Download, ArrowUpRight, WalletCards, Activity } from "lucide-react";
 
@@ -38,9 +38,6 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
   if (err) return <p className="m-auto text-destructive">Falha ao carregar as bancas.</p>;
   if (!doc) return <p className="m-auto text-muted-foreground">Carregando bancas...</p>;
   const ativa = doc.bancas.find((b) => b.id === doc.activeId) ?? doc.bancas[0];
-  const profitGeral = doc.bancas.reduce((total, b) => total + historicoTotals(b.state).profit, 0);
-  const saldoForex = forexDoDocumento(doc).cfdBalance;
-  const eventosGerais = doc.bancas.flatMap((b) => b.state.log.map((evento) => ({ ...evento, bancaId: b.id, bancaNome: b.nome }))).sort((a, b) => b.ts - a.ts);
   if (!ativa) return <p className="m-auto text-destructive">Nenhuma banca disponível.</p>;
 
   function exportar() {
@@ -146,28 +143,7 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
         </section>
       )}
 
-      <Platform key={ativa.id} load={loadActive} save={saveActive} isAdmin={isAdmin} officialAcceptedAt={ativa.officialAcceptedAt ?? null} historyOverview={<>      <section className="mx-auto w-full max-w-[1600px] px-4 pt-4 sm:px-6" aria-label="Resumo geral do trader">
-        <div className="rounded-2xl border border-cyan-900/70 bg-[#071426] p-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-cyan-300">Resultado geral de todas as bancas</p>
-          <p className={`mt-1 text-2xl font-bold tabular-nums ${profitGeral >= 0 ? "text-emerald-300" : "text-rose-300"}`}>{fmtSigned(profitGeral)}</p>
-          <p className="mt-2 text-sm font-semibold text-cyan-200">Saldo Forex compartilhado: ${fmt(saldoForex)}</p>
-          <p className="mt-1 text-xs text-slate-400">{doc.bancas.length} banca(s) · {eventosGerais.length} operações registradas · não representa o saldo disponível na corretora</p>
-        </div>
-      </section>
-      <section className="mx-auto w-full max-w-[1600px] px-4 pt-4 sm:px-6">
-        <details className="rounded-2xl border border-cyan-950/80 bg-[#071426] p-4">
-          <summary className="cursor-pointer font-semibold text-cyan-200">Histórico geral · todas as bancas ({eventosGerais.length})</summary>
-          <div className="mt-4 max-h-80 space-y-2 overflow-y-auto">
-            {eventosGerais.length === 0 ? <p className="text-sm text-slate-400">Nenhuma operação registrada.</p> : eventosGerais.map((e) => (
-              <div key={`${e.bancaId}-${e.id}`} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/5 bg-black/20 p-3 text-sm">
-                <div><p className="font-semibold text-slate-100">{e.bancaNome} · {tipoLabel(e.tipo, e.asset)}</p><p className="text-xs text-slate-400">{new Date(e.ts).toLocaleString("pt-BR")} · {e.asset.toUpperCase()} · D{e.day}</p></div>
-                <span className={e.delta >= 0 ? "font-mono text-emerald-300" : "font-mono text-rose-300"}>{fmtSigned(e.delta)}</span>
-              </div>
-            ))}
-          </div>
-        </details>
-      </section>
-</>} />
+      <Platform key={ativa.id} load={loadActive} save={saveActive} isAdmin={isAdmin} officialAcceptedAt={ativa.officialAcceptedAt ?? null} allBancas={doc.bancas} />
     </div>
   );
 }
