@@ -76,14 +76,6 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
           </div>
         </div>
       </header>
-      <section className="mx-auto w-full max-w-[1600px] px-4 pt-4 sm:px-6" aria-label="Resumo geral do trader">
-        <div className="rounded-2xl border border-cyan-900/70 bg-[#071426] p-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-cyan-300">Resultado geral de todas as bancas</p>
-          <p className={`mt-1 text-2xl font-bold tabular-nums ${profitGeral >= 0 ? "text-emerald-300" : "text-rose-300"}`}>{fmtSigned(profitGeral)}</p>
-          <p className="mt-2 text-sm font-semibold text-cyan-200">Saldo Forex compartilhado: ${fmt(saldoForex)}</p>
-          <p className="mt-1 text-xs text-slate-400">{doc.bancas.length} banca(s) · {eventosGerais.length} operações registradas · não representa o saldo disponível na corretora</p>
-        </div>
-      </section>
       {painel && (
         <section className="border-b border-cyan-950/70 bg-[#06101f]/80 px-4 py-5 sm:px-6">
           <div className="mx-auto max-w-[1600px] space-y-5">
@@ -154,6 +146,14 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
         </section>
       )}
 
+      <Platform key={ativa.id} load={loadActive} save={saveActive} isAdmin={isAdmin} officialAcceptedAt={ativa.officialAcceptedAt ?? null} historyOverview={<>      <section className="mx-auto w-full max-w-[1600px] px-4 pt-4 sm:px-6" aria-label="Resumo geral do trader">
+        <div className="rounded-2xl border border-cyan-900/70 bg-[#071426] p-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-cyan-300">Resultado geral de todas as bancas</p>
+          <p className={`mt-1 text-2xl font-bold tabular-nums ${profitGeral >= 0 ? "text-emerald-300" : "text-rose-300"}`}>{fmtSigned(profitGeral)}</p>
+          <p className="mt-2 text-sm font-semibold text-cyan-200">Saldo Forex compartilhado: ${fmt(saldoForex)}</p>
+          <p className="mt-1 text-xs text-slate-400">{doc.bancas.length} banca(s) · {eventosGerais.length} operações registradas · não representa o saldo disponível na corretora</p>
+        </div>
+      </section>
       <section className="mx-auto w-full max-w-[1600px] px-4 pt-4 sm:px-6">
         <details className="rounded-2xl border border-cyan-950/80 bg-[#071426] p-4">
           <summary className="cursor-pointer font-semibold text-cyan-200">Histórico geral · todas as bancas ({eventosGerais.length})</summary>
@@ -167,7 +167,7 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
           </div>
         </details>
       </section>
-      <Platform key={ativa.id} load={loadActive} save={saveActive} isAdmin={isAdmin} officialAcceptedAt={ativa.officialAcceptedAt ?? null} />
+</>} />
     </div>
   );
 }
