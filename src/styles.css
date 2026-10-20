@@ -190,11 +190,12 @@
 }
 
 /* Desktop: match 90% browser zoom while leaving mobile untouched.
-   zoom scales typography, controls, spacing and cards uniformly; the reciprocal
-   width preserves the full viewport instead of leaving unused space. */
+   zoom scales typography, controls, spacing and cards uniformly.
+   Keep the container at viewport width to prevent horizontal overflow. */
 @media (min-width: 1024px) {
   .win-platform-desktop-compact {
     zoom: 0.9;
-    width: 111.111111%;
+    width: 100%;
+    min-width: 0;
   }
 }
