@@ -486,7 +486,7 @@ function AssetView({ state, assetKey, section, setSection, mutate, isAdmin }: { 
                 {asset.days.map((d, i) => (
                   <div key={i} className="rounded-xl border border-[#273342] bg-[#07101a] p-3">
                     <div className="mb-2 flex items-center justify-between gap-1">
-                      <span className="font-mono text-xs font-bold text-amber-300">D{i + 1}</span>
+                      <span className="font-mono text-xs font-bold text-amber-300">D{i < 3 ? i + 1 : i - 2} <span className="text-[10px] font-semibold uppercase tracking-wide">{i < 3 ? "Evaluation" : "Funded"}</span></span>
                       <span className={cn("rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide", d.mll && d.mll > 0 ? "bg-amber-400/10 text-amber-300" : "bg-slate-700/50 text-slate-400")}>{d.mll && d.mll > 0 ? "Personalizado" : "Geral"}</span>
                     </div>
                     <NumField label="Limite ($)" value={d.mll ?? 0}
