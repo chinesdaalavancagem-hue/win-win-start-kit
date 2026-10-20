@@ -1,9 +1,35 @@
-import { type State, defaultState, historicoTotals, isValidState, normalizeState, tipoLabel } from "./engine";
+import { type State, type AssetKey, type Bonus, defaultState, historicoTotals, isValidState, normalizeState, tipoLabel } from "./engine";
 import { challengeAccountSchema, type ChallengeAccount } from "../prop-firms";
 
 export type BancaAtivo = "nasdaq" | "ouro";
 export interface Banca { id: string; nome: string; criadaEm: number; state: State; ativo?: BancaAtivo; officialAcceptedAt?: string; challengeAccount?: ChallengeAccount }
-export interface BancasDoc { bancasVersion: 1; activeId: string; bancas: Banca[] }
+export interface ForexCompartilhado { cfdBalance: number; bonus: Record<AssetKey, Bonus> }
+export interface BancasDoc { bancasVersion: 1; activeId: string; bancas: Banca[]; forex?: ForexCompartilhado }
+
+export function extrairForex(state: State): ForexCompartilhado {
+  return { cfdBalance: state.cfdBalance, bonus: {
+    nasdaq: structuredClone(state.assets.nasdaq.bonus),
+    ouro: structuredClone(state.assets.ouro.bonus),
+    saque2: structuredClone(state.assets.saque2.bonus),
+  } };
+}
+export function aplicarForex(state: State, forex: ForexCompartilhado): State {
+  const next = structuredClone(state);
+  next.cfdBalance = forex.cfdBalance;
+  for (const key of ["nasdaq", "ouro", "saque2"] as AssetKey[]) {
+    next.assets[key].bonus = structuredClone(forex.bonus[key]);
+    next.assets[key].params.saldoInicial = forex.bonus[key].deposito + forex.bonus[key].bonusAtual;
+  }
+  return next;
+}
+export function forexDoDocumento(doc: BancasDoc): ForexCompartilhado {
+  if (doc.forex && Number.isFinite(doc.forex.cfdBalance) && ["nasdaq", "ouro", "saque2"].every((k) => doc.forex?.bonus?.[k as AssetKey])) return doc.forex;
+  const ordered = [...doc.bancas].sort((a, b) => {
+    const last = (x: Banca) => Math.max(x.criadaEm, ...x.state.log.map((e) => e.ts || 0), ...Object.values(x.state.assets).flatMap((asset) => asset.bonus.log.map((e) => e.ts || 0)));
+    return last(b) - last(a);
+  });
+  return extrairForex(ordered[0]?.state ?? defaultState());
+}
 
 const newId = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 
@@ -27,10 +53,11 @@ export function parseBancas(raw: string | null): BancasDoc {
       ...(challengeAccountSchema.safeParse(b.challengeAccount).success ? { challengeAccount: challengeAccountSchema.parse(b.challengeAccount) } : {}),
     }));
     const activeId = bancas.some((b) => b.id === p.activeId) ? p.activeId : bancas[0]?.id ?? "";
-    return { bancasVersion: 1, activeId, bancas };
+    const doc: BancasDoc = { bancasVersion: 1, activeId, bancas };
+    return { ...doc, forex: p.forex && Number.isFinite(p.forex.cfdBalance) && p.forex.bonus ? p.forex : forexDoDocumento(doc) };
   }
   const first = novaBanca("Banca principal", isValidState(p) ? normalizeState(p) : defaultState());
-  return { bancasVersion: 1, activeId: first.id, bancas: [first] };
+  return { bancasVersion: 1, activeId: first.id, bancas: [first], forex: extrairForex(first.state) };
 }
 
 export function resumoBanca(b: Banca) {
