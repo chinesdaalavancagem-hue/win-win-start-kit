@@ -96,6 +96,7 @@ function Plataforma() {
         <span className="flex min-w-0 items-center gap-2 text-blue-100/75">
           <span className="truncate">Olá, {name.split(" ")[0] || user.email}</span>
           {isAdmin && <span className="shrink-0 rounded-full bg-primary px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-primary-foreground">Master</span>}
+          <span id="wow-header-sync" className="shrink-0" />
         </span>
         <div className="flex max-w-full gap-2 overflow-x-auto pb-0.5">
           {state === "ok" && <Button asChild size="sm" variant="outline" className="shrink-0 rounded-xl border-cyan-800/70 bg-[#07162a] text-blue-100 hover:border-cyan-400 hover:bg-blue-950/70"><Link to="/integracao">▦ Integração</Link></Button>}
