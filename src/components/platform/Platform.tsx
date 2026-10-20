@@ -1,3 +1,4 @@
+import type { Banca } from "@/lib/platform/bancas";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,7 +23,7 @@ const TABS: { key: TabKey; label: string; dot: string }[] = [
 ];
 const ASSET_NAME: Record<AssetKey, string> = { nasdaq: "NASDAQ", ouro: "OURO", saque2: "SAQUE 2" };
 
-export function Platform({ load, save, isAdmin, officialAcceptedAt, historyOverview }: { load: () => Promise<string | null>; save: (v: string, acceptedAt?: string) => Promise<boolean>; isAdmin: boolean; officialAcceptedAt: string | null; historyOverview?: ReactNode }) {
+export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas }: { load: () => Promise<string | null>; save: (v: string, acceptedAt?: string) => Promise<boolean>; isAdmin: boolean; officialAcceptedAt: string | null; allBancas?: Banca[] }) {
   const [state, setState] = useState<State | null>(null);
   const [section, setSection] = useState<Section>("operacoes");
   const [sync, setSync] = useState<Sync>({ mode: "busy", text: "carregando…" });
@@ -141,7 +142,7 @@ export function Platform({ load, save, isAdmin, officialAcceptedAt, historyOverv
         </Button>
       </div>
 
-      {tab === "historico" ? <>{historyOverview}<Historico state={state} mutate={mutate} /></> : (
+      {tab === "historico" ? <Historico state={state} mutate={mutate} bancas={allBancas} /> : (
         <AssetView key={tab} state={state} assetKey={tab} section={section} setSection={setSection} mutate={mutate} isAdmin={isAdmin} />
       )}
 
@@ -740,22 +741,31 @@ function BonusPanel({ state, assetKey, reserva, folga, mutate }: { state: State;
 
 /* ---------- histórico ---------- */
 
-function Historico({ state, mutate }: { state: State; mutate: (fn: (s: State) => void) => void }) {
-  const { profit, resultadoReal, custoProprio } = historicoTotals(state);
-  const total = state.counts.aprovadas + state.counts.reprovadas;
+function Historico({ state, mutate, bancas }: { state: State; mutate: (fn: (s: State) => void) => void; bancas?: Banca[] }) {
+  const [filtroBanca, setFiltroBanca] = useState("todas");
+  const resumo = bancas?.length ? bancas.reduce((acc, b) => {
+    const t = historicoTotals(b.state);
+    acc.profit += t.profit; acc.resultadoReal += t.resultadoReal; acc.custoProprio += t.custoProprio;
+    acc.aprovadas += b.state.counts.aprovadas; acc.reprovadas += b.state.counts.reprovadas;
+    return acc;
+  }, { profit: 0, resultadoReal: 0, custoProprio: 0, aprovadas: 0, reprovadas: 0 }) : { ...historicoTotals(state), ...state.counts };
+  const { profit, resultadoReal, custoProprio } = resumo;
+  const total = resumo.aprovadas + resumo.reprovadas;
+  const logFiltrado = bancas?.length ? bancas.filter((b) => filtroBanca === "todas" || b.id === filtroBanca).flatMap((b) => b.state.log.map((e) => ({ ...e, bancaNome: b.nome }))).sort((a, b) => a.ts - b.ts) : state.log;
+  const estadoHistorico = { ...state, log: logFiltrado };
   const roi = custoProprio > 0 ? (resultadoReal / custoProprio) * 100 : null;
   const base = custoProprio + resultadoReal;
   const margem = base > 0 ? (resultadoReal / base) * 100 : null;
   return (
     <div>
       <div className="mb-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Metric label="Contas aprovadas" value={state.counts.aprovadas} tone="pos" />
-        <Metric label="Contas reprovadas" value={state.counts.reprovadas} tone="neg" />
+        <Metric label="Contas aprovadas" value={resumo.aprovadas} tone="pos" />
+        <Metric label="Contas reprovadas" value={resumo.reprovadas} tone="neg" />
         <Metric label="Profit" value={(profit >= 0 ? "+$" : "-$") + fmt(Math.abs(profit))} tone={profit >= 0 ? "pos" : "neg"} />
         <Metric label="Resultado real" value={"-$" + fmt(Math.abs(resultadoReal))} tone="neg" />
       </div>
       <p className="mb-4 font-mono text-xs text-muted-foreground">
-        {total > 0 ? `taxa de aprovação: ${fmt((state.counts.aprovadas / total) * 100)}% (${total} ciclo${total === 1 ? "" : "s"} concluído${total === 1 ? "" : "s"})` : "nenhum ciclo concluído ainda — use os botões Profit / Stop nos cards de dia."}
+        {total > 0 ? `taxa de aprovação: ${fmt((resumo.aprovadas / total) * 100)}% (${total} ciclo${total === 1 ? "" : "s"} concluído${total === 1 ? "" : "s"})` : "nenhum ciclo concluído ainda — use os botões Profit / Stop nos cards de dia."}
       </p>
       <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-4">
         <Metric label="Custo próprio real (todos os ciclos)" value={`$${fmt(custoProprio)}`} tone="neg" />
@@ -763,8 +773,14 @@ function Historico({ state, mutate }: { state: State; mutate: (fn: (s: State) =>
         <Metric label="ROI (resultado real)" value={roi == null ? "-" : `${roi >= 0 ? "+" : ""}${fmt(roi)}%`} tone={roi == null ? undefined : roi >= 0 ? "pos" : "neg"} />
         <Metric label="Margem do resultado real" value={margem == null ? "-" : `${margem >= 0 ? "+" : ""}${fmt(margem)}%`} tone={margem == null ? undefined : margem >= 0 ? "pos" : "neg"} />
       </div>
-      <Chart state={state} />
-      <Simulador state={state} />
+      <label className="mb-4 block text-sm">Operações por banca
+        <select value={filtroBanca} onChange={(e) => setFiltroBanca(e.target.value)} className="mt-1 block w-full max-w-xs rounded-md border bg-background p-2">
+          <option value="todas">Todas as bancas</option>
+          {bancas?.map((b) => <option key={b.id} value={b.id}>{b.nome}</option>)}
+        </select>
+      </label>
+      <Chart state={estadoHistorico} />
+      <Simulador state={estadoHistorico} />
       <div className="mb-3 flex justify-between">
         {state.log.length > 0 ? <ConfirmButton variant="ghost" confirmText="clique de novo p/ confirmar" onConfirm={() => mutate(undoLast)}>desfazer última ação</ConfirmButton> : <span />}
         <ConfirmButton variant="ghost" className="text-destructive" confirmText="clique de novo (apaga o histórico)" onConfirm={() => mutate((s) => {
@@ -772,7 +788,7 @@ function Historico({ state, mutate }: { state: State; mutate: (fn: (s: State) =>
           for (const k of ["nasdaq", "ouro", "saque2"] as AssetKey[]) { s.assets[k].attempt.currentDayIndex = 0; s.assets[k].attempt.cycleCost = 0; }
         })}>limpar histórico</ConfirmButton>
       </div>
-      <LogList state={state} />
+      <LogList state={estadoHistorico} />
     </div>
   );
 }
