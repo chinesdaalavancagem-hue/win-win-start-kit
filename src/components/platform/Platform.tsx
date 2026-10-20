@@ -354,8 +354,8 @@ function AssetView({ state, assetKey, section, setSection, mutate, isAdmin }: { 
   });
   const visibleRows = isAdmin ? rows : rows.filter((r) => r.isCurrent);
   const displayedTotalMeta = isAdmin ? totalMeta : visibleRows.reduce((total, r) => total + r.d.meta, 0);
-  // Lucro realizado na fase Funded: somente dias D1–D5 Funded registrados como Profit.
-  const lucroFunded = state.log.filter((e) => e.asset === assetKey && (e.tipo === "profit" || e.tipo === "aprovada") && e.day >= 4 && e.day <= 8).reduce((total, e) => total + (asset.days[e.day - 1]?.meta ?? 0), 0);
+  // Soma das metas configuradas nos parâmetros para D1 a D5 Funded (índices 3–7), independentemente de operações realizadas.
+  const lucroFunded = asset.days.slice(3, 8).reduce((total, dia) => total + (Number(dia.meta) || 0), 0);
   const displayedCum = isAdmin ? cum : visibleRows.reduce((total, r) => total + r.c.passa, saldo);
   const folga = asset.params.folgaExtraPct ?? 20;
   const reservaComFolga = reservaMinima > 0 ? reservaMinima * (1 + folga / 100) : 0;
