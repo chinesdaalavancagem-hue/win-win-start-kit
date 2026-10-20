@@ -517,23 +517,28 @@ function AssetView({ state, assetKey, section, setSection, leftMenuOpen, setLeft
 
       {section === "operacoes" && (
         <div>
-          <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="relative overflow-hidden rounded-2xl border border-cyan-950/80 bg-[#0b1725] p-3 shadow-lg sm:p-4">
-              <p className="flex items-center gap-2 text-xs text-blue-100/70"><Target className="size-4 text-cyan-400" />Lucro da conta Funded · D1–D5</p>
-              <p className="mt-1 font-mono text-2xl font-bold text-slate-100 sm:text-3xl">$ {fmt(lucroFunded)}</p>
-              <div className="mt-2 grid grid-cols-2 gap-2 border-t border-cyan-900/60 pt-2">
-                <div className="min-w-0 rounded-lg bg-slate-800/40 p-2">
-                  <p className="text-[10px] leading-tight text-blue-100/60">Liberado para saque · 50%</p>
-                  <p className="mt-1 font-mono text-base font-bold text-slate-100 sm:text-lg">$ {fmt(lucroFunded / 2)}</p>
+          <div className="mb-3 rounded-2xl border border-cyan-900/70 bg-gradient-to-r from-[#0a1929] to-[#07121e] px-3 py-3 shadow-lg sm:px-4">
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+              <p className="flex items-center gap-2 text-xs font-semibold text-blue-100/75"><Target className="size-4 text-cyan-400" />Meta Funded · D1–D5</p>
+              <span className="rounded-full border border-cyan-800/60 bg-cyan-950/40 px-2 py-0.5 text-[10px] text-cyan-200/80">Projeção pelas metas</span>
+            </div>
+            <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1.1fr_1.1fr] sm:items-stretch">
+              <div className="flex items-center justify-between gap-2 rounded-lg border border-cyan-900/40 bg-[#071423]/70 px-3 py-2 sm:block">
+                <p className="text-[10px] text-blue-100/60">Lucro total previsto</p>
+                <p className="font-mono text-xl font-bold tracking-tight text-slate-100 sm:mt-1 sm:text-2xl">$ {fmt(lucroFunded)}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-2 sm:col-span-2">
+                <div className="min-w-0 rounded-lg border border-slate-700/40 bg-slate-800/35 px-2.5 py-2">
+                  <p className="text-[10px] leading-tight text-blue-100/65">1º saque · 50%</p>
+                  <p className="mt-1 font-mono text-lg font-bold text-slate-100">$ {fmt(lucroFunded / 2)}</p>
                 </div>
-                <div className="min-w-0 rounded-lg border border-emerald-800/40 bg-emerald-950/30 p-2">
-                  <p className="text-[10px] leading-tight text-emerald-200/80">Você recebe · split 90%</p>
-                  <p className="mt-1 font-mono text-base font-bold text-emerald-400 sm:text-lg">$ {fmt(lucroFunded * 0.45)}</p>
+                <div className="min-w-0 rounded-lg border border-emerald-700/40 bg-emerald-950/30 px-2.5 py-2">
+                  <p className="text-[10px] leading-tight text-emerald-200/80">Recebe · split 90%</p>
+                  <p className="mt-1 font-mono text-lg font-bold text-emerald-400">$ {fmt(lucroFunded * 0.45)}</p>
                 </div>
               </div>
-              <p className="mt-2 text-[10px] leading-snug text-blue-100/55">Próximo saque: mais 5 dias positivos de no mínimo $150 por dia, conforme as regras da mesa.</p>
             </div>
-
+            <p className="mt-2 flex items-start gap-1.5 text-[10px] leading-snug text-blue-100/55"><span className="shrink-0 text-cyan-400">↳</span> Próximo saque após mais 5 dias positivos de pelo menos $150 por dia, conforme regras da mesa.</p>
           </div>
           <div className="space-y-3">
             {visibleRows.map((r) => (
