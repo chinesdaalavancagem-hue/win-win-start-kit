@@ -188,3 +188,13 @@
     color: var(--color-foreground);
   }
 }
+
+/* Desktop: match the former 80% browser zoom while leaving mobile untouched.
+   zoom scales typography, controls, spacing and cards uniformly; the reciprocal
+   width preserves the full viewport instead of leaving unused space. */
+@media (min-width: 1024px) {
+  .win-platform-desktop-compact {
+    zoom: 0.8;
+    width: 125%;
+  }
+}
