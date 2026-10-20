@@ -1,4 +1,5 @@
 import type { Banca } from "@/lib/platform/bancas";
+import { createPortal } from "react-dom";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,6 +28,8 @@ export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas }:
   const [state, setState] = useState<State | null>(null);
   const [section, setSection] = useState<Section>("operacoes");
   const [sync, setSync] = useState<Sync>({ mode: "busy", text: "carregando…" });
+  const [syncTarget, setSyncTarget] = useState<HTMLElement | null>(null);
+  useEffect(() => { setSyncTarget(document.getElementById("wow-header-sync")); }, []);
   const dirty = useRef(false);
 
   useEffect(() => {
@@ -97,6 +100,11 @@ export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas }:
 
   return (
     <div className="mx-auto w-full max-w-6xl px-3 py-5 sm:px-5 lg:px-4 lg:py-3">
+      {syncTarget && createPortal(
+        <span role="status" className="inline-flex items-center gap-1.5 whitespace-nowrap text-[11px] text-blue-100/75">
+          <span className={cn("size-2 rounded-full", sync.mode === "ok" && "bg-emerald-400", sync.mode === "busy" && "bg-amber-400", sync.mode === "err" && "bg-rose-400")} />
+          {sync.text}
+        </span>, syncTarget)}
       <section className="relative mb-3 overflow-hidden rounded-2xl border border-cyan-700/60 bg-[radial-gradient(ellipse_at_90%_30%,rgba(0,190,255,0.14),transparent_45%),linear-gradient(135deg,#07152a_0%,#030b17_65%,#041321_100%)] p-4 shadow-[0_20px_55px_rgba(0,0,0,0.25)] sm:p-6">
         <div className="pointer-events-none absolute -right-12 top-8 h-40 w-64 rounded-full border border-cyan-400/10 blur-sm" />
         <div className="relative flex flex-wrap items-start justify-between gap-4">
@@ -109,10 +117,7 @@ export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas }:
               <p className="mt-2 max-w-lg text-sm leading-relaxed text-blue-100/75 sm:text-base">Digite manualmente os contratos, os lotes do broker CFD e a meta de cada dia.</p>
             </div>
           </div>
-          <div className="flex items-center gap-3 rounded-xl border border-cyan-950/80 bg-[#061322]/80 px-3 py-2.5 font-mono text-xs text-blue-100/75">
-            <span className={cn("size-2.5 rounded-full", sync.mode === "ok" && "bg-emerald-400 shadow-[0_0_12px_rgba(0,255,190,0.75)]", sync.mode === "busy" && "bg-amber-400", sync.mode === "err" && "bg-rose-400")} />
-            <span>{sync.text}</span>
-          </div>
+
         </div>
       </section>
 
@@ -520,7 +525,7 @@ function AssetView({ state, assetKey, section, setSection, mutate, isAdmin }: { 
               </div>
               <p className="mt-2 text-[10px] leading-snug text-blue-100/55">Próximo saque: mais 5 dias positivos de no mínimo $150 por dia, conforme as regras da mesa.</p>
             </div>
-            <Metric label={isAdmin ? "Saldo final se passar — broker CFD" : "Saldo CFD se passar hoje"} value={`${fmt(displayedCum)}`} />
+
           </div>
           <div className="space-y-3">
             {visibleRows.map((r) => (
