@@ -129,10 +129,10 @@ export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas }:
       </section>
 
 
-      <nav className="fixed right-1 top-1/2 z-40 flex -translate-y-1/2 flex-col gap-2 rounded-2xl border border-cyan-900/70 bg-[#050d1b]/95 p-1 shadow-xl sm:p-1.5" aria-label="Ativos e histórico">
+      <nav className="fixed right-2 top-1/2 z-40 flex -translate-y-1/2 flex-col lg:top-28 lg:translate-y-0 gap-2 rounded-2xl border border-cyan-900/70 bg-[#050d1b]/95 p-1 shadow-xl sm:p-1.5" aria-label="Ativos e histórico">
         {TABS.map((t) => (
           <button key={t.key} type="button" title={t.label} aria-label={t.label} aria-pressed={tab === t.key} onClick={() => { setActiveTabLabel(null); mutate((s) => { s.activeTab = t.key; }); setActiveTabLabel(t.key); }}
-            className={cn("relative flex size-10 items-center justify-center rounded-xl border transition-colors", tab === t.key ? "border-cyan-400/70 bg-blue-950 text-white" : "border-transparent text-slate-400 hover:bg-blue-950/60")}>
+            className={cn("relative flex size-10 items-center justify-center rounded-xl border transition-colors lg:size-12", tab === t.key ? "border-cyan-400/70 bg-blue-950 text-white" : "border-transparent text-slate-400 hover:bg-blue-950/60")}>
             {activeTabLabel === t.key && <span aria-hidden="true" className="pointer-events-none absolute right-full mr-2 whitespace-nowrap rounded-lg border border-cyan-800/80 bg-[#061322] px-3 py-1.5 text-xs font-semibold text-cyan-100 shadow-xl">{t.label}</span>}
             {t.key === "ouro" ? <svg aria-hidden="true" viewBox="0 0 32 28" className="size-5 shrink-0" fill="none"><path d="M2 17 8 8h12l6 9-6 9H8L2 17Z" fill="#E9A900" stroke="#FFDF69" strokeWidth="1.2"/><path d="m8 8 6 9-6 9-6-9Z" fill="#FFE075"/><path d="m14 17 6-9 6 9-6 9Z" fill="#FFC533"/></svg> : t.key === "nasdaq" ? <ChartNoAxesCombined className="size-5 text-sky-400" /> : t.key === "saque2" ? <Landmark className="size-5 text-violet-400" /> : <History className="size-5 text-slate-300" />}
           </button>
@@ -373,10 +373,10 @@ function AssetView({ state, assetKey, section, setSection, leftMenuOpen, setLeft
 
   return (
     <div>
-      <aside className="fixed left-1 top-1/2 z-40 flex -translate-y-1/2" aria-label="Menu de operações">
+      <aside className="fixed left-2 top-1/2 z-40 flex -translate-y-1/2 lg:top-28 lg:translate-y-0" aria-label="Menu de operações">
         <div className="flex items-start gap-1">
           <button type="button" aria-label={leftMenuOpen ? "Recolher menu" : "Expandir menu"} aria-expanded={leftMenuOpen} onClick={() => setLeftMenuOpen(!leftMenuOpen)}
-            className="flex size-9 items-center justify-center rounded-xl border border-cyan-700/70 bg-[#061322] sm:size-11 text-cyan-300 shadow-xl hover:bg-blue-950">
+            className="flex size-9 items-center justify-center rounded-xl border border-cyan-700/70 bg-[#061322] sm:size-11 lg:size-12 text-cyan-300 shadow-xl hover:bg-blue-950">
             {leftMenuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
           </button>
           {leftMenuOpen && <nav className="flex w-48 flex-col gap-1 rounded-xl border border-cyan-800/70 bg-[#061322] p-2 shadow-2xl" aria-label="Seções da plataforma">
