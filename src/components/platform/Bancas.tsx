@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Platform } from "./Platform";
 import { fmt, fmtSigned, historicoTotals, tipoLabel } from "@/lib/platform/engine";
-import { type BancasDoc, novaBanca, parseBancas, relatorioCsv, resumoBanca } from "@/lib/platform/bancas";
+import { type BancasDoc, aplicarForex, extrairForex, forexDoDocumento, novaBanca, parseBancas, relatorioCsv, resumoBanca } from "@/lib/platform/bancas";
 import { Plus, Building2, CheckCircle2, Pencil, Trash2, Download, ArrowUpRight, WalletCards, Activity } from "lucide-react";
 
 export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | null>; save: (v: string) => Promise<boolean>; isAdmin: boolean }) {
@@ -21,12 +21,13 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
   const activeId = doc?.activeId;
   const loadActive = useCallback(async () => {
     const d = docRef.current; const b = d?.bancas.find((x) => x.id === d.activeId);
-    return b ? JSON.stringify(b.state) : null;
+    return b ? JSON.stringify(aplicarForex(b.state, forexDoDocumento(d!))) : null;
   }, [activeId]); // eslint-disable-line react-hooks/exhaustive-deps
   const saveActive = useCallback(async (v: string, acceptedAt?: string) => {
     const d = docRef.current; if (!d) return false;
     const id = activeId;
-    const next = { ...d, bancas: d.bancas.map((b) => (b.id === id ? { ...b, state: JSON.parse(v), ...(acceptedAt ? { officialAcceptedAt: acceptedAt } : {}) } : b)) };
+    const updated = JSON.parse(v);
+    const next = { ...d, forex: extrairForex(updated), bancas: d.bancas.map((b) => (b.id === id ? { ...b, state: updated, ...(acceptedAt ? { officialAcceptedAt: acceptedAt } : {}) } : b)) };
     docRef.current = next;
     setDoc(next);
     const ok = await save(JSON.stringify(next));
@@ -38,6 +39,7 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
   if (!doc) return <p className="m-auto text-muted-foreground">Carregando bancas...</p>;
   const ativa = doc.bancas.find((b) => b.id === doc.activeId) ?? doc.bancas[0];
   const profitGeral = doc.bancas.reduce((total, b) => total + historicoTotals(b.state).profit, 0);
+  const saldoForex = forexDoDocumento(doc).cfdBalance;
   const eventosGerais = doc.bancas.flatMap((b) => b.state.log.map((evento) => ({ ...evento, bancaId: b.id, bancaNome: b.nome }))).sort((a, b) => b.ts - a.ts);
   if (!ativa) return <p className="m-auto text-destructive">Nenhuma banca disponível.</p>;
 
@@ -78,6 +80,7 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
         <div className="rounded-2xl border border-cyan-900/70 bg-[#071426] p-4">
           <p className="text-xs font-semibold uppercase tracking-wider text-cyan-300">Resultado geral de todas as bancas</p>
           <p className={`mt-1 text-2xl font-bold tabular-nums ${profitGeral >= 0 ? "text-emerald-300" : "text-rose-300"}`}>{fmtSigned(profitGeral)}</p>
+          <p className="mt-2 text-sm font-semibold text-cyan-200">Saldo Forex compartilhado: ${fmt(saldoForex)}</p>
           <p className="mt-1 text-xs text-slate-400">{doc.bancas.length} banca(s) · {eventosGerais.length} operações registradas · não representa o saldo disponível na corretora</p>
         </div>
       </section>
@@ -92,6 +95,7 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
                   const valor = Number(taxaAvaliacao.trim().replace(",", "."));
                   if (!Number.isFinite(valor) || valor < 0) return;
                   const b = novaBanca(nome);
+                  b.state = aplicarForex(b.state, forexDoDocumento(doc));
                   b.state.assets.nasdaq.params.taxa = valor;
                   b.state.assets.ouro.params.taxa = valor;
                   setNome(""); setTaxaAvaliacao("");
