@@ -28,6 +28,7 @@ export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas }:
   const [state, setState] = useState<State | null>(null);
   const [section, setSection] = useState<Section>("operacoes");
   const [leftMenuOpen, setLeftMenuOpen] = useState(false);
+  const [rightMenuOpen, setRightMenuOpen] = useState(false);
   const [sync, setSync] = useState<Sync>({ mode: "busy", text: "carregando…" });
   const [syncTarget, setSyncTarget] = useState<HTMLElement | null>(null);
   useEffect(() => { setSyncTarget(document.getElementById("wow-header-sync")); }, []);
@@ -100,7 +101,7 @@ export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas }:
   const lastOperation = state.log.at(-1);
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-3 py-5 sm:px-5 lg:px-14 lg:py-3">
+    <div className="mx-auto w-full max-w-6xl px-12 py-3 sm:px-14 lg:py-3">
       {syncTarget && createPortal(
         <span role="status" className="inline-flex items-center gap-1.5 whitespace-nowrap text-[11px] text-blue-100/75">
           <span className={cn("size-2 rounded-full", sync.mode === "ok" && "bg-emerald-400", sync.mode === "busy" && "bg-amber-400", sync.mode === "err" && "bg-rose-400")} />
@@ -123,7 +124,7 @@ export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas }:
       </section>
 
 
-      <nav className="fixed right-1 top-1/2 z-40 hidden -translate-y-1/2 flex-col gap-2 rounded-2xl border border-cyan-900/70 bg-[#050d1b]/95 p-1.5 shadow-xl lg:flex" aria-label="Ativos e histórico">
+      <nav className="fixed right-1 top-1/2 z-40 flex -translate-y-1/2 flex-col gap-2 rounded-2xl border border-cyan-900/70 bg-[#050d1b]/95 p-1 shadow-xl sm:p-1.5" aria-label="Ativos e histórico">
         {TABS.map((t) => (
           <button key={t.key} type="button" title={t.label} aria-label={t.label} aria-pressed={tab === t.key} onClick={() => mutate((s) => { s.activeTab = t.key; })}
             className={cn("flex size-10 items-center justify-center rounded-xl border transition-colors", tab === t.key ? "border-cyan-400/70 bg-blue-950 text-white" : "border-transparent text-slate-400 hover:bg-blue-950/60")}>
@@ -131,15 +132,6 @@ export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas }:
           </button>
         ))}
       </nav>
-      <nav className="mb-3 grid grid-cols-4 gap-1.5 rounded-xl border border-cyan-950/80 bg-[#050d1b]/90 p-1.5 lg:hidden" aria-label="Ativos e histórico">
-        {TABS.map((t) => (
-          <button key={t.key} type="button" aria-label={t.label} aria-pressed={tab === t.key} onClick={() => mutate((s) => { s.activeTab = t.key; })}
-            className={cn("flex min-w-0 flex-col items-center gap-1 rounded-lg border p-2 text-[10px]", tab === t.key ? "border-cyan-400/70 bg-blue-950 text-white" : "border-transparent text-slate-400")}>
-            {t.key === "ouro" ? <svg aria-hidden="true" viewBox="0 0 32 28" className="size-5 shrink-0" fill="none"><path d="M2 17 8 8h12l6 9-6 9H8L2 17Z" fill="#E9A900" stroke="#FFDF69" strokeWidth="1.2"/><path d="m8 8 6 9-6 9-6-9Z" fill="#FFE075"/><path d="m14 17 6-9 6 9-6 9Z" fill="#FFC533"/></svg> : t.key === "nasdaq" ? <ChartNoAxesCombined className="size-5 text-sky-400" /> : t.key === "saque2" ? <Landmark className="size-5 text-violet-400" /> : <History className="size-5 text-slate-300" />}<span>{t.label}</span>
-          </button>
-        ))}
-      </nav>
-
       <div className="mb-3 rounded-xl border border-cyan-950/80 bg-[#06101f]/75 p-3 lg:p-3">
         <div className="mb-3 flex flex-wrap items-center gap-2 text-sm text-blue-100/70">
           <span className="size-2.5 rounded-full bg-amber-400 shadow-[0_0_10px_rgba(255,190,40,0.4)]" />
@@ -374,10 +366,10 @@ function AssetView({ state, assetKey, section, setSection, leftMenuOpen, setLeft
 
   return (
     <div>
-      <aside className="fixed left-1 top-1/2 z-40 hidden -translate-y-1/2 lg:flex" aria-label="Menu de operações">
+      <aside className="fixed left-1 top-1/2 z-40 flex -translate-y-1/2" aria-label="Menu de operações">
         <div className="flex items-start gap-1">
           <button type="button" aria-label={leftMenuOpen ? "Recolher menu" : "Expandir menu"} aria-expanded={leftMenuOpen} onClick={() => setLeftMenuOpen(!leftMenuOpen)}
-            className="flex size-11 items-center justify-center rounded-xl border border-cyan-700/70 bg-[#061322] text-cyan-300 shadow-xl hover:bg-blue-950">
+            className="flex size-9 items-center justify-center rounded-xl border border-cyan-700/70 bg-[#061322] sm:size-11 text-cyan-300 shadow-xl hover:bg-blue-950">
             {leftMenuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
           </button>
           {leftMenuOpen && <nav className="flex w-48 flex-col gap-1 rounded-xl border border-cyan-800/70 bg-[#061322] p-2 shadow-2xl" aria-label="Seções da plataforma">
@@ -388,12 +380,6 @@ function AssetView({ state, assetKey, section, setSection, leftMenuOpen, setLeft
           </nav>}
         </div>
       </aside>
-      <nav className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-5 lg:hidden" aria-label="Menus da plataforma">
-        {sections.map(([k, l]) => (
-          <Button key={k} type="button" size="lg" variant={section === k ? "default" : "outline"} className={cn("min-h-12 rounded-xl border-cyan-900/80 font-semibold transition-all", section === k ? "border-emerald-300/30 bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 shadow-[0_0_22px_rgba(0,220,160,0.12)] hover:from-emerald-300 hover:to-cyan-300" : "bg-[#06101f] text-blue-100 hover:border-cyan-400/70 hover:bg-blue-950/50")} aria-pressed={section === k} onClick={() => setSection(k)}>{l}</Button>
-        ))}
-      </nav>
-
       {section === "parametros" && (
         <div className="space-y-4 lg:space-y-3">
           <section className="relative overflow-hidden rounded-2xl border border-cyan-700/50 bg-[radial-gradient(ellipse_at_top_right,rgba(0,190,255,0.13),transparent_45%),linear-gradient(135deg,#0a192b,#050c17_72%)] p-4 shadow-[0_18px_48px_rgba(0,0,0,0.22)] sm:p-6">
