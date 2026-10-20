@@ -50,7 +50,7 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
   }
 
   return (
-    <div className="flex flex-1 flex-col bg-[radial-gradient(ellipse_at_top,rgba(0,111,255,0.10),transparent_58%)]">
+    <div className="win-platform-desktop-compact flex flex-1 flex-col bg-[radial-gradient(ellipse_at_top,rgba(0,111,255,0.10),transparent_58%)]">
       <header className="border-b border-cyan-950/80 bg-[#050d1b]/90 px-4 py-4 sm:px-6">
         <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-start gap-3">
