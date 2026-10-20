@@ -956,9 +956,8 @@ function BackupMenu({ state, mutate, save, onApplied, isAdmin, officialAcceptedA
       <div className="flex flex-wrap gap-2"><Button type="button" size="sm" disabled={officialBusy} onClick={() => void acceptOfficial()}>Atualizar parâmetros</Button><Button type="button" size="sm" variant="outline" onClick={() => setDismissedAt(published.updatedAt)}>Manter meus números</Button></div>
     </aside>}
     <details className="mt-6 rounded-lg border bg-card p-3 text-sm">
-      <summary className="cursor-pointer text-muted-foreground">{!isAdmin && published && acceptedAt !== published.updatedAt && dismissedAt !== published.updatedAt ? "🔔 Novos parâmetros oficiais disponíveis — toque para decidir" : isAdmin ? "Publicar parâmetros oficiais / Backup e dados" : "Backup e dados"}</summary>
+      <summary className="cursor-pointer text-muted-foreground">{!isAdmin && published && acceptedAt !== published.updatedAt && dismissedAt !== published.updatedAt ? "🔔 Novos parâmetros oficiais disponíveis — toque para decidir" : "Backup e dados"}</summary>
       <div className="mt-3 flex flex-wrap gap-2">
-        {isAdmin && <Button type="button" size="sm" disabled={officialBusy} onClick={() => void publishOfficial()}>Publicar parâmetros oficiais</Button>}
         {!isAdmin && published && acceptedAt !== published.updatedAt && dismissedAt !== published.updatedAt && <div className="w-full rounded-lg border border-cyan-500/50 bg-cyan-950/30 p-3">
           <p className="mb-2 font-semibold text-cyan-200">Novos parâmetros oficiais disponíveis</p>
           <p className="mb-2 text-xs text-slate-300">Você decide se quer receber os novos números. Suas alterações não serão substituídas automaticamente.</p>
