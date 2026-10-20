@@ -354,6 +354,8 @@ function AssetView({ state, assetKey, section, setSection, mutate, isAdmin }: { 
   });
   const visibleRows = isAdmin ? rows : rows.filter((r) => r.isCurrent);
   const displayedTotalMeta = isAdmin ? totalMeta : visibleRows.reduce((total, r) => total + r.d.meta, 0);
+  // Lucro realizado na fase Funded: somente dias D1–D5 Funded registrados como Profit.
+  const lucroFunded = state.log.filter((e) => e.asset === assetKey && (e.tipo === "profit" || e.tipo === "aprovada") && e.day >= 4 && e.day <= 8).reduce((total, e) => total + (asset.days[e.day - 1]?.meta ?? 0), 0);
   const displayedCum = isAdmin ? cum : visibleRows.reduce((total, r) => total + r.c.passa, saldo);
   const folga = asset.params.folgaExtraPct ?? 20;
   const reservaComFolga = reservaMinima > 0 ? reservaMinima * (1 + folga / 100) : 0;
@@ -517,7 +519,7 @@ function AssetView({ state, assetKey, section, setSection, mutate, isAdmin }: { 
       {section === "operacoes" && (
         <div>
           <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Metric label={isAdmin ? "Meta total prop firm" : "Meta do dia atual"} value={`${fmt(displayedTotalMeta)}`} />
+            <Metric label="Lucro feito na conta Funded (D1–D5)" value={`${fmt(lucroFunded)}`} />
             <Metric label={isAdmin ? "Saldo final se passar — broker CFD" : "Saldo CFD se passar hoje"} value={`${fmt(displayedCum)}`} />
           </div>
           <div className="space-y-3">
