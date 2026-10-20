@@ -505,7 +505,21 @@ function AssetView({ state, assetKey, section, setSection, mutate, isAdmin }: { 
       {section === "operacoes" && (
         <div>
           <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Metric label="Lucro feito na conta Funded (D1–D5)" value={`${fmt(lucroFunded)}`} />
+            <div className="relative overflow-hidden rounded-2xl border border-cyan-950/80 bg-[#0b1725] p-3 shadow-lg sm:p-4">
+              <p className="flex items-center gap-2 text-xs text-blue-100/70"><Target className="size-4 text-cyan-400" />Lucro da conta Funded · D1–D5</p>
+              <p className="mt-1 font-mono text-2xl font-bold text-slate-100 sm:text-3xl">$ {fmt(lucroFunded)}</p>
+              <div className="mt-2 grid grid-cols-2 gap-2 border-t border-cyan-900/60 pt-2">
+                <div className="min-w-0 rounded-lg bg-slate-800/40 p-2">
+                  <p className="text-[10px] leading-tight text-blue-100/60">Liberado para saque · 50%</p>
+                  <p className="mt-1 font-mono text-base font-bold text-slate-100 sm:text-lg">$ {fmt(lucroFunded / 2)}</p>
+                </div>
+                <div className="min-w-0 rounded-lg border border-emerald-800/40 bg-emerald-950/30 p-2">
+                  <p className="text-[10px] leading-tight text-emerald-200/80">Você recebe · split 90%</p>
+                  <p className="mt-1 font-mono text-base font-bold text-emerald-400 sm:text-lg">$ {fmt(lucroFunded * 0.45)}</p>
+                </div>
+              </div>
+              <p className="mt-2 text-[10px] leading-snug text-blue-100/55">Próximo saque: mais 5 dias positivos de no mínimo $150 por dia, conforme as regras da mesa.</p>
+            </div>
             <Metric label={isAdmin ? "Saldo final se passar — broker CFD" : "Saldo CFD se passar hoje"} value={`${fmt(displayedCum)}`} />
           </div>
           <div className="space-y-3">
