@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { Undo2, FileText, Layers, Target, TrendingUp, ShieldCheck, Wallet, ChevronRight, Crosshair, Calculator, Check, ChartNoAxesCombined, Landmark, History } from "lucide-react";
+import { Undo2, FileText, Layers, Target, TrendingUp, ShieldCheck, Wallet, ChevronRight, Crosshair, Calculator, Check, ChartNoAxesCombined, Landmark, History, Menu, X, SlidersHorizontal, Gift, CircleDollarSign, ChartPie } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { registrarAuditoria } from "@/lib/auditoria-registro";
 import { applyOfficialParams, buildOfficialParams, isOfficialParams } from "@/lib/platform/official-params";
@@ -27,6 +27,7 @@ const ASSET_NAME: Record<AssetKey, string> = { nasdaq: "NASDAQ", ouro: "OURO", s
 export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas }: { load: () => Promise<string | null>; save: (v: string, acceptedAt?: string) => Promise<boolean>; isAdmin: boolean; officialAcceptedAt: string | null; allBancas?: Banca[] }) {
   const [state, setState] = useState<State | null>(null);
   const [section, setSection] = useState<Section>("operacoes");
+  const [leftMenuOpen, setLeftMenuOpen] = useState(false);
   const [sync, setSync] = useState<Sync>({ mode: "busy", text: "carregando…" });
   const [syncTarget, setSyncTarget] = useState<HTMLElement | null>(null);
   useEffect(() => { setSyncTarget(document.getElementById("wow-header-sync")); }, []);
@@ -99,7 +100,7 @@ export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas }:
   const lastOperation = state.log.at(-1);
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-3 py-5 sm:px-5 lg:px-4 lg:py-3">
+    <div className="mx-auto w-full max-w-6xl px-3 py-5 sm:px-5 lg:px-14 lg:py-3">
       {syncTarget && createPortal(
         <span role="status" className="inline-flex items-center gap-1.5 whitespace-nowrap text-[11px] text-blue-100/75">
           <span className={cn("size-2 rounded-full", sync.mode === "ok" && "bg-emerald-400", sync.mode === "busy" && "bg-amber-400", sync.mode === "err" && "bg-rose-400")} />
@@ -122,15 +123,22 @@ export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas }:
       </section>
 
 
-      <div className="mb-5 grid grid-cols-2 gap-2 rounded-2xl border border-cyan-950/80 bg-[#050d1b]/90 p-2 sm:grid-cols-4">
+      <nav className="fixed right-1 top-1/2 z-40 hidden -translate-y-1/2 flex-col gap-2 rounded-2xl border border-cyan-900/70 bg-[#050d1b]/95 p-1.5 shadow-xl lg:flex" aria-label="Ativos e histórico">
         {TABS.map((t) => (
-          <button key={t.key} type="button" onClick={() => mutate((s) => { s.activeTab = t.key; })}
-            className={cn("flex min-w-0 items-center justify-center gap-2 rounded-xl border px-2 py-3 text-sm font-semibold transition-all sm:px-3",
-              tab === t.key ? "border-cyan-400/70 bg-gradient-to-b from-blue-950 to-[#07162a] text-white shadow-[0_0_18px_rgba(0,160,255,0.10)]" : "border-transparent text-slate-400 hover:border-cyan-950 hover:bg-[#071426] hover:text-blue-100")}>
-            {t.key === "ouro" ? <svg aria-hidden="true" viewBox="0 0 32 28" className="size-5 shrink-0 drop-shadow-[0_0_5px_rgba(251,191,36,0.55)]" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2 17 8 8h12l6 9-6 9H8L2 17Z" fill="#E9A900" stroke="#FFDF69" strokeWidth="1.2"/><path d="m8 8 6 9-6 9-6-9Z" fill="#FFE075"/><path d="m14 17 6-9 6 9-6 9Z" fill="#FFC533"/><path d="M10 8 15 1h10l5 7-5 8H15l-5-8Z" fill="#E6A000" stroke="#FFE27C" strokeWidth="1.2"/><path d="m15 1 5 7-5 8-5-8Z" fill="#FFE784"/><path d="m20 8 5-7 5 7-5 8Z" fill="#FFC42C"/></svg> : t.key === "nasdaq" ? <ChartNoAxesCombined aria-hidden="true" className="size-4 shrink-0 text-sky-400" /> : t.key === "saque2" ? <Landmark aria-hidden="true" className="size-4 shrink-0 text-violet-400" /> : <History aria-hidden="true" className="size-4 shrink-0 text-slate-300" />}{t.label}
+          <button key={t.key} type="button" title={t.label} aria-label={t.label} aria-pressed={tab === t.key} onClick={() => mutate((s) => { s.activeTab = t.key; })}
+            className={cn("flex size-10 items-center justify-center rounded-xl border transition-colors", tab === t.key ? "border-cyan-400/70 bg-blue-950 text-white" : "border-transparent text-slate-400 hover:bg-blue-950/60")}>
+            {t.key === "ouro" ? <svg aria-hidden="true" viewBox="0 0 32 28" className="size-5 shrink-0" fill="none"><path d="M2 17 8 8h12l6 9-6 9H8L2 17Z" fill="#E9A900" stroke="#FFDF69" strokeWidth="1.2"/><path d="m8 8 6 9-6 9-6-9Z" fill="#FFE075"/><path d="m14 17 6-9 6 9-6 9Z" fill="#FFC533"/></svg> : t.key === "nasdaq" ? <ChartNoAxesCombined className="size-5 text-sky-400" /> : t.key === "saque2" ? <Landmark className="size-5 text-violet-400" /> : <History className="size-5 text-slate-300" />}
           </button>
         ))}
-      </div>
+      </nav>
+      <nav className="mb-3 grid grid-cols-4 gap-1.5 rounded-xl border border-cyan-950/80 bg-[#050d1b]/90 p-1.5 lg:hidden" aria-label="Ativos e histórico">
+        {TABS.map((t) => (
+          <button key={t.key} type="button" aria-label={t.label} aria-pressed={tab === t.key} onClick={() => mutate((s) => { s.activeTab = t.key; })}
+            className={cn("flex min-w-0 flex-col items-center gap-1 rounded-lg border p-2 text-[10px]", tab === t.key ? "border-cyan-400/70 bg-blue-950 text-white" : "border-transparent text-slate-400")}>
+            {t.key === "ouro" ? <svg aria-hidden="true" viewBox="0 0 32 28" className="size-5 shrink-0" fill="none"><path d="M2 17 8 8h12l6 9-6 9H8L2 17Z" fill="#E9A900" stroke="#FFDF69" strokeWidth="1.2"/><path d="m8 8 6 9-6 9-6-9Z" fill="#FFE075"/><path d="m14 17 6-9 6 9-6 9Z" fill="#FFC533"/></svg> : t.key === "nasdaq" ? <ChartNoAxesCombined className="size-5 text-sky-400" /> : t.key === "saque2" ? <Landmark className="size-5 text-violet-400" /> : <History className="size-5 text-slate-300" />}<span>{t.label}</span>
+          </button>
+        ))}
+      </nav>
 
       <div className="mb-3 rounded-xl border border-cyan-950/80 bg-[#06101f]/75 p-3 lg:p-3">
         <div className="mb-3 flex flex-wrap items-center gap-2 text-sm text-blue-100/70">
@@ -148,7 +156,7 @@ export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas }:
       </div>
 
       {tab === "historico" ? <Historico state={state} mutate={mutate} bancas={allBancas} /> : (
-        <AssetView key={tab} state={state} assetKey={tab} section={section} setSection={setSection} mutate={mutate} isAdmin={isAdmin} />
+        <AssetView key={tab} state={state} assetKey={tab} section={section} setSection={setSection} leftMenuOpen={leftMenuOpen} setLeftMenuOpen={setLeftMenuOpen} mutate={mutate} isAdmin={isAdmin} />
       )}
 
       <BackupMenu state={state} mutate={mutate} save={save} onApplied={setState} isAdmin={isAdmin} officialAcceptedAt={officialAcceptedAt} />
