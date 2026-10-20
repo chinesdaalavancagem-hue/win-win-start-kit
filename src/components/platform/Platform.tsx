@@ -252,7 +252,7 @@ const Note = ({ children }: { children: ReactNode }) => <p className="mt-3 font-
 
 /* ---------- aba de ativo ---------- */
 
-function AssetView({ state, assetKey, section, setSection, mutate, isAdmin }: { state: State; assetKey: AssetKey; section: Section; setSection: (s: Section) => void; mutate: (fn: (s: State) => void) => void; isAdmin: boolean }) {
+function AssetView({ state, assetKey, section, setSection, leftMenuOpen, setLeftMenuOpen, mutate, isAdmin }: { state: State; assetKey: AssetKey; section: Section; setSection: (s: Section) => void; leftMenuOpen: boolean; setLeftMenuOpen: (v: boolean) => void; mutate: (fn: (s: State) => void) => void; isAdmin: boolean }) {
   const asset = state.assets[assetKey];
   const calcs = useMemo(() => computeAssetCalcs(asset, assetKey), [asset, assetKey]);
   const setP = (k: keyof Asset["params"]) => (v: number) => mutate((s) => { (s.assets[assetKey].params as unknown as Record<string, number>)[k] = v; });
@@ -374,7 +374,21 @@ function AssetView({ state, assetKey, section, setSection, mutate, isAdmin }: { 
 
   return (
     <div>
-      <nav className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-5" aria-label="Menus da plataforma">
+      <aside className="fixed left-1 top-1/2 z-40 hidden -translate-y-1/2 lg:flex" aria-label="Menu de operações">
+        <div className="flex items-start gap-1">
+          <button type="button" aria-label={leftMenuOpen ? "Recolher menu" : "Expandir menu"} aria-expanded={leftMenuOpen} onClick={() => setLeftMenuOpen(!leftMenuOpen)}
+            className="flex size-11 items-center justify-center rounded-xl border border-cyan-700/70 bg-[#061322] text-cyan-300 shadow-xl hover:bg-blue-950">
+            {leftMenuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
+          </button>
+          {leftMenuOpen && <nav className="flex w-48 flex-col gap-1 rounded-xl border border-cyan-800/70 bg-[#061322] p-2 shadow-2xl" aria-label="Seções da plataforma">
+            {sections.map(([k, l]) => (
+              <button key={k} type="button" aria-pressed={section === k} onClick={() => { setSection(k); setLeftMenuOpen(false); }}
+                className={cn("rounded-lg px-3 py-2 text-left text-xs font-semibold transition-colors", section === k ? "bg-emerald-500/20 text-emerald-300" : "text-blue-100 hover:bg-blue-950")}>{l}</button>
+            ))}
+          </nav>}
+        </div>
+      </aside>
+      <nav className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-5 lg:hidden" aria-label="Menus da plataforma">
         {sections.map(([k, l]) => (
           <Button key={k} type="button" size="lg" variant={section === k ? "default" : "outline"} className={cn("min-h-12 rounded-xl border-cyan-900/80 font-semibold transition-all", section === k ? "border-emerald-300/30 bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 shadow-[0_0_22px_rgba(0,220,160,0.12)] hover:from-emerald-300 hover:to-cyan-300" : "bg-[#06101f] text-blue-100 hover:border-cyan-400/70 hover:bg-blue-950/50")} aria-pressed={section === k} onClick={() => setSection(k)}>{l}</Button>
         ))}
