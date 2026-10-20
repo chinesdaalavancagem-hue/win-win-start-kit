@@ -894,7 +894,7 @@ function BackupMenu({ state, mutate, save, onApplied, isAdmin, officialAcceptedA
   const [dismissedAt, setDismissedAt] = useState<string | null>(null);
   useEffect(() => {
     let active = true;
-    void (async () => {
+    const refreshPublished = async () => {
       try {
         const { data } = await supabase.auth.getSession();
         if (!data.session?.access_token) return;
@@ -903,8 +903,10 @@ function BackupMenu({ state, mutate, save, onApplied, isAdmin, officialAcceptedA
         const result = await response.json() as { published?: { payload: unknown; updatedAt: string } | null };
         if (active && result.published && isOfficialParams(result.published.payload)) setPublished({ payload: result.published.payload, updatedAt: result.published.updatedAt });
       } catch { /* keep personal parameters unchanged */ }
-    })();
-    return () => { active = false; };
+    };
+    void refreshPublished();
+    window.addEventListener("wow-official-parameters-published", refreshPublished);
+    return () => { active = false; window.removeEventListener("wow-official-parameters-published", refreshPublished); };
   }, []);
   async function publishOfficial(): Promise<boolean> {
     if (!window.confirm("Publicar os parâmetros desta banca como nova versão oficial?")) return false;
@@ -918,6 +920,7 @@ function BackupMenu({ state, mutate, save, onApplied, isAdmin, officialAcceptedA
       });
       if (!response.ok) throw Error("Não foi possível publicar");
       setOfficialMessage("Parâmetros publicados na nuvem.");
+      window.dispatchEvent(new Event("wow-official-parameters-published"));
       return true;
     } catch { setOfficialMessage("Falha ao publicar. Tente novamente."); return false; }
     finally { setOfficialBusy(false); }
@@ -968,15 +971,15 @@ function BackupMenu({ state, mutate, save, onApplied, isAdmin, officialAcceptedA
   }
   return (
     <>
-    {!isAdmin && published && acceptedAt !== published.updatedAt && dismissedAt !== published.updatedAt && <aside role="status" className="fixed right-4 top-20 z-40 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-cyan-400 bg-[#06192b] p-4 text-white shadow-2xl">
+    {published && acceptedAt !== published.updatedAt && dismissedAt !== published.updatedAt && <aside role="status" className="fixed right-4 top-20 z-40 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-cyan-400 bg-[#06192b] p-4 text-white shadow-2xl">
       <p className="font-semibold text-cyan-200">Novos parâmetros oficiais disponíveis</p>
       <p className="my-2 text-xs">Você decide se quer atualizar sua banca.</p>
       <div className="flex flex-wrap gap-2"><Button type="button" size="sm" disabled={officialBusy} onClick={() => void acceptOfficial()}>Atualizar parâmetros</Button><Button type="button" size="sm" variant="outline" onClick={() => setDismissedAt(published.updatedAt)}>Manter meus números</Button></div>
     </aside>}
     <details className="mt-6 rounded-lg border bg-card p-3 text-sm">
-      <summary className="cursor-pointer text-muted-foreground">{!isAdmin && published && acceptedAt !== published.updatedAt && dismissedAt !== published.updatedAt ? "🔔 Novos parâmetros oficiais disponíveis — toque para decidir" : "Backup e dados"}</summary>
+      <summary className="cursor-pointer text-muted-foreground">{published && acceptedAt !== published.updatedAt && dismissedAt !== published.updatedAt ? "🔔 Novos parâmetros oficiais disponíveis — toque para decidir" : "Backup e dados"}</summary>
       <div className="mt-3 flex flex-wrap gap-2">
-        {!isAdmin && published && acceptedAt !== published.updatedAt && dismissedAt !== published.updatedAt && <div className="w-full rounded-lg border border-cyan-500/50 bg-cyan-950/30 p-3">
+        {published && acceptedAt !== published.updatedAt && dismissedAt !== published.updatedAt && <div className="w-full rounded-lg border border-cyan-500/50 bg-cyan-950/30 p-3">
           <p className="mb-2 font-semibold text-cyan-200">Novos parâmetros oficiais disponíveis</p>
           <p className="mb-2 text-xs text-slate-300">Você decide se quer receber os novos números. Suas alterações não serão substituídas automaticamente.</p>
           <Button type="button" size="sm" disabled={officialBusy} onClick={() => void acceptOfficial()}>Atualizar parâmetros</Button>
