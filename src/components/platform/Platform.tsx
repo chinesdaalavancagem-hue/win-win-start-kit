@@ -13,7 +13,7 @@ import {
   historicoTotals, isValidState, normalizeState, parseNum, projetarZeragemBonus, resetBonus, tipoLabel, undoLast,
 } from "@/lib/platform/engine";
 
-type Section = "operacoes" | "parametros" | "bonus" | "aporte" | "caixa";
+type Section = "operacoes" | "parametros" | "bonus" | "aporte" | "caixa" | "meta";
 type Sync = { mode: "ok" | "busy" | "err"; text: string };
 
 const TABS: { key: TabKey; label: string; dot: string }[] = [
@@ -28,7 +28,12 @@ export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas }:
   const [state, setState] = useState<State | null>(null);
   const [section, setSection] = useState<Section>("operacoes");
   const [leftMenuOpen, setLeftMenuOpen] = useState(false);
-  const [rightMenuOpen, setRightMenuOpen] = useState(false);
+  const [activeTabLabel, setActiveTabLabel] = useState<TabKey | null>(null);
+  useEffect(() => {
+    if (!activeTabLabel) return;
+    const timer = window.setTimeout(() => setActiveTabLabel(null), 2000);
+    return () => window.clearTimeout(timer);
+  }, [activeTabLabel]);
   const [sync, setSync] = useState<Sync>({ mode: "busy", text: "carregando…" });
   const [syncTarget, setSyncTarget] = useState<HTMLElement | null>(null);
   useEffect(() => { setSyncTarget(document.getElementById("wow-header-sync")); }, []);
@@ -126,8 +131,9 @@ export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas }:
 
       <nav className="fixed right-1 top-1/2 z-40 flex -translate-y-1/2 flex-col gap-2 rounded-2xl border border-cyan-900/70 bg-[#050d1b]/95 p-1 shadow-xl sm:p-1.5" aria-label="Ativos e histórico">
         {TABS.map((t) => (
-          <button key={t.key} type="button" title={t.label} aria-label={t.label} aria-pressed={tab === t.key} onClick={() => mutate((s) => { s.activeTab = t.key; })}
-            className={cn("flex size-10 items-center justify-center rounded-xl border transition-colors", tab === t.key ? "border-cyan-400/70 bg-blue-950 text-white" : "border-transparent text-slate-400 hover:bg-blue-950/60")}>
+          <button key={t.key} type="button" title={t.label} aria-label={t.label} aria-pressed={tab === t.key} onClick={() => { setActiveTabLabel(null); mutate((s) => { s.activeTab = t.key; }); setActiveTabLabel(t.key); }}
+            className={cn("relative flex size-10 items-center justify-center rounded-xl border transition-colors", tab === t.key ? "border-cyan-400/70 bg-blue-950 text-white" : "border-transparent text-slate-400 hover:bg-blue-950/60")}>
+            {activeTabLabel === t.key && <span aria-hidden="true" className="pointer-events-none absolute right-full mr-2 whitespace-nowrap rounded-lg border border-cyan-800/80 bg-[#061322] px-3 py-1.5 text-xs font-semibold text-cyan-100 shadow-xl">{t.label}</span>}
             {t.key === "ouro" ? <svg aria-hidden="true" viewBox="0 0 32 28" className="size-5 shrink-0" fill="none"><path d="M2 17 8 8h12l6 9-6 9H8L2 17Z" fill="#E9A900" stroke="#FFDF69" strokeWidth="1.2"/><path d="m8 8 6 9-6 9-6-9Z" fill="#FFE075"/><path d="m14 17 6-9 6 9-6 9Z" fill="#FFC533"/></svg> : t.key === "nasdaq" ? <ChartNoAxesCombined className="size-5 text-sky-400" /> : t.key === "saque2" ? <Landmark className="size-5 text-violet-400" /> : <History className="size-5 text-slate-300" />}
           </button>
         ))}
@@ -362,6 +368,7 @@ function AssetView({ state, assetKey, section, setSection, leftMenuOpen, setLeft
     ["bonus", "Bônus e saques"],
     ["aporte", "Aporte fracionado"],
     ["caixa", "Caixa do ciclo"],
+    ["meta", "Meta geral"],
   ];
 
   return (
@@ -511,12 +518,8 @@ function AssetView({ state, assetKey, section, setSection, leftMenuOpen, setLeft
         </div>
       )}
 
-      {section === "aporte" && <AportePanel asset={asset} calcs={calcs} />}
-      {section === "caixa" && <CaixaPanel asset={asset} assetKey={assetKey} bonusPct={bonusPct} setBonusPct={setBonusPct} /> }
-      {section === "bonus" && <BonusPanel state={state} assetKey={assetKey} reserva={reservaComFolga} folga={folga} mutate={mutate} />}
-
-      {section === "operacoes" && (
-        <div>
+      {section === "meta" && (
+        <section aria-label="Meta geral — projeção de lucro dos cinco dias Funded">
           <div className="mb-3 rounded-2xl border border-cyan-900/70 bg-gradient-to-r from-[#0a1929] to-[#07121e] px-3 py-3 shadow-lg sm:px-4">
             <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
               <p className="flex items-center gap-2 text-xs font-semibold text-blue-100/75"><Target className="size-4 text-cyan-400" />Meta Funded · D1–D5</p>
@@ -540,6 +543,15 @@ function AssetView({ state, assetKey, section, setSection, leftMenuOpen, setLeft
             </div>
             <p className="mt-2 flex items-start gap-1.5 text-[10px] leading-snug text-blue-100/55"><span className="shrink-0 text-cyan-400">↳</span> Próximo saque após mais 5 dias positivos de pelo menos $150 por dia, conforme regras da mesa.</p>
           </div>
+        </section>
+      )}
+
+      {section === "aporte" && <AportePanel asset={asset} calcs={calcs} />}
+      {section === "caixa" && <CaixaPanel asset={asset} assetKey={assetKey} bonusPct={bonusPct} setBonusPct={setBonusPct} /> }
+      {section === "bonus" && <BonusPanel state={state} assetKey={assetKey} reserva={reservaComFolga} folga={folga} mutate={mutate} />}
+
+      {section === "operacoes" && (
+        <div>
           <div className="space-y-3">
             {visibleRows.map((r) => (
               <DayCard key={r.i} row={r} assetKey={assetKey} mutate={mutate} excedenteAtualSacavel={excedenteAtualSacavel} />
