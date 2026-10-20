@@ -244,7 +244,10 @@ function AssetView({ state, assetKey, section, setSection, mutate, isAdmin }: { 
   const calcs = useMemo(() => computeAssetCalcs(asset, assetKey), [asset, assetKey]);
   const setP = (k: keyof Asset["params"]) => (v: number) => mutate((s) => { (s.assets[assetKey].params as unknown as Record<string, number>)[k] = v; });
   const bonus = asset.bonus;
-  const saldo = (bonus.deposito || 0) + (bonus.bonusAtual || 0);
+  // O Forex é compartilhado entre as bancas e ativos: considerar todos os depósitos e bônus disponíveis.
+  const forexProprio = Object.values(state.assets).reduce((sum, a) => sum + Math.max(0, a.bonus.deposito || 0), 0);
+  const forexBonus = Object.values(state.assets).reduce((sum, a) => sum + Math.max(0, a.bonus.bonusAtual || 0), 0);
+  const saldo = forexProprio + forexBonus;
   const [bonusPct, setBonusPct] = useState("100");
   const caixaCiclo = useMemo(() => calcCaixaCiclo(asset, assetKey, parseNum(bonusPct)), [asset, assetKey, bonusPct]);
   // Atalhos: Shift+N = Profit no dia N; Ctrl+N (ou Alt+N) = Stop no dia N. Só vale para o dia atual; usa o valor teórico.
@@ -269,6 +272,8 @@ function AssetView({ state, assetKey, section, setSection, mutate, isAdmin }: { 
 
   // projeção dia a dia (igual ao original)
   let cum = saldo, totalMeta = 0, reservaMinima = 0;
+  let caixaProprioProjetado = forexProprio;
+  let caixaBonusProjetado = forexBonus;
   const rows = asset.days.map((d, i) => {
     const c = calcs[i]!;
     totalMeta += d.meta;
@@ -286,66 +291,47 @@ function AssetView({ state, assetKey, section, setSection, mutate, isAdmin }: { 
     const caixaProjetado = caixaCiclo.dias[i];
     // No dia atual, a barra deve refletir o saldo real já registrado em Bônus,
     // e não a simulação que começa com saldo zero.
-    const caixaDia = caixaProjetado && i === asset.attempt.currentDayIndex ? (() => {
-      const proprioAtual = Math.max(0, asset.bonus.deposito || 0);
-      const bonusAtual = Math.max(0, asset.bonus.bonusAtual || 0);
+    // Para dias atuais e futuros, projetar a partir do saldo real compartilhado,
+    // consumindo o saldo após cada dia. Dias anteriores não cobram novo depósito.
+    const caixaDia = caixaProjetado ? (() => {
+      const proprioAtual = Math.max(0, caixaProprioProjetado);
+      const bonusAtual = Math.max(0, caixaBonusProjetado);
       const saldoAtual = proprioAtual + bonusAtual;
       const faltaAtual = Math.max(0, caixaProjetado.necessario - saldoAtual);
       const bonusRate = Math.max(0, parseNum(bonusPct)) / 100;
       const espacoBonus = Math.max(0, asset.bonus.bonusCap - (asset.bonus.bonusGanhoTotal || 0));
-      // Aporte recomendado é somente dinheiro próprio; o bônus futuro entra à parte.
-      const aporteProprio = faltaAtual <= 0
-        ? 0
-        : bonusRate > 0 && espacoBonus > 0
-          ? (faltaAtual <= espacoBonus ? faltaAtual / (1 + bonusRate) : faltaAtual - espacoBonus)
-          : faltaAtual;
-      return {
-        ...caixaProjetado,
-        saldoAntes: saldoAtual,
-        proprioAntes: proprioAtual,
-        bonusAntes: bonusAtual,
-        deposito: Math.max(0, aporteProprio),
-        bonusGanho: Math.min(Math.max(0, aporteProprio) * bonusRate, espacoBonus),
-      };    })() : caixaProjetado;
+      const aporteProprio = faltaAtual <= 0 ? 0 : bonusRate > 0 && espacoBonus > 0
+        ? (faltaAtual <= espacoBonus ? faltaAtual / (1 + bonusRate) : faltaAtual - espacoBonus)
+        : faltaAtual;
+      const bonusGanho = Math.min(Math.max(0, aporteProprio) * bonusRate, espacoBonus);
+      if (i >= asset.attempt.currentDayIndex) {
+        const perda = Math.max(0, c.custoSePassar);
+        const proprioDepois = proprioAtual + aporteProprio;
+        const bonusDepois = bonusAtual + bonusGanho;
+        const perdaPropria = Math.min(perda, proprioDepois);
+        caixaProprioProjetado = Math.max(0, proprioDepois - perdaPropria);
+        caixaBonusProjetado = Math.max(0, bonusDepois - Math.max(0, perda - perdaPropria));
+      }
+      return { ...caixaProjetado, saldoAntes: saldoAtual, proprioAntes: proprioAtual,
+        bonusAntes: bonusAtual, deposito: Math.max(0, aporteProprio), bonusGanho };
+    })() : caixaProjetado;
     let status: "ok" | "alerta" | "risco" = "ok";
     let statusText = "— sem posição CFD hoje (0 lotes)";
     if (margem > 0 && caixaDia) {
-      // Um reset representa retirar o saldo da corretora: depósitos anteriores deixam
-      // de contar para os status dos cards. Só valem depósitos registrados depois do último reset.
-      const ultimoReset = asset.bonus.log.map((entry) => entry.tipo).lastIndexOf("reset");
-      const logAtivo = asset.bonus.log.slice(ultimoReset + 1);
-      const depositoRegistradoNoDia = logAtivo
-        .filter((entry) => entry.tipo === "deposito" && entry.dia === i + 1)
-        .reduce((total, entry) => total + entry.valor, 0);
-      if (i === asset.attempt.currentDayIndex) {
-        if (caixaDia.deposito <= 0) {
-          status = "ok";
-          statusText = "✅ o saldo atual já cobre o necessário para operar";
-        } else if (caixaDia.saldoAntes >= margemTotal) {
-          status = "alerta";
-          statusText = `⚠️ saldo atual cobre a margem, mas faltam ${fmt(caixaDia.deposito)} para cobrir tudo`;
-        } else {
-          status = "risco";
-          statusText = `🔴 saldo atual abaixo da margem total; falta ${fmt(caixaDia.deposito)}`;
-        }
+      if (i < asset.attempt.currentDayIndex) {
+        status = "ok";
+        statusText = "✅ dia já concluído";
+      } else if (caixaDia.deposito <= 0) {
+        status = "ok";
+        statusText = "✅ saldo compartilhado do Forex cobre o necessário";
+      } else if (caixaDia.saldoAntes >= margemTotal) {
+        status = "alerta";
+        statusText = `⚠️ margem coberta; falta aporte de ${fmt(caixaDia.deposito)} para a cobertura completa`;
       } else {
-        const caixaCoberto = caixaDia.deposito <= 0 || depositoRegistradoNoDia >= caixaDia.deposito;
-        if (caixaCoberto) {
-          status = "ok";
-          statusText = caixaDia.deposito <= 0
-            ? "✅ não precisa depositar: o saldo projetado já cobre o necessário"
-            : `✅ depósito registrado para o dia ${i + 1}; valor projetado coberto`;
-        } else if (caixaDia.saldoAntes >= margemTotal) {
-          status = "alerta";
-          statusText = `⚠️ depósito pendente para o dia ${i + 1}: registrado ${fmt(depositoRegistradoNoDia)} de ${fmt(caixaDia.deposito)} necessário`;
-        } else {
-          status = "risco";
-          statusText = `🔴 registre o depósito do dia ${i + 1}: ${fmt(depositoRegistradoNoDia)} de ${fmt(caixaDia.deposito)} necessário`;
-        }
+        status = "risco";
+        statusText = `🔴 saldo compartilhado insuficiente; falta aporte de ${fmt(caixaDia.deposito)}`;
       }
-      const depositarHoje = i === asset.attempt.currentDayIndex
-        ? caixaDia.deposito
-        : Math.max(0, caixaDia.deposito - depositoRegistradoNoDia);
+      const depositarHoje = i < asset.attempt.currentDayIndex ? 0 : caixaDia.deposito;
       statusText += ` · depositar hoje: ${fmt(depositarHoje)} · saldo antes: ${fmt(caixaDia.saldoAntes)} (próprio: ${fmt(caixaDia.proprioAntes)} + bônus: ${fmt(caixaDia.bonusAntes)}) · bônus do depósito: ${fmt(caixaDia.bonusGanho)} · necessário no CFD: ${fmt(caixaDia.necessario)}`;
     }
     const ativoTicks = assetKey === "saque2" ? (asset.params.ativoReal === "nasdaq" ? "nasdaq" : "ouro") : assetKey;
