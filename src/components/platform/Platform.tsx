@@ -96,8 +96,8 @@ export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas }:
   const lastOperation = state.log.at(-1);
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-3 py-5 sm:px-5 lg:px-6">
-      <section className="relative mb-5 overflow-hidden rounded-2xl border border-cyan-700/60 bg-[radial-gradient(ellipse_at_90%_30%,rgba(0,190,255,0.14),transparent_45%),linear-gradient(135deg,#07152a_0%,#030b17_65%,#041321_100%)] p-4 shadow-[0_20px_55px_rgba(0,0,0,0.25)] sm:p-6">
+    <div className="mx-auto w-full max-w-6xl px-3 py-5 sm:px-5 lg:px-4 lg:py-3">
+      <section className="relative mb-3 overflow-hidden rounded-2xl border border-cyan-700/60 bg-[radial-gradient(ellipse_at_90%_30%,rgba(0,190,255,0.14),transparent_45%),linear-gradient(135deg,#07152a_0%,#030b17_65%,#041321_100%)] p-4 shadow-[0_20px_55px_rgba(0,0,0,0.25)] sm:p-6">
         <div className="pointer-events-none absolute -right-12 top-8 h-40 w-64 rounded-full border border-cyan-400/10 blur-sm" />
         <div className="relative flex flex-wrap items-start justify-between gap-4">
           <div className="flex max-w-xl items-start gap-3">
@@ -127,7 +127,7 @@ export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas }:
         ))}
       </div>
 
-      <div className="mb-5 rounded-xl border border-cyan-950/80 bg-[#06101f]/75 p-3 sm:p-4">
+      <div className="mb-3 rounded-xl border border-cyan-950/80 bg-[#06101f]/75 p-3 lg:p-3">
         <div className="mb-3 flex flex-wrap items-center gap-2 text-sm text-blue-100/70">
           <span className="size-2.5 rounded-full bg-amber-400 shadow-[0_0_10px_rgba(255,190,40,0.4)]" />
           <span>{lastOperation ? `${ASSET_NAME[lastOperation.asset]} · D${lastOperation.day} · ${tipoLabel(lastOperation.tipo, lastOperation.asset)}` : "Nenhuma operação registrada"}</span>
@@ -380,7 +380,7 @@ function AssetView({ state, assetKey, section, setSection, mutate, isAdmin }: { 
       </nav>
 
       {section === "parametros" && (
-        <div className="space-y-4">
+        <div className="space-y-4 lg:space-y-3">
           <section className="relative overflow-hidden rounded-2xl border border-cyan-700/50 bg-[radial-gradient(ellipse_at_top_right,rgba(0,190,255,0.13),transparent_45%),linear-gradient(135deg,#0a192b,#050c17_72%)] p-4 shadow-[0_18px_48px_rgba(0,0,0,0.22)] sm:p-6">
             <div className="pointer-events-none absolute -right-10 -top-12 size-44 rounded-full border border-cyan-400/10" />
             <div className="relative flex items-start gap-3">
@@ -547,7 +547,7 @@ function DayCard({ row, assetKey, mutate, excedenteAtualSacavel }: { row: Row; a
   }, [isCurrent]);
   const setD = (k: "mnq" | "lotes" | "meta") => (v: number) => mutate((s) => { s.assets[assetKey].days[i]![k] = v; });
   return (
-    <div ref={ref} className={cn("platform-day-card overflow-hidden rounded-2xl border border-[#142b43] bg-[#0b0f19] p-3 text-slate-100 shadow-[0_12px_40px_rgba(0,0,0,0.22)] sm:p-5", isCurrent && "border-[#087cff]/70 ring-1 ring-[#087cff]/25")}>
+    <div ref={ref} className={cn("platform-day-card overflow-hidden rounded-2xl border border-[#142b43] bg-[#0b0f19] p-3 text-slate-100 shadow-[0_12px_40px_rgba(0,0,0,0.22)] sm:p-5 lg:p-3", isCurrent && "border-[#087cff]/70 ring-1 ring-[#087cff]/25")}>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-[#142b43] pb-3">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <span className="rounded-lg border border-blue-500 bg-blue-600 px-2.5 py-1 font-mono text-sm font-bold text-white shadow-[0_0_18px_rgba(0,119,255,0.18)]">D{i < 3 ? i + 1 : i - 2} <span className="text-[10px] font-semibold uppercase tracking-wide">{i < 3 ? "Evaluation" : "Funded"}</span></span>
@@ -557,11 +557,11 @@ function DayCard({ row, assetKey, mutate, excedenteAtualSacavel }: { row: Row; a
         <button type="button" className="shrink-0 rounded-lg border border-[#19334f] px-2.5 py-1.5 text-xs font-medium text-slate-300 hover:border-blue-500/60 hover:text-white" onClick={() => mutate((s) => { s.assets[assetKey].days.splice(i, 1); })}>remover</button>
       </div>
       <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
-        <div className="min-w-0 rounded-xl border border-[#18324e] bg-gradient-to-br from-[#0d1b2b] to-[#080f1a] p-3 sm:p-4">
+        <div className="min-w-0 rounded-xl border border-[#18324e] bg-gradient-to-br from-[#0d1b2b] to-[#080f1a] p-3 lg:p-2.5">
           <NumField cockpit label={<><FileText className="h-3.5 w-3.5 text-blue-400" />Contratos</>} value={d.mnq} onChange={setD("mnq")} />
           <span className="mt-2 inline-block rounded-full border border-market-down/40 bg-rose-950/40 px-2 py-0.5 font-mono text-[11px] text-market-down">-${fmt(Math.abs(c.passa))} se passar</span>
         </div>
-        <div className="min-w-0 rounded-xl border border-[#183b43] bg-gradient-to-br from-[#092126] to-[#080f1a] p-3 sm:p-4">
+        <div className="min-w-0 rounded-xl border border-[#183b43] bg-gradient-to-br from-[#092126] to-[#080f1a] p-3 lg:p-2.5">
           <NumField cockpit label={<><Layers className="h-3.5 w-3.5 text-cyan-400" />Lotes CFD</>} value={d.lotes} onChange={setD("lotes")} />
           <span className="mt-2 inline-block rounded-full border border-market-up/40 bg-emerald-950/40 px-2 py-0.5 font-mono text-[11px] text-market-up">+${fmt(c.reprova)} se reprova</span>
         </div>
@@ -575,7 +575,7 @@ function DayCard({ row, assetKey, mutate, excedenteAtualSacavel }: { row: Row; a
         </div>
       </div>
 
-       <div className={cn("mt-3 flex items-center justify-between gap-3 rounded-xl border p-3.5 sm:p-4", c.liquidoSeReprovar >= 0 ? "border-emerald-500/80 bg-gradient-to-r from-emerald-950/80 via-[#052b2a] to-[#071b20] shadow-[0_0_22px_rgba(0,220,160,0.10)]" : "border-rose-800/80 bg-gradient-to-r from-rose-950/60 to-[#10131f]")}>
+       <div className={cn("mt-3 flex items-center justify-between gap-3 rounded-xl border p-3.5 lg:p-3", c.liquidoSeReprovar >= 0 ? "border-emerald-500/80 bg-gradient-to-r from-emerald-950/80 via-[#052b2a] to-[#071b20] shadow-[0_0_22px_rgba(0,220,160,0.10)]" : "border-rose-800/80 bg-gradient-to-r from-rose-950/60 to-[#10131f]")}>
         <div className="min-w-0">
           <p className="text-xs font-bold text-slate-100 sm:text-sm">Líquido se reprovar hoje</p>
           <p className="mt-1 font-mono text-[10px] text-slate-400 sm:text-xs">Dívida: ${fmt(c.dividaHoje)} · Alvo bruto: ${fmt(c.alvoBruto)}</p>
@@ -589,7 +589,7 @@ function DayCard({ row, assetKey, mutate, excedenteAtualSacavel }: { row: Row; a
         const pct = (v: number) => `${Math.max(0, (v / total) * 100)}%`;
         const badge = row.status === "ok" ? "Coberto" : row.status === "alerta" ? "Pendente" : "Risco";
         return (
-          <div className="mt-3 rounded-xl border border-[#142b43] bg-gradient-to-b from-[#0a1421] to-[#080f19] p-3.5 sm:p-4">
+          <div className="mt-3 rounded-xl border border-[#142b43] bg-gradient-to-b from-[#0a1421] to-[#080f19] p-3.5 lg:p-3">
             <div className="mb-2 flex items-center justify-between gap-2">
               <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-blue-100/90 sm:text-xs flex items-center gap-1.5"><ShieldCheck className="h-4 w-4 text-emerald-400" />Gestão de caixa & margem</p>
               <span className={cn("rounded-full border px-2 py-0.5 text-[11px]", row.status === "ok" && "border-market-up/50 bg-emerald-950/50 text-market-up shadow-[0_0_12px_rgba(16,185,129,0.35)]", row.status === "alerta" && "border-brand-gold/50 text-brand-gold", row.status === "risco" && "border-market-down/50 text-market-down")}>{row.status === "ok" && <Check className="mr-0.5 inline h-3 w-3" />}{badge}</span>
