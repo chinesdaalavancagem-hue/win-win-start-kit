@@ -11,6 +11,7 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
   const [err, setErr] = useState(false);
   const [painel, setPainel] = useState(false);
   const [nome, setNome] = useState("");
+  const [taxaAvaliacao, setTaxaAvaliacao] = useState("");
   const docRef = useRef<BancasDoc | null>(null);
 
   useEffect(() => { load().then((r) => { const d = parseBancas(r); docRef.current = d; setDoc(d); }).catch(() => setErr(true)); }, [load]);
@@ -77,12 +78,18 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
             <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
               <div><p className="text-[11px] font-bold uppercase tracking-[0.2em] text-cyan-300/80">Central de contas</p><h3 className="mt-1 text-lg font-bold text-slate-100">Seu portfólio de bancas</h3><p className="mt-1 max-w-2xl text-sm text-slate-400">Cada banca mantém seu próprio ciclo e histórico. Escolha uma para continuar operando ou crie uma nova.</p></div>
               <div className="flex flex-col gap-2 sm:flex-row">
-                <form className="flex min-w-0 flex-1 gap-2 sm:min-w-[330px]" onSubmit={(e) => {
-                  e.preventDefault(); if (!nome.trim()) return;
-                  const b = novaBanca(nome); setNome("");
+                <form className="flex min-w-0 flex-1 flex-wrap gap-2 sm:min-w-[330px]" onSubmit={(e) => {
+                  e.preventDefault(); if (!nome.trim() || !taxaAvaliacao.trim()) return;
+                  const valor = Number(taxaAvaliacao.trim().replace(",", "."));
+                  if (!Number.isFinite(valor) || valor < 0) return;
+                  const b = novaBanca(nome);
+                  b.state.assets.nasdaq.params.taxa = valor;
+                  b.state.assets.ouro.params.taxa = valor;
+                  setNome(""); setTaxaAvaliacao("");
                   persist({ ...doc, activeId: b.id, bancas: [...doc.bancas, b] });
                 }}>
                   <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome da nova banca" aria-label="Nome da nova banca" className="h-10 min-w-0 rounded-xl border-cyan-950 bg-[#071426] text-slate-100 placeholder:text-slate-500 focus-visible:ring-cyan-400" maxLength={60} />
+                  <Input type="text" inputMode="decimal" value={taxaAvaliacao} onChange={(e) => setTaxaAvaliacao(e.target.value)} placeholder="Taxa de avaliação ($)" aria-label="Taxa de avaliação em dólares" required className="h-10 min-w-[145px] flex-1 rounded-xl border-cyan-950 bg-[#071426] text-slate-100 placeholder:text-slate-500 focus-visible:ring-cyan-400" />
                   <Button type="submit" className="h-10 shrink-0 rounded-xl bg-cyan-300 font-semibold text-slate-950 hover:bg-cyan-200"><Plus className="size-4" /><span className="hidden sm:inline">Criar banca</span><span className="sm:hidden">Criar</span></Button>
                 </form>
                 <Button type="button" variant="outline" className="h-10 rounded-xl border-cyan-900/80 bg-[#071426] text-blue-100 hover:border-cyan-400" onClick={exportar}><Download className="size-4" />Exportar CSV</Button>
