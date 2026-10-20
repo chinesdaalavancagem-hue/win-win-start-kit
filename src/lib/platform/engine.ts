@@ -265,8 +265,9 @@ export function historicoTotals(s: State) {
       return t + ((a ? a.params.saqueAprovada || 0 : e.saque || 0) - e.custoProprioCiclo);
     }
     if (e.tipo === "reprovada" && typeof e.resultadoReal === "number") {
-      const a = s.assets[e.asset];
-      return t + e.resultadoReal + (a ? a.params.taxa || 0 : e.taxaCobrada || 0);
+      // resultadoReal já inclui a taxa de avaliação no custo do ciclo.
+      // Não somar a taxa de volta: o Profit deve ser líquido.
+      return t + e.resultadoReal;
     }
     return t;
   }, 0);
