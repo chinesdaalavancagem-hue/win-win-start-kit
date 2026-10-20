@@ -22,7 +22,7 @@ const TABS: { key: TabKey; label: string; dot: string }[] = [
 ];
 const ASSET_NAME: Record<AssetKey, string> = { nasdaq: "NASDAQ", ouro: "OURO", saque2: "SAQUE 2" };
 
-export function Platform({ load, save, isAdmin, officialAcceptedAt }: { load: () => Promise<string | null>; save: (v: string, acceptedAt?: string) => Promise<boolean>; isAdmin: boolean; officialAcceptedAt: string | null }) {
+export function Platform({ load, save, isAdmin, officialAcceptedAt, historyOverview }: { load: () => Promise<string | null>; save: (v: string, acceptedAt?: string) => Promise<boolean>; isAdmin: boolean; officialAcceptedAt: string | null; historyOverview?: ReactNode }) {
   const [state, setState] = useState<State | null>(null);
   const [section, setSection] = useState<Section>("operacoes");
   const [sync, setSync] = useState<Sync>({ mode: "busy", text: "carregando…" });
@@ -141,7 +141,7 @@ export function Platform({ load, save, isAdmin, officialAcceptedAt }: { load: ()
         </Button>
       </div>
 
-      {tab === "historico" ? <Historico state={state} mutate={mutate} /> : (
+      {tab === "historico" ? <>{historyOverview}<Historico state={state} mutate={mutate} /></> : (
         <AssetView key={tab} state={state} assetKey={tab} section={section} setSection={setSection} mutate={mutate} isAdmin={isAdmin} />
       )}
 
