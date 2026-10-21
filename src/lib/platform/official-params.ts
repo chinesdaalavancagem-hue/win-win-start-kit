@@ -1,4 +1,4 @@
-import type { AssetKey, State } from "@/lib/platform/engine";
+import type { AssetKey, State, MesaFuturos } from "@/lib/platform/engine";
 
 export const OFFICIAL_PARAMS_FORMAT = "win-or-win-official-parameters";
 const ASSETS: AssetKey[] = ["nasdaq", "ouro", "saque2"];
@@ -10,13 +10,14 @@ export type OfficialParamsPayload = {
   format: typeof OFFICIAL_PARAMS_FORMAT;
   version: 1;
   exportedAt: string;
+  mesaFuturos?: MesaFuturos;
   assets: Record<AssetKey, { params: Record<string, unknown>; days: OfficialDay[] }>;
 };
 
 const isNum = (v: unknown) => typeof v === "number" && Number.isFinite(v);
 
 /** Monta o JSON oficial: só parâmetros e plano diário, nunca saldos, depósitos, histórico ou logs. */
-export function buildOfficialParams(state: State, exportedAt = new Date().toISOString()): OfficialParamsPayload {
+export function buildOfficialParams(state: State, exportedAt = new Date().toISOString(), mesaFuturos?: MesaFuturos): OfficialParamsPayload {
   const assets = Object.fromEntries(ASSETS.map((key) => {
     const { ativoReal, mnq, hfm, mll, taxa, lucroDesejado, marginPerLot, stopoutPct, saqueAprovada, folgaExtraPct } = state.assets[key].params;
     return [key, {
@@ -24,13 +25,15 @@ export function buildOfficialParams(state: State, exportedAt = new Date().toISOS
       days: state.assets[key].days.map(({ mnq, lotes, meta, mll }) => ({ mnq, lotes, meta, ...(typeof mll === "number" ? { mll } : {}) })),
     }];
   })) as unknown as OfficialParamsPayload["assets"];
-  return { format: OFFICIAL_PARAMS_FORMAT, version: 1, exportedAt, assets };
+  return { format: OFFICIAL_PARAMS_FORMAT, version: 1, exportedAt, ...(mesaFuturos ? { mesaFuturos } : {}), assets };
 }
 
 export function isOfficialParams(payload: unknown): payload is OfficialParamsPayload {
   if (!payload || typeof payload !== "object") return false;
   const p = payload as { format?: unknown; version?: unknown; assets?: Record<string, unknown> };
   if (p.format !== OFFICIAL_PARAMS_FORMAT || p.version !== 1 || !p.assets || typeof p.assets !== "object") return false;
+  const mesa = (payload as { mesaFuturos?: unknown }).mesaFuturos;
+  if (mesa !== undefined && mesa !== "tradefive" && mesa !== "lucid" && mesa !== "mff") return false;
   return ASSETS.every((key) => {
     const asset = p.assets![key] as { params?: unknown; days?: unknown } | undefined;
     const params = asset?.params as Record<string, unknown> | undefined;
