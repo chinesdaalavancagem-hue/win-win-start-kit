@@ -541,7 +541,7 @@ function AssetView({ state, assetKey, section, setSection, leftMenuOpen, setLeft
                 {asset.days.map((d, i) => (
                   <div key={i} className="rounded-xl border border-[#273342] bg-[#07101a] p-3">
                     <div className="mb-2 flex items-center justify-between gap-1">
-                      <span className="font-mono text-xs font-bold text-amber-300">D{i < 3 ? i + 1 : i - 2} <span className="text-[10px] font-semibold uppercase tracking-wide">{i < 3 ? "Evaluation" : "Funded"}</span></span>
+                      <span className="font-mono text-xs font-bold text-amber-300">D{i < avaliacaoDias ? i + 1 : i - avaliacaoDias + 1} <span className="text-[10px] font-semibold uppercase tracking-wide">{i < avaliacaoDias ? "Evaluation" : "Funded"}</span></span>
                       <span className={cn("rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide", d.mll && d.mll > 0 ? "bg-amber-400/10 text-amber-300" : "bg-slate-700/50 text-slate-400")}>{d.mll && d.mll > 0 ? "Personalizado" : "Geral"}</span>
                     </div>
                     <NumField label="Limite ($)" value={d.mll ?? 0}
@@ -600,7 +600,7 @@ function AssetView({ state, assetKey, section, setSection, leftMenuOpen, setLeft
         <div>
           <div className="space-y-3">
             {visibleRows.map((r) => (
-              <DayCard key={r.i} row={r} assetKey={assetKey} mutate={mutate} excedenteAtualSacavel={excedenteAtualSacavel} />
+              <DayCard key={r.i} row={r} assetKey={assetKey} avaliacaoDias={assetKey === "ouro" ? MESAS_FUTUROS[asset.mesaFuturos ?? "tradefive"].avaliacao : 3} mutate={mutate} excedenteAtualSacavel={excedenteAtualSacavel} />
             ))}
           </div>
           {isAdmin && <Button type="button" variant="outline" className="mt-3 w-full border-dashed" onClick={() => mutate((s) => { s.assets[assetKey].days.push({ mnq: 1, lotes: 1, meta: 150 }); })}>+ adicionar dia</Button>}
@@ -612,7 +612,7 @@ function AssetView({ state, assetKey, section, setSection, leftMenuOpen, setLeft
 
 type Row = { d: { mnq: number; lotes: number; meta: number }; c: ReturnType<typeof computeAssetCalcs>[number]; i: number; isCurrent: boolean; status: "ok" | "alerta" | "risco"; statusText: string; ticks: number; mult: number; caixaDia?: ReturnType<typeof calcCaixaCiclo>["dias"][number] | undefined };
 
-function DayCard({ row, assetKey, mutate, excedenteAtualSacavel }: { row: Row; assetKey: AssetKey; mutate: (fn: (s: State) => void) => void; excedenteAtualSacavel: number }) {
+function DayCard({ row, assetKey, avaliacaoDias, mutate, excedenteAtualSacavel }: { row: Row; assetKey: AssetKey; avaliacaoDias: number; mutate: (fn: (s: State) => void) => void; excedenteAtualSacavel: number }) {
   const { d, c, i, isCurrent } = row;
   const ref = useRef<HTMLDivElement>(null);
   const wasCurrent = useRef(isCurrent);
