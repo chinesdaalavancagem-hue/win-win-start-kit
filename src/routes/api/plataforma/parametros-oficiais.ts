@@ -26,8 +26,12 @@ export const Route = createFileRoute("/api/plataforma/parametros-oficiais")({
       const { data, error } = await ctx.db.from("master_number_sync").select("published_values,updated_at").eq("id", "default").maybeSingle();
       if (error) return reply({ error: "read_failed" }, 503);
       const values = data?.published_values as Record<string, unknown> | undefined;
-      const payload = values?.official_parameters;
-      return reply({ published: isOfficialParams(payload) ? { payload, updatedAt: data?.updated_at } : null });
+      const requested = new URL(request.url).searchParams.get("mesa");
+      const mesa = requested === "lucid" || requested === "mff" ? requested : "tradefive";
+      const collection = values?.official_parameters_by_mesa;
+      const profiles = collection && typeof collection === "object" && !Array.isArray(collection) ? collection as Record<string, unknown> : {};
+      const payload = profiles[mesa] ?? (mesa === "tradefive" ? values?.official_parameters : null);
+      return reply({ published: isOfficialParams(payload) && (payload.mesaFuturos ?? "tradefive") === mesa ? { payload, updatedAt: data?.updated_at } : null });
     },
     POST: async ({ request }) => {
       const ctx = await context(request);
@@ -40,7 +44,10 @@ export const Route = createFileRoute("/api/plataforma/parametros-oficiais")({
       if (error) return reply({ error: "read_failed" }, 503);
       const previous = old?.published_values;
       const fields = previous && typeof previous === "object" && !Array.isArray(previous) ? previous as Record<string, Json> : {};
-      const published_values = { ...fields, official_parameters: payload as unknown as Json };
+      const mesa = payload.mesaFuturos ?? "tradefive";
+      const previousProfiles = fields.official_parameters_by_mesa;
+      const byMesa = previousProfiles && typeof previousProfiles === "object" && !Array.isArray(previousProfiles) ? previousProfiles as Record<string, Json> : {};
+      const published_values = { ...fields, official_parameters_by_mesa: { ...byMesa, [mesa]: payload as unknown as Json } };
       const updated_at = new Date().toISOString();
       const result = old
         ? await ctx.db.from("master_number_sync").update({ published_values, updated_at }).eq("id", "default").select("id").single()
