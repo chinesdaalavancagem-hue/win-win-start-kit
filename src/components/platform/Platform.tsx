@@ -684,7 +684,7 @@ function DayCard({ row, assetKey, avaliacaoDias, mutate, excedenteAtualSacavel }
             </div>
             <div className="mt-3 flex items-center justify-between gap-2 rounded-lg border border-[#142b43] bg-[#0b1726] px-3 py-2.5 font-mono text-xs"><span className="flex items-center gap-1.5 text-muted-foreground"><Calculator className="h-3.5 w-3.5" />Necessário no CFD</span><span className="font-semibold">${fmt(cx.necessario)}</span></div>
             {assetKey === "ouro" && <div className="mt-1 flex items-center justify-between gap-3 rounded-xl border border-amber-800/50 bg-[#161924] px-3 py-2.5">
-              <label htmlFor={`loss-limit-${i}`} className="min-w-0 text-xs font-semibold text-amber-200">Loss Limit do dia ($)</label>
+              <label htmlFor={`loss-limit-${i}`} className="min-w-0 text-xs font-semibold text-amber-200">Loss Limit EOD na mesa ($)</label>
               {limiteFixo ? <span className="font-mono text-base font-bold text-white">$2.000</span> :
                 <input id={`loss-limit-${i}`} aria-label="Loss Limit do dia em dólares" type="number" min="0.01" step="0.01" inputMode="decimal" value={limiteHoje ?? ""} placeholder="Valor do dia" className="w-32 max-w-[55%] rounded-lg border border-amber-800/70 bg-[#081321] px-2 py-1.5 text-right font-mono text-sm text-white focus:border-amber-400 focus:outline-none" onChange={(e) => { const raw = e.target.value; const v = Number(raw); mutate((st) => { const day = st.assets[assetKey].days[i]; if (!day) return; if (raw.trim() && Number.isFinite(v) && v > 0) day.mll = v; else delete day.mll; }); }} />
               }
