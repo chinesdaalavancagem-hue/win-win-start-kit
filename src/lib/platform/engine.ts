@@ -226,7 +226,8 @@ export function computeAssetCalcs(a: Asset, key: AssetKey): DayCalc[] {
     const exp = d.mnq * mnqPt;
     const pontos = exp > 0 ? d.meta / exp : 0;
     const custoSePassar = pontos * d.lotes * hfmPt;
-    const limite = typeof d.mll === "number" && d.mll > 0 ? d.mll : mll;
+    const indice = a.days.indexOf(d);
+    const limite = key === "ouro" && indice <= diasAvaliacaoGold(a) ? 2000 : dayMll(a, d);
     const pontosReprova = exp > 0 ? limite / exp : 0;
     const reprova = pontosReprova * d.lotes * hfmPt;
     const dividaReal = divida;
