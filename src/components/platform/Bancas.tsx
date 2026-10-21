@@ -124,6 +124,7 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
                     <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 border-t border-white/5 pt-3 text-xs">
                       <div><dt className="text-slate-500">Aprovadas</dt><dd className="mt-0.5 font-semibold text-emerald-300">{r.aprovadas}</dd></div>
                       <div><dt className="text-slate-500">Reprovadas</dt><dd className="mt-0.5 font-semibold text-rose-300">{r.reprovadas}</dd></div>
+                      <div><dt className="text-slate-500">Compra da banca</dt><dd className="mt-0.5 font-mono font-semibold text-amber-200">${fmt(b.taxaCompra ?? b.state.assets.ouro.params.taxa)}</dd></div>
                       <div><dt className="text-slate-500">Total gasto</dt><dd className="mt-0.5 font-mono text-slate-200">${fmt(r.totalGasto)}</dd></div>
                       <div><dt className="text-slate-500">Último evento</dt><dd className="mt-0.5 text-slate-300">{r.ultima ? new Date(r.ultima).toLocaleDateString("pt-BR") : "Sem eventos"}</dd></div>
                     </dl>
@@ -132,6 +133,21 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
                         const n = window.prompt("Novo nome da banca", b.nome)?.trim();
                         if (n) persist({ ...doc, bancas: doc.bancas.map((x) => (x.id === b.id ? { ...x, nome: n.slice(0, 60) } : x)) });
                       }}><Pencil className="size-3.5" />Renomear</Button>
+                      <Button size="sm" variant="ghost" className="h-8 rounded-lg px-2 text-amber-200 hover:bg-amber-950/40 hover:text-amber-100" onClick={() => {
+                        const anterior = b.taxaCompra ?? b.state.assets.ouro.params.taxa;
+                        const entrada = window.prompt("Valor real pago nesta banca ($)", String(anterior));
+                        if (entrada === null) return;
+                        const valor = Number(entrada.trim().replace(",", "."));
+                        if (!Number.isFinite(valor) || valor < 0) { window.alert("Informe um valor válido."); return; }
+                        const bancas = doc.bancas.map((x) => {
+                          if (x.id !== b.id) return x;
+                          const state = structuredClone(x.state);
+                          state.assets.nasdaq.params.taxa = valor;
+                          state.assets.ouro.params.taxa = valor;
+                          return { ...x, taxaCompra: valor, state };
+                        });
+                        persist({ ...doc, bancas });
+                      }}><Pencil className="size-3.5" />Corrigir valor pago</Button>
                       {doc.bancas.length > 1 && (
                         <Button size="sm" variant="ghost" className="h-8 rounded-lg px-2 text-rose-300 hover:bg-rose-950/40 hover:text-rose-200" onClick={() => {
                           if (!window.confirm(`Excluir a banca "${b.nome}" e todo o histórico dela?`)) return;
