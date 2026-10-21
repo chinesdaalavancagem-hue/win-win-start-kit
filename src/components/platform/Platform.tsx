@@ -623,6 +623,8 @@ function DayCard({ row, assetKey, avaliacaoDias, mutate, excedenteAtualSacavel }
     wasCurrent.current = isCurrent;
   }, [isCurrent]);
   const setD = (k: "mnq" | "lotes" | "meta") => (v: number) => mutate((s) => { s.assets[assetKey].days[i]![k] = v; });
+  const limiteFixo = assetKey === "ouro" && i <= avaliacaoDias;
+  const limiteHoje = limiteFixo ? 2000 : d.mll && d.mll > 0 ? d.mll : undefined;
   return (
     <div ref={ref} className={cn("platform-day-card overflow-hidden rounded-2xl border border-[#142b43] bg-[#0b0f19] p-3 text-slate-100 shadow-[0_12px_40px_rgba(0,0,0,0.22)] sm:p-5 lg:p-3", isCurrent && "border-[#087cff]/70 ring-1 ring-[#087cff]/25")}>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-[#142b43] pb-3">
@@ -633,6 +635,18 @@ function DayCard({ row, assetKey, avaliacaoDias, mutate, excedenteAtualSacavel }
         </div>
         <button type="button" className="shrink-0 rounded-lg border border-[#19334f] px-2.5 py-1.5 text-xs font-medium text-slate-300 hover:border-blue-500/60 hover:text-white" onClick={() => mutate((s) => { if (assetKey === "ouro") removerDiaGold(s.assets.ouro, i); else s.assets[assetKey].days.splice(i, 1); })}>remover</button>
       </div>
+      {assetKey === "ouro" && <div className="mb-3 rounded-xl border border-amber-700/40 bg-[#1d1820] p-3">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs font-bold text-amber-200">Limite geral de perda deste dia ($)</p>
+          <span className="text-[10px] text-slate-400">{limiteFixo ? "Fixo · avaliação ou D1 financiada" : "D2+ financiada · informar valor real"}</span>
+        </div>
+        {limiteFixo ? <p className="mt-2 font-mono text-lg font-bold text-white">$2.000</p> :
+          <label className="mt-2 block text-xs text-slate-300">Valor disponível até reprovação informado pela mesa
+            <input type="number" min="0.01" step="0.01" inputMode="decimal" value={limiteHoje ?? ""} placeholder="Informe o limite deste dia" className="mt-1 w-full rounded-lg border border-amber-800/70 bg-[#081321] px-3 py-2.5 font-mono text-white focus:border-amber-400 focus:outline-none" onChange={(e) => { const v = Number(e.target.value); mutate((st) => { const day = st.assets[assetKey].days[i]; if (!day) return; if (e.target.value.trim() && Number.isFinite(v) && v > 0) day.mll = v; else delete day.mll; }); }} />
+          </label>}
+        {!limiteFixo && !limiteHoje && <p className="mt-2 text-xs font-semibold text-amber-300">Preencha o valor real para obter a estimativa de pontos. Não utilize o valor herdado de outra mesa.</p>}
+        <p className="mt-1 text-[11px] text-slate-400">Use a distância monetária atual até o limite de liquidação, não o saldo total da conta.</p>
+      </div>}
       <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
         <div className="min-w-0 rounded-xl border border-[#18324e] bg-gradient-to-br from-[#0d1b2b] to-[#080f1a] p-3 lg:p-2.5">
           <NumField cockpit label={<><FileText className="h-3.5 w-3.5 text-blue-400" />Contratos</>} value={d.mnq} onChange={setD("mnq")} />
@@ -648,7 +662,7 @@ function DayCard({ row, assetKey, avaliacaoDias, mutate, excedenteAtualSacavel }
         </div>
         <div className="min-w-0 rounded-xl border border-[#18324e] bg-gradient-to-br from-[#0d1b2b] to-[#080f1a] p-3 sm:p-4">
           <p className="flex items-center gap-1.5 text-xs text-blue-100/90"><TrendingUp className="h-3.5 w-3.5 text-emerald-400" />Alvo Reprova</p>
-          <p className="mt-2 font-mono text-2xl font-bold sm:text-[28px]">{fmt(c.pontosReprova * 10)} <span className="text-sm text-muted-foreground">pts</span></p>
+          <p className="mt-2 font-mono text-2xl font-bold sm:text-[28px]">{assetKey === "ouro" && !limiteFixo && !limiteHoje ? "—" : fmt(c.pontosReprova * 10)} <span className="text-sm text-muted-foreground">pts</span></p>
         </div>
       </div>
 
