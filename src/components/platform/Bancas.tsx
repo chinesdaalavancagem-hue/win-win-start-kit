@@ -88,6 +88,8 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
                   b.state.assets.nasdaq.params.taxa = valor;
                   b.state.assets.ouro.params.taxa = valor;
                   setNome(""); setTaxaAvaliacao("");
+                  // Fechar a gestão para mostrar imediatamente os cards e os menus laterais.
+                  setPainel(false);
                   persist({ ...doc, activeId: b.id, bancas: [...doc.bancas, b] });
                 }}>
                   <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome da nova banca" aria-label="Nome da nova banca" className="h-10 min-w-0 rounded-xl border-cyan-950 bg-[#071426] text-slate-100 placeholder:text-slate-500 focus-visible:ring-cyan-400" maxLength={60} />
