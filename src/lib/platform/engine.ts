@@ -16,7 +16,7 @@ export interface BonusLog { ts: number; tipo: "deposito" | "saque" | "reset" | "
 export interface Bonus { deposito: number; bonusAtual: number; bonusGanhoTotal: number; bonusCap: number; log: BonusLog[] }
 export type MesaFuturos = "tradefive" | "lucid" | "mff";
 export const MESAS_FUTUROS: Record<MesaFuturos, { nome: string; consistencia: number; avaliacao: number; payout: number }> = {
-  tradefive: { nome: "Trade Five", consistencia: 40, avaliacao: 3, payout: 5 },
+  tradefive: { nome: "Tradeify", consistencia: 40, avaliacao: 3, payout: 5 },
   lucid: { nome: "Lucid Trading", consistencia: 50, avaliacao: 2, payout: 5 },
   mff: { nome: "My Funded Futures (MFF)", consistencia: 30, avaliacao: 4, payout: 5 },
 };
