@@ -1,51 +1,462 @@
--- WIN OR WIN PLATFORM - ESQUEMA DE REFERENCIA (INCOMPLETO)
--- NAO EXECUTAR. NAO USAR COMO MIGRACAO OU RESTAURACAO.
--- Documento de inventario versionado; nao e um dump extraido do Lovable Cloud.
--- Acesso do ChatGPT ao projeto de producao Lovable Cloud NAO foi confirmado.
--- Fonte A: relatorio de auditoria fornecido pelo proprietario em 2026-10-21.
--- Fonte B: arquivos efetivamente lidos na main do GitHub.
+-- WIN OR WIN PLATFORM | DOCUMENTO DE REFERENCIA SQL | 2026-10-21
+-- IMPORTANTE: NAO EXECUTAR ESTE ARQUIVO. NAO E UMA MIGRACAO, NEM UM DUMP.
+-- Fonte 1: migrações SQL efetivamente versionadas na branch main (transcritas
+-- literalmente como comentarios abaixo, para impedir execucao acidental).
+-- Fonte 2: inventario de metadados fornecido pelo proprietario a partir de
+-- auditoria Lovable Cloud, NAO conferido diretamente por este processo.
+-- ESTE DOCUMENTO NAO E UM SNAPSHOT INTEGRAL DO BANCO DE PRODUCAO.
 --
--- OBJETOS REPORTADOS (AINDA NAO CONFERIDOS DIRETAMENTE NO CATALOGO DE PRODUCAO):
--- public.app_data, profiles, user_roles, order_queue, integration_tokens,
+-- OBJETOS RELATADOS NO LOVABLE CLOUD (14 tabelas public):
+-- app_data, profiles, user_roles, order_queue, integration_tokens,
 -- activity_logs, audit_logs, prop_firms, push_subscriptions, terms_acceptances,
 -- trusted_devices, trusted_device_settings, ai_analysis_daily_usage,
 -- master_number_sync.
--- Tipo relatado: public.app_role ('admin','user').
--- Funcoes relatadas: has_role, is_approved, handle_new_user,
+--
+-- ENUM RELATADO: public.app_role ('admin', 'user').
+-- FUNCOES RELATADAS: has_role, is_approved, handle_new_user,
 -- register_trusted_device, consume_ai_analysis_quota, log_failed_login.
--- Trigger relatada: auth.users.on_auth_user_created.
--- RLS: 17 politicas relatadas, mas definicoes completas NAO foram extraidas.
--- Storage: bucket downloads e 3 objetos relatados; bytes nao exportados.
+-- FUNCAO ADICIONAL COM FONTE GITHUB: log_app_data_changes().
+-- TRIGGERS: on_auth_user_created (relatado), trg_log_app_data_changes
+-- (confirmado na migracao 0005; aplicacao em producao NAO verificada).
+-- RLS: 17 politicas relatadas em producao; texto integral NAO verificado.
+-- STORAGE: bucket downloads com 3 objetos, segundo auditoria; binarios nao
+-- incluidos neste documento.
 --
--- DOCUMENTOS SQL CONFIRMADOS NO GITHUB (main):
--- supabase/migrations/20261012000000_push_subscriptions.sql
--- drizzle/migrations/0011_terms_acceptances.sql
--- drizzle/migrations/0014_app_data_version.sql
--- docs/sql/terms_acceptances.sql
+-- LACUNAS CRITICAS PARA RESTAURACAO:
+-- 1. DDL efetiva de app_data, profiles, user_roles, order_queue,
+--    integration_tokens, trusted_devices e trusted_device_settings.
+-- 2. Politicas RLS e grants efetivos de TODAS as tabelas, incluindo objetos
+--    criados na infraestrutura antes das migracoes GitHub.
+-- 3. pg_get_functiondef, pg_get_triggerdef, pg_get_indexdef no banco real,
+--    incluindo owners, search_path, SECURITY DEFINER e grants de EXECUTE.
+-- 4. Estrutura auth.users, storage, extensoes, enums, triggers e constraints.
+-- 5. Historico real drizzle.__drizzle_migrations e diferencas do estado atual.
+-- 6. Dump/backup real dos dados e arquivos, EXCLUSIVAMENTE na etapa futura.
 --
--- Evidencia confirmada: app_data.version integer NOT NULL DEFAULT 1
--- (drizzle/migrations/0014_app_data_version.sql).
--- Evidencia confirmada: push_subscriptions usa id uuid PK DEFAULT
--- gen_random_uuid(), user_id uuid references profiles(id) ON DELETE CASCADE,
--- endpoint, p256dh, auth text, created_at timestamptz, UNIQUE(user_id,endpoint)
--- e 3 politicas RLS SELECT/INSERT/DELETE para authenticated
--- (supabase/migrations/20261012000000_push_subscriptions.sql).
--- Evidencia confirmada: terms_acceptances possui id uuid PK, user_id uuid
--- REFERENCES profiles(id) ON DELETE CASCADE, terms_version text,
--- accepted_at timestamptz, device_hash text, UNIQUE(user_id,terms_version)
--- e indice terms_acceptances_user_accepted_at_idx
--- (drizzle/migrations/0011_terms_acceptances.sql).
+-- ACHADO IMPORTANTE: existem migracoes dentro de drizzle/migrations,
+-- alem de supabase/migrations. A pasta supabase nao e inventario suficiente.
+-- As migracoes abaixo representam historico versionado, nao estado final
+-- comprovado. Ex.: 0004 substitui a funcao criada em 0003; 0012 modifica
+-- a constraint de prop_firms criada em 0010.
 --
--- BLOQUEIOS PARA UM SNAPSHOT COMPLETO E FIEL:
--- 1. Obter DDL real de todas as 14 tabelas com defaults/checks/FKs/indexes.
--- 2. Extrair pg_get_functiondef de TODAS as funcoes e respectivos owners,
---    search_path, SECURITY DEFINER e privilegios de EXECUTE.
--- 3. Extrair pg_get_triggerdef e pg_get_indexdef para cada objeto.
--- 4. Extrair pg_policies/pg_policy incluindo comandos e expressoes integrais.
--- 5. Extrair grants/revokes e configuracoes de RLS FORCE/ENABLE por tabela.
--- 6. Conferir versoes/drizzle.__drizzle_migrations e dependencias de auth.
--- 7. Comparar o inventario com o banco de producao em consulta read-only.
---
--- ATENCAO: ESTE ARQUIVO NAO PERMITE RECONSTRUIR O BANCO.
--- Somente apos validacao do DDL extraido do Lovable Cloud substituir esta
--- referencia por um snapshot integral, sem movê-lo para supabase/migrations/.
+-- TRANSCRICOES LITERAIS PARA REFERENCIA (TODAS AS LINHAS COMENTADAS):
+
+-- ================================================================
+-- ORIGEM: drizzle/migrations/0001_downloads_policies.sql
+-- ================================================================
+-- CREATE POLICY "approved read downloads" ON storage.objects FOR SELECT TO authenticated USING (bucket_id = 'downloads' AND public.is_approved(auth.uid()));
+-- CREATE POLICY "admin insert downloads" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'downloads' AND public.has_role(auth.uid(), 'admin'));
+-- CREATE POLICY "admin update downloads" ON storage.objects FOR UPDATE TO authenticated USING (bucket_id = 'downloads' AND public.has_role(auth.uid(), 'admin'));
+-- CREATE POLICY "admin delete downloads" ON storage.objects FOR DELETE TO authenticated USING (bucket_id = 'downloads' AND public.has_role(auth.uid(), 'admin'));
+
+-- ================================================================
+-- ORIGEM: drizzle/migrations/0002_audit_logs.sql
+-- ================================================================
+-- -- Audit trail for security, strategy changes and integration diagnostics.
+-- -- Access is mediated by server routes using the service-role client.
+-- CREATE TABLE IF NOT EXISTS public.audit_logs (
+--   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+--   user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+--   category text NOT NULL CHECK (category IN ('auth', 'strategy', 'integration', 'navigation', 'system', 'ui')),
+--   action text NOT NULL,
+--   outcome text NOT NULL CHECK (outcome IN ('success', 'failed', 'denied', 'started', 'unknown')),
+--   details jsonb NOT NULL DEFAULT '{}'::jsonb,
+--   request_id uuid NOT NULL DEFAULT gen_random_uuid(),
+--   created_at timestamptz NOT NULL DEFAULT now()
+-- );
+-- 
+-- CREATE INDEX IF NOT EXISTS audit_logs_created_at_idx
+--   ON public.audit_logs (created_at DESC);
+-- CREATE INDEX IF NOT EXISTS audit_logs_user_created_at_idx
+--   ON public.audit_logs (user_id, created_at DESC);
+-- CREATE INDEX IF NOT EXISTS audit_logs_category_created_at_idx
+--   ON public.audit_logs (category, created_at DESC);
+-- 
+-- ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
+-- 
+-- -- No direct browser access. Server routes authenticate the caller and enforce
+-- -- admin checks before using the service-role client.
+-- REVOKE ALL ON TABLE public.audit_logs FROM anon, authenticated;
+-- GRANT SELECT, INSERT ON TABLE public.audit_logs TO service_role;
+-- 
+-- COMMENT ON TABLE public.audit_logs IS
+--   'Append-oriented audit events for Win or Win; never store passwords, tokens, or secret values here.';
+-- 
+
+-- ================================================================
+-- ORIGEM: drizzle/migrations/0003_create_activity_logs.sql
+-- ================================================================
+-- CREATE TABLE public.activity_logs (
+--   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+--   user_id uuid NULL,
+--   action text NOT NULL CHECK (action IN ('login.success','login.failed','logout','create','update','delete')),
+--   details jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (octet_length(details::text) <= 4096),
+--   created_at timestamptz NOT NULL DEFAULT now()
+-- );
+-- 
+-- GRANT SELECT, INSERT ON public.activity_logs TO authenticated;
+-- GRANT ALL ON public.activity_logs TO service_role;
+-- 
+-- ALTER TABLE public.activity_logs ENABLE ROW LEVEL SECURITY;
+-- 
+-- CREATE POLICY "insert own activity" ON public.activity_logs
+--   FOR INSERT TO authenticated
+--   WITH CHECK (user_id = auth.uid());
+-- 
+-- CREATE POLICY "admin read activity" ON public.activity_logs
+--   FOR SELECT TO authenticated
+--   USING (has_role(auth.uid(), 'admin'::app_role));
+-- 
+-- CREATE INDEX activity_logs_created_at_idx ON public.activity_logs (created_at DESC);
+-- CREATE INDEX activity_logs_user_id_idx ON public.activity_logs (user_id);
+-- 
+-- CREATE OR REPLACE FUNCTION public.log_failed_login(attempted_email text)
+-- RETURNS void
+-- LANGUAGE plpgsql
+-- SECURITY DEFINER
+-- SET search_path = public
+-- AS $$
+-- DECLARE
+--   v_email text := left(lower(trim(coalesce(attempted_email, ''))), 254);
+-- BEGIN
+--   -- Limite simples: no máximo 5 registros por e-mail a cada 5 minutos
+--   -- e no máximo 200 falhas no total por minuto.
+--   IF (SELECT count(*) FROM public.activity_logs
+--       WHERE action = 'login.failed'
+--         AND created_at > now() - interval '5 minutes'
+--         AND details->>'attempted_email' = v_email) >= 5 THEN
+--     RETURN;
+--   END IF;
+--   IF (SELECT count(*) FROM public.activity_logs
+--       WHERE action = 'login.failed'
+--         AND created_at > now() - interval '1 minute') >= 200 THEN
+--     RETURN;
+--   END IF;
+--   INSERT INTO public.activity_logs (user_id, action, details)
+--   VALUES (NULL, 'login.failed', jsonb_build_object('attempted_email', v_email));
+-- END;
+-- $$;
+-- 
+-- REVOKE EXECUTE ON FUNCTION public.log_failed_login(text) FROM PUBLIC;
+-- GRANT EXECUTE ON FUNCTION public.log_failed_login(text) TO anon, authenticated;
+
+-- ================================================================
+-- ORIGEM: drizzle/migrations/0004_log_failed_login_email_format.sql
+-- ================================================================
+-- CREATE OR REPLACE FUNCTION public.log_failed_login(attempted_email text)
+--  RETURNS void
+--  LANGUAGE plpgsql
+--  SECURITY DEFINER
+--  SET search_path TO 'public'
+-- AS $function$
+-- DECLARE
+--   v_email text := left(lower(trim(coalesce(attempted_email, ''))), 254);
+-- BEGIN
+--   IF v_email !~ '^[^\s@]*@[^\s@]*\.[^\s@]*$' THEN
+--     v_email := 'formato inválido';
+--   END IF;
+--   IF (SELECT count(*) FROM public.activity_logs
+--       WHERE action = 'login.failed'
+--         AND created_at > now() - interval '5 minutes'
+--         AND details->>'attempted_email' = v_email) >= 5 THEN
+--     RETURN;
+--   END IF;
+--   IF (SELECT count(*) FROM public.activity_logs
+--       WHERE action = 'login.failed'
+--         AND created_at > now() - interval '1 minute') >= 200 THEN
+--     RETURN;
+--   END IF;
+--   INSERT INTO public.activity_logs (user_id, action, details)
+--   VALUES (NULL, 'login.failed', jsonb_build_object('attempted_email', v_email));
+-- END;
+-- $function$;
+
+-- ================================================================
+-- ORIGEM: drizzle/migrations/0005_log_app_data_changes_trigger.sql
+-- ================================================================
+-- CREATE OR REPLACE FUNCTION public.log_app_data_changes()
+-- RETURNS TRIGGER
+-- LANGUAGE plpgsql
+-- SECURITY DEFINER
+-- SET search_path = ''
+-- AS $$
+-- BEGIN
+--   BEGIN
+--     INSERT INTO public.activity_logs (user_id, action, details)
+--     VALUES (
+--       CASE
+--         WHEN TG_OP = 'DELETE' THEN OLD.user_id
+--         ELSE NEW.user_id
+--       END,
+--       CASE TG_OP
+--         WHEN 'INSERT' THEN 'create'
+--         WHEN 'UPDATE' THEN 'update'
+--         WHEN 'DELETE' THEN 'delete'
+--       END,
+--       jsonb_build_object(
+--         'table', TG_TABLE_NAME,
+--         'id', CASE
+--           WHEN TG_OP = 'DELETE' THEN to_jsonb(OLD)->>'user_id'
+--           ELSE to_jsonb(NEW)->>'user_id'
+--         END
+--       )
+--     );
+--   EXCEPTION WHEN OTHERS THEN
+--     NULL;
+--   END;
+-- 
+--   IF TG_OP = 'DELETE' THEN
+--     RETURN OLD;
+--   END IF;
+-- 
+--   RETURN NEW;
+-- END;
+-- $$;
+-- 
+-- REVOKE EXECUTE ON FUNCTION public.log_app_data_changes() FROM PUBLIC, anon, authenticated;
+-- 
+-- DROP TRIGGER IF EXISTS trg_log_app_data_changes ON public.app_data;
+-- 
+-- CREATE TRIGGER trg_log_app_data_changes
+-- AFTER INSERT OR UPDATE OR DELETE ON public.app_data
+-- FOR EACH ROW
+-- EXECUTE FUNCTION public.log_app_data_changes();
+
+-- ================================================================
+-- ORIGEM: drizzle/migrations/0007_ai_analysis_quota.sql
+-- ================================================================
+-- CREATE TABLE public.ai_analysis_daily_usage (
+--   user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+--   usage_date date NOT NULL,
+--   used integer NOT NULL DEFAULT 0 CHECK (used >= 0 AND used <= 3),
+--   PRIMARY KEY (user_id, usage_date)
+-- );
+-- 
+-- REVOKE ALL ON public.ai_analysis_daily_usage FROM PUBLIC, anon, authenticated;
+-- GRANT ALL ON public.ai_analysis_daily_usage TO service_role;
+-- ALTER TABLE public.ai_analysis_daily_usage ENABLE ROW LEVEL SECURITY;
+-- 
+-- CREATE OR REPLACE FUNCTION public.consume_ai_analysis_quota(p_user_id uuid, p_limit integer DEFAULT 3)
+-- RETURNS integer
+-- LANGUAGE plpgsql
+-- SECURITY DEFINER
+-- SET search_path = public
+-- AS $$
+-- DECLARE
+--   v_used integer;
+-- BEGIN
+--   IF p_user_id IS NULL OR p_limit < 1 OR p_limit > 3 THEN
+--     RAISE EXCEPTION 'invalid quota request';
+--   END IF;
+-- 
+--   INSERT INTO public.ai_analysis_daily_usage (user_id, usage_date, used)
+--   VALUES (p_user_id, (now() AT TIME ZONE 'UTC')::date, 1)
+--   ON CONFLICT (user_id, usage_date)
+--   DO UPDATE SET used = public.ai_analysis_daily_usage.used + 1
+--   WHERE public.ai_analysis_daily_usage.used < p_limit
+--   RETURNING used INTO v_used;
+-- 
+--   IF v_used IS NULL THEN
+--     RETURN NULL;
+--   END IF;
+-- 
+--   RETURN p_limit - v_used;
+-- END;
+-- $$;
+-- 
+-- REVOKE EXECUTE ON FUNCTION public.consume_ai_analysis_quota(uuid, integer) FROM PUBLIC, anon, authenticated;
+-- GRANT EXECUTE ON FUNCTION public.consume_ai_analysis_quota(uuid, integer) TO service_role;
+-- 
+-- -- Registra apenas o evento de conclusão, sem guardar o conteúdo da análise.
+-- ALTER TABLE public.activity_logs DROP CONSTRAINT IF EXISTS activity_logs_action_check;
+-- ALTER TABLE public.activity_logs
+--   ADD CONSTRAINT activity_logs_action_check
+--   CHECK (action IN ('login.success', 'login.failed', 'logout', 'create', 'update', 'delete', 'ai.analysis.completed'));
+-- 
+
+-- ================================================================
+-- ORIGEM: drizzle/migrations/0008_add_telegram_chat_id.sql
+-- ================================================================
+-- alter table public.profiles add column if not exists telegram_chat_id text;
+
+-- ================================================================
+-- ORIGEM: drizzle/migrations/0009_push_subscriptions.sql
+-- ================================================================
+-- create table if not exists public.push_subscriptions (
+--   id uuid primary key default gen_random_uuid(),
+--   user_id uuid not null references public.profiles(id) on delete cascade,
+--   endpoint text not null,
+--   p256dh text not null,
+--   auth text not null,
+--   created_at timestamptz not null default now(),
+--   constraint push_subscriptions_user_endpoint_unique unique (user_id, endpoint)
+-- );
+-- 
+-- alter table public.push_subscriptions enable row level security;
+-- 
+-- drop policy if exists "Users can view their own push subscriptions" on public.push_subscriptions;
+-- drop policy if exists "Users can insert their own push subscriptions" on public.push_subscriptions;
+-- drop policy if exists "Users can delete their own push subscriptions" on public.push_subscriptions;
+-- 
+-- create policy "Users can view their own push subscriptions"
+--   on public.push_subscriptions for select to authenticated
+--   using (auth.uid() = user_id);
+-- create policy "Users can insert their own push subscriptions"
+--   on public.push_subscriptions for insert to authenticated
+--   with check (auth.uid() = user_id);
+-- create policy "Users can delete their own push subscriptions"
+--   on public.push_subscriptions for delete to authenticated
+--   using (auth.uid() = user_id);
+-- 
+-- revoke all on public.push_subscriptions from public, anon;
+-- revoke all on public.push_subscriptions from authenticated;
+-- grant select, insert, delete on public.push_subscriptions to authenticated;
+-- grant all on public.push_subscriptions to service_role;
+
+-- ================================================================
+-- ORIGEM: drizzle/migrations/0010_prop_firm_settings.sql
+-- ================================================================
+-- CREATE TABLE public.prop_firms (
+--  id text PRIMARY KEY CHECK (id IN ('lucid-trading', 'tradeify', 'my-funded-futures')),
+--  name text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 80),
+--  affiliate_url text NOT NULL DEFAULT '' CHECK (char_length(affiliate_url) <= 2048 AND (affiliate_url = '' OR affiliate_url ~ '^https://[^[:space:]]+$')),
+--  coupon text NOT NULL DEFAULT '' CHECK (char_length(coupon) <= 80),
+--  account_sizes integer[] NOT NULL DEFAULT '{}' CHECK (cardinality(account_sizes) <= 20 AND (cardinality(account_sizes) = 0 OR (0 < ALL(account_sizes) AND 10000000 >= ALL(account_sizes)))),
+--  updated_at timestamptz NOT NULL DEFAULT now()
+-- );
+-- GRANT SELECT, INSERT, UPDATE ON public.prop_firms TO authenticated;
+-- GRANT ALL ON public.prop_firms TO service_role;
+-- ALTER TABLE public.prop_firms ENABLE ROW LEVEL SECURITY;
+-- CREATE POLICY "approved traders read firms" ON public.prop_firms FOR SELECT TO authenticated USING (public.is_approved(auth.uid()) OR public.has_role(auth.uid(), 'admin'));
+-- CREATE POLICY "master inserts firms" ON public.prop_firms FOR INSERT TO authenticated WITH CHECK (public.has_role(auth.uid(), 'admin'));
+-- CREATE POLICY "master updates firms" ON public.prop_firms FOR UPDATE TO authenticated USING (public.has_role(auth.uid(), 'admin')) WITH CHECK (public.has_role(auth.uid(), 'admin'));
+
+-- ================================================================
+-- ORIGEM: drizzle/migrations/0011_terms_acceptances.sql
+-- ================================================================
+-- CREATE TABLE IF NOT EXISTS public.terms_acceptances (
+--   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+--   user_id uuid NOT NULL
+--     REFERENCES public.profiles(id) ON DELETE CASCADE,
+--   terms_version text NOT NULL
+--     CHECK (char_length(terms_version) BETWEEN 1 AND 64),
+--   accepted_at timestamptz NOT NULL DEFAULT now(),
+--   device_hash text NOT NULL
+--     CHECK (device_hash ~ '^[0-9a-f]{64}$'),
+--   CONSTRAINT terms_acceptances_user_version_unique
+--     UNIQUE (user_id, terms_version)
+-- );
+-- 
+-- CREATE INDEX IF NOT EXISTS terms_acceptances_user_accepted_at_idx
+--   ON public.terms_acceptances (user_id, accepted_at DESC);
+-- 
+-- REVOKE ALL ON TABLE public.terms_acceptances
+--   FROM PUBLIC, anon, authenticated;
+-- 
+-- GRANT SELECT, INSERT ON TABLE public.terms_acceptances
+--   TO service_role;
+-- 
+-- ALTER TABLE public.terms_acceptances
+--   ENABLE ROW LEVEL SECURITY;
+-- 
+-- COMMENT ON TABLE public.terms_acceptances IS
+--   'Versioned terms acceptance records. Access is mediated by trusted server code using service_role; raw IP addresses are not stored.';
+
+-- ================================================================
+-- ORIGEM: drizzle/migrations/0012_topstep_and_50k_prop_firms.sql
+-- ================================================================
+-- -- Add Topstep and initialize the affiliate links.
+-- -- The account size is intentionally fixed at USD 50,000 for every firm.
+-- ALTER TABLE public.prop_firms DROP CONSTRAINT IF EXISTS prop_firms_id_check;
+-- ALTER TABLE public.prop_firms
+--   ADD CONSTRAINT prop_firms_id_check
+--   CHECK (id IN ('lucid-trading', 'tradeify', 'my-funded-futures', 'topstep'));
+-- 
+-- INSERT INTO public.prop_firms (id, name, affiliate_url, coupon, account_sizes)
+-- VALUES
+--   ('lucid-trading', 'Lucid Trading', 'https://lucidtrading.com/?ref=cupommesasprop&utm_source=cupommesasprop&utm_medium=afiliado&utm_campaign=lucidtrading', '', ARRAY[50000]),
+--   ('tradeify', 'Tradeify', 'https://tradeify.co/?ref=TWC&utm_source=cupommesasprop&utm_medium=afiliado&utm_campaign=tradeify', '', ARRAY[50000]),
+--   ('my-funded-futures', 'My Funded Futures', 'https://myfundedfutures.com/challenge?ref=355&utm_source=cupommesasprop&utm_campaign=myfundedfutures&utm_medium=afiliado', '', ARRAY[50000]),
+--   ('topstep', 'Topstep', 'https://www.topstep.com/?ref=TWC&utm_source=cupommesasprop&utm_medium=afiliado&utm_campaign=topstep&utm_content=topstep', '', ARRAY[50000])
+-- ON CONFLICT (id) DO UPDATE SET
+--   name = EXCLUDED.name,
+--   affiliate_url = CASE
+--     WHEN COALESCE(public.prop_firms.affiliate_url, '') = ''
+--       OR public.prop_firms.affiliate_url IN (
+--         'https://lucidtrading.com/',
+--         'https://tradeify.co/',
+--         'https://myfundedfutures.com/',
+--         'https://www.topstep.com/'
+--       )
+--     THEN EXCLUDED.affiliate_url
+--     ELSE public.prop_firms.affiliate_url
+--   END,
+--   account_sizes = EXCLUDED.account_sizes,
+--   updated_at = now();
+-- 
+
+-- ================================================================
+-- ORIGEM: drizzle/migrations/0013_master_number_sync.sql
+-- ================================================================
+-- -- Configuração de sincronização seletiva controlada pela conta Master.
+-- -- A tabela não é acessível diretamente por clientes; leitura/escrita passam pela API server-side.
+-- CREATE TABLE IF NOT EXISTS public.master_number_sync (
+--   id text PRIMARY KEY DEFAULT 'default' CHECK (id = 'default'),
+--   admin_user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+--   enabled boolean NOT NULL DEFAULT false,
+--   allowed_fields jsonb NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(allowed_fields) = 'array'),
+--   published_values jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(published_values) = 'object'),
+--   updated_at timestamptz NOT NULL DEFAULT now()
+-- );
+-- 
+-- ALTER TABLE public.master_number_sync ENABLE ROW LEVEL SECURITY;
+-- REVOKE ALL ON TABLE public.master_number_sync FROM anon, authenticated;
+-- GRANT ALL ON TABLE public.master_number_sync TO service_role;
+-- 
+
+-- ================================================================
+-- ORIGEM: drizzle/migrations/0014_app_data_version.sql
+-- ================================================================
+-- ALTER TABLE public.app_data
+--   ADD COLUMN IF NOT EXISTS version integer NOT NULL DEFAULT 1;
+-- 
+
+-- ================================================================
+-- ORIGEM: supabase/migrations/20261012000000_push_subscriptions.sql
+-- ================================================================
+-- create table if not exists public.push_subscriptions (
+--   id uuid primary key default gen_random_uuid(),
+--   user_id uuid not null references public.profiles(id) on delete cascade,
+--   endpoint text not null,
+--   p256dh text not null,
+--   auth text not null,
+--   created_at timestamptz not null default now(),
+--   constraint push_subscriptions_user_endpoint_unique unique (user_id, endpoint)
+-- );
+-- 
+-- alter table public.push_subscriptions enable row level security;
+-- 
+-- drop policy if exists "Users can view their own push subscriptions" on public.push_subscriptions;
+-- drop policy if exists "Users can insert their own push subscriptions" on public.push_subscriptions;
+-- drop policy if exists "Users can delete their own push subscriptions" on public.push_subscriptions;
+-- 
+-- create policy "Users can view their own push subscriptions"
+--   on public.push_subscriptions for select to authenticated
+--   using (auth.uid() = user_id);
+-- create policy "Users can insert their own push subscriptions"
+--   on public.push_subscriptions for insert to authenticated
+--   with check (auth.uid() = user_id);
+-- create policy "Users can delete their own push subscriptions"
+--   on public.push_subscriptions for delete to authenticated
+--   using (auth.uid() = user_id);
+-- 
+-- revoke all on public.push_subscriptions from public, anon;
+-- revoke all on public.push_subscriptions from authenticated;
+-- grant select, insert, delete on public.push_subscriptions to authenticated;
+-- grant all on public.push_subscriptions to service_role;
+-- 
+
+-- FIM DAS TRANSCRICOES. NAO EXECUTAR.
+-- PROXIMA ETAPA DOCUMENTAL: extrair catalogo somente-leitura no Lovable Cloud,
+-- confrontar com estas migracoes, revisar diferencas, e somente entao
+-- produzir snapshot de producao validado FORA do runner de migracoes.
