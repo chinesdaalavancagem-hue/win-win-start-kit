@@ -69,7 +69,7 @@ describe("Platform nativa", () => {
     const save = vi.fn(async () => true);
     await act(async () => { render(<Platform load={async () => JSON.stringify(initial)} save={save} isAdmin={false} officialAcceptedAt={null} />); });
     // A plataforma só aparece depois do carregamento dos dados e da tentativa de sincronização do Storage.
-    await screen.findByText("Meta do dia atual");
+    await screen.findAllByText(/Matriz operacional/i);
 
     if (shortcut) {
       fireEvent.keyDown(window, { code: "Digit2", shiftKey: operation === "profit", ctrlKey: operation === "stop" });
@@ -97,7 +97,7 @@ describe("Platform nativa", () => {
       const state = defaultState();
       state.assets.nasdaq.attempt.currentDayIndex = 1;
       await act(async () => { render(<Platform load={async () => JSON.stringify(state)} save={async () => true} isAdmin={true} officialAcceptedAt={null} />); });
-      await screen.findByText("Meta total prop firm");
+      await screen.findAllByText(/Matriz operacional/i);
       expect(scroll).not.toHaveBeenCalled();
 
       fireEvent.click(screen.getByRole("button", { name: /Profit/ }));
@@ -119,9 +119,11 @@ describe("Platform nativa", () => {
   it("carrega, alterna menus, registra Stop e salva", async () => {
     const save = vi.fn(async () => true);
     await act(async () => { render(<Platform load={async () => null} save={save} isAdmin={false} officialAcceptedAt={null} />); });
-    expect(await screen.findByText("Meta do dia atual")).toBeTruthy();
+    expect(await screen.findAllByText(/Matriz operacional/i)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Expandir menu" }));
     fireEvent.click(screen.getByRole("button", { name: "Parâmetros" }));
     expect(screen.getAllByText(/Limite geral EOD/).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: "Expandir menu" }));
     fireEvent.click(screen.getByRole("button", { name: "Operações" }));
     const stop = screen.getByRole("button", { name: /Stop/ });
     fireEvent.click(stop); fireEvent.click(screen.getByRole("button", { name: /confirmar/ }));
@@ -136,7 +138,7 @@ describe("Platform nativa", () => {
   it("salva o valor real liquidado no Stop com o spread", async () => {
     const save = vi.fn(async () => true);
     await act(async () => { render(<Platform load={async () => null} save={save} isAdmin={false} officialAcceptedAt={null} />); });
-    await screen.findByText("Meta do dia atual");
+    await screen.findAllByText(/Matriz operacional/i);
     fireEvent.click(screen.getByRole("button", { name: /Stop/ }));
     fireEvent.change(screen.getByLabelText(/Valor real liquidado/), { target: { value: "500" } });
     fireEvent.click(screen.getByRole("button", { name: /confirmar/ }));
