@@ -31,7 +31,10 @@ export const Route = createFileRoute("/api/plataforma/parametros-oficiais")({
       const collection = values?.official_parameters_by_mesa;
       const profiles = collection && typeof collection === "object" && !Array.isArray(collection) ? collection as Record<string, unknown> : {};
       const payload = profiles[mesa] ?? (mesa === "tradefive" ? values?.official_parameters : null);
-      return reply({ published: isOfficialParams(payload) && (payload.mesaFuturos ?? "tradefive") === mesa ? { payload, updatedAt: data?.updated_at } : null });
+      const rawDates = values?.official_parameters_dates_by_mesa;
+      const dates = rawDates && typeof rawDates === "object" && !Array.isArray(rawDates) ? rawDates as Record<string, unknown> : {};
+      const mesaUpdatedAt = typeof dates[mesa] === "string" ? dates[mesa] : data?.updated_at;
+      return reply({ published: isOfficialParams(payload) && (payload.mesaFuturos ?? "tradefive") === mesa ? { payload, updatedAt: mesaUpdatedAt } : null });
     },
     POST: async ({ request }) => {
       const ctx = await context(request);
@@ -47,8 +50,10 @@ export const Route = createFileRoute("/api/plataforma/parametros-oficiais")({
       const mesa = payload.mesaFuturos ?? "tradefive";
       const previousProfiles = fields.official_parameters_by_mesa;
       const byMesa = previousProfiles && typeof previousProfiles === "object" && !Array.isArray(previousProfiles) ? previousProfiles as Record<string, Json> : {};
-      const published_values = { ...fields, official_parameters_by_mesa: { ...byMesa, [mesa]: payload as unknown as Json } };
+      const oldDates = fields.official_parameters_dates_by_mesa;
+      const datesByMesa = oldDates && typeof oldDates === "object" && !Array.isArray(oldDates) ? oldDates as Record<string, Json> : {};
       const updated_at = new Date().toISOString();
+      const published_values = { ...fields, official_parameters_by_mesa: { ...byMesa, [mesa]: payload as unknown as Json }, official_parameters_dates_by_mesa: { ...datesByMesa, [mesa]: updated_at } };
       const result = old
         ? await ctx.db.from("master_number_sync").update({ published_values, updated_at }).eq("id", "default").select("id").single()
         : await ctx.db.from("master_number_sync").insert({ id: "default", admin_user_id: ctx.userId, enabled: false, allowed_fields: [], published_values, updated_at }).select("id").single();
