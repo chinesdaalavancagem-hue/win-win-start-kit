@@ -87,6 +87,16 @@ describe("JSON oficial de parâmetros", () => {
     expect(s.assets.nasdaq.attempt).toEqual(before.assets.nasdaq.attempt);
   });
 
+  it("mantém o valor real pago pela banca ao importar JSON oficial", () => {
+    const s = commonState();
+    s.assets.nasdaq.params.taxa = 79.99;
+    s.assets.ouro.params.taxa = 79.99;
+    const payload = roundTrip(masterState());
+    applyOfficialParams(s, payload);
+    expect(s.assets.nasdaq.params.taxa).toBe(79.99);
+    expect(s.assets.ouro.params.taxa).toBe(79.99);
+  });
+
   it("preserva ativos nao selecionados", () => {
     const payload = roundTrip(masterState());
     const common = commonState();
