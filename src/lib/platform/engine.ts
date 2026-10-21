@@ -228,6 +228,12 @@ export function lossLimitGoldProjetado(a: Asset, indice: number): number {
   return Math.max(0, (50000 + metasAnteriores) * 0.04);
 }
 
+export function lossLimitGoldEfetivo(a: Asset, indice: number): number {
+  if (indice <= diasAvaliacaoGold(a)) return 2000;
+  const manual = a.days[indice]?.mll;
+  return typeof manual === "number" && Number.isFinite(manual) && manual > 0 ? manual : lossLimitGoldProjetado(a, indice);
+}
+
 export function computeAssetCalcs(a: Asset, key: AssetKey): DayCalc[] {
   const { mnq: mnqPt, hfm: hfmPt, taxa, lucroDesejado } = a.params;
   const incluiPretensao = key === "saque2";
@@ -237,7 +243,7 @@ export function computeAssetCalcs(a: Asset, key: AssetKey): DayCalc[] {
     const pontos = exp > 0 ? d.meta / exp : 0;
     const custoSePassar = pontos * d.lotes * hfmPt;
     const indice = a.days.indexOf(d);
-    const limite = key === "ouro" ? lossLimitGoldProjetado(a, indice) : dayMll(a, d);
+    const limite = key === "ouro" ? lossLimitGoldEfetivo(a, indice) : dayMll(a, d);
     const pontosReprova = exp > 0 ? limite / exp : 0;
     const reprova = pontosReprova * d.lotes * hfmPt;
     const dividaReal = divida;
