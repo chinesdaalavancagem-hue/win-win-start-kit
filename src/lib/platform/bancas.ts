@@ -1,10 +1,10 @@
-import { type State, type AssetKey, type Bonus, defaultState, historicoTotals, isValidState, normalizeState, tipoLabel } from "./engine";
+import { type State, type AssetKey, type Bonus, type MesaFuturos, defaultState, historicoTotals, isValidState, normalizeState, tipoLabel } from "./engine";
 import { challengeAccountSchema, type ChallengeAccount } from "../prop-firms";
 
 export type BancaAtivo = "nasdaq" | "ouro";
-export interface Banca { id: string; nome: string; criadaEm: number; state: State; taxaCompra?: number; ativo?: BancaAtivo; officialAcceptedAt?: string; challengeAccount?: ChallengeAccount }
+export interface Banca { id: string; nome: string; criadaEm: number; state: State; taxaCompra?: number; mesa?: MesaFuturos; ativo?: BancaAtivo; officialAcceptedAt?: string; challengeAccount?: ChallengeAccount }
 export interface ForexCompartilhado { cfdBalance: number; forexSaldoReal?: number | undefined; bonus: Record<AssetKey, Bonus> }
-export interface BancasDoc { bancasVersion: 1; activeId: string; bancas: Banca[]; forex?: ForexCompartilhado }
+export interface BancasDoc { bancasVersion: 1; activeId: string; bancas: Banca[]; mesaAtiva?: MesaFuturos; activeIdsMesa?: Partial<Record<MesaFuturos, string>>; forex?: ForexCompartilhado }
 
 export function extrairForex(state: State): ForexCompartilhado {
   return { cfdBalance: state.cfdBalance, forexSaldoReal: state.forexSaldoReal, bonus: {
@@ -49,17 +49,21 @@ export function parseBancas(raw: string | null): BancasDoc {
     const bancas: Banca[] = p.bancas.map((b: any, i: number) => ({
       id: String(b.id || newId()), nome: String(b.nome || `Banca ${i + 1}`), criadaEm: Number(b.criadaEm) || Date.now(),
       state: isValidState(b.state) ? normalizeState(b.state) : defaultState(),
+      mesa: b.mesa === "lucid" || b.mesa === "mff" ? b.mesa : "tradefive",
       ...(Number.isFinite(b.taxaCompra) && b.taxaCompra >= 0 ? { taxaCompra: b.taxaCompra } : {}),
       ...(b.ativo === "nasdaq" || b.ativo === "ouro" ? { ativo: b.ativo } : {}),
       ...(typeof b.officialAcceptedAt === "string" ? { officialAcceptedAt: b.officialAcceptedAt } : {}),
       ...(challengeAccountSchema.safeParse(b.challengeAccount).success ? { challengeAccount: challengeAccountSchema.parse(b.challengeAccount) } : {}),
     }));
     const activeId = bancas.some((b) => b.id === p.activeId) ? p.activeId : bancas[0]?.id ?? "";
-    const doc: BancasDoc = { bancasVersion: 1, activeId, bancas };
+    const mesaAtiva: MesaFuturos = p.mesaAtiva === "lucid" || p.mesaAtiva === "mff" ? p.mesaAtiva : "tradefive";
+    const ids = p.activeIdsMesa && typeof p.activeIdsMesa === "object" ? p.activeIdsMesa as Partial<Record<MesaFuturos, string>> : {};
+    const activeIdsMesa = { ...ids, tradefive: ids.tradefive ?? activeId };
+    const doc: BancasDoc = { bancasVersion: 1, activeId, bancas, mesaAtiva, activeIdsMesa };
     return { ...doc, forex: p.forex && Number.isFinite(p.forex.cfdBalance) && p.forex.bonus ? p.forex : forexDoDocumento(doc) };
   }
   const first = novaBanca("Banca principal", isValidState(p) ? normalizeState(p) : defaultState());
-  return { bancasVersion: 1, activeId: first.id, bancas: [first], forex: extrairForex(first.state) };
+  return { bancasVersion: 1, activeId: first.id, bancas: [first], mesaAtiva: "tradefive", activeIdsMesa: { tradefive: first.id }, forex: extrairForex(first.state) };
 }
 
 export function resumoBanca(b: Banca) {
