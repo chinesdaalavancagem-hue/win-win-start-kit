@@ -241,7 +241,8 @@ export function handleStop(s: State, key: AssetKey, realCfd?: number) {
   const delta = calc.reprova - taxaCobrada;
   const prev = { prevBonusTodos: Object.fromEntries(ASSETS.map((k) => [k, structuredClone(s.assets[k].bonus)])) as Record<AssetKey, Bonus>, prevForexSaldoReal: s.forexSaldoReal, prevCfdBalance: s.cfdBalance, prevCounts: { ...s.counts }, prevDayIndex: a.attempt.currentDayIndex, prevCycleCost: a.attempt.cycleCost || 0, prevCustoProprioAcumulado: a.attempt.custoProprioAcumulado || 0, prevTotalGasto: s.totalGasto, prevBonusDeposito: a.bonus.deposito || 0, prevBonusAtual: a.bonus.bonusAtual || 0 };
   const custoTotalCiclo = prev.prevCycleCost + taxaCobrada;
-  a.bonus.deposito = (a.bonus.deposito || 0) + calc.reprova;
+  if (calc.reprova >= 0) a.bonus.deposito = (a.bonus.deposito || 0) + calc.reprova;
+  else debitarCustoDoBonus(s, key, -calc.reprova);
   atualizarSaldoReal(s, calc.reprova);
   const resultadoReal = calc.reprova - custoTotalCiclo;
   s.cfdBalance += delta;
