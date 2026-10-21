@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Platform } from "./Platform";
-import { fmt, fmtSigned } from "@/lib/platform/engine";
+import { fmt, fmtSigned, MESAS_FUTUROS, selecionarMesaGold, type MesaFuturos } from "@/lib/platform/engine";
 import { type BancasDoc, aplicarForex, extrairForex, forexDoDocumento, novaBanca, parseBancas, relatorioCsv, resumoBanca } from "@/lib/platform/bancas";
 import { Plus, Building2, CheckCircle2, Pencil, Trash2, Download, ArrowUpRight, WalletCards, Activity } from "lucide-react";
 
@@ -18,9 +18,20 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
 
   const persist = useCallback((d: BancasDoc) => { docRef.current = d; setDoc(d); return save(JSON.stringify(d)); }, [save]);
 
-  const activeId = doc?.activeId;
+  const mesa = doc?.mesaAtiva ?? "tradefive";
+  const bancasDaMesa = doc?.bancas.filter((b) => (b.mesa ?? "tradefive") === mesa) ?? [];
+  const selecionada = bancasDaMesa.find((b) => b.id === doc?.activeIdsMesa?.[mesa]) ?? bancasDaMesa.find((b) => b.id === doc?.activeId) ?? bancasDaMesa[0];
+  const activeId = selecionada?.id;
+  const escolherBanca = (id: string) => { if (doc) persist({ ...doc, activeId: id, activeIdsMesa: { ...doc.activeIdsMesa, [mesa]: id } }); };
+  const escolherMesa = (nova: MesaFuturos) => {
+    if (!doc) return;
+    const contas = doc.bancas.filter((b) => (b.mesa ?? "tradefive") === nova);
+    const id = contas.find((b) => b.id === doc.activeIdsMesa?.[nova])?.id ?? contas[0]?.id ?? "";
+    persist({ ...doc, mesaAtiva: nova, activeId: id, activeIdsMesa: { ...doc.activeIdsMesa, [nova]: id } });
+    setPainel(true);
+  };
   const loadActive = useCallback(async () => {
-    const d = docRef.current; const b = d?.bancas.find((x) => x.id === d.activeId);
+    const d = docRef.current; const b = d?.bancas.find((x) => x.id === activeId);
     return b ? JSON.stringify((() => { const state = aplicarForex(b.state, forexDoDocumento(d!)); if (typeof b.taxaCompra === "number") { state.assets.nasdaq.params.taxa = b.taxaCompra; state.assets.ouro.params.taxa = b.taxaCompra; } return state; })()) : null;
   }, [activeId]); // eslint-disable-line react-hooks/exhaustive-deps
   const saveActive = useCallback(async (v: string, acceptedAt?: string) => {
@@ -39,8 +50,7 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
 
   if (err) return <p className="m-auto text-destructive">Falha ao carregar as bancas.</p>;
   if (!doc) return <p className="m-auto text-muted-foreground">Carregando bancas...</p>;
-  const ativa = doc.bancas.find((b) => b.id === doc.activeId) ?? doc.bancas[0];
-  if (!ativa) return <p className="m-auto text-destructive">Nenhuma banca disponível.</p>;
+  const ativa = selecionada;
 
   function exportar() {
     const current = docRef.current;
@@ -63,14 +73,14 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
             <label htmlFor="banca-sel" className="sr-only">Banca ativa</label>
             <div className="flex min-w-0 items-center gap-2 rounded-xl border border-cyan-950 bg-[#071426] px-3 py-2.5 sm:min-w-[230px]">
               <Activity className="size-4 shrink-0 text-cyan-300" />
-              <select id="banca-sel" value={doc.activeId} onChange={(e) => persist({ ...doc, activeId: e.target.value })}
+              <select id="banca-sel" value={ativa?.id ?? ""} onChange={(e) => escolherBanca(e.target.value)}
                 className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-blue-100 outline-none">
-                {doc.bancas.map((b) => <option key={b.id} value={b.id} className="bg-[#071426]">{b.nome}</option>)}
+                {bancasDaMesa.map((b) => <option key={b.id} value={b.id} className="bg-[#071426]">{b.nome}</option>)}
               </select>
               <span className="shrink-0 rounded-md bg-emerald-400/10 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-300">Ativa</span>
             </div>
             <Button size="sm" variant="outline" className="h-10 rounded-xl border-cyan-900/80 bg-[#071426] text-blue-100 hover:border-cyan-400 hover:bg-blue-950/60" onClick={() => setPainel(!painel)} aria-expanded={painel}>
-              <WalletCards className="size-4" />{painel ? "Fechar gestão" : `Minhas bancas · ${doc.bancas.length}`}
+              <WalletCards className="size-4" />{painel ? "Fechar gestão" : `Minhas bancas · ${bancasDaMesa.length}`}
             </Button>
           </div>
         </div>
