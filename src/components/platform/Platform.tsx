@@ -3,12 +3,12 @@ import { createPortal } from "react-dom";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { Undo2, FileText, Layers, Target, TrendingUp, ShieldCheck, Wallet, ChevronRight, Crosshair, Calculator, Check, ChartNoAxesCombined, Landmark, History, Menu, X, SlidersHorizontal, Gift, CircleDollarSign, ChartPie } from "lucide-react";
+import { Undo2, FileText, Layers, Target, TrendingUp, ShieldCheck, Wallet, ChevronRight, Crosshair, Calculator, Check, ChartNoAxesCombined, Landmark, History, Menu, X, SlidersHorizontal, Gift, CircleDollarSign, ChartPie, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { registrarAuditoria } from "@/lib/auditoria-registro";
 import { applyOfficialParams, buildOfficialParams, isOfficialParams } from "@/lib/platform/official-params";
 import {
-  type AssetKey, type State, type TabKey, type Asset,
+  type AssetKey, type State, type TabKey, type Asset, type MesaFuturos, MESAS_FUTUROS, selecionarMesaGold,
   aplicarDeposito, aplicarSaque, conciliarCreditoForex, calcAporteFracionado, calcCaixaCiclo, clampDayIndex, computeAssetCalcs, defaultState, fmt, fmtSigned, handleProfit, handleStop,
   historicoTotals, isValidState, normalizeState, parseNum, projetarZeragemBonus, resetBonus, tipoLabel, undoLast,
 } from "@/lib/platform/engine";
@@ -18,17 +18,18 @@ type Sync = { mode: "ok" | "busy" | "err"; text: string };
 
 const TABS: { key: TabKey; label: string; dot: string }[] = [
   { key: "nasdaq", label: "Nasdaq", dot: "bg-primary" },
-  { key: "ouro", label: "Ouro", dot: "bg-brand-gold" },
+  { key: "ouro", label: "Gold", dot: "bg-brand-gold" },
   { key: "saque2", label: "Saque 2", dot: "bg-brand-violet" },
   { key: "historico", label: "Histórico", dot: "bg-muted-foreground" },
 ];
-const ASSET_NAME: Record<AssetKey, string> = { nasdaq: "NASDAQ", ouro: "OURO", saque2: "SAQUE 2" };
+const ASSET_NAME: Record<AssetKey, string> = { nasdaq: "NASDAQ", ouro: "GOLD", saque2: "SAQUE 2" };
 
 export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas }: { load: () => Promise<string | null>; save: (v: string, acceptedAt?: string) => Promise<boolean>; isAdmin: boolean; officialAcceptedAt: string | null; allBancas?: Banca[] }) {
   const [state, setState] = useState<State | null>(null);
   const [section, setSection] = useState<Section>("operacoes");
   const [leftMenuOpen, setLeftMenuOpen] = useState(false);
   const [activeTabLabel, setActiveTabLabel] = useState<TabKey | null>(null);
+  const [mostrarMesas, setMostrarMesas] = useState(false);
   useEffect(() => {
     if (!activeTabLabel) return;
     const timer = window.setTimeout(() => setActiveTabLabel(null), 2000);
@@ -151,6 +152,7 @@ export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas }:
 
 
       <nav className="fixed right-1 top-1/2 z-40 flex -translate-y-1/2 flex-col lg:right-2 lg:translate-y-0 gap-2 rounded-2xl border border-cyan-900/70 bg-[#050d1b]/95 p-1 shadow-xl sm:p-1.5" aria-label="Ativos e histórico" style={{ top: typeof window !== "undefined" && window.innerWidth >= 1024 ? desktopRailTop : undefined }}>
+        <button type="button" title="Escolher mesa de futuros" aria-label="Escolher mesa de futuros" aria-expanded={mostrarMesas} onClick={() => setMostrarMesas((v) => !v)} className={cn("relative flex size-10 items-center justify-center rounded-xl border transition-colors lg:size-14", mostrarMesas ? "border-amber-400/70 bg-amber-950/60 text-amber-200" : "border-transparent text-amber-300 hover:bg-amber-950/50")}><Building2 className="size-5" /></button>
         {TABS.map((t) => (
           <button key={t.key} type="button" title={t.label} aria-label={t.label} aria-pressed={tab === t.key} onClick={() => { setActiveTabLabel(null); mutate((s) => { s.activeTab = t.key; }); setActiveTabLabel(t.key); }}
             className={cn("relative flex size-10 items-center justify-center rounded-xl border transition-colors lg:size-14", tab === t.key ? "border-cyan-400/70 bg-blue-950 text-white" : "border-transparent text-slate-400 hover:bg-blue-950/60")}>
@@ -159,6 +161,20 @@ export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas }:
           </button>
         ))}
       </nav>
+      {mostrarMesas && (
+        <aside className="fixed right-14 top-1/2 z-50 w-[min(20rem,calc(100vw-5rem))] -translate-y-1/2 rounded-xl border border-amber-500/40 bg-[#091525] p-4 shadow-2xl lg:right-20" aria-label="Escolher mesa de futuros">
+          <div className="mb-3 flex items-center justify-between gap-2"><h3 className="font-bold text-amber-200">Mesa de futuros · Gold</h3><button type="button" aria-label="Fechar seleção de mesa" className="text-slate-300 hover:text-white" onClick={() => setMostrarMesas(false)}>✕</button></div>
+          <label className="block text-xs text-slate-300">Mesa utilizada nesta banca</label>
+          <select className="mt-2 w-full rounded-lg border border-amber-800/70 bg-[#06101f] p-3 text-sm text-white" value={state.assets.ouro.mesaFuturos ?? "tradefive"} onChange={(e) => {
+            const mesa = e.target.value as MesaFuturos;
+            mutate((st) => selecionarMesaGold(st.assets.ouro, mesa));
+          }}>
+            {Object.entries(MESAS_FUTUROS).map(([id, m]) => <option key={id} value={id}>{m.nome} · {m.consistencia}%</option>)}
+          </select>
+          <p className="mt-3 text-xs leading-relaxed text-slate-300">{(() => { const m = MESAS_FUTUROS[state.assets.ouro.mesaFuturos ?? "tradefive"]; return `${m.avaliacao} dias de avaliação + ${m.payout} dias para payout = ${m.avaliacao + m.payout} cards.`; })()}</p>
+          <p className="mt-2 text-[11px] text-amber-200/80">Cada mesa mantém seus próprios lotes, metas e cards nesta banca. Confira as metas e as regras reais da sua conta antes de operar.</p>
+        </aside>
+      )}
       <div className="sticky z-20 mb-3 rounded-xl border border-cyan-950/80 bg-[#06101f]/95 p-2 shadow-lg backdrop-blur-md sm:p-3" style={{ top: headerHeight + 8 }}>
         <div className="mb-3 flex flex-wrap items-center gap-2 text-sm text-blue-100/70">
           <span className="size-2.5 rounded-full bg-amber-400 shadow-[0_0_10px_rgba(255,190,40,0.4)]" />
@@ -454,7 +470,7 @@ function AssetView({ state, assetKey, section, setSection, leftMenuOpen, setLeft
                     const p = s.assets.saque2.params; const v = e.target.value === "nasdaq" ? "nasdaq" : "ouro";
                     p.ativoReal = v; if (v === "nasdaq") { p.mnq = 2; p.hfm = 1; } else { p.mnq = 10; p.hfm = 100; }
                   })}>
-                  <option value="ouro">Ouro (MGC)</option>
+                  <option value="ouro">Gold (MGC)</option>
                   <option value="nasdaq">Nasdaq</option>
                 </select>
               </label>
@@ -1098,7 +1114,7 @@ function StrategyNotes() {
         <p>A mesa precisa ter <strong>somente limite geral EOD</strong> (só se move no fim do dia). Mesa com limite diário não serve.</p>
         <p><strong>Profit</strong>: bateu a meta do dia e avança para o próximo dia. No último dia, a conta é aprovada (ou o saque é gerado, no Saque 2). <strong>Stop</strong>: reprovou — o bruto entra no saldo e o ciclo reinicia no D1.</p>
         <p>Se a conta passar em todos os dias, perde-se o que foi depositado no CFD, mas o saque da mesa devolve esse valor e ainda sobra uma conta financiada. A aba <strong>Saque 2</strong> calcula o próximo saque, que custa bem menos no CFD que o primeiro ciclo.</p>
-        <p>O histórico é único, somando Nasdaq, Ouro e Saque 2. Tudo é salvo automaticamente na sua conta.</p>
+        <p>O histórico é único, somando Nasdaq, Gold e Saque 2. Tudo é salvo automaticamente na sua conta.</p>
       </div>
     </details>
   );
