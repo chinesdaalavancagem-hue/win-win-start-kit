@@ -1,26 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { defaultState, selecionarMesaGold, computeAssetCalcs } from "@/lib/platform/engine";
+import { defaultState, selecionarMesaGold, computeAssetCalcs, lossLimitGoldProjetado } from "@/lib/platform/engine";
 
-describe("limite de reprovação diário do Gold", () => {
-  it("fixa 2000 na avaliação e primeiro dia financiado por mesa", () => {
+describe("limite EOD projetado do Gold", () => {
+  it("mantém $2000 durante avaliação e no D1 financiado por mesa", () => {
     for (const [mesa, avaliacao] of [["tradefive", 3], ["lucid", 2], ["mff", 4]] as const) {
-      const s = defaultState();
-      const a = s.assets.ouro;
+      const a = defaultState().assets.ouro;
       selecionarMesaGold(a, mesa);
       a.days.forEach((d) => { d.mnq = 20; d.mll = 3456; });
-      const c = computeAssetCalcs(a, "ouro");
-      expect(c[0]?.pontosReprova).toBe(10);
-      expect(c[avaliacao]?.pontosReprova).toBe(10);
-      expect(c[avaliacao + 1]?.pontosReprova).toBe(17.28);
+      expect(lossLimitGoldProjetado(a, 0)).toBe(2000);
+      expect(lossLimitGoldProjetado(a, avaliacao)).toBe(2000);
+      expect(computeAssetCalcs(a, "ouro")[avaliacao]?.pontosReprova).toBe(10);
     }
   });
-  it("não apresenta estimativa para financiada D2 sem limite real informado", () => {
+  it("projeta $2120 após meta de $3000 no primeiro financiado", () => {
     const a = defaultState().assets.ouro;
     selecionarMesaGold(a, "lucid");
-    delete a.days[3]?.mll;
-    const c = computeAssetCalcs(a, "ouro");
-    expect(c[3]?.pontosReprova).toBe(0);
-    a.days[3]!.mll = 1200;
+    a.days[2]!.meta = 3000;
+    expect(lossLimitGoldProjetado(a, 3)).toBe(2120);
     expect(computeAssetCalcs(a, "ouro")[3]?.pontosReprova).toBeGreaterThan(0);
   });
 });
