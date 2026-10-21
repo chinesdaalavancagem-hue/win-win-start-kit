@@ -3,11 +3,11 @@ import { challengeAccountSchema, type ChallengeAccount } from "../prop-firms";
 
 export type BancaAtivo = "nasdaq" | "ouro";
 export interface Banca { id: string; nome: string; criadaEm: number; state: State; ativo?: BancaAtivo; officialAcceptedAt?: string; challengeAccount?: ChallengeAccount }
-export interface ForexCompartilhado { cfdBalance: number; bonus: Record<AssetKey, Bonus> }
+export interface ForexCompartilhado { cfdBalance: number; forexSaldoReal?: number; bonus: Record<AssetKey, Bonus> }
 export interface BancasDoc { bancasVersion: 1; activeId: string; bancas: Banca[]; forex?: ForexCompartilhado }
 
 export function extrairForex(state: State): ForexCompartilhado {
-  return { cfdBalance: state.cfdBalance, bonus: {
+  return { cfdBalance: state.cfdBalance, forexSaldoReal: state.forexSaldoReal, bonus: {
     nasdaq: structuredClone(state.assets.nasdaq.bonus),
     ouro: structuredClone(state.assets.ouro.bonus),
     saque2: structuredClone(state.assets.saque2.bonus),
@@ -16,6 +16,7 @@ export function extrairForex(state: State): ForexCompartilhado {
 export function aplicarForex(state: State, forex: ForexCompartilhado): State {
   const next = structuredClone(state);
   next.cfdBalance = forex.cfdBalance;
+  next.forexSaldoReal = Number.isFinite(forex.forexSaldoReal) ? forex.forexSaldoReal : Object.values(forex.bonus).reduce((t, b) => t + Math.max(0, b.deposito || 0), 0);
   for (const key of ["nasdaq", "ouro", "saque2"] as AssetKey[]) {
     next.assets[key].bonus = structuredClone(forex.bonus[key]);
     next.assets[key].params.saldoInicial = forex.bonus[key].deposito + forex.bonus[key].bonusAtual;
