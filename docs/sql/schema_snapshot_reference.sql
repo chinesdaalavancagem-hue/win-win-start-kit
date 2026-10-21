@@ -1,0 +1,51 @@
+-- WIN OR WIN PLATFORM - ESQUEMA DE REFERENCIA (INCOMPLETO)
+-- NAO EXECUTAR. NAO USAR COMO MIGRACAO OU RESTAURACAO.
+-- Documento de inventario versionado; nao e um dump extraido do Lovable Cloud.
+-- Acesso do ChatGPT ao projeto de producao Lovable Cloud NAO foi confirmado.
+-- Fonte A: relatorio de auditoria fornecido pelo proprietario em 2026-10-21.
+-- Fonte B: arquivos efetivamente lidos na main do GitHub.
+--
+-- OBJETOS REPORTADOS (AINDA NAO CONFERIDOS DIRETAMENTE NO CATALOGO DE PRODUCAO):
+-- public.app_data, profiles, user_roles, order_queue, integration_tokens,
+-- activity_logs, audit_logs, prop_firms, push_subscriptions, terms_acceptances,
+-- trusted_devices, trusted_device_settings, ai_analysis_daily_usage,
+-- master_number_sync.
+-- Tipo relatado: public.app_role ('admin','user').
+-- Funcoes relatadas: has_role, is_approved, handle_new_user,
+-- register_trusted_device, consume_ai_analysis_quota, log_failed_login.
+-- Trigger relatada: auth.users.on_auth_user_created.
+-- RLS: 17 politicas relatadas, mas definicoes completas NAO foram extraidas.
+-- Storage: bucket downloads e 3 objetos relatados; bytes nao exportados.
+--
+-- DOCUMENTOS SQL CONFIRMADOS NO GITHUB (main):
+-- supabase/migrations/20261012000000_push_subscriptions.sql
+-- drizzle/migrations/0011_terms_acceptances.sql
+-- drizzle/migrations/0014_app_data_version.sql
+-- docs/sql/terms_acceptances.sql
+--
+-- Evidencia confirmada: app_data.version integer NOT NULL DEFAULT 1
+-- (drizzle/migrations/0014_app_data_version.sql).
+-- Evidencia confirmada: push_subscriptions usa id uuid PK DEFAULT
+-- gen_random_uuid(), user_id uuid references profiles(id) ON DELETE CASCADE,
+-- endpoint, p256dh, auth text, created_at timestamptz, UNIQUE(user_id,endpoint)
+-- e 3 politicas RLS SELECT/INSERT/DELETE para authenticated
+-- (supabase/migrations/20261012000000_push_subscriptions.sql).
+-- Evidencia confirmada: terms_acceptances possui id uuid PK, user_id uuid
+-- REFERENCES profiles(id) ON DELETE CASCADE, terms_version text,
+-- accepted_at timestamptz, device_hash text, UNIQUE(user_id,terms_version)
+-- e indice terms_acceptances_user_accepted_at_idx
+-- (drizzle/migrations/0011_terms_acceptances.sql).
+--
+-- BLOQUEIOS PARA UM SNAPSHOT COMPLETO E FIEL:
+-- 1. Obter DDL real de todas as 14 tabelas com defaults/checks/FKs/indexes.
+-- 2. Extrair pg_get_functiondef de TODAS as funcoes e respectivos owners,
+--    search_path, SECURITY DEFINER e privilegios de EXECUTE.
+-- 3. Extrair pg_get_triggerdef e pg_get_indexdef para cada objeto.
+-- 4. Extrair pg_policies/pg_policy incluindo comandos e expressoes integrais.
+-- 5. Extrair grants/revokes e configuracoes de RLS FORCE/ENABLE por tabela.
+-- 6. Conferir versoes/drizzle.__drizzle_migrations e dependencias de auth.
+-- 7. Comparar o inventario com o banco de producao em consulta read-only.
+--
+-- ATENCAO: ESTE ARQUIVO NAO PERMITE RECONSTRUIR O BANCO.
+-- Somente apos validacao do DDL extraido do Lovable Cloud substituir esta
+-- referencia por um snapshot integral, sem movê-lo para supabase/migrations/.
