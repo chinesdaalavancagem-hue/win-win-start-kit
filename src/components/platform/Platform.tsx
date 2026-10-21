@@ -9,7 +9,7 @@ import { registrarAuditoria } from "@/lib/auditoria-registro";
 import { applyOfficialParams, buildOfficialParams, isOfficialParams } from "@/lib/platform/official-params";
 import {
   type AssetKey, type State, type TabKey, type Asset,
-  aplicarDeposito, aplicarSaque, calcAporteFracionado, calcCaixaCiclo, clampDayIndex, computeAssetCalcs, defaultState, fmt, fmtSigned, handleProfit, handleStop,
+  aplicarDeposito, aplicarSaque, conciliarCreditoForex, calcAporteFracionado, calcCaixaCiclo, clampDayIndex, computeAssetCalcs, defaultState, fmt, fmtSigned, handleProfit, handleStop,
   historicoTotals, isValidState, normalizeState, parseNum, projetarZeragemBonus, resetBonus, tipoLabel, undoLast,
 } from "@/lib/platform/engine";
 
@@ -679,6 +679,7 @@ function BonusPanel({ state, assetKey, reserva, folga, mutate }: { state: State;
   const [dep, setDep] = useState("");
   const [saq, setSaq] = useState("");
   const [saldoMt5, setSaldoMt5] = useState("");
+  const [creditoMt5, setCreditoMt5] = useState("");
   const saldoReal = state.forexSaldoReal ?? 0;
   const bonusForex = Object.values(state.assets).reduce((t, a) => t + Math.max(0, a.bonus.bonusAtual), 0);
   const total = saldoReal + bonusForex;
@@ -687,6 +688,7 @@ function BonusPanel({ state, assetKey, reserva, folga, mutate }: { state: State;
   let ultima = "nenhum depósito ou saque registrado ainda.";
   if (last?.tipo === "deposito") ultima = `última ação: depósito de $${fmt(last.valor)} (+$${fmt(last.bonusGanho || 0)} de bônus) em ${dateStr(last.ts)}`;
   else if (last?.tipo === "saque") ultima = `última ação: saque de $${fmt(last.valor)} (proporção ${fmt((last.proporcao || 0) * 100)}% · bônus reduzido em $${fmt(last.bonusReduzido || 0)}) em ${dateStr(last.ts)}`;
+  else if (last?.tipo === "ajuste_credito") ultima = `última ação: crédito conciliado em ${dateStr(last.ts)} (variação ${fmt(last.valor)})`;
   else if (last) ultima = `última ação: bônus e depósito próprio zerados (bônus $${fmt(last.valor)}${last.depositoZerado ? ` + depósito $${fmt(last.depositoZerado)}` : ""}) em ${dateStr(last.ts)}`;
 
   const linhas: ReactNode[] = [];
@@ -747,7 +749,7 @@ function BonusPanel({ state, assetKey, reserva, folga, mutate }: { state: State;
           </div>
         </div>
 
-        <div className="mb-4 rounded-xl border border-[#18324e] bg-[#081321]/80 p-3.5"><p className="mb-2 text-xs text-slate-300">Conferir saldo real com o MetaTrader (para conciliar registros antigos; não apaga histórico)</p><div className="flex gap-2"><input aria-label="Saldo real MetaTrader" inputMode="decimal" className="min-w-0 flex-1 rounded-lg border border-[#19334f] bg-[#071321] px-3 py-2 font-mono text-sm" placeholder="Saldo real atual ($)" value={saldoMt5} onChange={(e) => setSaldoMt5(e.target.value)} /><Button type="button" variant="outline" disabled={!saldoMt5.trim() || parseNum(saldoMt5) < 0} onClick={() => { const valor = parseNum(saldoMt5); mutate((s) => { s.forexSaldoReal = valor; }); setSaldoMt5(""); }}>Conferir</Button></div></div>
+        <div className="mb-4 rounded-xl border border-[#18324e] bg-[#081321]/80 p-3.5"><p className="mb-2 text-xs text-slate-300">Conferir saldo real com o MetaTrader (para conciliar registros antigos; não apaga histórico)</p><div className="flex gap-2"><input aria-label="Saldo real MetaTrader" inputMode="decimal" className="min-w-0 flex-1 rounded-lg border border-[#19334f] bg-[#071321] px-3 py-2 font-mono text-sm" placeholder="Saldo real atual ($)" value={saldoMt5} onChange={(e) => setSaldoMt5(e.target.value)} /><Button type="button" variant="outline" disabled={!saldoMt5.trim() || parseNum(saldoMt5) < 0} onClick={() => { const valor = parseNum(saldoMt5); mutate((s) => { s.forexSaldoReal = valor; }); setSaldoMt5(""); }}>Conferir</Button></div><div className="mt-2 flex gap-2"><input aria-label="Crédito atual MetaTrader" inputMode="decimal" className="min-w-0 flex-1 rounded-lg border border-[#19334f] bg-[#071321] px-3 py-2 font-mono text-sm" placeholder="Crédito atual MT5 ($)" value={creditoMt5} onChange={(e) => setCreditoMt5(e.target.value)} /><Button type="button" variant="outline" disabled={!creditoMt5.trim() || parseNum(creditoMt5) < 0} onClick={() => { const valor = parseNum(creditoMt5); mutate((s) => conciliarCreditoForex(s, assetKey, valor)); setCreditoMt5(""); }}>Conferir crédito</Button></div></div>
         <div className="mb-5 rounded-xl border border-[#18324e] bg-[#081321]/80 p-4 sm:p-5">
           <div className="mb-4 flex items-center gap-2">
             <Calculator className="size-4 text-cyan-400" />
