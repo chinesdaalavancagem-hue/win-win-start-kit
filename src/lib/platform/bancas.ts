@@ -2,7 +2,7 @@ import { type State, type AssetKey, type Bonus, defaultState, historicoTotals, i
 import { challengeAccountSchema, type ChallengeAccount } from "../prop-firms";
 
 export type BancaAtivo = "nasdaq" | "ouro";
-export interface Banca { id: string; nome: string; criadaEm: number; state: State; ativo?: BancaAtivo; officialAcceptedAt?: string; challengeAccount?: ChallengeAccount }
+export interface Banca { id: string; nome: string; criadaEm: number; state: State; taxaCompra?: number; ativo?: BancaAtivo; officialAcceptedAt?: string; challengeAccount?: ChallengeAccount }
 export interface ForexCompartilhado { cfdBalance: number; forexSaldoReal?: number | undefined; bonus: Record<AssetKey, Bonus> }
 export interface BancasDoc { bancasVersion: 1; activeId: string; bancas: Banca[]; forex?: ForexCompartilhado }
 
@@ -49,6 +49,7 @@ export function parseBancas(raw: string | null): BancasDoc {
     const bancas: Banca[] = p.bancas.map((b: any, i: number) => ({
       id: String(b.id || newId()), nome: String(b.nome || `Banca ${i + 1}`), criadaEm: Number(b.criadaEm) || Date.now(),
       state: isValidState(b.state) ? normalizeState(b.state) : defaultState(),
+      ...(Number.isFinite(b.taxaCompra) && b.taxaCompra >= 0 ? { taxaCompra: b.taxaCompra } : {}),
       ...(b.ativo === "nasdaq" || b.ativo === "ouro" ? { ativo: b.ativo } : {}),
       ...(typeof b.officialAcceptedAt === "string" ? { officialAcceptedAt: b.officialAcceptedAt } : {}),
       ...(challengeAccountSchema.safeParse(b.challengeAccount).success ? { challengeAccount: challengeAccountSchema.parse(b.challengeAccount) } : {}),
