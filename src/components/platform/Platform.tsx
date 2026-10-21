@@ -635,18 +635,6 @@ function DayCard({ row, assetKey, avaliacaoDias, mutate, excedenteAtualSacavel }
         </div>
         <button type="button" className="shrink-0 rounded-lg border border-[#19334f] px-2.5 py-1.5 text-xs font-medium text-slate-300 hover:border-blue-500/60 hover:text-white" onClick={() => mutate((s) => { if (assetKey === "ouro") removerDiaGold(s.assets.ouro, i); else s.assets[assetKey].days.splice(i, 1); })}>remover</button>
       </div>
-      {assetKey === "ouro" && <div className="mb-3 rounded-xl border border-amber-700/40 bg-[#1d1820] p-3">
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-xs font-bold text-amber-200">Limite geral de perda deste dia ($)</p>
-          <span className="text-[10px] text-slate-400">{limiteFixo ? "Fixo · avaliação ou D1 financiada" : "D2+ financiada · informar valor real"}</span>
-        </div>
-        {limiteFixo ? <p className="mt-2 font-mono text-lg font-bold text-white">$2.000</p> :
-          <label className="mt-2 block text-xs text-slate-300">Valor disponível até reprovação informado pela mesa
-            <input type="number" min="0.01" step="0.01" inputMode="decimal" value={limiteHoje ?? ""} placeholder="Informe o limite deste dia" className="mt-1 w-full rounded-lg border border-amber-800/70 bg-[#081321] px-3 py-2.5 font-mono text-white focus:border-amber-400 focus:outline-none" onChange={(e) => { const v = Number(e.target.value); mutate((st) => { const day = st.assets[assetKey].days[i]; if (!day) return; if (e.target.value.trim() && Number.isFinite(v) && v > 0) day.mll = v; else delete day.mll; }); }} />
-          </label>}
-        {!limiteFixo && !limiteHoje && <p className="mt-2 text-xs font-semibold text-amber-300">Preencha o valor real para obter a estimativa de pontos. Não utilize o valor herdado de outra mesa.</p>}
-        <p className="mt-1 text-[11px] text-slate-400">Use a distância monetária atual até o limite de liquidação, não o saldo total da conta.</p>
-      </div>}
       <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
         <div className="min-w-0 rounded-xl border border-[#18324e] bg-gradient-to-br from-[#0d1b2b] to-[#080f1a] p-3 lg:p-2.5">
           <NumField cockpit label={<><FileText className="h-3.5 w-3.5 text-blue-400" />Contratos</>} value={d.mnq} onChange={setD("mnq")} />
@@ -690,19 +678,21 @@ function DayCard({ row, assetKey, avaliacaoDias, mutate, excedenteAtualSacavel }
               <div className="bg-gradient-to-r from-sky-500 to-cyan-400" style={{ width: pct(cx.bonusAntes) }} />
               <div className="bg-gradient-to-r from-emerald-500 to-teal-400" style={{ width: pct(cx.deposito) }} />
             </div>
-            <div className="mt-3 grid grid-cols-3 gap-2 font-mono text-[11px]">
-              <div><p className="text-slate-400">● Saldo Próprio</p><p className="text-sm font-semibold">${fmt(cx.proprioAntes)}</p></div>
-              <div><p className="text-cyan-400">● Bônus</p><p className="text-sm font-semibold">${fmt(cx.bonusAntes)}</p></div>
-              <div><p className="text-emerald-400">● Falta</p><p className="text-sm font-semibold">${fmt(cx.deposito)}</p></div>
+            <div className="mt-2 flex items-center justify-between gap-2 rounded-xl border border-blue-600/80 bg-gradient-to-r from-blue-950/70 to-[#071a31] px-3 py-2.5">
+              <span className="flex items-center gap-2 text-[11px] font-semibold leading-snug text-cyan-300 sm:text-sm"><Wallet className="h-4 w-4 shrink-0" />Aporte Recomendado Hoje</span>
+              <span className="font-mono text-base font-bold text-sky-400 sm:text-xl">${fmt(cx.deposito)}</span>
             </div>
             <div className="mt-3 flex items-center justify-between gap-2 rounded-lg border border-[#142b43] bg-[#0b1726] px-3 py-2.5 font-mono text-xs"><span className="flex items-center gap-1.5 text-muted-foreground"><Calculator className="h-3.5 w-3.5" />Necessário no CFD</span><span className="font-semibold">${fmt(cx.necessario)}</span></div>
             <div className="mt-1 grid grid-cols-2 gap-1 font-mono text-[11px] text-muted-foreground">              <span>Bônus deste depósito: <span className="text-foreground">${fmt(cx.bonusGanho)}</span></span>
               <span className="text-right">Sacável: <span className="text-market-up">${fmt(excedenteAtualSacavel)}</span></span>
             </div>
-            <div className="mt-2 flex items-center justify-between gap-2 rounded-xl border border-blue-600/80 bg-gradient-to-r from-blue-950/70 to-[#071a31] px-3 py-3">
-              <span className="flex items-center gap-2 text-[11px] font-semibold leading-snug text-cyan-300 sm:text-sm"><Wallet className="h-4 w-4 shrink-0" />Aporte Recomendado Hoje</span>
-              <span className="font-mono text-base font-bold text-sky-400 sm:text-2xl flex items-center gap-1">${fmt(cx.deposito)}<ChevronRight className="h-5 w-5" /></span>
-            </div>
+            {assetKey === "ouro" && <div className="mt-2 flex items-center justify-between gap-3 rounded-xl border border-amber-800/50 bg-[#161924] px-3 py-2.5">
+              <label htmlFor={`loss-limit-${i}`} className="min-w-0 text-xs font-semibold text-amber-200">Loss Limit do dia ($)</label>
+              {limiteFixo ? <span className="font-mono text-base font-bold text-white">$2.000</span> :
+                <input id={`loss-limit-${i}`} aria-label="Loss Limit do dia em dólares" type="number" min="0.01" step="0.01" inputMode="decimal" value={limiteHoje ?? ""} placeholder="Valor do dia" className="w-32 max-w-[55%] rounded-lg border border-amber-800/70 bg-[#081321] px-2 py-1.5 text-right font-mono text-sm text-white focus:border-amber-400 focus:outline-none" onChange={(e) => { const raw = e.target.value; const v = Number(raw); mutate((st) => { const day = st.assets[assetKey].days[i]; if (!day) return; if (raw.trim() && Number.isFinite(v) && v > 0) day.mll = v; else delete day.mll; }); }} />
+              }
+            </div>}
+
           </div>
         );
       })() : <p className="mt-2 font-mono text-[11px] text-muted-foreground">{row.statusText}</p>}
