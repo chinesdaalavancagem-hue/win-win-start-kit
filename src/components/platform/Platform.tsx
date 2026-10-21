@@ -172,7 +172,16 @@ export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas }:
             {Object.entries(MESAS_FUTUROS).map(([id, m]) => <option key={id} value={id}>{m.nome} · {m.consistencia}%</option>)}
           </select>
           <p className="mt-3 text-xs leading-relaxed text-slate-300">{(() => { const m = MESAS_FUTUROS[state.assets.ouro.mesaFuturos ?? "tradefive"]; return `${m.avaliacao} dias de avaliação + ${m.payout} dias para payout = ${m.avaliacao + m.payout} cards.`; })()}</p>
-          <p className="mt-2 text-[11px] text-amber-200/80">Cada mesa mantém seus próprios lotes, metas e cards nesta banca. Confira as metas e as regras reais da sua conta antes de operar.</p>
+          <div className="mt-3 rounded-lg border border-amber-900/60 bg-black/20 p-3 text-xs text-slate-200">
+            {(() => {
+              const mesa = MESAS_FUTUROS[state.assets.ouro.mesaFuturos ?? "tradefive"];
+              const dias = state.assets.ouro.days.slice(0, mesa.avaliacao);
+              const totalMetas = dias.reduce((v, dia) => v + Math.max(0, dia.meta), 0);
+              const percentualMaiorDia = totalMetas > 0 ? Math.max(...dias.map((dia) => Math.max(0, dia.meta))) / totalMetas * 100 : 0;
+              return <><p>Consistência máxima: <strong className="text-amber-200">{mesa.consistencia}%</strong></p><p className="mt-1">Maior meta diária / soma das metas: <strong>{fmt(percentualMaiorDia)}%</strong></p><p className={cn("mt-1", percentualMaiorDia > mesa.consistencia ? "text-rose-300" : "text-emerald-300")}>{totalMetas <= 0 ? "Configure as metas da avaliação." : percentualMaiorDia > mesa.consistencia ? "Atenção: metas ultrapassam o limite de consistência." : "Metas compatíveis com o limite informado."}</p></>;
+            })()}
+          </div>
+          <p className="mt-2 text-[11px] text-amber-200/80">Cada mesa mantém seus próprios lotes, metas e cards nesta banca. O percentual acima é projeção das metas, não valida ganhos efetivos nem outras regras da firma.</p>
         </aside>
       )}
       <div className="sticky z-20 mb-3 rounded-xl border border-cyan-950/80 bg-[#06101f]/95 p-2 shadow-lg backdrop-blur-md sm:p-3" style={{ top: headerHeight + 8 }}>
