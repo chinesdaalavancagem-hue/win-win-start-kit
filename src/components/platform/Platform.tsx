@@ -36,6 +36,17 @@ export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas }:
   }, [activeTabLabel]);
   const [sync, setSync] = useState<Sync>({ mode: "busy", text: "carregando…" });
   const [syncTarget, setSyncTarget] = useState<HTMLElement | null>(null);
+  const heroRef = useRef<HTMLElement>(null);
+  const [desktopRailTop, setDesktopRailTop] = useState(120);
+  useEffect(() => {
+    const alignRails = () => {
+      if (heroRef.current) setDesktopRailTop(Math.max(12, Math.round(heroRef.current.getBoundingClientRect().top + 24)));
+    };
+    alignRails();
+    window.addEventListener("scroll", alignRails, { passive: true });
+    window.addEventListener("resize", alignRails);
+    return () => { window.removeEventListener("scroll", alignRails); window.removeEventListener("resize", alignRails); };
+  }, [state !== null]);
   useEffect(() => { setSyncTarget(document.getElementById("wow-header-sync")); }, []);
   const dirty = useRef(false);
 
@@ -112,7 +123,7 @@ export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas }:
           <span className={cn("size-2 rounded-full", sync.mode === "ok" && "bg-emerald-400", sync.mode === "busy" && "bg-amber-400", sync.mode === "err" && "bg-rose-400")} />
           {sync.text}
         </span>, syncTarget)}
-      <section className="relative mb-3 overflow-hidden rounded-2xl border border-cyan-700/60 bg-[radial-gradient(ellipse_at_90%_30%,rgba(0,190,255,0.14),transparent_45%),linear-gradient(135deg,#07152a_0%,#030b17_65%,#041321_100%)] p-4 shadow-[0_20px_55px_rgba(0,0,0,0.25)] sm:p-6">
+      <section ref={heroRef} className="relative mb-3 overflow-hidden rounded-2xl border border-cyan-700/60 bg-[radial-gradient(ellipse_at_90%_30%,rgba(0,190,255,0.14),transparent_45%),linear-gradient(135deg,#07152a_0%,#030b17_65%,#041321_100%)] p-4 shadow-[0_20px_55px_rgba(0,0,0,0.25)] sm:p-6">
         <div className="pointer-events-none absolute -right-12 top-8 h-40 w-64 rounded-full border border-cyan-400/10 blur-sm" />
         <div className="relative flex flex-wrap items-start justify-between gap-4">
           <div className="flex max-w-xl items-start gap-3">
@@ -129,10 +140,10 @@ export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas }:
       </section>
 
 
-      <nav className="fixed right-2 top-1/2 z-40 flex -translate-y-1/2 flex-col lg:top-28 lg:translate-y-0 gap-2 rounded-2xl border border-cyan-900/70 bg-[#050d1b]/95 p-1 shadow-xl sm:p-1.5" aria-label="Ativos e histórico">
+      <nav className="fixed right-1 top-1/2 z-40 flex -translate-y-1/2 flex-col lg:right-2 lg:translate-y-0 gap-2 rounded-2xl border border-cyan-900/70 bg-[#050d1b]/95 p-1 shadow-xl sm:p-1.5" aria-label="Ativos e histórico" style={{ top: typeof window !== "undefined" && window.innerWidth >= 1024 ? desktopRailTop : undefined }}>
         {TABS.map((t) => (
           <button key={t.key} type="button" title={t.label} aria-label={t.label} aria-pressed={tab === t.key} onClick={() => { setActiveTabLabel(null); mutate((s) => { s.activeTab = t.key; }); setActiveTabLabel(t.key); }}
-            className={cn("relative flex size-10 items-center justify-center rounded-xl border transition-colors lg:size-12", tab === t.key ? "border-cyan-400/70 bg-blue-950 text-white" : "border-transparent text-slate-400 hover:bg-blue-950/60")}>
+            className={cn("relative flex size-10 items-center justify-center rounded-xl border transition-colors lg:size-14", tab === t.key ? "border-cyan-400/70 bg-blue-950 text-white" : "border-transparent text-slate-400 hover:bg-blue-950/60")}>
             {activeTabLabel === t.key && <span aria-hidden="true" className="pointer-events-none absolute right-full mr-2 whitespace-nowrap rounded-lg border border-cyan-800/80 bg-[#061322] px-3 py-1.5 text-xs font-semibold text-cyan-100 shadow-xl">{t.label}</span>}
             {t.key === "ouro" ? <svg aria-hidden="true" viewBox="0 0 32 28" className="size-5 shrink-0" fill="none"><path d="M2 17 8 8h12l6 9-6 9H8L2 17Z" fill="#E9A900" stroke="#FFDF69" strokeWidth="1.2"/><path d="m8 8 6 9-6 9-6-9Z" fill="#FFE075"/><path d="m14 17 6-9 6 9-6 9Z" fill="#FFC533"/></svg> : t.key === "nasdaq" ? <ChartNoAxesCombined className="size-5 text-sky-400" /> : t.key === "saque2" ? <Landmark className="size-5 text-violet-400" /> : <History className="size-5 text-slate-300" />}
           </button>
@@ -154,7 +165,7 @@ export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas }:
       </div>
 
       {tab === "historico" ? <Historico state={state} mutate={mutate} bancas={allBancas} /> : (
-        <AssetView key={tab} state={state} assetKey={tab} section={section} setSection={setSection} leftMenuOpen={leftMenuOpen} setLeftMenuOpen={setLeftMenuOpen} mutate={mutate} isAdmin={isAdmin} />
+        <AssetView key={tab} state={state} assetKey={tab} section={section} setSection={setSection} leftMenuOpen={leftMenuOpen} setLeftMenuOpen={setLeftMenuOpen} desktopRailTop={desktopRailTop} mutate={mutate} isAdmin={isAdmin} />
       )}
 
       <BackupMenu state={state} mutate={mutate} save={save} onApplied={setState} isAdmin={isAdmin} officialAcceptedAt={officialAcceptedAt} />
@@ -250,7 +261,7 @@ const Note = ({ children }: { children: ReactNode }) => <p className="mt-3 font-
 
 /* ---------- aba de ativo ---------- */
 
-function AssetView({ state, assetKey, section, setSection, leftMenuOpen, setLeftMenuOpen, mutate, isAdmin }: { state: State; assetKey: AssetKey; section: Section; setSection: (s: Section) => void; leftMenuOpen: boolean; setLeftMenuOpen: (v: boolean) => void; mutate: (fn: (s: State) => void) => void; isAdmin: boolean }) {
+function AssetView({ state, assetKey, section, setSection, leftMenuOpen, setLeftMenuOpen, desktopRailTop, mutate, isAdmin }: { state: State; assetKey: AssetKey; section: Section; setSection: (s: Section) => void; leftMenuOpen: boolean; setLeftMenuOpen: (v: boolean) => void; desktopRailTop: number; mutate: (fn: (s: State) => void) => void; isAdmin: boolean }) {
   const asset = state.assets[assetKey];
   const calcs = useMemo(() => computeAssetCalcs(asset, assetKey), [asset, assetKey]);
   const setP = (k: keyof Asset["params"]) => (v: number) => mutate((s) => { (s.assets[assetKey].params as unknown as Record<string, number>)[k] = v; });
@@ -373,7 +384,7 @@ function AssetView({ state, assetKey, section, setSection, leftMenuOpen, setLeft
 
   return (
     <div>
-      <aside className="fixed left-2 top-1/2 z-40 flex -translate-y-1/2 lg:top-28 lg:translate-y-0" aria-label="Menu de operações">
+      <aside className="fixed left-1 top-1/2 z-40 flex -translate-y-1/2 lg:left-2 lg:translate-y-0" aria-label="Menu de operações" style={{ top: typeof window !== "undefined" && window.innerWidth >= 1024 ? desktopRailTop : undefined }}>
         <div className="flex items-start gap-1">
           <button type="button" aria-label={leftMenuOpen ? "Recolher menu" : "Expandir menu"} aria-expanded={leftMenuOpen} onClick={() => setLeftMenuOpen(!leftMenuOpen)}
             className="flex size-9 items-center justify-center rounded-xl border border-cyan-700/70 bg-[#061322] sm:size-11 lg:size-12 text-cyan-300 shadow-xl hover:bg-blue-950">
