@@ -498,7 +498,7 @@ function AssetView({ state, assetKey, section, setSection, leftMenuOpen, setLeft
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <div className="rounded-xl border border-[#18324e] bg-[#091827] p-3"><NumField label="$/ponto do contrato futuro" value={asset.params.mnq} onChange={setP("mnq")} /></div>
               <div className="rounded-xl border border-[#183b43] bg-[#091a20] p-3"><NumField label="Broker CFD $/ponto/lote" value={asset.params.hfm} onChange={setP("hfm")} /></div>
-              <div className="rounded-xl border border-cyan-950 bg-[#091522] p-3"><NumField label="Saldo broker CFD ($)" value={saldo} readOnly helper={`próprio ${fmt(bonus.deposito || 0)} + bônus ${fmt(bonus.bonusAtual || 0)}`} /></div>
+              <div className="rounded-xl border border-cyan-950 bg-[#091522] p-3"><NumField label="Saldo broker CFD ($)" value={saldo} readOnly helper={`Saldo financeiro conciliado, incluindo resultados reais e bônus disponível`} /></div>
             </div>
           </section>
 
@@ -511,7 +511,7 @@ function AssetView({ state, assetKey, section, setSection, leftMenuOpen, setLeft
               </div>
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <div className="rounded-xl border border-[#18324e] bg-[#091827] p-3"><NumField label="Taxa da mesa (fee $)" value={asset.params.taxa} onChange={setP("taxa")} /></div>
+              
               <div className="rounded-xl border border-[#18324e] bg-[#091827] p-3"><NumField label="Lucro líquido desejado ($, sem a taxa)" value={asset.params.lucroDesejado} onChange={setP("lucroDesejado")} /></div>
               <div className="rounded-xl border border-[#183b43] bg-[#091a20] p-3"><NumField label="Margem exigida por 1 lote ($)" value={asset.params.marginPerLot} onChange={setP("marginPerLot")} /></div>
               <div className="rounded-xl border border-[#18324e] bg-[#091827] p-3"><NumField label="Stop-out da corretora (%)" value={asset.params.stopoutPct} onChange={setP("stopoutPct")} /></div>
