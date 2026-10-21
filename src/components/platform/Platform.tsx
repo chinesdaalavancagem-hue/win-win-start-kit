@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { registrarAuditoria } from "@/lib/auditoria-registro";
 import { applyOfficialParams, buildOfficialParams, isOfficialParams } from "@/lib/platform/official-params";
 import {
-  type AssetKey, type State, type TabKey, type Asset, type MesaFuturos, MESAS_FUTUROS, selecionarMesaGold,
+  type AssetKey, type State, type TabKey, type Asset, type MesaFuturos, MESAS_FUTUROS, selecionarMesaGold, diasAvaliacaoGold, adicionarDiaGold, removerDiaGold,
   aplicarDeposito, aplicarSaque, conciliarCreditoForex, calcAporteFracionado, calcCaixaCiclo, clampDayIndex, computeAssetCalcs, defaultState, fmt, fmtSigned, handleProfit, handleStop,
   historicoTotals, isValidState, normalizeState, parseNum, projetarZeragemBonus, resetBonus, tipoLabel, undoLast,
 } from "@/lib/platform/engine";
@@ -171,11 +171,11 @@ export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas }:
           }}>
             {Object.entries(MESAS_FUTUROS).map(([id, m]) => <option key={id} value={id}>{m.nome} · {m.consistencia}%</option>)}
           </select>
-          <p className="mt-3 text-xs leading-relaxed text-slate-300">{(() => { const m = MESAS_FUTUROS[state.assets.ouro.mesaFuturos ?? "tradefive"]; return `${m.avaliacao} dias de avaliação + ${m.payout} dias para payout = ${m.avaliacao + m.payout} cards.`; })()}</p>
+          <p className="mt-3 text-xs leading-relaxed text-slate-300">{(() => { const m = MESAS_FUTUROS[state.assets.ouro.mesaFuturos ?? "tradefive"]; const avaliacao = diasAvaliacaoGold(state.assets.ouro); return `${avaliacao} dias de avaliação + ${state.assets.ouro.days.length - avaliacao} dias de conta financiada = ${state.assets.ouro.days.length} cards (padrão da mesa: ${m.avaliacao}+${m.payout}).`; })()}</p>
           <div className="mt-3 rounded-lg border border-amber-900/60 bg-black/20 p-3 text-xs text-slate-200">
             {(() => {
               const mesa = MESAS_FUTUROS[state.assets.ouro.mesaFuturos ?? "tradefive"];
-              const dias = state.assets.ouro.days.slice(0, mesa.avaliacao);
+              const dias = state.assets.ouro.days.slice(0, diasAvaliacaoGold(state.assets.ouro));
               const totalMetas = dias.reduce((v, dia) => v + Math.max(0, dia.meta), 0);
               const percentualMaiorDia = totalMetas > 0 ? Math.max(...dias.map((dia) => Math.max(0, dia.meta))) / totalMetas * 100 : 0;
               return <><p>Consistência máxima: <strong className="text-amber-200">{mesa.consistencia}%</strong></p><p className="mt-1">Maior meta diária / soma das metas: <strong>{fmt(percentualMaiorDia)}%</strong></p><p className={cn("mt-1", percentualMaiorDia > mesa.consistencia ? "text-rose-300" : "text-emerald-300")}>{totalMetas <= 0 ? "Configure as metas da avaliação." : percentualMaiorDia > mesa.consistencia ? "Atenção: metas ultrapassam o limite de consistência." : "Metas compatíveis com o limite informado."}</p></>;
@@ -600,10 +600,10 @@ function AssetView({ state, assetKey, section, setSection, leftMenuOpen, setLeft
         <div>
           <div className="space-y-3">
             {visibleRows.map((r) => (
-              <DayCard key={r.i} row={r} assetKey={assetKey} avaliacaoDias={assetKey === "ouro" ? MESAS_FUTUROS[asset.mesaFuturos ?? "tradefive"].avaliacao : 3} mutate={mutate} excedenteAtualSacavel={excedenteAtualSacavel} />
+              <DayCard key={r.i} row={r} assetKey={assetKey} avaliacaoDias={assetKey === "ouro" ? diasAvaliacaoGold(asset) : 3} mutate={mutate} excedenteAtualSacavel={excedenteAtualSacavel} />
             ))}
           </div>
-          {isAdmin && <Button type="button" variant="outline" className="mt-3 w-full border-dashed" onClick={() => mutate((s) => { s.assets[assetKey].days.push({ mnq: 1, lotes: 1, meta: 150 }); })}>+ adicionar dia</Button>}
+          {isAdmin && <div className="mt-3 flex flex-wrap gap-2"><Button type="button" variant="outline" className="flex-1 border-dashed" onClick={() => mutate((s) => { if (assetKey === "ouro") adicionarDiaGold(s.assets.ouro, "financiada"); else s.assets[assetKey].days.push({ mnq: 1, lotes: 1, meta: 150 }); })}>+ adicionar dia {assetKey === "ouro" ? "financiado" : ""}</Button>{assetKey === "ouro" && <Button type="button" variant="outline" className="flex-1 border-dashed border-amber-800 text-amber-200" onClick={() => mutate((s) => adicionarDiaGold(s.assets.ouro, "avaliacao"))}>+ adicionar dia de avaliação</Button>}</div>}
         </div>
       )}
     </div>
@@ -632,7 +632,7 @@ function DayCard({ row, assetKey, avaliacaoDias, mutate, excedenteAtualSacavel }
           <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-blue-200/85 sm:text-[11px]"><Crosshair className="h-3.5 w-3.5 shrink-0 text-blue-400" />Matriz operacional</p>
           {isCurrent && <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-400 sm:text-xs"><span className="h-2 w-2 rounded-full bg-market-up" />dia atual</span>}
         </div>
-        <button type="button" className="shrink-0 rounded-lg border border-[#19334f] px-2.5 py-1.5 text-xs font-medium text-slate-300 hover:border-blue-500/60 hover:text-white" onClick={() => mutate((s) => { s.assets[assetKey].days.splice(i, 1); })}>remover</button>
+        <button type="button" className="shrink-0 rounded-lg border border-[#19334f] px-2.5 py-1.5 text-xs font-medium text-slate-300 hover:border-blue-500/60 hover:text-white" onClick={() => mutate((s) => { if (assetKey === "ouro") removerDiaGold(s.assets.ouro, i); else s.assets[assetKey].days.splice(i, 1); })}>remover</button>
       </div>
       <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
         <div className="min-w-0 rounded-xl border border-[#18324e] bg-gradient-to-br from-[#0d1b2b] to-[#080f1a] p-3 lg:p-2.5">
