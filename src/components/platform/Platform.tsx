@@ -800,7 +800,7 @@ function BonusPanel({ state, assetKey, reserva, folga, mutate }: { state: State;
 
 /* ---------- histórico ---------- */
 
-function Historico({ state, mutate, bancas }: { state: State; mutate: (fn: (s: State) => void) => void; bancas?: Banca[] }) {
+function Historico({ state, mutate, bancas }: { state: State; mutate: (fn: (s: State) => void) => void; bancas?: Banca[] | undefined }) {
   const [filtroBanca, setFiltroBanca] = useState("todas");
   const resumo = bancas?.length ? bancas.reduce((acc, b) => {
     const t = historicoTotals(b.state);
