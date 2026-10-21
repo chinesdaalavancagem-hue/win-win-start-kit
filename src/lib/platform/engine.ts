@@ -53,11 +53,13 @@ export interface LogEntry {
   prevBonusDeposito?: any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   prevBonusAtual?: any;
+  prevForexSaldoReal?: number;
   /** Registro real de saída: valor teórico sugerido, valor real liquidado e a diferença (spread/slippage). */
   cfdTeorico?: number; cfdReal?: number; spread?: number;
 }
 export interface State {
   activeTab: TabKey; assets: Record<AssetKey, Asset>; log: LogEntry[]; cfdBalance: number; totalGasto: number;
+  forexSaldoReal?: number;
   counts: { aprovadas: number; reprovadas: number };
 }
 
@@ -104,7 +106,7 @@ export const freshBonus = (): Bonus => ({ deposito: 0, bonusAtual: 0, bonusGanho
 export function defaultState(): State {
   const assets = clone(defaultAssetsBase) as unknown as Record<AssetKey, Asset>;
   for (const k of ASSETS) { assets[k].attempt = freshAttempt(); assets[k].bonus = freshBonus(); }
-  return { activeTab: "nasdaq", assets, log: [], cfdBalance: 0, totalGasto: 0, counts: { aprovadas: 0, reprovadas: 0 } };
+  return { activeTab: "nasdaq", assets, log: [], cfdBalance: 0, totalGasto: 0, forexSaldoReal: 0, counts: { aprovadas: 0, reprovadas: 0 } };
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -130,6 +132,7 @@ export function normalizeState(p: any): State {
   if (p.assets.saque2.params.ativoReal !== "ouro" && p.assets.saque2.params.ativoReal !== "nasdaq") p.assets.saque2.params.ativoReal = "ouro";
   if (!Array.isArray(p.log)) p.log = [];
   if (typeof p.cfdBalance !== "number") p.cfdBalance = 0;
+  if (!Number.isFinite(p.forexSaldoReal)) p.forexSaldoReal = ASSETS.reduce((v, k) => v + Math.max(0, p.assets[k].bonus.deposito || 0), 0);
   if (!p.counts) p.counts = { aprovadas: 0, reprovadas: 0 };
   if (typeof p.totalGasto !== "number") p.totalGasto = 0;
   if (!p.activeTab) p.activeTab = "nasdaq";
@@ -198,13 +201,14 @@ export function handleProfit(s: State, key: AssetKey, realCfd?: number) {
   const teorico = -calc.custoSePassar;
   if (typeof realCfd === "number" && Number.isFinite(realCfd)) calc.custoSePassar = -realCfd;
   const isLast = idx === a.days.length - 1;
-  const prev = { prevCfdBalance: s.cfdBalance, prevCounts: { ...s.counts }, prevDayIndex: a.attempt.currentDayIndex, prevCycleCost: a.attempt.cycleCost || 0, prevCustoProprioAcumulado: a.attempt.custoProprioAcumulado || 0, prevTotalGasto: s.totalGasto, prevBonusDeposito: a.bonus.deposito || 0, prevBonusAtual: a.bonus.bonusAtual || 0 };
+  const prev = { prevForexSaldoReal: s.forexSaldoReal, prevCfdBalance: s.cfdBalance, prevCounts: { ...s.counts }, prevDayIndex: a.attempt.currentDayIndex, prevCycleCost: a.attempt.cycleCost || 0, prevCustoProprioAcumulado: a.attempt.custoProprioAcumulado || 0, prevTotalGasto: s.totalGasto, prevBonusDeposito: a.bonus.deposito || 0, prevBonusAtual: a.bonus.bonusAtual || 0 };
   const taxaCobrada = idx === 0 ? a.params.taxa : 0;
   const custoDoDia = calc.custoSePassar + taxaCobrada;
   const saque = isLast ? a.params.saqueAprovada || 0 : 0;
   const delta = saque - custoDoDia;
   const cicloCusto = prev.prevCycleCost + custoDoDia;
   const deb = debitarCustoDoBonus(a.bonus, calc.custoSePassar);
+  atualizarSaldoReal(s, -calc.custoSePassar);
   const custoProprioDia = taxaCobrada + deb.custoProprio;
   const custoProprioAcumulado = prev.prevCustoProprioAcumulado + custoProprioDia;
   const resultadoReal = isLast ? saque - custoProprioAcumulado : null;
@@ -225,9 +229,10 @@ export function handleStop(s: State, key: AssetKey, realCfd?: number) {
   if (typeof realCfd === "number" && Number.isFinite(realCfd)) calc.reprova = realCfd;
   const taxaCobrada = idx === 0 ? a.params.taxa : 0;
   const delta = calc.reprova - taxaCobrada;
-  const prev = { prevCfdBalance: s.cfdBalance, prevCounts: { ...s.counts }, prevDayIndex: a.attempt.currentDayIndex, prevCycleCost: a.attempt.cycleCost || 0, prevCustoProprioAcumulado: a.attempt.custoProprioAcumulado || 0, prevTotalGasto: s.totalGasto, prevBonusDeposito: a.bonus.deposito || 0, prevBonusAtual: a.bonus.bonusAtual || 0 };
+  const prev = { prevForexSaldoReal: s.forexSaldoReal, prevCfdBalance: s.cfdBalance, prevCounts: { ...s.counts }, prevDayIndex: a.attempt.currentDayIndex, prevCycleCost: a.attempt.cycleCost || 0, prevCustoProprioAcumulado: a.attempt.custoProprioAcumulado || 0, prevTotalGasto: s.totalGasto, prevBonusDeposito: a.bonus.deposito || 0, prevBonusAtual: a.bonus.bonusAtual || 0 };
   const custoTotalCiclo = prev.prevCycleCost + taxaCobrada;
   a.bonus.deposito = (a.bonus.deposito || 0) + calc.reprova;
+  atualizarSaldoReal(s, calc.reprova);
   const resultadoReal = calc.reprova - custoTotalCiclo;
   s.cfdBalance += delta;
   s.totalGasto += taxaCobrada;
@@ -240,6 +245,7 @@ export function undoLast(s: State) {
   const last = s.log[s.log.length - 1];
   if (!last) return;
   if (typeof last.prevCfdBalance === "number") s.cfdBalance = last.prevCfdBalance;
+  if (typeof last.prevForexSaldoReal === "number") s.forexSaldoReal = last.prevForexSaldoReal;
   if (last.prevCounts) s.counts = last.prevCounts;
   if (typeof last.prevTotalGasto === "number") s.totalGasto = last.prevTotalGasto;
   const a = s.assets[last.asset];
@@ -285,11 +291,17 @@ export function projetarZeragemBonus(s: State, key: AssetKey, bonusAtual: number
   return { dias: bonusAtual / media, media, amostras: amostra.length };
 }
 
+export function atualizarSaldoReal(s: State, delta: number) {
+  if (!Number.isFinite(delta)) return;
+  s.forexSaldoReal = Math.max(0, (s.forexSaldoReal ?? 0) + delta);
+}
+
 export function aplicarDeposito(s: State, key: AssetKey, valor: number) {
   if (valor <= 0) return;
   const b = s.assets[key].bonus;
   const espaco = Math.max(0, b.bonusCap - b.bonusGanhoTotal);
   const ganho = Math.min(valor, espaco);
+  atualizarSaldoReal(s, valor);
   b.deposito += valor; b.bonusAtual += ganho; b.bonusGanhoTotal += ganho;
   b.log.push({ ts: Date.now(), tipo: "deposito", valor, dia: s.assets[key].attempt.currentDayIndex + 1, bonusGanho: ganho });
 }
@@ -297,10 +309,17 @@ export function aplicarDeposito(s: State, key: AssetKey, valor: number) {
 export function aplicarSaque(s: State, key: AssetKey, valor: number) {
   if (valor <= 0) return;
   const b = s.assets[key].bonus;
-  const proporcao = (b.deposito || 0) > 0 ? valor / b.deposito : 0;
-  const bonusReduzido = b.bonusAtual * proporcao;
-  b.deposito = Math.max(0, (b.deposito || 0) - valor);
-  b.bonusAtual = Math.max(0, b.bonusAtual - bonusReduzido);
+  const saldoAntes = s.forexSaldoReal ?? 0;
+  if (saldoAntes <= 0 || valor > saldoAntes) return;
+  const proporcao = Math.min(1, valor / saldoAntes);
+  const bonusReduzido = ASSETS.reduce((total, k) => {
+    const credito = s.assets[k].bonus;
+    const reduzido = credito.bonusAtual * proporcao;
+    credito.bonusAtual = Math.max(0, credito.bonusAtual - reduzido);
+    return total + reduzido;
+  }, 0);
+  atualizarSaldoReal(s, -valor);
+  b.deposito = Math.max(0, b.deposito - valor);
   b.log.push({ ts: Date.now(), tipo: "saque", valor, proporcao, bonusReduzido });
 }
 
