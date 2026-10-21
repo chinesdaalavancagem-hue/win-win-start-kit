@@ -133,6 +133,8 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
                         <Button size="sm" variant="ghost" className="h-8 rounded-lg px-2 text-rose-300 hover:bg-rose-950/40 hover:text-rose-200" onClick={() => {
                           if (!window.confirm(`Excluir a banca "${b.nome}" e todo o histórico dela?`)) return;
                           const rest = doc.bancas.filter((x) => x.id !== b.id);
+                          // Fechar a gestão para manter os controles laterais visíveis após excluir.
+                          setPainel(false);
                           persist({ ...doc, bancas: rest, activeId: isActive ? rest[0]?.id ?? doc.activeId : doc.activeId });
                         }}><Trash2 className="size-3.5" />Excluir</Button>
                       )}
