@@ -73,7 +73,7 @@ export function resumoBanca(b: Banca) {
 
 const csvCell = (v: unknown) => { const s = String(v ?? ""); return /[;"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
 const num = (n: number) => (Number.isFinite(n) ? n : 0).toFixed(2).replace(".", ",");
-const ASSET: Record<string, string> = { nasdaq: "Nasdaq", ouro: "Ouro", saque2: "Saque 2" };
+const ASSET: Record<string, string> = { nasdaq: "Nasdaq", ouro: "Gold", saque2: "Saque 2" };
 
 export function relatorioCsv(bancas: Banca[]): string {
   const rows: unknown[][] = [["RESUMO POR BANCA"], ["Banca", "Ciclos", "Aprovadas", "Reprovadas", "Lucro total ($)", "Total gasto ($)", "Saldo CFD ($)"]];
