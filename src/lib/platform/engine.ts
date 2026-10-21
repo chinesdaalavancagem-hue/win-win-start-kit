@@ -182,14 +182,23 @@ export function computeAssetCalcs(a: Asset, key: AssetKey): DayCalc[] {
 export function nextLogId(s: State) { return s.log.reduce((m, e) => Math.max(m, e.id || 0), 0) + 1; }
 function pushLog(s: State, e: Omit<LogEntry, "id" | "ts">) { s.log.push({ ...e, id: nextLogId(s), ts: Date.now() } as LogEntry); }
 
-function debitarCustoDoBonus(b: Bonus, custo: number) {
-  if (!b || !(custo > 0)) return { proporcaoPropria: 1, custoProprio: 0, custoBonus: 0 };
-  const disp = b.deposito || 0;
-  const custoProprio = Math.min(custo, disp);
-  const custoBonus = custo - custoProprio;
-  b.deposito = Math.max(0, disp - custoProprio);
-  b.bonusAtual = Math.max(0, (b.bonusAtual || 0) - custoBonus);
-  return { proporcaoPropria: custo > 0 ? custoProprio / custo : 1, custoProprio, custoBonus };
+function debitarCustoDoBonus(s: State, key: AssetKey, custo: number) {
+  if (!(custo > 0)) return { proporcaoPropria: 1, custoProprio: 0, custoBonus: 0 };
+  const saldoReal = Math.max(0, s.forexSaldoReal ?? 0);
+  const custoProprio = Math.min(custo, saldoReal);
+  let restante = custo - custoProprio;
+  const custoBonus = restante;
+  // O crédito da corretora é compartilhado: nunca consumir bônus enquanto houver saldo real.
+  for (const k of [key, ...ASSETS.filter((x) => x !== key)]) {
+    const b = s.assets[k].bonus;
+    const deducao = Math.min(Math.max(0, b.bonusAtual), restante);
+    b.bonusAtual = Math.max(0, b.bonusAtual - deducao);
+    restante -= deducao;
+    if (restante <= 0) break;
+  }
+  const b = s.assets[key].bonus;
+  b.deposito = Math.max(0, (b.deposito || 0) - custoProprio);
+  return { proporcaoPropria: custoProprio / custo, custoProprio, custoBonus: custoBonus - restante };
 }
 
 /** realCfd: valor real liquidado no CFD (perda negativa). Sem ele, usa o teórico. */
@@ -207,7 +216,7 @@ export function handleProfit(s: State, key: AssetKey, realCfd?: number) {
   const saque = isLast ? a.params.saqueAprovada || 0 : 0;
   const delta = saque - custoDoDia;
   const cicloCusto = prev.prevCycleCost + custoDoDia;
-  const deb = debitarCustoDoBonus(a.bonus, calc.custoSePassar);
+  const deb = debitarCustoDoBonus(s, key, calc.custoSePassar);
   atualizarSaldoReal(s, -calc.custoSePassar);
   const custoProprioDia = taxaCobrada + deb.custoProprio;
   const custoProprioAcumulado = prev.prevCustoProprioAcumulado + custoProprioDia;
