@@ -60,6 +60,7 @@ function Integracao() {
   const [telegramChatId, setTelegramChatId] = useState("");
   const telegramChatIdAlterado = useRef(false);
   const [telegramTestando, setTelegramTestando] = useState(false);
+  const [backupTelegramTestando, setBackupTelegramTestando] = useState(false);
   const [telegramSalvando, setTelegramSalvando] = useState(false);
   const [pushAtivando, setPushAtivando] = useState(false);
   const [pushTestando, setPushTestando] = useState(false);
@@ -106,6 +107,31 @@ function Integracao() {
       alert(error instanceof Error ? error.message : "Não foi possível testar o Telegram.");
     } finally {
       setTelegramTestando(false);
+    }
+  }
+
+  async function testarCanalBackup() {
+    setBackupTelegramTestando(true);
+    try {
+      const { data, error } = await supabase.auth.getSession();
+      if (error || !data.session?.access_token) throw new Error("Faça login novamente.");
+      const response = await fetch("/api/backup-telegram-teste", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${data.session.access_token}` },
+      });
+      const result = await response.json() as { ok?: boolean; error?: string };
+      if (!response.ok || !result.ok) {
+        throw new Error(result.error === "backup_telegram_not_configured"
+          ? "Confira os dois Secrets BACKUP_TELEGRAM no Lovable Cloud."
+          : response.status === 429
+            ? "Aguarde 10 minutos para testar novamente."
+            : "O Telegram não confirmou o envio ao canal privado.");
+      }
+      alert("Teste enviado! Confira a mensagem no canal privado de backup.");
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Não foi possível testar o canal.");
+    } finally {
+      setBackupTelegramTestando(false);
     }
   }
 
@@ -257,6 +283,15 @@ function Integracao() {
           <Button size="sm" variant="outline" onClick={testarTelegram} disabled={telegramTestando}>{telegramTestando ? "Testando..." : "Testar Notificação"}</Button>
         </div>
         <p className="text-xs text-muted-foreground">O Chat ID salvo fica ligado à sua conta: as notificações das suas ordens chegam no seu Telegram. Se deixar em branco, os alertas seguem para o Chat ID monitorado pela master.</p>
+        {isAdmin && (
+          <div className="mt-4 space-y-2 rounded-lg border border-sky-500/30 bg-sky-500/5 p-3">
+            <p className="font-semibold">Canal privado de backup (Master)</p>
+            <p className="text-xs text-muted-foreground">Teste apenas a conexão do bot com o canal privado. Não envia bancas, histórico, usuários nem arquivos.</p>
+            <Button size="sm" variant="outline" onClick={testarCanalBackup} disabled={backupTelegramTestando}>
+              {backupTelegramTestando ? "Enviando teste..." : "Testar canal de backup"}
+            </Button>
+          </div>
+        )}
       </section>
 
       <section className="space-y-3 rounded-lg border p-4 text-sm">
