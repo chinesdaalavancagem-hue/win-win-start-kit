@@ -220,6 +220,14 @@ export interface DayCalc {
   dividaHoje: number; alvoBruto: number; liquidoSeReprovar: number; bateuAlvo: boolean;
 }
 
+/** Projeção sobre metas planejadas, não um limite efetivo confirmado pela mesa. */
+export function lossLimitGoldProjetado(a: Asset, indice: number): number {
+  const avaliacao = diasAvaliacaoGold(a);
+  if (indice <= avaliacao) return 2000;
+  const metasAnteriores = a.days.slice(avaliacao, indice).reduce((soma, dia) => soma + (Number.isFinite(dia.meta) ? dia.meta : 0), 0);
+  return Math.max(0, (50000 + metasAnteriores) * 0.04);
+}
+
 export function computeAssetCalcs(a: Asset, key: AssetKey): DayCalc[] {
   const { mnq: mnqPt, hfm: hfmPt, taxa, lucroDesejado } = a.params;
   const incluiPretensao = key === "saque2";
@@ -229,7 +237,7 @@ export function computeAssetCalcs(a: Asset, key: AssetKey): DayCalc[] {
     const pontos = exp > 0 ? d.meta / exp : 0;
     const custoSePassar = pontos * d.lotes * hfmPt;
     const indice = a.days.indexOf(d);
-    const limite = key === "ouro" ? (indice <= diasAvaliacaoGold(a) ? 2000 : (typeof d.mll === "number" && d.mll > 0 ? d.mll : 0)) : dayMll(a, d);
+    const limite = key === "ouro" ? lossLimitGoldProjetado(a, indice) : dayMll(a, d);
     const pontosReprova = exp > 0 ? limite / exp : 0;
     const reprova = pontosReprova * d.lotes * hfmPt;
     const dividaReal = divida;
