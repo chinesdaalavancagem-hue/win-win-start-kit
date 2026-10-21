@@ -298,6 +298,7 @@ const Note = ({ children }: { children: ReactNode }) => <p className="mt-3 font-
 
 function AssetView({ state, assetKey, section, setSection, leftMenuOpen, setLeftMenuOpen, desktopRailTop, mutate, isAdmin }: { state: State; assetKey: AssetKey; section: Section; setSection: (s: Section) => void; leftMenuOpen: boolean; setLeftMenuOpen: (v: boolean) => void; desktopRailTop: number; mutate: (fn: (s: State) => void) => void; isAdmin: boolean }) {
   const asset = state.assets[assetKey];
+  const avaliacaoDias = assetKey === "ouro" ? diasAvaliacaoGold(asset) : 3;
   const calcs = useMemo(() => computeAssetCalcs(asset, assetKey), [asset, assetKey]);
   const setP = (k: keyof Asset["params"]) => (v: number) => mutate((s) => { (s.assets[assetKey].params as unknown as Record<string, number>)[k] = v; });
   const bonus = asset.bonus;
