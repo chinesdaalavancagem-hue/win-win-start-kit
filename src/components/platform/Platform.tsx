@@ -670,8 +670,8 @@ function DayCard({ row, assetKey, avaliacaoDias, mutate, excedenteAtualSacavel }
         return (
           <div className="mt-3 rounded-xl border border-[#142b43] bg-gradient-to-b from-[#0a1421] to-[#080f19] p-3.5 lg:p-3">
             <div className="mb-2 flex items-center justify-between gap-2">
-              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-blue-100/90 sm:text-xs flex items-center gap-1.5"><ShieldCheck className="h-4 w-4 text-emerald-400" />Gestão de caixa & margem</p>
-              <span className={cn("rounded-full border px-2 py-0.5 text-[11px]", row.status === "ok" && "border-market-up/50 bg-emerald-950/50 text-market-up shadow-[0_0_12px_rgba(16,185,129,0.35)]", row.status === "alerta" && "border-brand-gold/50 text-brand-gold", row.status === "risco" && "border-market-down/50 text-market-down")}>{row.status === "ok" && <Check className="mr-0.5 inline h-3 w-3" />}{badge}</span>
+              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-blue-100/90 sm:text-xs flex items-center gap-1.5"><ShieldCheck className="h-[18px] w-[18px] text-emerald-300 drop-shadow-[0_0_5px_rgba(52,211,153,0.5)]" />Gestão de caixa & margem</p>
+              <span className={cn("inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs font-bold", row.status === "ok" && "border-emerald-400/70 bg-emerald-950/70 text-emerald-300 shadow-[0_0_14px_rgba(16,185,129,0.28)]", row.status === "alerta" && "border-brand-gold/50 text-brand-gold", row.status === "risco" && "border-market-down/50 text-market-down")}>{row.status === "ok" && <Check className="h-3.5 w-3.5 stroke-[3]" />}{badge}</span>
             </div>
             <div className="flex h-3 overflow-hidden rounded-full bg-slate-800">
               <div className="bg-slate-500" style={{ width: pct(cx.proprioAntes) }} />
@@ -683,10 +683,7 @@ function DayCard({ row, assetKey, avaliacaoDias, mutate, excedenteAtualSacavel }
               <span className="font-mono text-base font-bold text-sky-400 sm:text-xl">${fmt(cx.deposito)}</span>
             </div>
             <div className="mt-3 flex items-center justify-between gap-2 rounded-lg border border-[#142b43] bg-[#0b1726] px-3 py-2.5 font-mono text-xs"><span className="flex items-center gap-1.5 text-muted-foreground"><Calculator className="h-3.5 w-3.5" />Necessário no CFD</span><span className="font-semibold">${fmt(cx.necessario)}</span></div>
-            <div className="mt-1 grid grid-cols-2 gap-1 font-mono text-[11px] text-muted-foreground">              <span>Bônus deste depósito: <span className="text-foreground">${fmt(cx.bonusGanho)}</span></span>
-              <span className="text-right">Sacável: <span className="text-market-up">${fmt(excedenteAtualSacavel)}</span></span>
-            </div>
-            {assetKey === "ouro" && <div className="mt-2 flex items-center justify-between gap-3 rounded-xl border border-amber-800/50 bg-[#161924] px-3 py-2.5">
+            {assetKey === "ouro" && <div className="mt-1 flex items-center justify-between gap-3 rounded-xl border border-amber-800/50 bg-[#161924] px-3 py-2.5">
               <label htmlFor={`loss-limit-${i}`} className="min-w-0 text-xs font-semibold text-amber-200">Loss Limit do dia ($)</label>
               {limiteFixo ? <span className="font-mono text-base font-bold text-white">$2.000</span> :
                 <input id={`loss-limit-${i}`} aria-label="Loss Limit do dia em dólares" type="number" min="0.01" step="0.01" inputMode="decimal" value={limiteHoje ?? ""} placeholder="Valor do dia" className="w-32 max-w-[55%] rounded-lg border border-amber-800/70 bg-[#081321] px-2 py-1.5 text-right font-mono text-sm text-white focus:border-amber-400 focus:outline-none" onChange={(e) => { const raw = e.target.value; const v = Number(raw); mutate((st) => { const day = st.assets[assetKey].days[i]; if (!day) return; if (raw.trim() && Number.isFinite(v) && v > 0) day.mll = v; else delete day.mll; }); }} />
