@@ -594,7 +594,7 @@ function AssetView({ state, assetKey, section, setSection, leftMenuOpen, setLeft
         </section>
       )}
 
-      {section === "aporte" && <AportePanel asset={asset} calcs={calcs} />}
+      {section === "aporte" && <AportePanel asset={asset} assetKey={assetKey} calcs={calcs} />}
       {section === "caixa" && <CaixaPanel asset={asset} assetKey={assetKey} bonusPct={bonusPct} setBonusPct={setBonusPct} /> }
       {section === "bonus" && <BonusPanel state={state} assetKey={assetKey} reserva={reservaComFolga} folga={folga} mutate={mutate} />}
 
@@ -1131,7 +1131,7 @@ function StrategyNotes() {
   );
 }
 
-function AportePanel({ asset, calcs }: { asset: Asset; calcs: ReturnType<typeof computeAssetCalcs> }) {
+function AportePanel({ asset, assetKey, calcs }: { asset: Asset; assetKey: AssetKey; calcs: ReturnType<typeof computeAssetCalcs> }) {
   const [dia, setDia] = useState(Math.max(0, Math.min(asset.attempt.currentDayIndex, asset.days.length - 1)));
   const [pct, setPct] = useState("100");
   const [banca, setBanca] = useState("1200");
