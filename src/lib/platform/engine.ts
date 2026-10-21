@@ -54,6 +54,7 @@ export interface LogEntry {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   prevBonusAtual?: any;
   prevForexSaldoReal?: number;
+  prevBonusTodos?: Record<AssetKey, Bonus>;
   /** Registro real de saída: valor teórico sugerido, valor real liquidado e a diferença (spread/slippage). */
   cfdTeorico?: number; cfdReal?: number; spread?: number;
 }
@@ -210,7 +211,7 @@ export function handleProfit(s: State, key: AssetKey, realCfd?: number) {
   const teorico = -calc.custoSePassar;
   if (typeof realCfd === "number" && Number.isFinite(realCfd)) calc.custoSePassar = -realCfd;
   const isLast = idx === a.days.length - 1;
-  const prev = { prevForexSaldoReal: s.forexSaldoReal, prevCfdBalance: s.cfdBalance, prevCounts: { ...s.counts }, prevDayIndex: a.attempt.currentDayIndex, prevCycleCost: a.attempt.cycleCost || 0, prevCustoProprioAcumulado: a.attempt.custoProprioAcumulado || 0, prevTotalGasto: s.totalGasto, prevBonusDeposito: a.bonus.deposito || 0, prevBonusAtual: a.bonus.bonusAtual || 0 };
+  const prev = { prevBonusTodos: Object.fromEntries(ASSETS.map((k) => [k, structuredClone(s.assets[k].bonus)])) as Record<AssetKey, Bonus>, prevForexSaldoReal: s.forexSaldoReal, prevCfdBalance: s.cfdBalance, prevCounts: { ...s.counts }, prevDayIndex: a.attempt.currentDayIndex, prevCycleCost: a.attempt.cycleCost || 0, prevCustoProprioAcumulado: a.attempt.custoProprioAcumulado || 0, prevTotalGasto: s.totalGasto, prevBonusDeposito: a.bonus.deposito || 0, prevBonusAtual: a.bonus.bonusAtual || 0 };
   const taxaCobrada = idx === 0 ? a.params.taxa : 0;
   const custoDoDia = calc.custoSePassar + taxaCobrada;
   const saque = isLast ? a.params.saqueAprovada || 0 : 0;
@@ -238,7 +239,7 @@ export function handleStop(s: State, key: AssetKey, realCfd?: number) {
   if (typeof realCfd === "number" && Number.isFinite(realCfd)) calc.reprova = realCfd;
   const taxaCobrada = idx === 0 ? a.params.taxa : 0;
   const delta = calc.reprova - taxaCobrada;
-  const prev = { prevForexSaldoReal: s.forexSaldoReal, prevCfdBalance: s.cfdBalance, prevCounts: { ...s.counts }, prevDayIndex: a.attempt.currentDayIndex, prevCycleCost: a.attempt.cycleCost || 0, prevCustoProprioAcumulado: a.attempt.custoProprioAcumulado || 0, prevTotalGasto: s.totalGasto, prevBonusDeposito: a.bonus.deposito || 0, prevBonusAtual: a.bonus.bonusAtual || 0 };
+  const prev = { prevBonusTodos: Object.fromEntries(ASSETS.map((k) => [k, structuredClone(s.assets[k].bonus)])) as Record<AssetKey, Bonus>, prevForexSaldoReal: s.forexSaldoReal, prevCfdBalance: s.cfdBalance, prevCounts: { ...s.counts }, prevDayIndex: a.attempt.currentDayIndex, prevCycleCost: a.attempt.cycleCost || 0, prevCustoProprioAcumulado: a.attempt.custoProprioAcumulado || 0, prevTotalGasto: s.totalGasto, prevBonusDeposito: a.bonus.deposito || 0, prevBonusAtual: a.bonus.bonusAtual || 0 };
   const custoTotalCiclo = prev.prevCycleCost + taxaCobrada;
   a.bonus.deposito = (a.bonus.deposito || 0) + calc.reprova;
   atualizarSaldoReal(s, calc.reprova);
@@ -255,6 +256,7 @@ export function undoLast(s: State) {
   if (!last) return;
   if (typeof last.prevCfdBalance === "number") s.cfdBalance = last.prevCfdBalance;
   if (typeof last.prevForexSaldoReal === "number") s.forexSaldoReal = last.prevForexSaldoReal;
+  if (last.prevBonusTodos) for (const k of ASSETS) s.assets[k].bonus = structuredClone(last.prevBonusTodos[k]);
   if (last.prevCounts) s.counts = last.prevCounts;
   if (typeof last.prevTotalGasto === "number") s.totalGasto = last.prevTotalGasto;
   const a = s.assets[last.asset];
