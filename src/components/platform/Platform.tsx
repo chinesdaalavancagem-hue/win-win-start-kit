@@ -25,7 +25,7 @@ const TABS: { key: TabKey; label: string; dot: string }[] = [
 const ASSET_NAME: Record<AssetKey, string> = { nasdaq: "NASDAQ", ouro: "GOLD", saque2: "SAQUE 2" };
 const rotuloDia = (asset: Asset, key: AssetKey, indice: number) => { const avaliacao = key === "ouro" ? diasAvaliacaoGold(asset) : key === "saque2" ? 0 : 3; return `D${indice < avaliacao ? indice + 1 : indice - avaliacao + 1} ${indice < avaliacao ? "Avaliação" : "Financiada"}`; };
 
-export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas }: { load: () => Promise<string | null>; save: (v: string, acceptedAt?: string) => Promise<boolean>; isAdmin: boolean; officialAcceptedAt: string | null; allBancas?: Banca[] }) {
+export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas, mesaAtiva, onMesaChange }: { load: () => Promise<string | null>; save: (v: string, acceptedAt?: string) => Promise<boolean>; isAdmin: boolean; officialAcceptedAt: string | null; allBancas?: Banca[]; mesaAtiva: MesaFuturos; onMesaChange: (mesa: MesaFuturos) => void }) {
   const [state, setState] = useState<State | null>(null);
   const [section, setSection] = useState<Section>("operacoes");
   const [leftMenuOpen, setLeftMenuOpen] = useState(false);
@@ -166,16 +166,13 @@ export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas }:
         <aside className="fixed right-14 top-1/2 z-50 w-[min(20rem,calc(100vw-5rem))] -translate-y-1/2 rounded-xl border border-amber-500/40 bg-[#091525] p-4 shadow-2xl lg:right-20" aria-label="Escolher mesa de futuros">
           <div className="mb-3 flex items-center justify-between gap-2"><h3 className="font-bold text-amber-200">Mesa de futuros · Gold</h3><button type="button" aria-label="Fechar seleção de mesa" className="text-slate-300 hover:text-white" onClick={() => setMostrarMesas(false)}>✕</button></div>
           <label className="block text-xs text-slate-300">Mesa utilizada nesta banca</label>
-          <select className="mt-2 w-full rounded-lg border border-amber-800/70 bg-[#06101f] p-3 text-sm text-white" value={state.assets.ouro.mesaFuturos ?? "tradefive"} onChange={(e) => {
-            const mesa = e.target.value as MesaFuturos;
-            mutate((st) => selecionarMesaGold(st.assets.ouro, mesa));
-          }}>
+          <select className="mt-2 w-full rounded-lg border border-amber-800/70 bg-[#06101f] p-3 text-sm text-white" value={mesaAtiva} onChange={(e) => onMesaChange(e.target.value as MesaFuturos)}>
             {Object.entries(MESAS_FUTUROS).map(([id, m]) => <option key={id} value={id}>{m.nome} · {m.consistencia}%</option>)}
           </select>
-          <p className="mt-3 text-xs leading-relaxed text-slate-300">{(() => { const m = MESAS_FUTUROS[state.assets.ouro.mesaFuturos ?? "tradefive"]; const avaliacao = diasAvaliacaoGold(state.assets.ouro); return `${avaliacao} dias de avaliação + ${state.assets.ouro.days.length - avaliacao} dias de conta financiada = ${state.assets.ouro.days.length} cards (padrão da mesa: ${m.avaliacao}+${m.payout}).`; })()}</p>
+          <p className="mt-3 text-xs leading-relaxed text-slate-300">{(() => { const m = MESAS_FUTUROS[mesaAtiva]; const avaliacao = diasAvaliacaoGold(state.assets.ouro); return `${avaliacao} dias de avaliação + ${state.assets.ouro.days.length - avaliacao} dias de conta financiada = ${state.assets.ouro.days.length} cards (padrão da mesa: ${m.avaliacao}+${m.payout}).`; })()}</p>
           <div className="mt-3 rounded-lg border border-amber-900/60 bg-black/20 p-3 text-xs text-slate-200">
             {(() => {
-              const mesa = MESAS_FUTUROS[state.assets.ouro.mesaFuturos ?? "tradefive"];
+              const mesa = MESAS_FUTUROS[mesaAtiva];
               const dias = state.assets.ouro.days.slice(0, diasAvaliacaoGold(state.assets.ouro));
               const totalMetas = dias.reduce((v, dia) => v + Math.max(0, dia.meta), 0);
               const percentualMaiorDia = totalMetas > 0 ? Math.max(...dias.map((dia) => Math.max(0, dia.meta))) / totalMetas * 100 : 0;
