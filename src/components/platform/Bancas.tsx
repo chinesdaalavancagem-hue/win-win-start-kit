@@ -21,12 +21,14 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
   const activeId = doc?.activeId;
   const loadActive = useCallback(async () => {
     const d = docRef.current; const b = d?.bancas.find((x) => x.id === d.activeId);
-    return b ? JSON.stringify(aplicarForex(b.state, forexDoDocumento(d!))) : null;
+    return b ? JSON.stringify((() => { const state = aplicarForex(b.state, forexDoDocumento(d!)); if (typeof b.taxaCompra === "number") { state.assets.nasdaq.params.taxa = b.taxaCompra; state.assets.ouro.params.taxa = b.taxaCompra; } return state; })()) : null;
   }, [activeId]); // eslint-disable-line react-hooks/exhaustive-deps
   const saveActive = useCallback(async (v: string, acceptedAt?: string) => {
     const d = docRef.current; if (!d) return false;
     const id = activeId;
     const updated = JSON.parse(v);
+    const banca = d.bancas.find((b) => b.id === id);
+    if (banca && typeof banca.taxaCompra === "number") { updated.assets.nasdaq.params.taxa = banca.taxaCompra; updated.assets.ouro.params.taxa = banca.taxaCompra; }
     const next = { ...d, forex: extrairForex(updated), bancas: d.bancas.map((b) => (b.id === id ? { ...b, state: updated, ...(acceptedAt ? { officialAcceptedAt: acceptedAt } : {}) } : b)) };
     docRef.current = next;
     setDoc(next);
@@ -84,6 +86,7 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
                   const valor = Number(taxaAvaliacao.trim().replace(",", "."));
                   if (!Number.isFinite(valor) || valor < 0) return;
                   const b = novaBanca(nome);
+                  b.taxaCompra = valor;
                   b.state = aplicarForex(b.state, forexDoDocumento(doc));
                   b.state.assets.nasdaq.params.taxa = valor;
                   b.state.assets.ouro.params.taxa = valor;
