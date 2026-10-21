@@ -20,7 +20,7 @@ export const MESAS_FUTUROS: Record<MesaFuturos, { nome: string; consistencia: nu
   lucid: { nome: "Lucid Trading", consistencia: 50, avaliacao: 2, payout: 5 },
   mff: { nome: "My Funded Futures (MFF)", consistencia: 30, avaliacao: 4, payout: 5 },
 };
-export interface Asset { params: Params; days: Day[]; attempt: Attempt; bonus: Bonus; mesaFuturos?: MesaFuturos; diasPorMesa?: Partial<Record<MesaFuturos, Day[]>> }
+export interface Asset { params: Params; days: Day[]; attempt: Attempt; bonus: Bonus; mesaFuturos?: MesaFuturos; diasPorMesa?: Partial<Record<MesaFuturos, Day[]>>; avaliacaoPorMesa?: Partial<Record<MesaFuturos, number>> }
 export interface LogEntry {
   id: number; ts: number; asset: AssetKey; day: number; tipo: "profit" | "aprovada" | "reprovada"; delta: number; saldoApos: number;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -107,6 +107,31 @@ const defaultAssetsBase = {
 };
 
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v));
+export function diasAvaliacaoGold(asset: Asset): number {
+  const mesa = asset.mesaFuturos ?? "tradefive";
+  return Math.max(0, Math.min(asset.days.length, asset.avaliacaoPorMesa?.[mesa] ?? MESAS_FUTUROS[mesa].avaliacao));
+}
+
+export function removerDiaGold(asset: Asset, indice: number): void {
+  if (indice < 0 || indice >= asset.days.length) return;
+  const mesa = asset.mesaFuturos ?? "tradefive";
+  const avaliacao = diasAvaliacaoGold(asset);
+  asset.days.splice(indice, 1);
+  asset.avaliacaoPorMesa = { ...asset.avaliacaoPorMesa, [mesa]: indice < avaliacao ? avaliacao - 1 : avaliacao };
+  if (indice < asset.attempt.currentDayIndex) asset.attempt.currentDayIndex--;
+  asset.attempt.currentDayIndex = Math.min(asset.attempt.currentDayIndex, Math.max(0, asset.days.length - 1));
+}
+
+export function adicionarDiaGold(asset: Asset, fase: "avaliacao" | "financiada"): void {
+  const mesa = asset.mesaFuturos ?? "tradefive";
+  const avaliacao = diasAvaliacaoGold(asset);
+  const modelo = asset.days[fase === "avaliacao" ? Math.max(0, avaliacao - 1) : asset.days.length - 1] ?? { mnq: 1, lotes: 1, meta: 150 };
+  const posicao = fase === "avaliacao" ? avaliacao : asset.days.length;
+  asset.days.splice(posicao, 0, structuredClone(modelo));
+  asset.avaliacaoPorMesa = { ...asset.avaliacaoPorMesa, [mesa]: avaliacao + (fase === "avaliacao" ? 1 : 0) };
+  if (posicao <= asset.attempt.currentDayIndex && asset.days.length > 1) asset.attempt.currentDayIndex++;
+}
+
 /** Preserva a programação de cada mesa, inclusive valores editados pelo usuário. */
 export function selecionarMesaGold(asset: Asset, mesa: MesaFuturos): void {
   if (!MESAS_FUTUROS[mesa]) return;
