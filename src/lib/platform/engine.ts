@@ -53,14 +53,14 @@ export interface LogEntry {
   prevBonusDeposito?: any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   prevBonusAtual?: any;
-  prevForexSaldoReal?: number;
+  prevForexSaldoReal?: number | undefined;
   prevBonusTodos?: Record<AssetKey, Bonus>;
   /** Registro real de saída: valor teórico sugerido, valor real liquidado e a diferença (spread/slippage). */
   cfdTeorico?: number; cfdReal?: number; spread?: number;
 }
 export interface State {
   activeTab: TabKey; assets: Record<AssetKey, Asset>; log: LogEntry[]; cfdBalance: number; totalGasto: number;
-  forexSaldoReal?: number;
+  forexSaldoReal?: number | undefined;
   counts: { aprovadas: number; reprovadas: number };
 }
 
