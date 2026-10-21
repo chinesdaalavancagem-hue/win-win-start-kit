@@ -32,7 +32,7 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
   };
   const loadActive = useCallback(async () => {
     const d = docRef.current; const b = d?.bancas.find((x) => x.id === activeId);
-    return b ? JSON.stringify((() => { const state = aplicarForex(b.state, forexDoDocumento(d!)); if (typeof b.taxaCompra === "number") { state.assets.nasdaq.params.taxa = b.taxaCompra; state.assets.ouro.params.taxa = b.taxaCompra; } return state; })()) : null;
+    return b ? JSON.stringify((() => { const state = aplicarForex(b.state, forexDoDocumento(d!)); if (typeof b.taxaCompra === "number") { state.assets.nasdaq.params.taxa = b.taxaCompra; state.assets.ouro.params.taxa = b.taxaCompra; } selecionarMesaGold(state.assets.ouro, b.mesa ?? "tradefive"); return state; })()) : null;
   }, [activeId]); // eslint-disable-line react-hooks/exhaustive-deps
   const saveActive = useCallback(async (v: string, acceptedAt?: string) => {
     const d = docRef.current; if (!d) return false;
