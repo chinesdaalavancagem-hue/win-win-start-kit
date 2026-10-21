@@ -12,7 +12,7 @@ export interface Params {
   marginPerLot: number; stopoutPct: number; saqueAprovada: number; folgaExtraPct: number; ativoReal?: "ouro" | "nasdaq";
 }
 export interface Attempt { currentDayIndex: number; cycleCost: number; custoProprioAcumulado: number }
-export interface BonusLog { ts: number; tipo: "deposito" | "saque" | "reset"; valor: number; dia?: number; bonusGanho?: number; proporcao?: number; bonusReduzido?: number; depositoZerado?: number }
+export interface BonusLog { ts: number; tipo: "deposito" | "saque" | "reset" | "ajuste_credito"; valor: number; dia?: number; bonusGanho?: number; proporcao?: number; bonusReduzido?: number; depositoZerado?: number }
 export interface Bonus { deposito: number; bonusAtual: number; bonusGanhoTotal: number; bonusCap: number; log: BonusLog[] }
 export interface Asset { params: Params; days: Day[]; attempt: Attempt; bonus: Bonus }
 export interface LogEntry {
@@ -330,6 +330,24 @@ export function aplicarSaque(s: State, key: AssetKey, valor: number) {
   atualizarSaldoReal(s, -valor);
   b.deposito = Math.max(0, b.deposito - valor);
   b.log.push({ ts: Date.now(), tipo: "saque", valor, proporcao, bonusReduzido });
+}
+
+/** Ajuste de conciliação, sem reescrever saques nem depósitos históricos. */
+export function conciliarCreditoForex(s: State, key: AssetKey, creditoConfirmado: number) {
+  if (!Number.isFinite(creditoConfirmado) || creditoConfirmado < 0) return;
+  const anterior = ASSETS.reduce((total, k) => total + Math.max(0, s.assets[k].bonus.bonusAtual), 0);
+  let diferenca = creditoConfirmado - anterior;
+  if (diferenca >= 0) s.assets[key].bonus.bonusAtual += diferenca;
+  else {
+    for (const k of [key, ...ASSETS.filter((x) => x !== key)]) {
+      const b = s.assets[k].bonus;
+      const reduzido = Math.min(b.bonusAtual, -diferenca);
+      b.bonusAtual -= reduzido;
+      diferenca += reduzido;
+      if (diferenca >= 0) break;
+    }
+  }
+  s.assets[key].bonus.log.push({ ts: Date.now(), tipo: "ajuste_credito", valor: creditoConfirmado - anterior });
 }
 
 export function resetBonus(s: State, key: AssetKey) {
