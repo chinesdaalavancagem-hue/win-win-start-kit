@@ -70,6 +70,7 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
             <div><p className="text-[11px] font-bold uppercase tracking-[0.22em] text-cyan-300/80">Workspace financeiro</p><h2 className="mt-1 text-xl font-bold tracking-tight text-slate-100 sm:text-2xl">Gerenciar bancas</h2><p className="mt-1 text-sm text-slate-400">Organize suas contas, acompanhe resultados e alterne entre ciclos.</p></div>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+            <label className="flex items-center gap-1 text-sm text-amber-200"><Building2 className="size-4" /><select aria-label="Mesa de futuros" value={mesa} onChange={(e) => escolherMesa(e.target.value as MesaFuturos)} className="rounded-lg border border-amber-800 bg-[#071426] px-2 py-2 text-sm font-semibold text-amber-100">{Object.entries(MESAS_FUTUROS).map(([k, m]) => <option key={k} value={k}>{m.nome}</option>)}</select></label>
             <label htmlFor="banca-sel" className="sr-only">Banca ativa</label>
             <div className="flex min-w-0 items-center gap-2 rounded-xl border border-cyan-950 bg-[#071426] px-3 py-2.5 sm:min-w-[230px]">
               <Activity className="size-4 shrink-0 text-cyan-300" />
@@ -97,13 +98,15 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
                   if (!Number.isFinite(valor) || valor < 0) return;
                   const b = novaBanca(nome);
                   b.taxaCompra = valor;
+                  b.mesa = mesa;
+                  if (mesa !== "tradefive") selecionarMesaGold(b.state.assets.ouro, mesa);
                   b.state = aplicarForex(b.state, forexDoDocumento(doc));
                   b.state.assets.nasdaq.params.taxa = valor;
                   b.state.assets.ouro.params.taxa = valor;
                   setNome(""); setTaxaAvaliacao("");
                   // Fechar a gestão para mostrar imediatamente os cards e os menus laterais.
                   setPainel(false);
-                  persist({ ...doc, activeId: b.id, bancas: [...doc.bancas, b] });
+                  persist({ ...doc, activeId: b.id, activeIdsMesa: { ...doc.activeIdsMesa, [mesa]: b.id }, bancas: [...doc.bancas, b] });
                 }}>
                   <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome da nova banca" aria-label="Nome da nova banca" className="h-10 min-w-0 rounded-xl border-cyan-950 bg-[#071426] text-slate-100 placeholder:text-slate-500 focus-visible:ring-cyan-400" maxLength={60} />
                   <Input type="text" inputMode="decimal" value={taxaAvaliacao} onChange={(e) => setTaxaAvaliacao(e.target.value)} placeholder="Taxa de avaliação ($)" aria-label="Taxa de avaliação em dólares" required className="h-10 min-w-[145px] flex-1 rounded-xl border-cyan-950 bg-[#071426] text-slate-100 placeholder:text-slate-500 focus-visible:ring-cyan-400" />
@@ -113,9 +116,9 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
               </div>
             </div>
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-              {doc.bancas.map((b) => {
+              {bancasDaMesa.map((b) => {
                 const r = resumoBanca(b);
-                const isActive = b.id === doc.activeId;
+                const isActive = b.id === ativa?.id;
                 return (
                   <article key={b.id} className={`group relative overflow-hidden rounded-xl border bg-gradient-to-br from-[#0b1b30] via-[#081426] to-[#050c17] p-2.5 sm:p-3 transition-colors ${isActive ? "border-cyan-400/70 shadow-[0_0_26px_rgba(0,190,255,0.09)]" : "border-cyan-950/90 hover:border-cyan-800"}`}>
                     {isActive && <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-cyan-300 via-teal-300 to-emerald-300" />}
@@ -125,7 +128,7 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
                         <div className="min-w-0"><h4 className="truncate text-sm font-bold text-slate-100">{b.nome}</h4><p className="text-[10px] text-slate-500">{isActive ? "Selecionada para operação" : "Banca cadastrada"}</p></div>
                       </div>
                       {isActive ? <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-300"><CheckCircle2 className="size-3" />Ativa</span> :
-                        <Button size="sm" variant="outline" className="h-7 shrink-0 rounded-lg border-cyan-900 bg-[#071426] text-cyan-200 hover:border-cyan-400 hover:bg-cyan-950/50" onClick={() => persist({ ...doc, activeId: b.id })}>Abrir <ArrowUpRight className="size-3.5" /></Button>}
+                        <Button size="sm" variant="outline" className="h-7 shrink-0 rounded-lg border-cyan-900 bg-[#071426] text-cyan-200 hover:border-cyan-400 hover:bg-cyan-950/50" onClick={() => escolherBanca(b.id)}>Abrir <ArrowUpRight className="size-3.5" /></Button>}
                     </div>
                     <div className="mt-2.5 grid grid-cols-2 gap-1.5">
                       <div className="rounded-lg border border-white/5 bg-black/15 px-2.5 py-1.5"><p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Ciclos</p><p className="text-base font-bold tabular-nums text-slate-100">{r.ciclos}</p></div>
@@ -164,7 +167,7 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
                           const rest = doc.bancas.filter((x) => x.id !== b.id);
                           // Fechar a gestão para manter os controles laterais visíveis após excluir.
                           setPainel(false);
-                          persist({ ...doc, bancas: rest, activeId: isActive ? rest[0]?.id ?? doc.activeId : doc.activeId });
+                          persist({ ...doc, bancas: rest, activeId: isActive ? rest.find((x) => (x.mesa ?? "tradefive") === mesa)?.id ?? "" : doc.activeId, activeIdsMesa: { ...doc.activeIdsMesa, [mesa]: isActive ? rest.find((x) => (x.mesa ?? "tradefive") === mesa)?.id ?? "" : doc.activeIdsMesa?.[mesa] } });
                         }}><Trash2 className="size-3.5" />Excluir</Button>
                       )}
                     </div>
