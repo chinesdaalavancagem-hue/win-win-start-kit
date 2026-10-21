@@ -23,6 +23,7 @@ const TABS: { key: TabKey; label: string; dot: string }[] = [
   { key: "historico", label: "Histórico", dot: "bg-muted-foreground" },
 ];
 const ASSET_NAME: Record<AssetKey, string> = { nasdaq: "NASDAQ", ouro: "GOLD", saque2: "SAQUE 2" };
+const rotuloDia = (asset: Asset, key: AssetKey, indice: number) => { const avaliacao = key === "ouro" ? diasAvaliacaoGold(asset) : key === "saque2" ? 0 : 3; return `D${indice < avaliacao ? indice + 1 : indice - avaliacao + 1} ${indice < avaliacao ? "Avaliação" : "Financiada"}`; };
 
 export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas }: { load: () => Promise<string | null>; save: (v: string, acceptedAt?: string) => Promise<boolean>; isAdmin: boolean; officialAcceptedAt: string | null; allBancas?: Banca[] }) {
   const [state, setState] = useState<State | null>(null);
@@ -187,7 +188,7 @@ export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas }:
       <div className="sticky z-20 mb-3 rounded-xl border border-cyan-950/80 bg-[#06101f]/95 p-2 shadow-lg backdrop-blur-md sm:p-3" style={{ top: headerHeight + 8 }}>
         <div className="mb-3 flex flex-wrap items-center gap-2 text-sm text-blue-100/70">
           <span className="size-2.5 rounded-full bg-amber-400 shadow-[0_0_10px_rgba(255,190,40,0.4)]" />
-          <span>{lastOperation ? `${ASSET_NAME[lastOperation.asset]} · D${lastOperation.day} · ${tipoLabel(lastOperation.tipo, lastOperation.asset)}` : "Nenhuma operação registrada"}</span>
+          <span>{lastOperation ? `${ASSET_NAME[lastOperation.asset]} · ${rotuloDia(state.assets[lastOperation.asset], lastOperation.asset, Math.max(0, lastOperation.day - 1))} · ${tipoLabel(lastOperation.tipo, lastOperation.asset)}` : "Nenhuma operação registrada"}</span>
         </div>
         <Button type="button" variant="outline" className="w-full justify-start rounded-xl border-cyan-900/80 bg-[#071426] text-blue-100 hover:border-cyan-400 hover:bg-blue-950/60 sm:w-auto" disabled={!lastOperation} onClick={() => mutate((s) => {
           const last = s.log.at(-1);
@@ -399,7 +400,7 @@ function AssetView({ state, assetKey, section, setSection, leftMenuOpen, setLeft
   const visibleRows = isAdmin ? rows : rows.filter((r) => r.isCurrent);
   const displayedTotalMeta = isAdmin ? totalMeta : visibleRows.reduce((total, r) => total + r.d.meta, 0);
   // Soma das metas configuradas nos parâmetros para D1 a D5 Funded (índices 3–7), independentemente de operações realizadas.
-  const lucroFunded = asset.days.slice(3, 8).reduce((total, dia) => total + (Number(dia.meta) || 0), 0);
+  const lucroFunded = asset.days.slice(avaliacaoDias, avaliacaoDias + 5).reduce((total, dia) => total + (Number(dia.meta) || 0), 0);
   const displayedCum = isAdmin ? cum : visibleRows.reduce((total, r) => total + r.c.passa, saldo);
   const folga = asset.params.folgaExtraPct ?? 20;
   const reservaComFolga = reservaMinima > 0 ? reservaMinima * (1 + folga / 100) : 0;
@@ -542,7 +543,7 @@ function AssetView({ state, assetKey, section, setSection, leftMenuOpen, setLeft
                 {asset.days.map((d, i) => (
                   <div key={i} className="rounded-xl border border-[#273342] bg-[#07101a] p-3">
                     <div className="mb-2 flex items-center justify-between gap-1">
-                      <span className="font-mono text-xs font-bold text-amber-300">D{i < avaliacaoDias ? i + 1 : i - avaliacaoDias + 1} <span className="text-[10px] font-semibold uppercase tracking-wide">{i < avaliacaoDias ? "Evaluation" : "Funded"}</span></span>
+                      <span className="font-mono text-xs font-bold text-amber-300">{rotuloDia(asset, assetKey, i)}</span>
                       <span className={cn("rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide", d.mll && d.mll > 0 ? "bg-amber-400/10 text-amber-300" : "bg-slate-700/50 text-slate-400")}>{d.mll && d.mll > 0 ? "Personalizado" : "Geral"}</span>
                     </div>
                     <NumField label="Limite ($)" value={d.mll ?? 0}
@@ -629,7 +630,7 @@ function DayCard({ row, assetKey, avaliacaoDias, mutate, excedenteAtualSacavel }
     <div ref={ref} className={cn("platform-day-card overflow-hidden rounded-2xl border border-[#142b43] bg-[#0b0f19] p-3 text-slate-100 shadow-[0_12px_40px_rgba(0,0,0,0.22)] sm:p-5 lg:p-3", isCurrent && "border-[#087cff]/70 ring-1 ring-[#087cff]/25")}>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-[#142b43] pb-3">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <span className="rounded-lg border border-blue-500 bg-blue-600 px-2.5 py-1 font-mono text-sm font-bold text-white shadow-[0_0_18px_rgba(0,119,255,0.18)]">D{i < 3 ? i + 1 : i - 2} <span className="text-[10px] font-semibold uppercase tracking-wide">{i < 3 ? "Evaluation" : "Funded"}</span></span>
+          <span className="rounded-lg border border-blue-500 bg-blue-600 px-2.5 py-1 font-mono text-sm font-bold text-white shadow-[0_0_18px_rgba(0,119,255,0.18)]">D{i < avaliacaoDias ? i + 1 : i - avaliacaoDias + 1} <span className="text-[10px] font-semibold uppercase tracking-wide">{i < avaliacaoDias ? "Avaliação" : "Financiada"}</span></span>
           <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-blue-200/85 sm:text-[11px]"><Crosshair className="h-3.5 w-3.5 shrink-0 text-blue-400" />Matriz operacional</p>
           {isCurrent && <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-400 sm:text-xs"><span className="h-2 w-2 rounded-full bg-market-up" />dia atual</span>}
         </div>
@@ -991,7 +992,7 @@ function LogList({ state }: { state: State }) {
         return (
           <div key={e.id} className="flex flex-wrap items-start gap-2 p-3 font-mono text-xs">
             <span className={cn("rounded px-1.5 py-0.5 text-[10px]", e.asset === "ouro" ? "bg-brand-gold/20 text-brand-gold" : e.asset === "saque2" ? "bg-brand-violet/20 text-brand-violet" : "bg-primary/20 text-primary")}>{ASSET_NAME[e.asset]}</span>
-            <span className="font-semibold">D{e.day <= 3 ? e.day : e.day - 3} {e.day <= 3 ? "Evaluation" : "Funded"}</span>
+            <span className="font-semibold">{rotuloDia(state.assets[e.asset], e.asset, Math.max(0, e.day - 1))}</span>
             <span className="min-w-0 flex-1 text-muted-foreground">{tipoLabel(e.tipo, e.asset)} · {date}{extra}{typeof e.spread === "number" && Math.abs(e.spread) >= 0.005 && <> · spread <span className={e.spread >= 0 ? "text-market-up" : "text-market-down"}>{fmtSigned(e.spread)}</span></>}</span>
             <span className={e.delta >= 0 ? "text-market-up" : "text-market-down"}>líq. {fmtSigned(e.delta)}</span>
           </div>
@@ -1144,7 +1145,7 @@ function AportePanel({ asset, calcs }: { asset: Asset; calcs: ReturnType<typeof 
   const ownPct = r.total > 0 ? Math.min(100, Math.max(0, r.proprio / r.total * 100)) : 0;
   const bonusPctBar = r.total > 0 ? Math.min(100 - ownPct, Math.max(0, r.bonus / r.total * 100)) : 0;
   const fields = [
-    { label: "Dia do ciclo", content: <select value={dia} onChange={(e) => setDia(Number(e.target.value))} className="mt-1.5 w-full rounded-xl border border-cyan-950 bg-[#030b15] px-3 py-3 text-sm text-slate-100 outline-none transition focus:border-cyan-400/70">{asset.days.map((x, i) => <option key={i} value={i}>D{i + 1} · {x.lotes} lotes{i === asset.attempt.currentDayIndex ? " (atual)" : ""}</option>)}</select> },
+    { label: "Dia do ciclo", content: <select value={dia} onChange={(e) => setDia(Number(e.target.value))} className="mt-1.5 w-full rounded-xl border border-cyan-950 bg-[#030b15] px-3 py-3 text-sm text-slate-100 outline-none transition focus:border-cyan-400/70">{asset.days.map((x, i) => <option key={i} value={i}>{rotuloDia(asset, assetKey, i)} · {x.lotes} lotes{i === asset.attempt.currentDayIndex ? " (atual)" : ""}</option>)}</select> },
     { label: "Bônus da corretora (%)", content: <input inputMode="decimal" value={pct} onChange={(e) => setPct(e.target.value)} className="mt-1.5 w-full rounded-xl border border-cyan-950 bg-[#030b15] px-3 py-3 font-mono text-sm text-slate-100 outline-none transition focus:border-cyan-400/70" /> },
     { label: "Banca integral para comparar ($)", content: <input inputMode="decimal" value={banca} onChange={(e) => setBanca(e.target.value)} className="mt-1.5 w-full rounded-xl border border-cyan-950 bg-[#030b15] px-3 py-3 font-mono text-sm text-slate-100 outline-none transition focus:border-cyan-400/70" /> },
   ];
@@ -1162,7 +1163,7 @@ function AportePanel({ asset, calcs }: { asset: Asset; calcs: ReturnType<typeof 
         </div>
         <div className="rounded-xl border border-cyan-900/80 bg-[#06101f]/90 px-3 py-2">
           <p className="text-[10px] uppercase tracking-wider text-blue-100/50">Dia selecionado</p>
-          <p className="mt-0.5 font-mono text-lg font-bold text-cyan-300">D${dia + 1}</p>
+          <p className="mt-0.5 font-mono text-lg font-bold text-cyan-300">{rotuloDia(asset, assetKey, dia)}</p>
         </div>
       </header>
 
@@ -1289,7 +1290,7 @@ function CaixaPanel({ asset, assetKey, bonusPct, setBonusPct }: { asset: Asset; 
             <h3 className="font-semibold text-slate-100">Projeção dia a dia</h3>
             <p className="mt-0.5 text-xs text-blue-100/50">Depósitos, bônus e perdas estimadas em cada etapa.</p>
           </div>
-          <span className="rounded-full border border-cyan-900/80 bg-cyan-950/40 px-2.5 py-1 text-[11px] font-medium text-cyan-200">D1–D{r.dias.length}</span>
+          <span className="rounded-full border border-cyan-900/80 bg-cyan-950/40 px-2.5 py-1 text-[11px] font-medium text-cyan-200">{r.dias.length ? `${rotuloDia(asset, assetKey, 0)} até ${rotuloDia(asset, assetKey, r.dias.length - 1)}` : "Sem dias"}</span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px] text-sm">
@@ -1299,7 +1300,7 @@ function CaixaPanel({ asset, assetKey, bonusPct, setBonusPct }: { asset: Asset; 
             <tbody>
               {r.dias.map((d) => (
                 <tr key={d.dia} className="border-t border-cyan-950/70 text-slate-200/85 transition-colors hover:bg-cyan-950/20">
-                  <td className="px-3 py-3 font-bold text-cyan-300">D{d.dia}</td>
+                  <td className="px-3 py-3 font-bold text-cyan-300">{rotuloDia(asset, assetKey, d.dia - 1)}</td>
                   <td className="whitespace-nowrap px-3 py-3 font-mono">{money(d.necessario)}</td>
                   <td className="whitespace-nowrap px-3 py-3 font-mono">{money(d.saldoAntes)}</td>
                   <td className="whitespace-nowrap px-3 py-3 font-mono font-bold text-cyan-300">{money(d.deposito)}</td>
