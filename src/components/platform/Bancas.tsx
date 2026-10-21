@@ -102,38 +102,38 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
                 <Button type="button" variant="outline" className="h-10 rounded-xl border-cyan-900/80 bg-[#071426] text-blue-100 hover:border-cyan-400" onClick={exportar}><Download className="size-4" />Exportar CSV</Button>
               </div>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
               {doc.bancas.map((b) => {
                 const r = resumoBanca(b);
                 const isActive = b.id === doc.activeId;
                 return (
-                  <article key={b.id} className={`group relative overflow-hidden rounded-2xl border bg-gradient-to-br from-[#0b1b30] via-[#081426] to-[#050c17] p-4 transition-colors ${isActive ? "border-cyan-400/70 shadow-[0_0_26px_rgba(0,190,255,0.09)]" : "border-cyan-950/90 hover:border-cyan-800"}`}>
+                  <article key={b.id} className={`group relative overflow-hidden rounded-xl border bg-gradient-to-br from-[#0b1b30] via-[#081426] to-[#050c17] p-2.5 sm:p-3 transition-colors ${isActive ? "border-cyan-400/70 shadow-[0_0_26px_rgba(0,190,255,0.09)]" : "border-cyan-950/90 hover:border-cyan-800"}`}>
                     {isActive && <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-cyan-300 via-teal-300 to-emerald-300" />}
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <div className={`flex size-10 shrink-0 items-center justify-center rounded-xl border ${isActive ? "border-cyan-300/25 bg-cyan-300/10 text-cyan-200" : "border-slate-700 bg-slate-800/70 text-slate-400"}`}><Building2 className="size-5" /></div>
-                        <div className="min-w-0"><h4 className="truncate font-bold text-slate-100">{b.nome}</h4><p className="mt-0.5 text-xs text-slate-500">{isActive ? "Selecionada para operação" : "Banca cadastrada"}</p></div>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <div className={`flex size-8 shrink-0 items-center justify-center rounded-lg border ${isActive ? "border-cyan-300/25 bg-cyan-300/10 text-cyan-200" : "border-slate-700 bg-slate-800/70 text-slate-400"}`}><Building2 className="size-4" /></div>
+                        <div className="min-w-0"><h4 className="truncate text-sm font-bold text-slate-100">{b.nome}</h4><p className="text-[10px] text-slate-500">{isActive ? "Selecionada para operação" : "Banca cadastrada"}</p></div>
                       </div>
                       {isActive ? <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-300"><CheckCircle2 className="size-3" />Ativa</span> :
-                        <Button size="sm" variant="outline" className="h-8 shrink-0 rounded-lg border-cyan-900 bg-[#071426] text-cyan-200 hover:border-cyan-400 hover:bg-cyan-950/50" onClick={() => persist({ ...doc, activeId: b.id })}>Abrir <ArrowUpRight className="size-3.5" /></Button>}
+                        <Button size="sm" variant="outline" className="h-7 shrink-0 rounded-lg border-cyan-900 bg-[#071426] text-cyan-200 hover:border-cyan-400 hover:bg-cyan-950/50" onClick={() => persist({ ...doc, activeId: b.id })}>Abrir <ArrowUpRight className="size-3.5" /></Button>}
                     </div>
-                    <div className="mt-4 grid grid-cols-2 gap-2">
-                      <div className="rounded-xl border border-white/5 bg-black/15 p-3"><p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Ciclos</p><p className="mt-1 text-xl font-bold tabular-nums text-slate-100">{r.ciclos}</p></div>
-                      <div className="rounded-xl border border-white/5 bg-black/15 p-3"><p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Resultado</p><p className={`mt-1 truncate text-lg font-bold tabular-nums ${r.lucro >= 0 ? "text-emerald-300" : "text-rose-300"}`}>{fmtSigned(r.lucro)}</p></div>
+                    <div className="mt-2.5 grid grid-cols-2 gap-1.5">
+                      <div className="rounded-lg border border-white/5 bg-black/15 px-2.5 py-1.5"><p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Ciclos</p><p className="text-base font-bold tabular-nums text-slate-100">{r.ciclos}</p></div>
+                      <div className="rounded-lg border border-white/5 bg-black/15 px-2.5 py-1.5"><p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Resultado</p><p className={`truncate text-base font-bold tabular-nums ${r.lucro >= 0 ? "text-emerald-300" : "text-rose-300"}`}>{fmtSigned(r.lucro)}</p></div>
                     </div>
-                    <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 border-t border-white/5 pt-3 text-xs">
-                      <div><dt className="text-slate-500">Aprovadas</dt><dd className="mt-0.5 font-semibold text-emerald-300">{r.aprovadas}</dd></div>
-                      <div><dt className="text-slate-500">Reprovadas</dt><dd className="mt-0.5 font-semibold text-rose-300">{r.reprovadas}</dd></div>
-                      <div><dt className="text-slate-500">Compra da banca</dt><dd className="mt-0.5 font-mono font-semibold text-amber-200">${fmt(b.taxaCompra ?? b.state.assets.ouro.params.taxa)}</dd></div>
-                      <div><dt className="text-slate-500">Total gasto</dt><dd className="mt-0.5 font-mono text-slate-200">${fmt(r.totalGasto)}</dd></div>
-                      <div><dt className="text-slate-500">Último evento</dt><dd className="mt-0.5 text-slate-300">{r.ultima ? new Date(r.ultima).toLocaleDateString("pt-BR") : "Sem eventos"}</dd></div>
+                    <dl className="mt-2 grid grid-cols-2 gap-x-2 gap-y-1 border-t border-white/5 pt-2 text-[11px]">
+                      <div><dt className="text-slate-500">Aprovadas</dt><dd className=" font-semibold text-emerald-300">{r.aprovadas}</dd></div>
+                      <div><dt className="text-slate-500">Reprovadas</dt><dd className=" font-semibold text-rose-300">{r.reprovadas}</dd></div>
+                      <div><dt className="text-slate-500">Compra da banca</dt><dd className=" font-mono font-semibold text-amber-200">${fmt(b.taxaCompra ?? b.state.assets.ouro.params.taxa)}</dd></div>
+                      <div><dt className="text-slate-500">Total gasto</dt><dd className=" font-mono text-slate-200">${fmt(r.totalGasto)}</dd></div>
+                      <div><dt className="text-slate-500">Último evento</dt><dd className=" text-slate-300">{r.ultima ? new Date(r.ultima).toLocaleDateString("pt-BR") : "Sem eventos"}</dd></div>
                     </dl>
-                    <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-white/5 pt-3">
-                      <Button size="sm" variant="ghost" className="h-8 rounded-lg px-2 text-slate-300 hover:bg-cyan-950/60 hover:text-cyan-200" onClick={() => {
+                    <div className="mt-2 flex flex-wrap items-center gap-1 border-t border-white/5 pt-2">
+                      <Button size="sm" variant="ghost" className="h-7 rounded-lg px-1.5 text-[11px] text-slate-300 hover:bg-cyan-950/60 hover:text-cyan-200" onClick={() => {
                         const n = window.prompt("Novo nome da banca", b.nome)?.trim();
                         if (n) persist({ ...doc, bancas: doc.bancas.map((x) => (x.id === b.id ? { ...x, nome: n.slice(0, 60) } : x)) });
                       }}><Pencil className="size-3.5" />Renomear</Button>
-                      <Button size="sm" variant="ghost" className="h-8 rounded-lg px-2 text-amber-200 hover:bg-amber-950/40 hover:text-amber-100" onClick={() => {
+                      <Button size="sm" variant="ghost" className="h-7 rounded-lg px-1.5 text-[11px] text-amber-200 hover:bg-amber-950/40 hover:text-amber-100" onClick={() => {
                         const anterior = b.taxaCompra ?? b.state.assets.ouro.params.taxa;
                         const entrada = window.prompt("Valor real pago nesta banca ($)", String(anterior));
                         if (entrada === null) return;
@@ -149,7 +149,7 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
                         persist({ ...doc, bancas });
                       }}><Pencil className="size-3.5" />Corrigir valor pago</Button>
                       {doc.bancas.length > 1 && (
-                        <Button size="sm" variant="ghost" className="h-8 rounded-lg px-2 text-rose-300 hover:bg-rose-950/40 hover:text-rose-200" onClick={() => {
+                        <Button size="sm" variant="ghost" className="h-7 rounded-lg px-1.5 text-[11px] text-rose-300 hover:bg-rose-950/40 hover:text-rose-200" onClick={() => {
                           if (!window.confirm(`Excluir a banca "${b.nome}" e todo o histórico dela?`)) return;
                           const rest = doc.bancas.filter((x) => x.id !== b.id);
                           // Fechar a gestão para manter os controles laterais visíveis após excluir.
