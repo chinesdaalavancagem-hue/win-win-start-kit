@@ -599,7 +599,7 @@ function AssetView({ state, assetKey, section, setSection, leftMenuOpen, setLeft
         <div>
           <div className="space-y-3">
             {visibleRows.map((r) => (
-              <DayCard key={r.i} row={r} assetKey={assetKey} avaliacaoDias={assetKey === "ouro" ? diasAvaliacaoGold(asset) : 3} mutate={mutate} excedenteAtualSacavel={excedenteAtualSacavel} />
+              <DayCard key={r.i} row={r} asset={asset} assetKey={assetKey} avaliacaoDias={assetKey === "ouro" ? diasAvaliacaoGold(asset) : 3} mutate={mutate} excedenteAtualSacavel={excedenteAtualSacavel} />
             ))}
           </div>
           {isAdmin && <div className="mt-3 flex flex-wrap gap-2"><Button type="button" variant="outline" className="flex-1 border-dashed" onClick={() => mutate((s) => { if (assetKey === "ouro") adicionarDiaGold(s.assets.ouro, "financiada"); else s.assets[assetKey].days.push({ mnq: 1, lotes: 1, meta: 150 }); })}>+ adicionar dia {assetKey === "ouro" ? "financiado" : ""}</Button>{assetKey === "ouro" && <Button type="button" variant="outline" className="flex-1 border-dashed border-amber-800 text-amber-200" onClick={() => mutate((s) => adicionarDiaGold(s.assets.ouro, "avaliacao"))}>+ adicionar dia de avaliação</Button>}</div>}
@@ -611,7 +611,7 @@ function AssetView({ state, assetKey, section, setSection, leftMenuOpen, setLeft
 
 type Row = { d: { mnq: number; lotes: number; meta: number }; c: ReturnType<typeof computeAssetCalcs>[number]; i: number; isCurrent: boolean; status: "ok" | "alerta" | "risco"; statusText: string; ticks: number; mult: number; caixaDia?: ReturnType<typeof calcCaixaCiclo>["dias"][number] | undefined };
 
-function DayCard({ row, assetKey, avaliacaoDias, mutate, excedenteAtualSacavel }: { row: Row; assetKey: AssetKey; avaliacaoDias: number; mutate: (fn: (s: State) => void) => void; excedenteAtualSacavel: number }) {
+function DayCard({ row, asset, assetKey, avaliacaoDias, mutate, excedenteAtualSacavel }: { row: Row; asset: Asset; assetKey: AssetKey; avaliacaoDias: number; mutate: (fn: (s: State) => void) => void; excedenteAtualSacavel: number }) {
   const { d, c, i, isCurrent } = row;
   const ref = useRef<HTMLDivElement>(null);
   const wasCurrent = useRef(isCurrent);
