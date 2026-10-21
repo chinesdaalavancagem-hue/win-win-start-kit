@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defaultState, MESAS_FUTUROS, selecionarMesaGold } from "../lib/platform/engine";
+import { defaultState, MESAS_FUTUROS, selecionarMesaGold, diasAvaliacaoGold, removerDiaGold, adicionarDiaGold } from "../lib/platform/engine";
 
 describe("perfis Gold por mesa de futuros", () => {
   it("usa 2+5 dias na Lucid e 4+5 na MFF", () => {
@@ -27,5 +27,22 @@ describe("perfis Gold por mesa de futuros", () => {
     selecionarMesaGold(gold, "lucid");
     expect(gold.days[0]?.meta).toBe(987);
     expect(s.log).toEqual(antigo);
+  });
+  it("mantém Evaluation e Funded corretos ao remover ou acrescentar dias", () => {
+    const a = defaultState().assets.ouro;
+    selecionarMesaGold(a, "lucid");
+    expect(diasAvaliacaoGold(a)).toBe(2);
+    removerDiaGold(a, 0);
+    expect(diasAvaliacaoGold(a)).toBe(1);
+    expect(a.days).toHaveLength(6);
+    adicionarDiaGold(a, "avaliacao");
+    expect(diasAvaliacaoGold(a)).toBe(2);
+    selecionarMesaGold(a, "mff");
+    expect(diasAvaliacaoGold(a)).toBe(4);
+    expect(a.days).toHaveLength(9);
+    removerDiaGold(a, 5);
+    expect(diasAvaliacaoGold(a)).toBe(4);
+    selecionarMesaGold(a, "lucid");
+    expect(diasAvaliacaoGold(a)).toBe(2);
   });
 });
