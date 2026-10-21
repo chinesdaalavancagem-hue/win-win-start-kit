@@ -201,7 +201,7 @@ export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas, m
         <AssetView key={tab} state={state} assetKey={tab} section={section} setSection={setSection} leftMenuOpen={leftMenuOpen} setLeftMenuOpen={setLeftMenuOpen} desktopRailTop={desktopRailTop} mutate={mutate} isAdmin={isAdmin} />
       )}
 
-      <BackupMenu state={state} mutate={mutate} save={save} onApplied={setState} isAdmin={isAdmin} officialAcceptedAt={officialAcceptedAt} />
+      <BackupMenu state={state} mutate={mutate} save={save} onApplied={setState} isAdmin={isAdmin} officialAcceptedAt={officialAcceptedAt} mesaAtiva={mesaAtiva} />
       <StrategyNotes />
     </div>
   );
@@ -1001,7 +1001,7 @@ function LogList({ state }: { state: State }) {
 
 /* ---------- backup e notas ---------- */
 
-function BackupMenu({ state, mutate, save, onApplied, isAdmin, officialAcceptedAt }: { state: State; mutate: (fn: (s: State) => void) => void; save: (v: string, acceptedAt?: string) => Promise<boolean>; onApplied: (s: State) => void; isAdmin: boolean; officialAcceptedAt: string | null }) {
+function BackupMenu({ state, mutate, save, onApplied, isAdmin, officialAcceptedAt, mesaAtiva }: { state: State; mutate: (fn: (s: State) => void) => void; save: (v: string, acceptedAt?: string) => Promise<boolean>; onApplied: (s: State) => void; isAdmin: boolean; officialAcceptedAt: string | null; mesaAtiva: MesaFuturos }) {
   const [published, setPublished] = useState<{ payload: ReturnType<typeof buildOfficialParams>; updatedAt: string } | null>(null);
   const [officialBusy, setOfficialBusy] = useState(false);
   const [officialMessage, setOfficialMessage] = useState("");
@@ -1013,7 +1013,7 @@ function BackupMenu({ state, mutate, save, onApplied, isAdmin, officialAcceptedA
       try {
         const { data } = await supabase.auth.getSession();
         if (!data.session?.access_token) return;
-        const response = await fetch("/api/plataforma/parametros-oficiais", { headers: { authorization: "Bearer " + data.session.access_token }, cache: "no-store" });
+        const response = await fetch(`/api/plataforma/parametros-oficiais?mesa=${mesaAtiva}`, { headers: { authorization: "Bearer " + data.session.access_token }, cache: "no-store" });
         if (!response.ok) return;
         const result = await response.json() as { published?: { payload: unknown; updatedAt: string } | null };
         if (active && result.published && isOfficialParams(result.published.payload)) setPublished({ payload: result.published.payload, updatedAt: result.published.updatedAt });
@@ -1031,7 +1031,7 @@ function BackupMenu({ state, mutate, save, onApplied, isAdmin, officialAcceptedA
       if (!data.session?.access_token) throw Error("Sessão expirada");
       const response = await fetch("/api/plataforma/parametros-oficiais", {
         method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + data.session.access_token },
-        body: JSON.stringify({ payload: buildOfficialParams(state) }),
+        body: JSON.stringify({ payload: buildOfficialParams(state, new Date().toISOString(), mesaAtiva) }),
       });
       if (!response.ok) throw Error("Não foi possível publicar");
       setOfficialMessage("Parâmetros publicados na nuvem.");
@@ -1051,6 +1051,7 @@ function BackupMenu({ state, mutate, save, onApplied, isAdmin, officialAcceptedA
     setOfficialBusy(true);
     try {
       const next = structuredClone(state);
+      if ((published.payload.mesaFuturos ?? "tradefive") !== mesaAtiva) throw Error("wrong_desk");
       applyOfficialParams(next, published.payload);
       const ok = await save(JSON.stringify(next), published.updatedAt);
       if (!ok) throw Error("save_failed");
@@ -1063,7 +1064,7 @@ function BackupMenu({ state, mutate, save, onApplied, isAdmin, officialAcceptedA
   }
   const officialFileRef = useRef<HTMLInputElement>(null);
   function exportarParametrosOficiais() {
-    const payload = buildOfficialParams(state);
+    const payload = buildOfficialParams(state, new Date().toISOString(), mesaAtiva);
     const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" }));
     const a = document.createElement("a"); a.href = url; a.download = `WinOrWin_Parametros_${new Date().toISOString().slice(0, 10)}.json`; a.click(); URL.revokeObjectURL(url);
   }
@@ -1077,6 +1078,7 @@ function BackupMenu({ state, mutate, save, onApplied, isAdmin, officialAcceptedA
           return;
         }
         if (!window.confirm("Importar os parâmetros oficiais? Isso substituirá os parâmetros e os dias operacionais desta banca, mas preservará histórico, saldos e dados pessoais.")) return;
+        if ((payload.mesaFuturos ?? "tradefive") !== mesaAtiva) { window.alert("Este arquivo pertence a outra mesa de futuros."); return; }
         mutate((current) => applyOfficialParams(current, payload));
         alert("Parâmetros oficiais importados. Seu histórico e seus saldos foram preservados.");
       } catch { alert("Não foi possível ler esse arquivo de parâmetros."); }
