@@ -14,7 +14,13 @@ export interface Params {
 export interface Attempt { currentDayIndex: number; cycleCost: number; custoProprioAcumulado: number }
 export interface BonusLog { ts: number; tipo: "deposito" | "saque" | "reset" | "ajuste_credito"; valor: number; dia?: number; bonusGanho?: number; proporcao?: number; bonusReduzido?: number; depositoZerado?: number }
 export interface Bonus { deposito: number; bonusAtual: number; bonusGanhoTotal: number; bonusCap: number; log: BonusLog[] }
-export interface Asset { params: Params; days: Day[]; attempt: Attempt; bonus: Bonus }
+export type MesaFuturos = "tradefive" | "lucid" | "mff";
+export const MESAS_FUTUROS: Record<MesaFuturos, { nome: string; consistencia: number; avaliacao: number; payout: number }> = {
+  tradefive: { nome: "Trade Five", consistencia: 40, avaliacao: 3, payout: 5 },
+  lucid: { nome: "Lucid Trading", consistencia: 50, avaliacao: 2, payout: 5 },
+  mff: { nome: "My Funded Futures (MFF)", consistencia: 30, avaliacao: 4, payout: 5 },
+};
+export interface Asset { params: Params; days: Day[]; attempt: Attempt; bonus: Bonus; mesaFuturos?: MesaFuturos; diasPorMesa?: Partial<Record<MesaFuturos, Day[]>> }
 export interface LogEntry {
   id: number; ts: number; asset: AssetKey; day: number; tipo: "profit" | "aprovada" | "reprovada"; delta: number; saldoApos: number;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -101,6 +107,32 @@ const defaultAssetsBase = {
 };
 
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v));
+/** Preserva a programação de cada mesa, inclusive valores editados pelo usuário. */
+export function selecionarMesaGold(asset: Asset, mesa: MesaFuturos): void {
+  if (!MESAS_FUTUROS[mesa]) return;
+  const anterior = asset.mesaFuturos ?? "tradefive";
+  if (anterior === mesa) { asset.mesaFuturos = mesa; return; }
+  const atual = structuredClone(asset.days);
+  const versoes = asset.diasPorMesa ?? {};
+  versoes[anterior] = atual;
+  if (!versoes[mesa]) {
+    const avaliacao = MESAS_FUTUROS[mesa].avaliacao;
+    const baseAval = atual.slice(0, Math.min(3, atual.length));
+    const primeiro = baseAval[0] ?? { mnq: 20, lotes: 0.2, meta: 1080 };
+    // A meta do quarto dia deve respeitar o limite de consistência de 30%.
+    const ultimoAval = baseAval[baseAval.length - 1] ?? primeiro;
+    const diasAvaliacao = Array.from({ length: avaliacao }, (_, i) => structuredClone(baseAval[i] ?? ultimoAval));
+    const ultimosCinco = atual.slice(-5);
+    const primeiroPayout = ultimosCinco[0] ?? { mnq: 2, lotes: 0.2, meta: 200 };
+    const diasPayout = Array.from({ length: 5 }, (_, i) => structuredClone(ultimosCinco[i] ?? primeiroPayout));
+    versoes[mesa] = [...diasAvaliacao, ...diasPayout];
+  }
+  asset.diasPorMesa = versoes;
+  asset.days = structuredClone(versoes[mesa]!);
+  asset.mesaFuturos = mesa;
+  asset.attempt.currentDayIndex = Math.min(asset.attempt.currentDayIndex, asset.days.length - 1);
+}
+
 export const freshAttempt = (): Attempt => ({ currentDayIndex: 0, cycleCost: 0, custoProprioAcumulado: 0 });
 export const freshBonus = (): Bonus => ({ deposito: 0, bonusAtual: 0, bonusGanhoTotal: 0, bonusCap: 3000, log: [] });
 
