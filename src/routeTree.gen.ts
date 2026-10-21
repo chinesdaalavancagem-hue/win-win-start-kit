@@ -22,8 +22,11 @@ import { Route as AuthenticatedPlataformaRouteImport } from './routes/_authentic
 import { Route as ApiAnaliseIaRouteImport } from './routes/api/analise-ia'
 import { Route as ApiAssistenteRouteImport } from './routes/api/assistente'
 import { Route as ApiAuditoriaRouteImport } from './routes/api/auditoria'
+import { Route as ApiBackupTelegramTesteRouteImport } from './routes/api/backup-telegram-teste'
 import { Route as ApiTelegramTesteRouteImport } from './routes/api/telegram-teste'
 import { Route as ApiPlataformaDadosRouteImport } from './routes/api/plataforma/dados'
+import { Route as ApiPlataformaParametrosOficiaisRouteImport } from './routes/api/plataforma/parametros-oficiais'
+import { Route as ApiPublicNotificacoesHedgeRouteImport } from './routes/api/public/notificacoes-hedge'
 import { Route as ApiTermosAceiteRouteImport } from './routes/api/termos/aceite'
 import { Route as ApiTermosStatusRouteImport } from './routes/api/termos/status'
 import { Route as ApiPublicOrdensIndexRouteImport } from './routes/api/public/ordens/index'
@@ -94,6 +97,11 @@ const ApiAuditoriaRoute = ApiAuditoriaRouteImport.update({
   path: '/api/auditoria',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiBackupTelegramTesteRoute = ApiBackupTelegramTesteRouteImport.update({
+  id: '/api/backup-telegram-teste',
+  path: '/api/backup-telegram-teste',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiTelegramTesteRoute = ApiTelegramTesteRouteImport.update({
   id: '/api/telegram-teste',
   path: '/api/telegram-teste',
@@ -104,6 +112,18 @@ const ApiPlataformaDadosRoute = ApiPlataformaDadosRouteImport.update({
   path: '/api/plataforma/dados',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPlataformaParametrosOficiaisRoute =
+  ApiPlataformaParametrosOficiaisRouteImport.update({
+    id: '/api/plataforma/parametros-oficiais',
+    path: '/api/plataforma/parametros-oficiais',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicNotificacoesHedgeRoute =
+  ApiPublicNotificacoesHedgeRouteImport.update({
+    id: '/api/public/notificacoes-hedge',
+    path: '/api/public/notificacoes-hedge',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiTermosAceiteRoute = ApiTermosAceiteRouteImport.update({
   id: '/api/termos/aceite',
   path: '/api/termos/aceite',
@@ -145,8 +165,11 @@ export interface FileRoutesByFullPath {
   '/api/analise-ia': typeof ApiAnaliseIaRoute
   '/api/assistente': typeof ApiAssistenteRoute
   '/api/auditoria': typeof ApiAuditoriaRoute
+  '/api/backup-telegram-teste': typeof ApiBackupTelegramTesteRoute
   '/api/telegram-teste': typeof ApiTelegramTesteRoute
   '/api/plataforma/dados': typeof ApiPlataformaDadosRoute
+  '/api/plataforma/parametros-oficiais': typeof ApiPlataformaParametrosOficiaisRoute
+  '/api/public/notificacoes-hedge': typeof ApiPublicNotificacoesHedgeRoute
   '/api/termos/aceite': typeof ApiTermosAceiteRoute
   '/api/termos/status': typeof ApiTermosStatusRoute
   '/api/public/ordens/confirmar': typeof ApiPublicOrdensConfirmarRoute
@@ -166,8 +189,11 @@ export interface FileRoutesByTo {
   '/api/analise-ia': typeof ApiAnaliseIaRoute
   '/api/assistente': typeof ApiAssistenteRoute
   '/api/auditoria': typeof ApiAuditoriaRoute
+  '/api/backup-telegram-teste': typeof ApiBackupTelegramTesteRoute
   '/api/telegram-teste': typeof ApiTelegramTesteRoute
   '/api/plataforma/dados': typeof ApiPlataformaDadosRoute
+  '/api/plataforma/parametros-oficiais': typeof ApiPlataformaParametrosOficiaisRoute
+  '/api/public/notificacoes-hedge': typeof ApiPublicNotificacoesHedgeRoute
   '/api/termos/aceite': typeof ApiTermosAceiteRoute
   '/api/termos/status': typeof ApiTermosStatusRoute
   '/api/public/ordens/confirmar': typeof ApiPublicOrdensConfirmarRoute
@@ -189,8 +215,11 @@ export interface FileRoutesById {
   '/api/analise-ia': typeof ApiAnaliseIaRoute
   '/api/assistente': typeof ApiAssistenteRoute
   '/api/auditoria': typeof ApiAuditoriaRoute
+  '/api/backup-telegram-teste': typeof ApiBackupTelegramTesteRoute
   '/api/telegram-teste': typeof ApiTelegramTesteRoute
   '/api/plataforma/dados': typeof ApiPlataformaDadosRoute
+  '/api/plataforma/parametros-oficiais': typeof ApiPlataformaParametrosOficiaisRoute
+  '/api/public/notificacoes-hedge': typeof ApiPublicNotificacoesHedgeRoute
   '/api/termos/aceite': typeof ApiTermosAceiteRoute
   '/api/termos/status': typeof ApiTermosStatusRoute
   '/api/public/ordens/confirmar': typeof ApiPublicOrdensConfirmarRoute
@@ -212,8 +241,11 @@ export interface FileRouteTypes {
     | '/api/analise-ia'
     | '/api/assistente'
     | '/api/auditoria'
+    | '/api/backup-telegram-teste'
     | '/api/telegram-teste'
     | '/api/plataforma/dados'
+    | '/api/plataforma/parametros-oficiais'
+    | '/api/public/notificacoes-hedge'
     | '/api/termos/aceite'
     | '/api/termos/status'
     | '/api/public/ordens/confirmar'
@@ -233,8 +265,11 @@ export interface FileRouteTypes {
     | '/api/analise-ia'
     | '/api/assistente'
     | '/api/auditoria'
+    | '/api/backup-telegram-teste'
     | '/api/telegram-teste'
     | '/api/plataforma/dados'
+    | '/api/plataforma/parametros-oficiais'
+    | '/api/public/notificacoes-hedge'
     | '/api/termos/aceite'
     | '/api/termos/status'
     | '/api/public/ordens/confirmar'
@@ -255,8 +290,11 @@ export interface FileRouteTypes {
     | '/api/analise-ia'
     | '/api/assistente'
     | '/api/auditoria'
+    | '/api/backup-telegram-teste'
     | '/api/telegram-teste'
     | '/api/plataforma/dados'
+    | '/api/plataforma/parametros-oficiais'
+    | '/api/public/notificacoes-hedge'
     | '/api/termos/aceite'
     | '/api/termos/status'
     | '/api/public/ordens/confirmar'
@@ -273,8 +311,11 @@ export interface RootRouteChildren {
   ApiAnaliseIaRoute: typeof ApiAnaliseIaRoute
   ApiAssistenteRoute: typeof ApiAssistenteRoute
   ApiAuditoriaRoute: typeof ApiAuditoriaRoute
+  ApiBackupTelegramTesteRoute: typeof ApiBackupTelegramTesteRoute
   ApiTelegramTesteRoute: typeof ApiTelegramTesteRoute
   ApiPlataformaDadosRoute: typeof ApiPlataformaDadosRoute
+  ApiPlataformaParametrosOficiaisRoute: typeof ApiPlataformaParametrosOficiaisRoute
+  ApiPublicNotificacoesHedgeRoute: typeof ApiPublicNotificacoesHedgeRoute
   ApiTermosAceiteRoute: typeof ApiTermosAceiteRoute
   ApiTermosStatusRoute: typeof ApiTermosStatusRoute
   ApiPublicOrdensConfirmarRoute: typeof ApiPublicOrdensConfirmarRoute
@@ -375,6 +416,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuditoriaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/backup-telegram-teste': {
+      id: '/api/backup-telegram-teste'
+      path: '/api/backup-telegram-teste'
+      fullPath: '/api/backup-telegram-teste'
+      preLoaderRoute: typeof ApiBackupTelegramTesteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/telegram-teste': {
       id: '/api/telegram-teste'
       path: '/api/telegram-teste'
@@ -387,6 +435,20 @@ declare module '@tanstack/react-router' {
       path: '/api/plataforma/dados'
       fullPath: '/api/plataforma/dados'
       preLoaderRoute: typeof ApiPlataformaDadosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/plataforma/parametros-oficiais': {
+      id: '/api/plataforma/parametros-oficiais'
+      path: '/api/plataforma/parametros-oficiais'
+      fullPath: '/api/plataforma/parametros-oficiais'
+      preLoaderRoute: typeof ApiPlataformaParametrosOficiaisRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/notificacoes-hedge': {
+      id: '/api/public/notificacoes-hedge'
+      path: '/api/public/notificacoes-hedge'
+      fullPath: '/api/public/notificacoes-hedge'
+      preLoaderRoute: typeof ApiPublicNotificacoesHedgeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/termos/aceite': {
@@ -455,8 +517,11 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAnaliseIaRoute: ApiAnaliseIaRoute,
   ApiAssistenteRoute: ApiAssistenteRoute,
   ApiAuditoriaRoute: ApiAuditoriaRoute,
+  ApiBackupTelegramTesteRoute: ApiBackupTelegramTesteRoute,
   ApiTelegramTesteRoute: ApiTelegramTesteRoute,
   ApiPlataformaDadosRoute: ApiPlataformaDadosRoute,
+  ApiPlataformaParametrosOficiaisRoute: ApiPlataformaParametrosOficiaisRoute,
+  ApiPublicNotificacoesHedgeRoute: ApiPublicNotificacoesHedgeRoute,
   ApiTermosAceiteRoute: ApiTermosAceiteRoute,
   ApiTermosStatusRoute: ApiTermosStatusRoute,
   ApiPublicOrdensConfirmarRoute: ApiPublicOrdensConfirmarRoute,
