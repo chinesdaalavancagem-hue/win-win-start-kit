@@ -1,550 +1,923 @@
--- WIN OR WIN PLATFORM - SNAPSHOT ESTRUTURAL DE REFERENCIA (LOVABLE CLOUD)
--- Origem: catalogos PostgreSQL do projeto e7afe98d-470f-42ee-a6a6-cbddcace342c, consultados via SELECT.
--- Data da extracao: 2026-10-21.
--- SOMENTE DOCUMENTACAO: NAO EXECUTAR NA PRODUCAO; NAO E UMA MIGRACAO.
--- Nenhuma linha de dados e nenhum arquivo binario esta contido aqui.
--- Restauracao requer revisao de ordem e dependencias em ambiente isolado.
--- Contagem verificada: 14 tabelas publicas, 83 colunas,
--- 54 constraints, 29 indices, 17 policies,
--- 6 funcoes publicas e 1 triggers (auth+public).
--- Extensoes: pg_stat_statements 1.11 em extensions, pgcrypto 1.3 em extensions, plpgsql 1.0 em pg_catalog, supabase_vault 0.3.1 em vault, uuid-ossp 1.1 em extensions.
--- Storage (inventario SEM bytes): downloads (3 objetos, public=false).
--- Aviso: nao inclui auth.users, dados de clientes, extensoes executaveis,
--- roles/segredos, conteudos do Storage nem os schemas gerenciados do Supabase.
 
--- TIPOS ENUM -----------------------------------------------------------
-CREATE TYPE public."app_role" AS ENUM ('admin', 'user');
-
--- TABELAS --------------------------------------------------------------
--- owner: postgres
-CREATE TABLE public."activity_logs" (
-  "id" uuid DEFAULT gen_random_uuid() NOT NULL,
-  "user_id" uuid,
-  "action" text NOT NULL,
-  "details" jsonb DEFAULT '{}'::jsonb NOT NULL,
-  "created_at" timestamp with time zone DEFAULT now() NOT NULL
-);
--- owner: postgres
-CREATE TABLE public."ai_analysis_daily_usage" (
-  "user_id" uuid NOT NULL,
-  "usage_date" date NOT NULL,
-  "used" integer DEFAULT 0 NOT NULL
-);
--- owner: postgres
-CREATE TABLE public."app_data" (
-  "user_id" uuid NOT NULL,
-  "data" text DEFAULT ''::text NOT NULL,
-  "updated_at" timestamp with time zone DEFAULT now() NOT NULL,
-  "version" integer DEFAULT 1 NOT NULL
-);
--- owner: postgres
-CREATE TABLE public."audit_logs" (
-  "id" uuid DEFAULT gen_random_uuid() NOT NULL,
-  "user_id" uuid NOT NULL,
-  "category" text NOT NULL,
-  "action" text NOT NULL,
-  "outcome" text NOT NULL,
-  "details" jsonb DEFAULT '{}'::jsonb NOT NULL,
-  "request_id" uuid DEFAULT gen_random_uuid() NOT NULL,
-  "created_at" timestamp with time zone DEFAULT now() NOT NULL
-);
--- owner: postgres
-CREATE TABLE public."integration_tokens" (
-  "user_id" uuid NOT NULL,
-  "token_hash" text NOT NULL,
-  "created_at" timestamp with time zone DEFAULT now() NOT NULL
-);
--- owner: postgres
-CREATE TABLE public."master_number_sync" (
-  "id" text DEFAULT 'default'::text NOT NULL,
-  "admin_user_id" uuid NOT NULL,
-  "enabled" boolean DEFAULT false NOT NULL,
-  "allowed_fields" jsonb DEFAULT '[]'::jsonb NOT NULL,
-  "published_values" jsonb DEFAULT '{}'::jsonb NOT NULL,
-  "updated_at" timestamp with time zone DEFAULT now() NOT NULL
-);
--- owner: postgres
-CREATE TABLE public."order_queue" (
-  "id" uuid DEFAULT gen_random_uuid() NOT NULL,
-  "user_id" uuid NOT NULL,
-  "external_id" text NOT NULL,
-  "symbol" text NOT NULL,
-  "side" text NOT NULL,
-  "mirror_side" text NOT NULL,
-  "qty" numeric NOT NULL,
-  "price" numeric,
-  "status" text DEFAULT 'pending'::text NOT NULL,
-  "error" text,
-  "created_at" timestamp with time zone DEFAULT now() NOT NULL,
-  "updated_at" timestamp with time zone DEFAULT now() NOT NULL
-);
--- owner: postgres
-CREATE TABLE public."profiles" (
-  "id" uuid NOT NULL,
-  "full_name" text DEFAULT ''::text NOT NULL,
-  "phone" text DEFAULT ''::text NOT NULL,
-  "cpf" text DEFAULT ''::text NOT NULL,
-  "birth_date" date,
-  "email" text DEFAULT ''::text NOT NULL,
-  "approved" boolean DEFAULT false NOT NULL,
-  "rejected" boolean DEFAULT false NOT NULL,
-  "created_at" timestamp with time zone DEFAULT now() NOT NULL,
-  "telegram_chat_id" text
-);
--- owner: postgres
-CREATE TABLE public."prop_firms" (
-  "id" text NOT NULL,
-  "name" text NOT NULL,
-  "affiliate_url" text DEFAULT ''::text NOT NULL,
-  "coupon" text DEFAULT ''::text NOT NULL,
-  "account_sizes" integer[] DEFAULT '{}'::integer[] NOT NULL,
-  "updated_at" timestamp with time zone DEFAULT now() NOT NULL
-);
--- owner: postgres
-CREATE TABLE public."push_subscriptions" (
-  "id" uuid DEFAULT gen_random_uuid() NOT NULL,
-  "user_id" uuid NOT NULL,
-  "endpoint" text NOT NULL,
-  "p256dh" text NOT NULL,
-  "auth" text NOT NULL,
-  "created_at" timestamp with time zone DEFAULT now() NOT NULL
-);
--- owner: postgres
-CREATE TABLE public."terms_acceptances" (
-  "id" uuid DEFAULT gen_random_uuid() NOT NULL,
-  "user_id" uuid NOT NULL,
-  "terms_version" text NOT NULL,
-  "accepted_at" timestamp with time zone DEFAULT now() NOT NULL,
-  "device_hash" text NOT NULL
-);
--- owner: postgres
-CREATE TABLE public."trusted_device_settings" (
-  "singleton" boolean DEFAULT true NOT NULL,
-  "max_trusted_devices" integer DEFAULT 2 NOT NULL,
-  "monitor_mode" boolean DEFAULT true NOT NULL,
-  "updated_at" timestamp with time zone DEFAULT now() NOT NULL
-);
--- owner: postgres
-CREATE TABLE public."trusted_devices" (
-  "id" uuid DEFAULT gen_random_uuid() NOT NULL,
-  "user_id" uuid NOT NULL,
-  "device_token_hash" text NOT NULL,
-  "device_name" text,
-  "created_at" timestamp with time zone DEFAULT now() NOT NULL,
-  "last_seen_at" timestamp with time zone DEFAULT now() NOT NULL,
-  "revoked_at" timestamp with time zone,
-  "revoked_by" uuid
-);
--- owner: postgres
-CREATE TABLE public."user_roles" (
-  "id" uuid DEFAULT gen_random_uuid() NOT NULL,
-  "user_id" uuid NOT NULL,
-  "role" app_role NOT NULL
-);
-
--- CONSTRAINTS (FKs APOS TABELAS) ---------------------------------------
-ALTER TABLE activity_logs ADD CONSTRAINT "activity_logs_action_check" CHECK (action = ANY (ARRAY['login.success'::text, 'login.failed'::text, 'logout'::text, 'create'::text, 'update'::text, 'delete'::text, 'ai.analysis.completed'::text, 'device.first_seen'::text, 'device.within_limit'::text, 'device.limit_would_block'::text, 'device.master_exempt'::text, 'device.admin_release'::text, 'device.revoked'::text]));
-ALTER TABLE activity_logs ADD CONSTRAINT "activity_logs_details_check" CHECK (octet_length(details::text) <= 4096);
-ALTER TABLE activity_logs ADD CONSTRAINT "activity_logs_pkey" PRIMARY KEY (id);
-ALTER TABLE ai_analysis_daily_usage ADD CONSTRAINT "ai_analysis_daily_usage_pkey" PRIMARY KEY (user_id, usage_date);
-ALTER TABLE ai_analysis_daily_usage ADD CONSTRAINT "ai_analysis_daily_usage_used_check" CHECK (used >= 0 AND used <= 3);
-ALTER TABLE app_data ADD CONSTRAINT "app_data_pkey" PRIMARY KEY (user_id);
-ALTER TABLE audit_logs ADD CONSTRAINT "audit_logs_category_check" CHECK (category = ANY (ARRAY['auth'::text, 'strategy'::text, 'integration'::text, 'navigation'::text, 'system'::text, 'ui'::text]));
-ALTER TABLE audit_logs ADD CONSTRAINT "audit_logs_outcome_check" CHECK (outcome = ANY (ARRAY['success'::text, 'failed'::text, 'denied'::text, 'started'::text, 'unknown'::text]));
-ALTER TABLE audit_logs ADD CONSTRAINT "audit_logs_pkey" PRIMARY KEY (id);
-ALTER TABLE integration_tokens ADD CONSTRAINT "integration_tokens_pkey" PRIMARY KEY (user_id);
-ALTER TABLE integration_tokens ADD CONSTRAINT "integration_tokens_token_hash_key" UNIQUE (token_hash);
-ALTER TABLE master_number_sync ADD CONSTRAINT "master_number_sync_allowed_fields_check" CHECK (jsonb_typeof(allowed_fields) = 'array'::text);
-ALTER TABLE master_number_sync ADD CONSTRAINT "master_number_sync_id_check" CHECK (id = 'default'::text);
-ALTER TABLE master_number_sync ADD CONSTRAINT "master_number_sync_pkey" PRIMARY KEY (id);
-ALTER TABLE master_number_sync ADD CONSTRAINT "master_number_sync_published_values_check" CHECK (jsonb_typeof(published_values) = 'object'::text);
-ALTER TABLE order_queue ADD CONSTRAINT "order_queue_mirror_side_check" CHECK (mirror_side = ANY (ARRAY['buy'::text, 'sell'::text]));
-ALTER TABLE order_queue ADD CONSTRAINT "order_queue_pkey" PRIMARY KEY (id);
-ALTER TABLE order_queue ADD CONSTRAINT "order_queue_qty_check" CHECK (qty > 0::numeric);
-ALTER TABLE order_queue ADD CONSTRAINT "order_queue_side_check" CHECK (side = ANY (ARRAY['buy'::text, 'sell'::text]));
-ALTER TABLE order_queue ADD CONSTRAINT "order_queue_status_check" CHECK (status = ANY (ARRAY['pending'::text, 'sent'::text, 'done'::text, 'error'::text]));
-ALTER TABLE order_queue ADD CONSTRAINT "order_queue_user_id_external_id_key" UNIQUE (user_id, external_id);
-ALTER TABLE profiles ADD CONSTRAINT "profiles_pkey" PRIMARY KEY (id);
-ALTER TABLE prop_firms ADD CONSTRAINT "prop_firms_account_sizes_check" CHECK (cardinality(account_sizes) <= 20 AND (cardinality(account_sizes) = 0 OR (0 < ALL (account_sizes)) AND (10000000 >= ALL (account_sizes))));
-ALTER TABLE prop_firms ADD CONSTRAINT "prop_firms_affiliate_url_check" CHECK (char_length(affiliate_url) <= 2048 AND (affiliate_url = ''::text OR affiliate_url ~ '^https://[^[:space:]]+$'::text));
-ALTER TABLE prop_firms ADD CONSTRAINT "prop_firms_coupon_check" CHECK (char_length(coupon) <= 80);
-ALTER TABLE prop_firms ADD CONSTRAINT "prop_firms_id_check" CHECK (id = ANY (ARRAY['lucid-trading'::text, 'tradeify'::text, 'my-funded-futures'::text]));
-ALTER TABLE prop_firms ADD CONSTRAINT "prop_firms_name_check" CHECK (char_length(name) >= 1 AND char_length(name) <= 80);
-ALTER TABLE prop_firms ADD CONSTRAINT "prop_firms_pkey" PRIMARY KEY (id);
-ALTER TABLE push_subscriptions ADD CONSTRAINT "push_subscriptions_pkey" PRIMARY KEY (id);
-ALTER TABLE push_subscriptions ADD CONSTRAINT "push_subscriptions_user_endpoint_unique" UNIQUE (user_id, endpoint);
-ALTER TABLE terms_acceptances ADD CONSTRAINT "terms_acceptances_device_hash_check" CHECK (device_hash ~ '^[0-9a-f]{64}$'::text);
-ALTER TABLE terms_acceptances ADD CONSTRAINT "terms_acceptances_pkey" PRIMARY KEY (id);
-ALTER TABLE terms_acceptances ADD CONSTRAINT "terms_acceptances_terms_version_check" CHECK (char_length(terms_version) >= 1 AND char_length(terms_version) <= 64);
-ALTER TABLE terms_acceptances ADD CONSTRAINT "terms_acceptances_user_version_unique" UNIQUE (user_id, terms_version);
-ALTER TABLE trusted_device_settings ADD CONSTRAINT "trusted_device_settings_max_trusted_devices_check" CHECK (max_trusted_devices >= 1 AND max_trusted_devices <= 20);
-ALTER TABLE trusted_device_settings ADD CONSTRAINT "trusted_device_settings_pkey" PRIMARY KEY (singleton);
-ALTER TABLE trusted_device_settings ADD CONSTRAINT "trusted_device_settings_singleton_check" CHECK (singleton);
-ALTER TABLE trusted_devices ADD CONSTRAINT "trusted_devices_device_name_check" CHECK (device_name IS NULL OR length(device_name) <= 120);
-ALTER TABLE trusted_devices ADD CONSTRAINT "trusted_devices_device_token_hash_check" CHECK (device_token_hash ~ '^[0-9a-f]{64}$'::text);
-ALTER TABLE trusted_devices ADD CONSTRAINT "trusted_devices_pkey" PRIMARY KEY (id);
-ALTER TABLE trusted_devices ADD CONSTRAINT "trusted_devices_revocation_consistency" CHECK (revoked_at IS NULL AND revoked_by IS NULL OR revoked_at IS NOT NULL);
-ALTER TABLE trusted_devices ADD CONSTRAINT "trusted_devices_user_token_unique" UNIQUE (user_id, device_token_hash);
-ALTER TABLE user_roles ADD CONSTRAINT "user_roles_pkey" PRIMARY KEY (id);
-ALTER TABLE user_roles ADD CONSTRAINT "user_roles_user_id_role_key" UNIQUE (user_id, role);
-ALTER TABLE ai_analysis_daily_usage ADD CONSTRAINT "ai_analysis_daily_usage_user_id_fkey" FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE;
-ALTER TABLE app_data ADD CONSTRAINT "app_data_user_id_fkey" FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
-ALTER TABLE audit_logs ADD CONSTRAINT "audit_logs_user_id_fkey" FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
-ALTER TABLE master_number_sync ADD CONSTRAINT "master_number_sync_admin_user_id_fkey" FOREIGN KEY (admin_user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
-ALTER TABLE profiles ADD CONSTRAINT "profiles_id_fkey" FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE;
-ALTER TABLE push_subscriptions ADD CONSTRAINT "push_subscriptions_user_id_fkey" FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE;
-ALTER TABLE terms_acceptances ADD CONSTRAINT "terms_acceptances_user_id_fkey" FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE;
-ALTER TABLE trusted_devices ADD CONSTRAINT "trusted_devices_revoked_by_fkey" FOREIGN KEY (revoked_by) REFERENCES profiles(id) ON DELETE SET NULL;
-ALTER TABLE trusted_devices ADD CONSTRAINT "trusted_devices_user_id_fkey" FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE;
-ALTER TABLE user_roles ADD CONSTRAINT "user_roles_user_id_fkey" FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
-
--- INDICES NAO CRIADOS POR CONSTRAINT -----------------------------------
-CREATE INDEX activity_logs_created_at_idx ON public.activity_logs USING btree (created_at DESC);
-CREATE INDEX activity_logs_user_id_idx ON public.activity_logs USING btree (user_id);
-CREATE INDEX audit_logs_category_created_at_idx ON public.audit_logs USING btree (category, created_at DESC);
-CREATE INDEX audit_logs_created_at_idx ON public.audit_logs USING btree (created_at DESC);
-CREATE INDEX audit_logs_user_created_at_idx ON public.audit_logs USING btree (user_id, created_at DESC);
-CREATE INDEX order_queue_user_status ON public.order_queue USING btree (user_id, status, created_at);
-CREATE INDEX terms_acceptances_user_accepted_at_idx ON public.terms_acceptances USING btree (user_id, accepted_at DESC);
-CREATE INDEX trusted_devices_active_user_idx ON public.trusted_devices USING btree (user_id, created_at) WHERE (revoked_at IS NULL);
-CREATE INDEX trusted_devices_last_seen_idx ON public.trusted_devices USING btree (last_seen_at DESC);
-
--- FUNCOES PUBLICAS (pg_get_functiondef) --------------------------------
--- owner: postgres; acl: {postgres=X/postgres,service_role=X/postgres}
-CREATE OR REPLACE FUNCTION public.consume_ai_analysis_quota(p_user_id uuid, p_limit integer DEFAULT 3)
- RETURNS integer
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO 'public'
-AS $function$
-
-DECLARE
-
-  v_used integer;
-
-BEGIN
-
-  IF p_user_id IS NULL OR p_limit < 1 OR p_limit > 3 THEN
-
-    RAISE EXCEPTION 'invalid quota request';
-
-  END IF;
+-- ================== CONTEXTO E LIMITES ==================
+-- WIN OR WIN PLATFORM - REFERENCIA ESTRUTURAL EXTRAIDA DO LOVABLE CLOUD
+-- Projeto e7afe98d-470f-42ee-a6a6-cbddcace342c | extraido em 2026-10-21
+-- FONTE: consultas SELECT a pg_catalog/information_schema no banco de producao.
+-- NAO EXECUTAR. Todas as instrucoes estao comentadas intencionalmente.
+-- NAO COLOCAR EM supabase/migrations OU drizzle/migrations.
+-- Nao contem dados de clientes, senhas, tokens, linhas ou arquivos do Storage.
+-- Nao e um dump restauravel: faltam objetos gerenciados em auth/storage,
+-- dependencias de extensoes, privilegios completos e validacao de restore.
+-- Tabelas public: 14; colunas: 83; constraints: 54;
+-- indices: 29; funcoes: 6; policies public/storage: 21;
+-- triggers auth/public: 1.
+-- ATENCAO: SQL a seguir e somente referencia; verificar dependencias antes de
+-- gerar migracoes de restauracao, especialmente FKs para auth.users.
 
 
-
-  INSERT INTO public.ai_analysis_daily_usage (user_id, usage_date, used)
-
-  VALUES (p_user_id, (now() AT TIME ZONE 'UTC')::date, 1)
-
-  ON CONFLICT (user_id, usage_date)
-
-  DO UPDATE SET used = public.ai_analysis_daily_usage.used + 1
-
-  WHERE public.ai_analysis_daily_usage.used < p_limit
-
-  RETURNING used INTO v_used;
+-- ================== EXTENSOES IDENTIFICADAS ==================
+-- EXTENSION "pg_stat_statements" version 1.11;
+-- EXTENSION "pgcrypto" version 1.3;
+-- EXTENSION "plpgsql" version 1.0;
+-- EXTENSION "supabase_vault" version 0.3.1;
+-- EXTENSION "uuid-ossp" version 1.1;
 
 
-
-  IF v_used IS NULL THEN
-
-    RETURN NULL;
-
-  END IF;
+-- ================== ENUMS PUBLIC ==================
+-- CREATE TYPE public."app_role" AS ENUM ('admin', 'user');
 
 
+-- ================== TABELA activity_logs ==================
+-- CREATE TABLE public."activity_logs" (
+--   "id" uuid NOT NULL DEFAULT gen_random_uuid(),
+--   "user_id" uuid,
+--   "action" text NOT NULL,
+--   "details" jsonb NOT NULL DEFAULT '{}'::jsonb,
+--   "created_at" timestamp with time zone NOT NULL DEFAULT now(),
+--   CONSTRAINT "activity_logs_action_check" CHECK (action = ANY (ARRAY['login.success'::text, 'login.failed'::text, 'logout'::text, 'create'::text, 'update'::text, 'delete'::text, 'ai.analysis.completed'::text, 'device.first_seen'::text, 'device.within_limit'::text, 'device.limit_would_block'::text, 'device.master_exempt'::text, 'device.admin_release'::text, 'device.revoked'::text])),
+--   CONSTRAINT "activity_logs_details_check" CHECK (octet_length(details::text) <= 4096),
+--   CONSTRAINT "activity_logs_pkey" PRIMARY KEY (id)
+-- );
+-- ALTER TABLE public."activity_logs" ENABLE ROW LEVEL SECURITY;
+-- OWNER (metadata): postgres; ACL (metadata): {postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres,sandbox_exec=ar/postgres};
+-- CREATE INDEX activity_logs_created_at_idx ON public.activity_logs USING btree (created_at DESC);
+-- CREATE UNIQUE INDEX activity_logs_pkey ON public.activity_logs USING btree (id);
+-- CREATE INDEX activity_logs_user_id_idx ON public.activity_logs USING btree (user_id);
 
-  RETURN p_limit - v_used;
 
-END;
+-- ================== TABELA ai_analysis_daily_usage ==================
+-- CREATE TABLE public."ai_analysis_daily_usage" (
+--   "user_id" uuid NOT NULL,
+--   "usage_date" date NOT NULL,
+--   "used" integer NOT NULL DEFAULT 0,
+--   CONSTRAINT "ai_analysis_daily_usage_pkey" PRIMARY KEY (user_id, usage_date),
+--   CONSTRAINT "ai_analysis_daily_usage_used_check" CHECK (used >= 0 AND used <= 3),
+--   CONSTRAINT "ai_analysis_daily_usage_user_id_fkey" FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE
+-- );
+-- ALTER TABLE public."ai_analysis_daily_usage" ENABLE ROW LEVEL SECURITY;
+-- OWNER (metadata): postgres; ACL (metadata): {postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres,sandbox_exec=ar/postgres};
+-- CREATE UNIQUE INDEX ai_analysis_daily_usage_pkey ON public.ai_analysis_daily_usage USING btree (user_id, usage_date);
 
-$function$;
--- owner: postgres; acl: {=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}
-CREATE OR REPLACE FUNCTION public.handle_new_user()
- RETURNS trigger
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO 'public'
-AS $function$
-declare first_user boolean;
-begin
-  select not exists (select 1 from public.profiles) into first_user;
-  insert into public.profiles (id, full_name, phone, cpf, birth_date, email, approved)
-  values (
-    new.id,
-    coalesce(new.raw_user_meta_data->>'full_name',''),
-    coalesce(new.raw_user_meta_data->>'phone',''),
-    coalesce(new.raw_user_meta_data->>'cpf',''),
-    nullif(new.raw_user_meta_data->>'birth_date','')::date,
-    coalesce(new.email,''),
-    first_user
-  );
-  if first_user then
-    insert into public.user_roles (user_id, role) values (new.id, 'admin');
-  end if;
-  return new;
-end; $function$;
--- owner: postgres; acl: {=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}
-CREATE OR REPLACE FUNCTION public.has_role(_user_id uuid, _role app_role)
- RETURNS boolean
- LANGUAGE sql
- STABLE SECURITY DEFINER
- SET search_path TO 'public'
-AS $function$ select exists (select 1 from public.user_roles where user_id = _user_id and role = _role) $function$;
--- owner: postgres; acl: {=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}
-CREATE OR REPLACE FUNCTION public.is_approved(_user_id uuid)
- RETURNS boolean
- LANGUAGE sql
- STABLE SECURITY DEFINER
- SET search_path TO 'public'
-AS $function$ select coalesce((select approved from public.profiles where id = _user_id), false) $function$;
--- owner: postgres; acl: {postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}
-CREATE OR REPLACE FUNCTION public.log_failed_login(attempted_email text)
- RETURNS void
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO 'public'
-AS $function$
-DECLARE
-  v_email text := left(lower(trim(coalesce(attempted_email, ''))), 254);
-BEGIN
-  IF v_email !~ '^[^\s@]*@[^\s@]*\.[^\s@]*$' THEN
-    v_email := 'formato inválido';
-  END IF;
-  IF (SELECT count(*) FROM public.activity_logs
-      WHERE action = 'login.failed'
-        AND created_at > now() - interval '5 minutes'
-        AND details->>'attempted_email' = v_email) >= 5 THEN
-    RETURN;
-  END IF;
-  IF (SELECT count(*) FROM public.activity_logs
-      WHERE action = 'login.failed'
-        AND created_at > now() - interval '1 minute') >= 200 THEN
-    RETURN;
-  END IF;
-  INSERT INTO public.activity_logs (user_id, action, details)
-  VALUES (NULL, 'login.failed', jsonb_build_object('attempted_email', v_email));
-END;
-$function$;
--- owner: postgres; acl: {postgres=X/postgres,service_role=X/postgres}
-CREATE OR REPLACE FUNCTION public.register_trusted_device(p_user_id uuid, p_device_token_hash text, p_device_name text DEFAULT NULL::text)
- RETURNS TABLE(device_id uuid, allowed boolean, monitor_mode boolean, device_limit integer, active_device_count integer, event_action text)
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO 'pg_catalog', 'public'
-AS $function$
-DECLARE
-  v_device_id uuid;
-  v_revoked_at timestamptz;
-  v_device_name text;
-  v_is_master boolean := false;
-  v_monitor_mode boolean;
-  v_device_limit integer;
-  v_active_count integer;
-  v_device_rank bigint;
-  v_event_action text;
-  v_allowed boolean;
-BEGIN
-  IF p_user_id IS NULL THEN
-    RAISE EXCEPTION 'invalid user id' USING ERRCODE = '22023';
-  END IF;
-  IF p_device_token_hash IS NULL OR p_device_token_hash !~ '^[0-9a-f]{64}$' THEN
-    RAISE EXCEPTION 'invalid device token hash' USING ERRCODE = '22023';
-  END IF;
-  v_device_name := NULLIF(left(btrim(coalesce(p_device_name, '')), 120), '');
-  PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(p_user_id::text, 0));
-  SELECT s.monitor_mode, s.max_trusted_devices INTO v_monitor_mode, v_device_limit
-  FROM public.trusted_device_settings AS s WHERE s.singleton = true;
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'trusted device settings not configured';
-  END IF;
-  SELECT EXISTS (
-    SELECT 1 FROM public.user_roles AS ur WHERE ur.user_id = p_user_id AND ur.role = 'admin'
-  ) INTO v_is_master;
-  SELECT td.id, td.revoked_at INTO v_device_id, v_revoked_at
-  FROM public.trusted_devices AS td
-  WHERE td.user_id = p_user_id AND td.device_token_hash = p_device_token_hash;
-  IF FOUND THEN
-    IF v_revoked_at IS NOT NULL THEN
-      INSERT INTO public.activity_logs (user_id, action, details)
-      VALUES (p_user_id, 'device.revoked', jsonb_build_object(
-        'device_id', v_device_id, 'monitor_mode', v_monitor_mode, 'observed_at', now()
-      ));
-      SELECT count(*)::integer INTO v_active_count FROM public.trusted_devices AS td
-      WHERE td.user_id = p_user_id AND td.revoked_at IS NULL;
-      RETURN QUERY SELECT v_device_id, v_monitor_mode, v_monitor_mode, v_device_limit, v_active_count, 'device.revoked'::text;
-      RETURN;
-    END IF;
-    UPDATE public.trusted_devices AS td
-    SET last_seen_at = now(), device_name = coalesce(v_device_name, td.device_name)
-    WHERE td.id = v_device_id;
-    SELECT count(*)::integer INTO v_active_count FROM public.trusted_devices AS td
-    WHERE td.user_id = p_user_id AND td.revoked_at IS NULL;
-    IF v_is_master THEN
-      RETURN QUERY SELECT v_device_id, true, v_monitor_mode, v_device_limit, v_active_count, 'device.master_exempt'::text;
-      RETURN;
-    END IF;
-    SELECT ranked.device_rank INTO v_device_rank FROM (
-      SELECT td.id, row_number() OVER (ORDER BY td.created_at ASC, td.id ASC) AS device_rank
-      FROM public.trusted_devices AS td WHERE td.user_id = p_user_id AND td.revoked_at IS NULL
-    ) AS ranked WHERE ranked.id = v_device_id;
-    v_allowed := v_monitor_mode OR v_device_rank <= v_device_limit;
-    v_event_action := CASE WHEN v_device_rank > v_device_limit THEN 'device.limit_would_block' ELSE 'device.within_limit' END;
-    IF v_device_rank > v_device_limit THEN
-      INSERT INTO public.activity_logs (user_id, action, details)
-      VALUES (p_user_id, v_event_action, jsonb_build_object(
-        'device_id', v_device_id, 'device_limit', v_device_limit, 'active_device_count', v_active_count,
-        'device_rank', v_device_rank, 'monitor_mode', v_monitor_mode, 'observed_at', now()
-      ));
-    END IF;
-    RETURN QUERY SELECT v_device_id, v_allowed, v_monitor_mode, v_device_limit, v_active_count, v_event_action;
-    RETURN;
-  END IF;
-  SELECT count(*)::integer INTO v_active_count FROM public.trusted_devices AS td
-  WHERE td.user_id = p_user_id AND td.revoked_at IS NULL;
-  IF v_is_master THEN
-    INSERT INTO public.trusted_devices (user_id, device_token_hash, device_name)
-    VALUES (p_user_id, p_device_token_hash, v_device_name) RETURNING id INTO v_device_id;
-    v_active_count := v_active_count + 1;
-    INSERT INTO public.activity_logs (user_id, action, details)
-    VALUES (p_user_id, 'device.first_seen', jsonb_build_object(
-      'device_id', v_device_id, 'monitor_mode', v_monitor_mode, 'observed_at', now()
-    ));
-    INSERT INTO public.activity_logs (user_id, action, details)
-    VALUES (p_user_id, 'device.master_exempt', jsonb_build_object(
-      'device_id', v_device_id, 'device_limit', v_device_limit, 'observed_at', now()
-    ));
-    RETURN QUERY SELECT v_device_id, true, v_monitor_mode, v_device_limit, v_active_count, 'device.master_exempt'::text;
-    RETURN;
-  END IF;
-  IF v_active_count >= v_device_limit AND NOT v_monitor_mode THEN
-    INSERT INTO public.activity_logs (user_id, action, details)
-    VALUES (p_user_id, 'device.limit_would_block', jsonb_build_object(
-      'device_limit', v_device_limit, 'active_device_count', v_active_count, 'monitor_mode', false, 'observed_at', now()
-    ));
-    RETURN QUERY SELECT NULL::uuid, false, false, v_device_limit, v_active_count, 'device.limit_would_block'::text;
-    RETURN;
-  END IF;
-  INSERT INTO public.trusted_devices (user_id, device_token_hash, device_name)
-  VALUES (p_user_id, p_device_token_hash, v_device_name) RETURNING id INTO v_device_id;
-  v_active_count := v_active_count + 1;
-  INSERT INTO public.activity_logs (user_id, action, details)
-  VALUES (p_user_id, 'device.first_seen', jsonb_build_object(
-    'device_id', v_device_id, 'monitor_mode', v_monitor_mode, 'observed_at', now()
-  ));
-  SELECT ranked.device_rank INTO v_device_rank FROM (
-    SELECT td.id, row_number() OVER (ORDER BY td.created_at ASC, td.id ASC) AS device_rank
-    FROM public.trusted_devices AS td WHERE td.user_id = p_user_id AND td.revoked_at IS NULL
-  ) AS ranked WHERE ranked.id = v_device_id;
-  IF v_device_rank > v_device_limit THEN
-    v_event_action := 'device.limit_would_block';
-    INSERT INTO public.activity_logs (user_id, action, details)
-    VALUES (p_user_id, v_event_action, jsonb_build_object(
-      'device_id', v_device_id, 'device_limit', v_device_limit, 'active_device_count', v_active_count,
-      'device_rank', v_device_rank, 'monitor_mode', v_monitor_mode, 'observed_at', now()
-    ));
-  ELSE
-    v_event_action := 'device.within_limit';
-    INSERT INTO public.activity_logs (user_id, action, details)
-    VALUES (p_user_id, v_event_action, jsonb_build_object(
-      'device_id', v_device_id, 'device_limit', v_device_limit, 'active_device_count', v_active_count,
-      'device_rank', v_device_rank, 'monitor_mode', v_monitor_mode, 'observed_at', now()
-    ));
-  END IF;
-  v_allowed := v_monitor_mode OR v_device_rank <= v_device_limit;
-  RETURN QUERY SELECT v_device_id, v_allowed, v_monitor_mode, v_device_limit, v_active_count, v_event_action;
-END;
-$function$;
 
--- RLS ------------------------------------------------------------------
-ALTER TABLE public."activity_logs" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public."ai_analysis_daily_usage" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public."app_data" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public."audit_logs" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public."integration_tokens" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public."master_number_sync" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public."order_queue" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public."profiles" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public."prop_firms" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public."push_subscriptions" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public."terms_acceptances" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public."trusted_device_settings" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public."trusted_devices" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public."user_roles" ENABLE ROW LEVEL SECURITY;
+-- ================== TABELA app_data ==================
+-- CREATE TABLE public."app_data" (
+--   "user_id" uuid NOT NULL,
+--   "data" text NOT NULL DEFAULT ''::text,
+--   "updated_at" timestamp with time zone NOT NULL DEFAULT now(),
+--   "version" integer NOT NULL DEFAULT 1,
+--   CONSTRAINT "app_data_pkey" PRIMARY KEY (user_id),
+--   CONSTRAINT "app_data_user_id_fkey" FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+-- );
+-- ALTER TABLE public."app_data" ENABLE ROW LEVEL SECURITY;
+-- OWNER (metadata): postgres; ACL (metadata): {postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres,sandbox_exec=ar/postgres};
+-- CREATE UNIQUE INDEX app_data_pkey ON public.app_data USING btree (user_id);
 
--- POLITICAS ------------------------------------------------------------
-CREATE POLICY "admin read activity" ON public."activity_logs" AS PERMISSIVE FOR SELECT TO "authenticated" USING (has_role(auth.uid(), 'admin'::app_role));
-CREATE POLICY "insert own activity" ON public."activity_logs" AS PERMISSIVE FOR INSERT TO "authenticated" WITH CHECK ((user_id = auth.uid()));
-CREATE POLICY "own data insert" ON public."app_data" AS PERMISSIVE FOR INSERT TO "authenticated" WITH CHECK (((user_id = auth.uid()) AND is_approved(auth.uid())));
-CREATE POLICY "own data select" ON public."app_data" AS PERMISSIVE FOR SELECT TO "authenticated" USING (((user_id = auth.uid()) AND is_approved(auth.uid())));
-CREATE POLICY "own data update" ON public."app_data" AS PERMISSIVE FOR UPDATE TO "authenticated" USING (((user_id = auth.uid()) AND is_approved(auth.uid()))) WITH CHECK ((user_id = auth.uid()));
-CREATE POLICY "own token read" ON public."integration_tokens" AS PERMISSIVE FOR SELECT TO "authenticated" USING ((user_id = auth.uid()));
-CREATE POLICY "own orders read" ON public."order_queue" AS PERMISSIVE FOR SELECT TO "authenticated" USING (((user_id = auth.uid()) AND is_approved(auth.uid())));
-CREATE POLICY "admin read profiles" ON public."profiles" AS PERMISSIVE FOR SELECT TO "authenticated" USING (has_role(auth.uid(), 'admin'::app_role));
-CREATE POLICY "admin update profiles" ON public."profiles" AS PERMISSIVE FOR UPDATE TO "authenticated" USING (has_role(auth.uid(), 'admin'::app_role)) WITH CHECK (has_role(auth.uid(), 'admin'::app_role));
-CREATE POLICY "read own profile" ON public."profiles" AS PERMISSIVE FOR SELECT TO "authenticated" USING ((id = auth.uid()));
-CREATE POLICY "approved traders read firms" ON public."prop_firms" AS PERMISSIVE FOR SELECT TO "authenticated" USING ((is_approved(auth.uid()) OR has_role(auth.uid(), 'admin'::app_role)));
-CREATE POLICY "master inserts firms" ON public."prop_firms" AS PERMISSIVE FOR INSERT TO "authenticated" WITH CHECK (has_role(auth.uid(), 'admin'::app_role));
-CREATE POLICY "master updates firms" ON public."prop_firms" AS PERMISSIVE FOR UPDATE TO "authenticated" USING (has_role(auth.uid(), 'admin'::app_role)) WITH CHECK (has_role(auth.uid(), 'admin'::app_role));
-CREATE POLICY "Users can delete their own push subscriptions" ON public."push_subscriptions" AS PERMISSIVE FOR DELETE TO "authenticated" USING ((auth.uid() = user_id));
-CREATE POLICY "Users can insert their own push subscriptions" ON public."push_subscriptions" AS PERMISSIVE FOR INSERT TO "authenticated" WITH CHECK ((auth.uid() = user_id));
-CREATE POLICY "Users can view their own push subscriptions" ON public."push_subscriptions" AS PERMISSIVE FOR SELECT TO "authenticated" USING ((auth.uid() = user_id));
-CREATE POLICY "own roles" ON public."user_roles" AS PERMISSIVE FOR SELECT TO "authenticated" USING ((user_id = auth.uid()));
 
--- GRANTS DE TABELAS ----------------------------------------------------
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."activity_logs" TO "anon";
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."activity_logs" TO "authenticated";
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."activity_logs" TO "service_role";
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."ai_analysis_daily_usage" TO "service_role";
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."app_data" TO "anon";
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."app_data" TO "authenticated";
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."app_data" TO "service_role";
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."audit_logs" TO "service_role";
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."integration_tokens" TO "anon";
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."integration_tokens" TO "authenticated";
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."integration_tokens" TO "service_role";
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."master_number_sync" TO "service_role";
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."order_queue" TO "anon";
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."order_queue" TO "authenticated";
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."order_queue" TO "service_role";
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."profiles" TO "anon";
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."profiles" TO "authenticated";
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."profiles" TO "service_role";
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."prop_firms" TO "anon";
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."prop_firms" TO "authenticated";
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."prop_firms" TO "service_role";
-GRANT DELETE, INSERT, SELECT ON public."push_subscriptions" TO "authenticated";
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."push_subscriptions" TO "service_role";
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."terms_acceptances" TO "service_role";
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."trusted_device_settings" TO "service_role";
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."trusted_devices" TO "service_role";
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."user_roles" TO "anon";
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."user_roles" TO "authenticated";
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."user_roles" TO "service_role";
+-- ================== TABELA audit_logs ==================
+-- CREATE TABLE public."audit_logs" (
+--   "id" uuid NOT NULL DEFAULT gen_random_uuid(),
+--   "user_id" uuid NOT NULL,
+--   "category" text NOT NULL,
+--   "action" text NOT NULL,
+--   "outcome" text NOT NULL,
+--   "details" jsonb NOT NULL DEFAULT '{}'::jsonb,
+--   "request_id" uuid NOT NULL DEFAULT gen_random_uuid(),
+--   "created_at" timestamp with time zone NOT NULL DEFAULT now(),
+--   CONSTRAINT "audit_logs_category_check" CHECK (category = ANY (ARRAY['auth'::text, 'strategy'::text, 'integration'::text, 'navigation'::text, 'system'::text, 'ui'::text])),
+--   CONSTRAINT "audit_logs_outcome_check" CHECK (outcome = ANY (ARRAY['success'::text, 'failed'::text, 'denied'::text, 'started'::text, 'unknown'::text])),
+--   CONSTRAINT "audit_logs_pkey" PRIMARY KEY (id),
+--   CONSTRAINT "audit_logs_user_id_fkey" FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+-- );
+-- ALTER TABLE public."audit_logs" ENABLE ROW LEVEL SECURITY;
+-- OWNER (metadata): postgres; ACL (metadata): {postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres,sandbox_exec=ar/postgres};
+-- CREATE INDEX audit_logs_category_created_at_idx ON public.audit_logs USING btree (category, created_at DESC);
+-- CREATE INDEX audit_logs_created_at_idx ON public.audit_logs USING btree (created_at DESC);
+-- CREATE UNIQUE INDEX audit_logs_pkey ON public.audit_logs USING btree (id);
+-- CREATE INDEX audit_logs_user_created_at_idx ON public.audit_logs USING btree (user_id, created_at DESC);
 
--- GRANTS DE FUNCOES ----------------------------------------------------
-GRANT EXECUTE ON FUNCTION public."consume_ai_analysis_quota"(p_user_id uuid, p_limit integer) TO "service_role";
-GRANT EXECUTE ON FUNCTION public."handle_new_user"() TO PUBLIC;
-GRANT EXECUTE ON FUNCTION public."handle_new_user"() TO "anon";
-GRANT EXECUTE ON FUNCTION public."handle_new_user"() TO "authenticated";
-GRANT EXECUTE ON FUNCTION public."handle_new_user"() TO "service_role";
-GRANT EXECUTE ON FUNCTION public."has_role"(_user_id uuid, _role app_role) TO PUBLIC;
-GRANT EXECUTE ON FUNCTION public."has_role"(_user_id uuid, _role app_role) TO "anon";
-GRANT EXECUTE ON FUNCTION public."has_role"(_user_id uuid, _role app_role) TO "authenticated";
-GRANT EXECUTE ON FUNCTION public."has_role"(_user_id uuid, _role app_role) TO "service_role";
-GRANT EXECUTE ON FUNCTION public."is_approved"(_user_id uuid) TO PUBLIC;
-GRANT EXECUTE ON FUNCTION public."is_approved"(_user_id uuid) TO "anon";
-GRANT EXECUTE ON FUNCTION public."is_approved"(_user_id uuid) TO "authenticated";
-GRANT EXECUTE ON FUNCTION public."is_approved"(_user_id uuid) TO "service_role";
-GRANT EXECUTE ON FUNCTION public."log_failed_login"(attempted_email text) TO "anon";
-GRANT EXECUTE ON FUNCTION public."log_failed_login"(attempted_email text) TO "authenticated";
-GRANT EXECUTE ON FUNCTION public."log_failed_login"(attempted_email text) TO "service_role";
-GRANT EXECUTE ON FUNCTION public."register_trusted_device"(p_user_id uuid, p_device_token_hash text, p_device_name text) TO "service_role";
 
--- TRIGGERS -------------------------------------------------------------
--- auth.users
-CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION handle_new_user();
+-- ================== TABELA integration_tokens ==================
+-- CREATE TABLE public."integration_tokens" (
+--   "user_id" uuid NOT NULL,
+--   "token_hash" text NOT NULL,
+--   "created_at" timestamp with time zone NOT NULL DEFAULT now(),
+--   CONSTRAINT "integration_tokens_pkey" PRIMARY KEY (user_id),
+--   CONSTRAINT "integration_tokens_token_hash_key" UNIQUE (token_hash)
+-- );
+-- ALTER TABLE public."integration_tokens" ENABLE ROW LEVEL SECURITY;
+-- OWNER (metadata): postgres; ACL (metadata): {postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres,sandbox_exec=ar/postgres};
+-- CREATE UNIQUE INDEX integration_tokens_pkey ON public.integration_tokens USING btree (user_id);
+-- CREATE UNIQUE INDEX integration_tokens_token_hash_key ON public.integration_tokens USING btree (token_hash);
 
--- LIMITES: esquema SQL de referencia, NAO dump restauravel da instancia.
--- Exige checar roles, grants de schemas, defaults, sequences, objetos auth/storage
--- e testar restore antes de considerar plano de recuperacao completo.
+
+-- ================== TABELA master_number_sync ==================
+-- CREATE TABLE public."master_number_sync" (
+--   "id" text NOT NULL DEFAULT 'default'::text,
+--   "admin_user_id" uuid NOT NULL,
+--   "enabled" boolean NOT NULL DEFAULT false,
+--   "allowed_fields" jsonb NOT NULL DEFAULT '[]'::jsonb,
+--   "published_values" jsonb NOT NULL DEFAULT '{}'::jsonb,
+--   "updated_at" timestamp with time zone NOT NULL DEFAULT now(),
+--   CONSTRAINT "master_number_sync_admin_user_id_fkey" FOREIGN KEY (admin_user_id) REFERENCES auth.users(id) ON DELETE CASCADE,
+--   CONSTRAINT "master_number_sync_allowed_fields_check" CHECK (jsonb_typeof(allowed_fields) = 'array'::text),
+--   CONSTRAINT "master_number_sync_id_check" CHECK (id = 'default'::text),
+--   CONSTRAINT "master_number_sync_pkey" PRIMARY KEY (id),
+--   CONSTRAINT "master_number_sync_published_values_check" CHECK (jsonb_typeof(published_values) = 'object'::text)
+-- );
+-- ALTER TABLE public."master_number_sync" ENABLE ROW LEVEL SECURITY;
+-- OWNER (metadata): postgres; ACL (metadata): {postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres,sandbox_exec=ar/postgres};
+-- CREATE UNIQUE INDEX master_number_sync_pkey ON public.master_number_sync USING btree (id);
+
+
+-- ================== TABELA order_queue ==================
+-- CREATE TABLE public."order_queue" (
+--   "id" uuid NOT NULL DEFAULT gen_random_uuid(),
+--   "user_id" uuid NOT NULL,
+--   "external_id" text NOT NULL,
+--   "symbol" text NOT NULL,
+--   "side" text NOT NULL,
+--   "mirror_side" text NOT NULL,
+--   "qty" numeric NOT NULL,
+--   "price" numeric,
+--   "status" text NOT NULL DEFAULT 'pending'::text,
+--   "error" text,
+--   "created_at" timestamp with time zone NOT NULL DEFAULT now(),
+--   "updated_at" timestamp with time zone NOT NULL DEFAULT now(),
+--   CONSTRAINT "order_queue_mirror_side_check" CHECK (mirror_side = ANY (ARRAY['buy'::text, 'sell'::text])),
+--   CONSTRAINT "order_queue_pkey" PRIMARY KEY (id),
+--   CONSTRAINT "order_queue_qty_check" CHECK (qty > 0::numeric),
+--   CONSTRAINT "order_queue_side_check" CHECK (side = ANY (ARRAY['buy'::text, 'sell'::text])),
+--   CONSTRAINT "order_queue_status_check" CHECK (status = ANY (ARRAY['pending'::text, 'sent'::text, 'done'::text, 'error'::text])),
+--   CONSTRAINT "order_queue_user_id_external_id_key" UNIQUE (user_id, external_id)
+-- );
+-- ALTER TABLE public."order_queue" ENABLE ROW LEVEL SECURITY;
+-- OWNER (metadata): postgres; ACL (metadata): {postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres,sandbox_exec=ar/postgres};
+-- CREATE UNIQUE INDEX order_queue_pkey ON public.order_queue USING btree (id);
+-- CREATE UNIQUE INDEX order_queue_user_id_external_id_key ON public.order_queue USING btree (user_id, external_id);
+-- CREATE INDEX order_queue_user_status ON public.order_queue USING btree (user_id, status, created_at);
+
+
+-- ================== TABELA profiles ==================
+-- CREATE TABLE public."profiles" (
+--   "id" uuid NOT NULL,
+--   "full_name" text NOT NULL DEFAULT ''::text,
+--   "phone" text NOT NULL DEFAULT ''::text,
+--   "cpf" text NOT NULL DEFAULT ''::text,
+--   "birth_date" date,
+--   "email" text NOT NULL DEFAULT ''::text,
+--   "approved" boolean NOT NULL DEFAULT false,
+--   "rejected" boolean NOT NULL DEFAULT false,
+--   "created_at" timestamp with time zone NOT NULL DEFAULT now(),
+--   "telegram_chat_id" text,
+--   CONSTRAINT "profiles_id_fkey" FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE,
+--   CONSTRAINT "profiles_pkey" PRIMARY KEY (id)
+-- );
+-- ALTER TABLE public."profiles" ENABLE ROW LEVEL SECURITY;
+-- OWNER (metadata): postgres; ACL (metadata): {postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres,sandbox_exec=ar/postgres};
+-- CREATE UNIQUE INDEX profiles_pkey ON public.profiles USING btree (id);
+
+
+-- ================== TABELA prop_firms ==================
+-- CREATE TABLE public."prop_firms" (
+--   "id" text NOT NULL,
+--   "name" text NOT NULL,
+--   "affiliate_url" text NOT NULL DEFAULT ''::text,
+--   "coupon" text NOT NULL DEFAULT ''::text,
+--   "account_sizes" integer[] NOT NULL DEFAULT '{}'::integer[],
+--   "updated_at" timestamp with time zone NOT NULL DEFAULT now(),
+--   CONSTRAINT "prop_firms_account_sizes_check" CHECK (cardinality(account_sizes) <= 20 AND (cardinality(account_sizes) = 0 OR (0 < ALL (account_sizes)) AND (10000000 >= ALL (account_sizes)))),
+--   CONSTRAINT "prop_firms_affiliate_url_check" CHECK (char_length(affiliate_url) <= 2048 AND (affiliate_url = ''::text OR affiliate_url ~ '^https://[^[:space:]]+$'::text)),
+--   CONSTRAINT "prop_firms_coupon_check" CHECK (char_length(coupon) <= 80),
+--   CONSTRAINT "prop_firms_id_check" CHECK (id = ANY (ARRAY['lucid-trading'::text, 'tradeify'::text, 'my-funded-futures'::text])),
+--   CONSTRAINT "prop_firms_name_check" CHECK (char_length(name) >= 1 AND char_length(name) <= 80),
+--   CONSTRAINT "prop_firms_pkey" PRIMARY KEY (id)
+-- );
+-- ALTER TABLE public."prop_firms" ENABLE ROW LEVEL SECURITY;
+-- OWNER (metadata): postgres; ACL (metadata): {postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres,sandbox_exec=ar/postgres};
+-- CREATE UNIQUE INDEX prop_firms_pkey ON public.prop_firms USING btree (id);
+
+
+-- ================== TABELA push_subscriptions ==================
+-- CREATE TABLE public."push_subscriptions" (
+--   "id" uuid NOT NULL DEFAULT gen_random_uuid(),
+--   "user_id" uuid NOT NULL,
+--   "endpoint" text NOT NULL,
+--   "p256dh" text NOT NULL,
+--   "auth" text NOT NULL,
+--   "created_at" timestamp with time zone NOT NULL DEFAULT now(),
+--   CONSTRAINT "push_subscriptions_pkey" PRIMARY KEY (id),
+--   CONSTRAINT "push_subscriptions_user_endpoint_unique" UNIQUE (user_id, endpoint),
+--   CONSTRAINT "push_subscriptions_user_id_fkey" FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE
+-- );
+-- ALTER TABLE public."push_subscriptions" ENABLE ROW LEVEL SECURITY;
+-- OWNER (metadata): postgres; ACL (metadata): {postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres,sandbox_exec=ar/postgres,authenticated=ard/postgres};
+-- CREATE UNIQUE INDEX push_subscriptions_pkey ON public.push_subscriptions USING btree (id);
+-- CREATE UNIQUE INDEX push_subscriptions_user_endpoint_unique ON public.push_subscriptions USING btree (user_id, endpoint);
+
+
+-- ================== TABELA terms_acceptances ==================
+-- CREATE TABLE public."terms_acceptances" (
+--   "id" uuid NOT NULL DEFAULT gen_random_uuid(),
+--   "user_id" uuid NOT NULL,
+--   "terms_version" text NOT NULL,
+--   "accepted_at" timestamp with time zone NOT NULL DEFAULT now(),
+--   "device_hash" text NOT NULL,
+--   CONSTRAINT "terms_acceptances_device_hash_check" CHECK (device_hash ~ '^[0-9a-f]{64}$'::text),
+--   CONSTRAINT "terms_acceptances_pkey" PRIMARY KEY (id),
+--   CONSTRAINT "terms_acceptances_terms_version_check" CHECK (char_length(terms_version) >= 1 AND char_length(terms_version) <= 64),
+--   CONSTRAINT "terms_acceptances_user_id_fkey" FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE,
+--   CONSTRAINT "terms_acceptances_user_version_unique" UNIQUE (user_id, terms_version)
+-- );
+-- ALTER TABLE public."terms_acceptances" ENABLE ROW LEVEL SECURITY;
+-- OWNER (metadata): postgres; ACL (metadata): {postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres,sandbox_exec=ar/postgres};
+-- CREATE UNIQUE INDEX terms_acceptances_pkey ON public.terms_acceptances USING btree (id);
+-- CREATE INDEX terms_acceptances_user_accepted_at_idx ON public.terms_acceptances USING btree (user_id, accepted_at DESC);
+-- CREATE UNIQUE INDEX terms_acceptances_user_version_unique ON public.terms_acceptances USING btree (user_id, terms_version);
+
+
+-- ================== TABELA trusted_device_settings ==================
+-- CREATE TABLE public."trusted_device_settings" (
+--   "singleton" boolean NOT NULL DEFAULT true,
+--   "max_trusted_devices" integer NOT NULL DEFAULT 2,
+--   "monitor_mode" boolean NOT NULL DEFAULT true,
+--   "updated_at" timestamp with time zone NOT NULL DEFAULT now(),
+--   CONSTRAINT "trusted_device_settings_max_trusted_devices_check" CHECK (max_trusted_devices >= 1 AND max_trusted_devices <= 20),
+--   CONSTRAINT "trusted_device_settings_pkey" PRIMARY KEY (singleton),
+--   CONSTRAINT "trusted_device_settings_singleton_check" CHECK (singleton)
+-- );
+-- ALTER TABLE public."trusted_device_settings" ENABLE ROW LEVEL SECURITY;
+-- OWNER (metadata): postgres; ACL (metadata): {postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres,sandbox_exec=ar/postgres};
+-- CREATE UNIQUE INDEX trusted_device_settings_pkey ON public.trusted_device_settings USING btree (singleton);
+
+
+-- ================== TABELA trusted_devices ==================
+-- CREATE TABLE public."trusted_devices" (
+--   "id" uuid NOT NULL DEFAULT gen_random_uuid(),
+--   "user_id" uuid NOT NULL,
+--   "device_token_hash" text NOT NULL,
+--   "device_name" text,
+--   "created_at" timestamp with time zone NOT NULL DEFAULT now(),
+--   "last_seen_at" timestamp with time zone NOT NULL DEFAULT now(),
+--   "revoked_at" timestamp with time zone,
+--   "revoked_by" uuid,
+--   CONSTRAINT "trusted_devices_device_name_check" CHECK (device_name IS NULL OR length(device_name) <= 120),
+--   CONSTRAINT "trusted_devices_device_token_hash_check" CHECK (device_token_hash ~ '^[0-9a-f]{64}$'::text),
+--   CONSTRAINT "trusted_devices_pkey" PRIMARY KEY (id),
+--   CONSTRAINT "trusted_devices_revocation_consistency" CHECK (revoked_at IS NULL AND revoked_by IS NULL OR revoked_at IS NOT NULL),
+--   CONSTRAINT "trusted_devices_revoked_by_fkey" FOREIGN KEY (revoked_by) REFERENCES profiles(id) ON DELETE SET NULL,
+--   CONSTRAINT "trusted_devices_user_id_fkey" FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE,
+--   CONSTRAINT "trusted_devices_user_token_unique" UNIQUE (user_id, device_token_hash)
+-- );
+-- ALTER TABLE public."trusted_devices" ENABLE ROW LEVEL SECURITY;
+-- OWNER (metadata): postgres; ACL (metadata): {postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres,sandbox_exec=ar/postgres};
+-- CREATE INDEX trusted_devices_active_user_idx ON public.trusted_devices USING btree (user_id, created_at) WHERE (revoked_at IS NULL);
+-- CREATE INDEX trusted_devices_last_seen_idx ON public.trusted_devices USING btree (last_seen_at DESC);
+-- CREATE UNIQUE INDEX trusted_devices_pkey ON public.trusted_devices USING btree (id);
+-- CREATE UNIQUE INDEX trusted_devices_user_token_unique ON public.trusted_devices USING btree (user_id, device_token_hash);
+
+
+-- ================== TABELA user_roles ==================
+-- CREATE TABLE public."user_roles" (
+--   "id" uuid NOT NULL DEFAULT gen_random_uuid(),
+--   "user_id" uuid NOT NULL,
+--   "role" app_role NOT NULL,
+--   CONSTRAINT "user_roles_pkey" PRIMARY KEY (id),
+--   CONSTRAINT "user_roles_user_id_fkey" FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE,
+--   CONSTRAINT "user_roles_user_id_role_key" UNIQUE (user_id, role)
+-- );
+-- ALTER TABLE public."user_roles" ENABLE ROW LEVEL SECURITY;
+-- OWNER (metadata): postgres; ACL (metadata): {postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres,sandbox_exec=ar/postgres};
+-- CREATE UNIQUE INDEX user_roles_pkey ON public.user_roles USING btree (id);
+-- CREATE UNIQUE INDEX user_roles_user_id_role_key ON public.user_roles USING btree (user_id, role);
+
+
+-- ================== FUNCAO consume_ai_analysis_quota(uuid,integer) ==================
+-- SIGNATURE: consume_ai_analysis_quota(uuid,integer); OWNER: postgres; ACL: {postgres=X/postgres,service_role=X/postgres};
+-- CREATE OR REPLACE FUNCTION public.consume_ai_analysis_quota(p_user_id uuid, p_limit integer DEFAULT 3)
+--  RETURNS integer
+--  LANGUAGE plpgsql
+--  SECURITY DEFINER
+--  SET search_path TO 'public'
+-- AS $function$
+-- 
+-- DECLARE
+-- 
+--   v_used integer;
+-- 
+-- BEGIN
+-- 
+--   IF p_user_id IS NULL OR p_limit < 1 OR p_limit > 3 THEN
+-- 
+--     RAISE EXCEPTION 'invalid quota request';
+-- 
+--   END IF;
+-- 
+-- 
+-- 
+--   INSERT INTO public.ai_analysis_daily_usage (user_id, usage_date, used)
+-- 
+--   VALUES (p_user_id, (now() AT TIME ZONE 'UTC')::date, 1)
+-- 
+--   ON CONFLICT (user_id, usage_date)
+-- 
+--   DO UPDATE SET used = public.ai_analysis_daily_usage.used + 1
+-- 
+--   WHERE public.ai_analysis_daily_usage.used < p_limit
+-- 
+--   RETURNING used INTO v_used;
+-- 
+-- 
+-- 
+--   IF v_used IS NULL THEN
+-- 
+--     RETURN NULL;
+-- 
+--   END IF;
+-- 
+-- 
+-- 
+--   RETURN p_limit - v_used;
+-- 
+-- END;
+-- 
+-- $function$
+
+
+-- ================== FUNCAO handle_new_user() ==================
+-- SIGNATURE: handle_new_user(); OWNER: postgres; ACL: {=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres};
+-- CREATE OR REPLACE FUNCTION public.handle_new_user()
+--  RETURNS trigger
+--  LANGUAGE plpgsql
+--  SECURITY DEFINER
+--  SET search_path TO 'public'
+-- AS $function$
+-- declare first_user boolean;
+-- begin
+--   select not exists (select 1 from public.profiles) into first_user;
+--   insert into public.profiles (id, full_name, phone, cpf, birth_date, email, approved)
+--   values (
+--     new.id,
+--     coalesce(new.raw_user_meta_data->>'full_name',''),
+--     coalesce(new.raw_user_meta_data->>'phone',''),
+--     coalesce(new.raw_user_meta_data->>'cpf',''),
+--     nullif(new.raw_user_meta_data->>'birth_date','')::date,
+--     coalesce(new.email,''),
+--     first_user
+--   );
+--   if first_user then
+--     insert into public.user_roles (user_id, role) values (new.id, 'admin');
+--   end if;
+--   return new;
+-- end; $function$
+
+
+-- ================== FUNCAO has_role(uuid,app_role) ==================
+-- SIGNATURE: has_role(uuid,app_role); OWNER: postgres; ACL: {=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres};
+-- CREATE OR REPLACE FUNCTION public.has_role(_user_id uuid, _role app_role)
+--  RETURNS boolean
+--  LANGUAGE sql
+--  STABLE SECURITY DEFINER
+--  SET search_path TO 'public'
+-- AS $function$ select exists (select 1 from public.user_roles where user_id = _user_id and role = _role) $function$
+
+
+-- ================== FUNCAO is_approved(uuid) ==================
+-- SIGNATURE: is_approved(uuid); OWNER: postgres; ACL: {=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres};
+-- CREATE OR REPLACE FUNCTION public.is_approved(_user_id uuid)
+--  RETURNS boolean
+--  LANGUAGE sql
+--  STABLE SECURITY DEFINER
+--  SET search_path TO 'public'
+-- AS $function$ select coalesce((select approved from public.profiles where id = _user_id), false) $function$
+
+
+-- ================== FUNCAO log_failed_login(text) ==================
+-- SIGNATURE: log_failed_login(text); OWNER: postgres; ACL: {postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres};
+-- CREATE OR REPLACE FUNCTION public.log_failed_login(attempted_email text)
+--  RETURNS void
+--  LANGUAGE plpgsql
+--  SECURITY DEFINER
+--  SET search_path TO 'public'
+-- AS $function$
+-- DECLARE
+--   v_email text := left(lower(trim(coalesce(attempted_email, ''))), 254);
+-- BEGIN
+--   IF v_email !~ '^[^\s@]*@[^\s@]*\.[^\s@]*$' THEN
+--     v_email := 'formato inválido';
+--   END IF;
+--   IF (SELECT count(*) FROM public.activity_logs
+--       WHERE action = 'login.failed'
+--         AND created_at > now() - interval '5 minutes'
+--         AND details->>'attempted_email' = v_email) >= 5 THEN
+--     RETURN;
+--   END IF;
+--   IF (SELECT count(*) FROM public.activity_logs
+--       WHERE action = 'login.failed'
+--         AND created_at > now() - interval '1 minute') >= 200 THEN
+--     RETURN;
+--   END IF;
+--   INSERT INTO public.activity_logs (user_id, action, details)
+--   VALUES (NULL, 'login.failed', jsonb_build_object('attempted_email', v_email));
+-- END;
+-- $function$
+
+
+-- ================== FUNCAO register_trusted_device(uuid,text,text) ==================
+-- SIGNATURE: register_trusted_device(uuid,text,text); OWNER: postgres; ACL: {postgres=X/postgres,service_role=X/postgres};
+-- CREATE OR REPLACE FUNCTION public.register_trusted_device(p_user_id uuid, p_device_token_hash text, p_device_name text DEFAULT NULL::text)
+--  RETURNS TABLE(device_id uuid, allowed boolean, monitor_mode boolean, device_limit integer, active_device_count integer, event_action text)
+--  LANGUAGE plpgsql
+--  SECURITY DEFINER
+--  SET search_path TO 'pg_catalog', 'public'
+-- AS $function$
+-- DECLARE
+--   v_device_id uuid;
+--   v_revoked_at timestamptz;
+--   v_device_name text;
+--   v_is_master boolean := false;
+--   v_monitor_mode boolean;
+--   v_device_limit integer;
+--   v_active_count integer;
+--   v_device_rank bigint;
+--   v_event_action text;
+--   v_allowed boolean;
+-- BEGIN
+--   IF p_user_id IS NULL THEN
+--     RAISE EXCEPTION 'invalid user id' USING ERRCODE = '22023';
+--   END IF;
+--   IF p_device_token_hash IS NULL OR p_device_token_hash !~ '^[0-9a-f]{64}$' THEN
+--     RAISE EXCEPTION 'invalid device token hash' USING ERRCODE = '22023';
+--   END IF;
+--   v_device_name := NULLIF(left(btrim(coalesce(p_device_name, '')), 120), '');
+--   PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(p_user_id::text, 0));
+--   SELECT s.monitor_mode, s.max_trusted_devices INTO v_monitor_mode, v_device_limit
+--   FROM public.trusted_device_settings AS s WHERE s.singleton = true;
+--   IF NOT FOUND THEN
+--     RAISE EXCEPTION 'trusted device settings not configured';
+--   END IF;
+--   SELECT EXISTS (
+--     SELECT 1 FROM public.user_roles AS ur WHERE ur.user_id = p_user_id AND ur.role = 'admin'
+--   ) INTO v_is_master;
+--   SELECT td.id, td.revoked_at INTO v_device_id, v_revoked_at
+--   FROM public.trusted_devices AS td
+--   WHERE td.user_id = p_user_id AND td.device_token_hash = p_device_token_hash;
+--   IF FOUND THEN
+--     IF v_revoked_at IS NOT NULL THEN
+--       INSERT INTO public.activity_logs (user_id, action, details)
+--       VALUES (p_user_id, 'device.revoked', jsonb_build_object(
+--         'device_id', v_device_id, 'monitor_mode', v_monitor_mode, 'observed_at', now()
+--       ));
+--       SELECT count(*)::integer INTO v_active_count FROM public.trusted_devices AS td
+--       WHERE td.user_id = p_user_id AND td.revoked_at IS NULL;
+--       RETURN QUERY SELECT v_device_id, v_monitor_mode, v_monitor_mode, v_device_limit, v_active_count, 'device.revoked'::text;
+--       RETURN;
+--     END IF;
+--     UPDATE public.trusted_devices AS td
+--     SET last_seen_at = now(), device_name = coalesce(v_device_name, td.device_name)
+--     WHERE td.id = v_device_id;
+--     SELECT count(*)::integer INTO v_active_count FROM public.trusted_devices AS td
+--     WHERE td.user_id = p_user_id AND td.revoked_at IS NULL;
+--     IF v_is_master THEN
+--       RETURN QUERY SELECT v_device_id, true, v_monitor_mode, v_device_limit, v_active_count, 'device.master_exempt'::text;
+--       RETURN;
+--     END IF;
+--     SELECT ranked.device_rank INTO v_device_rank FROM (
+--       SELECT td.id, row_number() OVER (ORDER BY td.created_at ASC, td.id ASC) AS device_rank
+--       FROM public.trusted_devices AS td WHERE td.user_id = p_user_id AND td.revoked_at IS NULL
+--     ) AS ranked WHERE ranked.id = v_device_id;
+--     v_allowed := v_monitor_mode OR v_device_rank <= v_device_limit;
+--     v_event_action := CASE WHEN v_device_rank > v_device_limit THEN 'device.limit_would_block' ELSE 'device.within_limit' END;
+--     IF v_device_rank > v_device_limit THEN
+--       INSERT INTO public.activity_logs (user_id, action, details)
+--       VALUES (p_user_id, v_event_action, jsonb_build_object(
+--         'device_id', v_device_id, 'device_limit', v_device_limit, 'active_device_count', v_active_count,
+--         'device_rank', v_device_rank, 'monitor_mode', v_monitor_mode, 'observed_at', now()
+--       ));
+--     END IF;
+--     RETURN QUERY SELECT v_device_id, v_allowed, v_monitor_mode, v_device_limit, v_active_count, v_event_action;
+--     RETURN;
+--   END IF;
+--   SELECT count(*)::integer INTO v_active_count FROM public.trusted_devices AS td
+--   WHERE td.user_id = p_user_id AND td.revoked_at IS NULL;
+--   IF v_is_master THEN
+--     INSERT INTO public.trusted_devices (user_id, device_token_hash, device_name)
+--     VALUES (p_user_id, p_device_token_hash, v_device_name) RETURNING id INTO v_device_id;
+--     v_active_count := v_active_count + 1;
+--     INSERT INTO public.activity_logs (user_id, action, details)
+--     VALUES (p_user_id, 'device.first_seen', jsonb_build_object(
+--       'device_id', v_device_id, 'monitor_mode', v_monitor_mode, 'observed_at', now()
+--     ));
+--     INSERT INTO public.activity_logs (user_id, action, details)
+--     VALUES (p_user_id, 'device.master_exempt', jsonb_build_object(
+--       'device_id', v_device_id, 'device_limit', v_device_limit, 'observed_at', now()
+--     ));
+--     RETURN QUERY SELECT v_device_id, true, v_monitor_mode, v_device_limit, v_active_count, 'device.master_exempt'::text;
+--     RETURN;
+--   END IF;
+--   IF v_active_count >= v_device_limit AND NOT v_monitor_mode THEN
+--     INSERT INTO public.activity_logs (user_id, action, details)
+--     VALUES (p_user_id, 'device.limit_would_block', jsonb_build_object(
+--       'device_limit', v_device_limit, 'active_device_count', v_active_count, 'monitor_mode', false, 'observed_at', now()
+--     ));
+--     RETURN QUERY SELECT NULL::uuid, false, false, v_device_limit, v_active_count, 'device.limit_would_block'::text;
+--     RETURN;
+--   END IF;
+--   INSERT INTO public.trusted_devices (user_id, device_token_hash, device_name)
+--   VALUES (p_user_id, p_device_token_hash, v_device_name) RETURNING id INTO v_device_id;
+--   v_active_count := v_active_count + 1;
+--   INSERT INTO public.activity_logs (user_id, action, details)
+--   VALUES (p_user_id, 'device.first_seen', jsonb_build_object(
+--     'device_id', v_device_id, 'monitor_mode', v_monitor_mode, 'observed_at', now()
+--   ));
+--   SELECT ranked.device_rank INTO v_device_rank FROM (
+--     SELECT td.id, row_number() OVER (ORDER BY td.created_at ASC, td.id ASC) AS device_rank
+--     FROM public.trusted_devices AS td WHERE td.user_id = p_user_id AND td.revoked_at IS NULL
+--   ) AS ranked WHERE ranked.id = v_device_id;
+--   IF v_device_rank > v_device_limit THEN
+--     v_event_action := 'device.limit_would_block';
+--     INSERT INTO public.activity_logs (user_id, action, details)
+--     VALUES (p_user_id, v_event_action, jsonb_build_object(
+--       'device_id', v_device_id, 'device_limit', v_device_limit, 'active_device_count', v_active_count,
+--       'device_rank', v_device_rank, 'monitor_mode', v_monitor_mode, 'observed_at', now()
+--     ));
+--   ELSE
+--     v_event_action := 'device.within_limit';
+--     INSERT INTO public.activity_logs (user_id, action, details)
+--     VALUES (p_user_id, v_event_action, jsonb_build_object(
+--       'device_id', v_device_id, 'device_limit', v_device_limit, 'active_device_count', v_active_count,
+--       'device_rank', v_device_rank, 'monitor_mode', v_monitor_mode, 'observed_at', now()
+--     ));
+--   END IF;
+--   v_allowed := v_monitor_mode OR v_device_rank <= v_device_limit;
+--   RETURN QUERY SELECT v_device_id, v_allowed, v_monitor_mode, v_device_limit, v_active_count, v_event_action;
+-- END;
+-- $function$
+
+
+-- ================== TRIGGERS ==================
+-- CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION handle_new_user();
+
+
+-- ================== POLITICAS RLS ==================
+-- CREATE POLICY "admin read activity" ON "public"."activity_logs" AS PERMISSIVE FOR SELECT TO "authenticated" USING (has_role(auth.uid(), 'admin'::app_role));
+-- CREATE POLICY "insert own activity" ON "public"."activity_logs" AS PERMISSIVE FOR INSERT TO "authenticated" WITH CHECK ((user_id = auth.uid()));
+-- CREATE POLICY "own data insert" ON "public"."app_data" AS PERMISSIVE FOR INSERT TO "authenticated" WITH CHECK (((user_id = auth.uid()) AND is_approved(auth.uid())));
+-- CREATE POLICY "own data select" ON "public"."app_data" AS PERMISSIVE FOR SELECT TO "authenticated" USING (((user_id = auth.uid()) AND is_approved(auth.uid())));
+-- CREATE POLICY "own data update" ON "public"."app_data" AS PERMISSIVE FOR UPDATE TO "authenticated" USING (((user_id = auth.uid()) AND is_approved(auth.uid()))) WITH CHECK ((user_id = auth.uid()));
+-- CREATE POLICY "own token read" ON "public"."integration_tokens" AS PERMISSIVE FOR SELECT TO "authenticated" USING ((user_id = auth.uid()));
+-- CREATE POLICY "own orders read" ON "public"."order_queue" AS PERMISSIVE FOR SELECT TO "authenticated" USING (((user_id = auth.uid()) AND is_approved(auth.uid())));
+-- CREATE POLICY "admin read profiles" ON "public"."profiles" AS PERMISSIVE FOR SELECT TO "authenticated" USING (has_role(auth.uid(), 'admin'::app_role));
+-- CREATE POLICY "admin update profiles" ON "public"."profiles" AS PERMISSIVE FOR UPDATE TO "authenticated" USING (has_role(auth.uid(), 'admin'::app_role)) WITH CHECK (has_role(auth.uid(), 'admin'::app_role));
+-- CREATE POLICY "read own profile" ON "public"."profiles" AS PERMISSIVE FOR SELECT TO "authenticated" USING ((id = auth.uid()));
+-- CREATE POLICY "approved traders read firms" ON "public"."prop_firms" AS PERMISSIVE FOR SELECT TO "authenticated" USING ((is_approved(auth.uid()) OR has_role(auth.uid(), 'admin'::app_role)));
+-- CREATE POLICY "master inserts firms" ON "public"."prop_firms" AS PERMISSIVE FOR INSERT TO "authenticated" WITH CHECK (has_role(auth.uid(), 'admin'::app_role));
+-- CREATE POLICY "master updates firms" ON "public"."prop_firms" AS PERMISSIVE FOR UPDATE TO "authenticated" USING (has_role(auth.uid(), 'admin'::app_role)) WITH CHECK (has_role(auth.uid(), 'admin'::app_role));
+-- CREATE POLICY "Users can delete their own push subscriptions" ON "public"."push_subscriptions" AS PERMISSIVE FOR DELETE TO "authenticated" USING ((auth.uid() = user_id));
+-- CREATE POLICY "Users can insert their own push subscriptions" ON "public"."push_subscriptions" AS PERMISSIVE FOR INSERT TO "authenticated" WITH CHECK ((auth.uid() = user_id));
+-- CREATE POLICY "Users can view their own push subscriptions" ON "public"."push_subscriptions" AS PERMISSIVE FOR SELECT TO "authenticated" USING ((auth.uid() = user_id));
+-- CREATE POLICY "own roles" ON "public"."user_roles" AS PERMISSIVE FOR SELECT TO "authenticated" USING ((user_id = auth.uid()));
+-- CREATE POLICY "admin delete downloads" ON "storage"."objects" AS PERMISSIVE FOR DELETE TO "authenticated" USING (((bucket_id = 'downloads'::text) AND has_role(auth.uid(), 'admin'::app_role)));
+-- CREATE POLICY "admin insert downloads" ON "storage"."objects" AS PERMISSIVE FOR INSERT TO "authenticated" WITH CHECK (((bucket_id = 'downloads'::text) AND has_role(auth.uid(), 'admin'::app_role)));
+-- CREATE POLICY "admin update downloads" ON "storage"."objects" AS PERMISSIVE FOR UPDATE TO "authenticated" USING (((bucket_id = 'downloads'::text) AND has_role(auth.uid(), 'admin'::app_role)));
+-- CREATE POLICY "approved read downloads" ON "storage"."objects" AS PERMISSIVE FOR SELECT TO "authenticated" USING (((bucket_id = 'downloads'::text) AND is_approved(auth.uid())));
+
+
+-- ================== PRIVILEGIOS DE TABELAS VISIVEIS ==================
+-- GRANT DELETE ON TABLE "public"."activity_logs" TO "anon";
+-- GRANT INSERT ON TABLE "public"."activity_logs" TO "anon";
+-- GRANT REFERENCES ON TABLE "public"."activity_logs" TO "anon";
+-- GRANT SELECT ON TABLE "public"."activity_logs" TO "anon";
+-- GRANT TRIGGER ON TABLE "public"."activity_logs" TO "anon";
+-- GRANT TRUNCATE ON TABLE "public"."activity_logs" TO "anon";
+-- GRANT UPDATE ON TABLE "public"."activity_logs" TO "anon";
+-- GRANT DELETE ON TABLE "public"."activity_logs" TO "authenticated";
+-- GRANT INSERT ON TABLE "public"."activity_logs" TO "authenticated";
+-- GRANT REFERENCES ON TABLE "public"."activity_logs" TO "authenticated";
+-- GRANT SELECT ON TABLE "public"."activity_logs" TO "authenticated";
+-- GRANT TRIGGER ON TABLE "public"."activity_logs" TO "authenticated";
+-- GRANT TRUNCATE ON TABLE "public"."activity_logs" TO "authenticated";
+-- GRANT UPDATE ON TABLE "public"."activity_logs" TO "authenticated";
+-- GRANT DELETE ON TABLE "public"."activity_logs" TO "postgres" WITH GRANT OPTION;
+-- GRANT INSERT ON TABLE "public"."activity_logs" TO "postgres" WITH GRANT OPTION;
+-- GRANT REFERENCES ON TABLE "public"."activity_logs" TO "postgres" WITH GRANT OPTION;
+-- GRANT SELECT ON TABLE "public"."activity_logs" TO "postgres" WITH GRANT OPTION;
+-- GRANT TRIGGER ON TABLE "public"."activity_logs" TO "postgres" WITH GRANT OPTION;
+-- GRANT TRUNCATE ON TABLE "public"."activity_logs" TO "postgres" WITH GRANT OPTION;
+-- GRANT UPDATE ON TABLE "public"."activity_logs" TO "postgres" WITH GRANT OPTION;
+-- GRANT INSERT ON TABLE "public"."activity_logs" TO "sandbox_exec";
+-- GRANT SELECT ON TABLE "public"."activity_logs" TO "sandbox_exec";
+-- GRANT DELETE ON TABLE "public"."activity_logs" TO "service_role";
+-- GRANT INSERT ON TABLE "public"."activity_logs" TO "service_role";
+-- GRANT REFERENCES ON TABLE "public"."activity_logs" TO "service_role";
+-- GRANT SELECT ON TABLE "public"."activity_logs" TO "service_role";
+-- GRANT TRIGGER ON TABLE "public"."activity_logs" TO "service_role";
+-- GRANT TRUNCATE ON TABLE "public"."activity_logs" TO "service_role";
+-- GRANT UPDATE ON TABLE "public"."activity_logs" TO "service_role";
+-- GRANT DELETE ON TABLE "public"."ai_analysis_daily_usage" TO "postgres" WITH GRANT OPTION;
+-- GRANT INSERT ON TABLE "public"."ai_analysis_daily_usage" TO "postgres" WITH GRANT OPTION;
+-- GRANT REFERENCES ON TABLE "public"."ai_analysis_daily_usage" TO "postgres" WITH GRANT OPTION;
+-- GRANT SELECT ON TABLE "public"."ai_analysis_daily_usage" TO "postgres" WITH GRANT OPTION;
+-- GRANT TRIGGER ON TABLE "public"."ai_analysis_daily_usage" TO "postgres" WITH GRANT OPTION;
+-- GRANT TRUNCATE ON TABLE "public"."ai_analysis_daily_usage" TO "postgres" WITH GRANT OPTION;
+-- GRANT UPDATE ON TABLE "public"."ai_analysis_daily_usage" TO "postgres" WITH GRANT OPTION;
+-- GRANT INSERT ON TABLE "public"."ai_analysis_daily_usage" TO "sandbox_exec";
+-- GRANT SELECT ON TABLE "public"."ai_analysis_daily_usage" TO "sandbox_exec";
+-- GRANT DELETE ON TABLE "public"."ai_analysis_daily_usage" TO "service_role";
+-- GRANT INSERT ON TABLE "public"."ai_analysis_daily_usage" TO "service_role";
+-- GRANT REFERENCES ON TABLE "public"."ai_analysis_daily_usage" TO "service_role";
+-- GRANT SELECT ON TABLE "public"."ai_analysis_daily_usage" TO "service_role";
+-- GRANT TRIGGER ON TABLE "public"."ai_analysis_daily_usage" TO "service_role";
+-- GRANT TRUNCATE ON TABLE "public"."ai_analysis_daily_usage" TO "service_role";
+-- GRANT UPDATE ON TABLE "public"."ai_analysis_daily_usage" TO "service_role";
+-- GRANT DELETE ON TABLE "public"."app_data" TO "anon";
+-- GRANT INSERT ON TABLE "public"."app_data" TO "anon";
+-- GRANT REFERENCES ON TABLE "public"."app_data" TO "anon";
+-- GRANT SELECT ON TABLE "public"."app_data" TO "anon";
+-- GRANT TRIGGER ON TABLE "public"."app_data" TO "anon";
+-- GRANT TRUNCATE ON TABLE "public"."app_data" TO "anon";
+-- GRANT UPDATE ON TABLE "public"."app_data" TO "anon";
+-- GRANT DELETE ON TABLE "public"."app_data" TO "authenticated";
+-- GRANT INSERT ON TABLE "public"."app_data" TO "authenticated";
+-- GRANT REFERENCES ON TABLE "public"."app_data" TO "authenticated";
+-- GRANT SELECT ON TABLE "public"."app_data" TO "authenticated";
+-- GRANT TRIGGER ON TABLE "public"."app_data" TO "authenticated";
+-- GRANT TRUNCATE ON TABLE "public"."app_data" TO "authenticated";
+-- GRANT UPDATE ON TABLE "public"."app_data" TO "authenticated";
+-- GRANT DELETE ON TABLE "public"."app_data" TO "postgres" WITH GRANT OPTION;
+-- GRANT INSERT ON TABLE "public"."app_data" TO "postgres" WITH GRANT OPTION;
+-- GRANT REFERENCES ON TABLE "public"."app_data" TO "postgres" WITH GRANT OPTION;
+-- GRANT SELECT ON TABLE "public"."app_data" TO "postgres" WITH GRANT OPTION;
+-- GRANT TRIGGER ON TABLE "public"."app_data" TO "postgres" WITH GRANT OPTION;
+-- GRANT TRUNCATE ON TABLE "public"."app_data" TO "postgres" WITH GRANT OPTION;
+-- GRANT UPDATE ON TABLE "public"."app_data" TO "postgres" WITH GRANT OPTION;
+-- GRANT INSERT ON TABLE "public"."app_data" TO "sandbox_exec";
+-- GRANT SELECT ON TABLE "public"."app_data" TO "sandbox_exec";
+-- GRANT DELETE ON TABLE "public"."app_data" TO "service_role";
+-- GRANT INSERT ON TABLE "public"."app_data" TO "service_role";
+-- GRANT REFERENCES ON TABLE "public"."app_data" TO "service_role";
+-- GRANT SELECT ON TABLE "public"."app_data" TO "service_role";
+-- GRANT TRIGGER ON TABLE "public"."app_data" TO "service_role";
+-- GRANT TRUNCATE ON TABLE "public"."app_data" TO "service_role";
+-- GRANT UPDATE ON TABLE "public"."app_data" TO "service_role";
+-- GRANT DELETE ON TABLE "public"."audit_logs" TO "postgres" WITH GRANT OPTION;
+-- GRANT INSERT ON TABLE "public"."audit_logs" TO "postgres" WITH GRANT OPTION;
+-- GRANT REFERENCES ON TABLE "public"."audit_logs" TO "postgres" WITH GRANT OPTION;
+-- GRANT SELECT ON TABLE "public"."audit_logs" TO "postgres" WITH GRANT OPTION;
+-- GRANT TRIGGER ON TABLE "public"."audit_logs" TO "postgres" WITH GRANT OPTION;
+-- GRANT TRUNCATE ON TABLE "public"."audit_logs" TO "postgres" WITH GRANT OPTION;
+-- GRANT UPDATE ON TABLE "public"."audit_logs" TO "postgres" WITH GRANT OPTION;
+-- GRANT INSERT ON TABLE "public"."audit_logs" TO "sandbox_exec";
+-- GRANT SELECT ON TABLE "public"."audit_logs" TO "sandbox_exec";
+-- GRANT DELETE ON TABLE "public"."audit_logs" TO "service_role";
+-- GRANT INSERT ON TABLE "public"."audit_logs" TO "service_role";
+-- GRANT REFERENCES ON TABLE "public"."audit_logs" TO "service_role";
+-- GRANT SELECT ON TABLE "public"."audit_logs" TO "service_role";
+-- GRANT TRIGGER ON TABLE "public"."audit_logs" TO "service_role";
+-- GRANT TRUNCATE ON TABLE "public"."audit_logs" TO "service_role";
+-- GRANT UPDATE ON TABLE "public"."audit_logs" TO "service_role";
+-- GRANT DELETE ON TABLE "public"."integration_tokens" TO "anon";
+-- GRANT INSERT ON TABLE "public"."integration_tokens" TO "anon";
+-- GRANT REFERENCES ON TABLE "public"."integration_tokens" TO "anon";
+-- GRANT SELECT ON TABLE "public"."integration_tokens" TO "anon";
+-- GRANT TRIGGER ON TABLE "public"."integration_tokens" TO "anon";
+-- GRANT TRUNCATE ON TABLE "public"."integration_tokens" TO "anon";
+-- GRANT UPDATE ON TABLE "public"."integration_tokens" TO "anon";
+-- GRANT DELETE ON TABLE "public"."integration_tokens" TO "authenticated";
+-- GRANT INSERT ON TABLE "public"."integration_tokens" TO "authenticated";
+-- GRANT REFERENCES ON TABLE "public"."integration_tokens" TO "authenticated";
+-- GRANT SELECT ON TABLE "public"."integration_tokens" TO "authenticated";
+-- GRANT TRIGGER ON TABLE "public"."integration_tokens" TO "authenticated";
+-- GRANT TRUNCATE ON TABLE "public"."integration_tokens" TO "authenticated";
+-- GRANT UPDATE ON TABLE "public"."integration_tokens" TO "authenticated";
+-- GRANT DELETE ON TABLE "public"."integration_tokens" TO "postgres" WITH GRANT OPTION;
+-- GRANT INSERT ON TABLE "public"."integration_tokens" TO "postgres" WITH GRANT OPTION;
+-- GRANT REFERENCES ON TABLE "public"."integration_tokens" TO "postgres" WITH GRANT OPTION;
+-- GRANT SELECT ON TABLE "public"."integration_tokens" TO "postgres" WITH GRANT OPTION;
+-- GRANT TRIGGER ON TABLE "public"."integration_tokens" TO "postgres" WITH GRANT OPTION;
+-- GRANT TRUNCATE ON TABLE "public"."integration_tokens" TO "postgres" WITH GRANT OPTION;
+-- GRANT UPDATE ON TABLE "public"."integration_tokens" TO "postgres" WITH GRANT OPTION;
+-- GRANT INSERT ON TABLE "public"."integration_tokens" TO "sandbox_exec";
+-- GRANT SELECT ON TABLE "public"."integration_tokens" TO "sandbox_exec";
+-- GRANT DELETE ON TABLE "public"."integration_tokens" TO "service_role";
+-- GRANT INSERT ON TABLE "public"."integration_tokens" TO "service_role";
+-- GRANT REFERENCES ON TABLE "public"."integration_tokens" TO "service_role";
+-- GRANT SELECT ON TABLE "public"."integration_tokens" TO "service_role";
+-- GRANT TRIGGER ON TABLE "public"."integration_tokens" TO "service_role";
+-- GRANT TRUNCATE ON TABLE "public"."integration_tokens" TO "service_role";
+-- GRANT UPDATE ON TABLE "public"."integration_tokens" TO "service_role";
+-- GRANT DELETE ON TABLE "public"."master_number_sync" TO "postgres" WITH GRANT OPTION;
+-- GRANT INSERT ON TABLE "public"."master_number_sync" TO "postgres" WITH GRANT OPTION;
+-- GRANT REFERENCES ON TABLE "public"."master_number_sync" TO "postgres" WITH GRANT OPTION;
+-- GRANT SELECT ON TABLE "public"."master_number_sync" TO "postgres" WITH GRANT OPTION;
+-- GRANT TRIGGER ON TABLE "public"."master_number_sync" TO "postgres" WITH GRANT OPTION;
+-- GRANT TRUNCATE ON TABLE "public"."master_number_sync" TO "postgres" WITH GRANT OPTION;
+-- GRANT UPDATE ON TABLE "public"."master_number_sync" TO "postgres" WITH GRANT OPTION;
+-- GRANT INSERT ON TABLE "public"."master_number_sync" TO "sandbox_exec";
+-- GRANT SELECT ON TABLE "public"."master_number_sync" TO "sandbox_exec";
+-- GRANT DELETE ON TABLE "public"."master_number_sync" TO "service_role";
+-- GRANT INSERT ON TABLE "public"."master_number_sync" TO "service_role";
+-- GRANT REFERENCES ON TABLE "public"."master_number_sync" TO "service_role";
+-- GRANT SELECT ON TABLE "public"."master_number_sync" TO "service_role";
+-- GRANT TRIGGER ON TABLE "public"."master_number_sync" TO "service_role";
+-- GRANT TRUNCATE ON TABLE "public"."master_number_sync" TO "service_role";
+-- GRANT UPDATE ON TABLE "public"."master_number_sync" TO "service_role";
+-- GRANT DELETE ON TABLE "public"."order_queue" TO "anon";
+-- GRANT INSERT ON TABLE "public"."order_queue" TO "anon";
+-- GRANT REFERENCES ON TABLE "public"."order_queue" TO "anon";
+-- GRANT SELECT ON TABLE "public"."order_queue" TO "anon";
+-- GRANT TRIGGER ON TABLE "public"."order_queue" TO "anon";
+-- GRANT TRUNCATE ON TABLE "public"."order_queue" TO "anon";
+-- GRANT UPDATE ON TABLE "public"."order_queue" TO "anon";
+-- GRANT DELETE ON TABLE "public"."order_queue" TO "authenticated";
+-- GRANT INSERT ON TABLE "public"."order_queue" TO "authenticated";
+-- GRANT REFERENCES ON TABLE "public"."order_queue" TO "authenticated";
+-- GRANT SELECT ON TABLE "public"."order_queue" TO "authenticated";
+-- GRANT TRIGGER ON TABLE "public"."order_queue" TO "authenticated";
+-- GRANT TRUNCATE ON TABLE "public"."order_queue" TO "authenticated";
+-- GRANT UPDATE ON TABLE "public"."order_queue" TO "authenticated";
+-- GRANT DELETE ON TABLE "public"."order_queue" TO "postgres" WITH GRANT OPTION;
+-- GRANT INSERT ON TABLE "public"."order_queue" TO "postgres" WITH GRANT OPTION;
+-- GRANT REFERENCES ON TABLE "public"."order_queue" TO "postgres" WITH GRANT OPTION;
+-- GRANT SELECT ON TABLE "public"."order_queue" TO "postgres" WITH GRANT OPTION;
+-- GRANT TRIGGER ON TABLE "public"."order_queue" TO "postgres" WITH GRANT OPTION;
+-- GRANT TRUNCATE ON TABLE "public"."order_queue" TO "postgres" WITH GRANT OPTION;
+-- GRANT UPDATE ON TABLE "public"."order_queue" TO "postgres" WITH GRANT OPTION;
+-- GRANT INSERT ON TABLE "public"."order_queue" TO "sandbox_exec";
+-- GRANT SELECT ON TABLE "public"."order_queue" TO "sandbox_exec";
+-- GRANT DELETE ON TABLE "public"."order_queue" TO "service_role";
+-- GRANT INSERT ON TABLE "public"."order_queue" TO "service_role";
+-- GRANT REFERENCES ON TABLE "public"."order_queue" TO "service_role";
+-- GRANT SELECT ON TABLE "public"."order_queue" TO "service_role";
+-- GRANT TRIGGER ON TABLE "public"."order_queue" TO "service_role";
+-- GRANT TRUNCATE ON TABLE "public"."order_queue" TO "service_role";
+-- GRANT UPDATE ON TABLE "public"."order_queue" TO "service_role";
+-- GRANT DELETE ON TABLE "public"."profiles" TO "anon";
+-- GRANT INSERT ON TABLE "public"."profiles" TO "anon";
+-- GRANT REFERENCES ON TABLE "public"."profiles" TO "anon";
+-- GRANT SELECT ON TABLE "public"."profiles" TO "anon";
+-- GRANT TRIGGER ON TABLE "public"."profiles" TO "anon";
+-- GRANT TRUNCATE ON TABLE "public"."profiles" TO "anon";
+-- GRANT UPDATE ON TABLE "public"."profiles" TO "anon";
+-- GRANT DELETE ON TABLE "public"."profiles" TO "authenticated";
+-- GRANT INSERT ON TABLE "public"."profiles" TO "authenticated";
+-- GRANT REFERENCES ON TABLE "public"."profiles" TO "authenticated";
+-- GRANT SELECT ON TABLE "public"."profiles" TO "authenticated";
+-- GRANT TRIGGER ON TABLE "public"."profiles" TO "authenticated";
+-- GRANT TRUNCATE ON TABLE "public"."profiles" TO "authenticated";
+-- GRANT UPDATE ON TABLE "public"."profiles" TO "authenticated";
+-- GRANT DELETE ON TABLE "public"."profiles" TO "postgres" WITH GRANT OPTION;
+-- GRANT INSERT ON TABLE "public"."profiles" TO "postgres" WITH GRANT OPTION;
+-- GRANT REFERENCES ON TABLE "public"."profiles" TO "postgres" WITH GRANT OPTION;
+-- GRANT SELECT ON TABLE "public"."profiles" TO "postgres" WITH GRANT OPTION;
+-- GRANT TRIGGER ON TABLE "public"."profiles" TO "postgres" WITH GRANT OPTION;
+-- GRANT TRUNCATE ON TABLE "public"."profiles" TO "postgres" WITH GRANT OPTION;
+-- GRANT UPDATE ON TABLE "public"."profiles" TO "postgres" WITH GRANT OPTION;
+-- GRANT INSERT ON TABLE "public"."profiles" TO "sandbox_exec";
+-- GRANT SELECT ON TABLE "public"."profiles" TO "sandbox_exec";
+-- GRANT DELETE ON TABLE "public"."profiles" TO "service_role";
+-- GRANT INSERT ON TABLE "public"."profiles" TO "service_role";
+-- GRANT REFERENCES ON TABLE "public"."profiles" TO "service_role";
+-- GRANT SELECT ON TABLE "public"."profiles" TO "service_role";
+-- GRANT TRIGGER ON TABLE "public"."profiles" TO "service_role";
+-- GRANT TRUNCATE ON TABLE "public"."profiles" TO "service_role";
+-- GRANT UPDATE ON TABLE "public"."profiles" TO "service_role";
+-- GRANT DELETE ON TABLE "public"."prop_firms" TO "anon";
+-- GRANT INSERT ON TABLE "public"."prop_firms" TO "anon";
+-- GRANT REFERENCES ON TABLE "public"."prop_firms" TO "anon";
+-- GRANT SELECT ON TABLE "public"."prop_firms" TO "anon";
+-- GRANT TRIGGER ON TABLE "public"."prop_firms" TO "anon";
+-- GRANT TRUNCATE ON TABLE "public"."prop_firms" TO "anon";
+-- GRANT UPDATE ON TABLE "public"."prop_firms" TO "anon";
+-- GRANT DELETE ON TABLE "public"."prop_firms" TO "authenticated";
+-- GRANT INSERT ON TABLE "public"."prop_firms" TO "authenticated";
+-- GRANT REFERENCES ON TABLE "public"."prop_firms" TO "authenticated";
+-- GRANT SELECT ON TABLE "public"."prop_firms" TO "authenticated";
+-- GRANT TRIGGER ON TABLE "public"."prop_firms" TO "authenticated";
+-- GRANT TRUNCATE ON TABLE "public"."prop_firms" TO "authenticated";
+-- GRANT UPDATE ON TABLE "public"."prop_firms" TO "authenticated";
+-- GRANT DELETE ON TABLE "public"."prop_firms" TO "postgres" WITH GRANT OPTION;
+-- GRANT INSERT ON TABLE "public"."prop_firms" TO "postgres" WITH GRANT OPTION;
+-- GRANT REFERENCES ON TABLE "public"."prop_firms" TO "postgres" WITH GRANT OPTION;
+-- GRANT SELECT ON TABLE "public"."prop_firms" TO "postgres" WITH GRANT OPTION;
+-- GRANT TRIGGER ON TABLE "public"."prop_firms" TO "postgres" WITH GRANT OPTION;
+-- GRANT TRUNCATE ON TABLE "public"."prop_firms" TO "postgres" WITH GRANT OPTION;
+-- GRANT UPDATE ON TABLE "public"."prop_firms" TO "postgres" WITH GRANT OPTION;
+-- GRANT INSERT ON TABLE "public"."prop_firms" TO "sandbox_exec";
+-- GRANT SELECT ON TABLE "public"."prop_firms" TO "sandbox_exec";
+-- GRANT DELETE ON TABLE "public"."prop_firms" TO "service_role";
+-- GRANT INSERT ON TABLE "public"."prop_firms" TO "service_role";
+-- GRANT REFERENCES ON TABLE "public"."prop_firms" TO "service_role";
+-- GRANT SELECT ON TABLE "public"."prop_firms" TO "service_role";
+-- GRANT TRIGGER ON TABLE "public"."prop_firms" TO "service_role";
+-- GRANT TRUNCATE ON TABLE "public"."prop_firms" TO "service_role";
+-- GRANT UPDATE ON TABLE "public"."prop_firms" TO "service_role";
+-- GRANT DELETE ON TABLE "public"."push_subscriptions" TO "authenticated";
+-- GRANT INSERT ON TABLE "public"."push_subscriptions" TO "authenticated";
+-- GRANT SELECT ON TABLE "public"."push_subscriptions" TO "authenticated";
+-- GRANT DELETE ON TABLE "public"."push_subscriptions" TO "postgres" WITH GRANT OPTION;
+-- GRANT INSERT ON TABLE "public"."push_subscriptions" TO "postgres" WITH GRANT OPTION;
+-- GRANT REFERENCES ON TABLE "public"."push_subscriptions" TO "postgres" WITH GRANT OPTION;
+-- GRANT SELECT ON TABLE "public"."push_subscriptions" TO "postgres" WITH GRANT OPTION;
+-- GRANT TRIGGER ON TABLE "public"."push_subscriptions" TO "postgres" WITH GRANT OPTION;
+-- GRANT TRUNCATE ON TABLE "public"."push_subscriptions" TO "postgres" WITH GRANT OPTION;
+-- GRANT UPDATE ON TABLE "public"."push_subscriptions" TO "postgres" WITH GRANT OPTION;
+-- GRANT INSERT ON TABLE "public"."push_subscriptions" TO "sandbox_exec";
+-- GRANT SELECT ON TABLE "public"."push_subscriptions" TO "sandbox_exec";
+-- GRANT DELETE ON TABLE "public"."push_subscriptions" TO "service_role";
+-- GRANT INSERT ON TABLE "public"."push_subscriptions" TO "service_role";
+-- GRANT REFERENCES ON TABLE "public"."push_subscriptions" TO "service_role";
+-- GRANT SELECT ON TABLE "public"."push_subscriptions" TO "service_role";
+-- GRANT TRIGGER ON TABLE "public"."push_subscriptions" TO "service_role";
+-- GRANT TRUNCATE ON TABLE "public"."push_subscriptions" TO "service_role";
+-- GRANT UPDATE ON TABLE "public"."push_subscriptions" TO "service_role";
+-- GRANT DELETE ON TABLE "public"."terms_acceptances" TO "postgres" WITH GRANT OPTION;
+-- GRANT INSERT ON TABLE "public"."terms_acceptances" TO "postgres" WITH GRANT OPTION;
+-- GRANT REFERENCES ON TABLE "public"."terms_acceptances" TO "postgres" WITH GRANT OPTION;
+-- GRANT SELECT ON TABLE "public"."terms_acceptances" TO "postgres" WITH GRANT OPTION;
+-- GRANT TRIGGER ON TABLE "public"."terms_acceptances" TO "postgres" WITH GRANT OPTION;
+-- GRANT TRUNCATE ON TABLE "public"."terms_acceptances" TO "postgres" WITH GRANT OPTION;
+-- GRANT UPDATE ON TABLE "public"."terms_acceptances" TO "postgres" WITH GRANT OPTION;
+-- GRANT INSERT ON TABLE "public"."terms_acceptances" TO "sandbox_exec";
+-- GRANT SELECT ON TABLE "public"."terms_acceptances" TO "sandbox_exec";
+-- GRANT DELETE ON TABLE "public"."terms_acceptances" TO "service_role";
+-- GRANT INSERT ON TABLE "public"."terms_acceptances" TO "service_role";
+-- GRANT REFERENCES ON TABLE "public"."terms_acceptances" TO "service_role";
+-- GRANT SELECT ON TABLE "public"."terms_acceptances" TO "service_role";
+-- GRANT TRIGGER ON TABLE "public"."terms_acceptances" TO "service_role";
+-- GRANT TRUNCATE ON TABLE "public"."terms_acceptances" TO "service_role";
+-- GRANT UPDATE ON TABLE "public"."terms_acceptances" TO "service_role";
+-- GRANT DELETE ON TABLE "public"."trusted_device_settings" TO "postgres" WITH GRANT OPTION;
+-- GRANT INSERT ON TABLE "public"."trusted_device_settings" TO "postgres" WITH GRANT OPTION;
+-- GRANT REFERENCES ON TABLE "public"."trusted_device_settings" TO "postgres" WITH GRANT OPTION;
+-- GRANT SELECT ON TABLE "public"."trusted_device_settings" TO "postgres" WITH GRANT OPTION;
+-- GRANT TRIGGER ON TABLE "public"."trusted_device_settings" TO "postgres" WITH GRANT OPTION;
+-- GRANT TRUNCATE ON TABLE "public"."trusted_device_settings" TO "postgres" WITH GRANT OPTION;
+-- GRANT UPDATE ON TABLE "public"."trusted_device_settings" TO "postgres" WITH GRANT OPTION;
+-- GRANT INSERT ON TABLE "public"."trusted_device_settings" TO "sandbox_exec";
+-- GRANT SELECT ON TABLE "public"."trusted_device_settings" TO "sandbox_exec";
+-- GRANT DELETE ON TABLE "public"."trusted_device_settings" TO "service_role";
+-- GRANT INSERT ON TABLE "public"."trusted_device_settings" TO "service_role";
+-- GRANT REFERENCES ON TABLE "public"."trusted_device_settings" TO "service_role";
+-- GRANT SELECT ON TABLE "public"."trusted_device_settings" TO "service_role";
+-- GRANT TRIGGER ON TABLE "public"."trusted_device_settings" TO "service_role";
+-- GRANT TRUNCATE ON TABLE "public"."trusted_device_settings" TO "service_role";
+-- GRANT UPDATE ON TABLE "public"."trusted_device_settings" TO "service_role";
+-- GRANT DELETE ON TABLE "public"."trusted_devices" TO "postgres" WITH GRANT OPTION;
+-- GRANT INSERT ON TABLE "public"."trusted_devices" TO "postgres" WITH GRANT OPTION;
+-- GRANT REFERENCES ON TABLE "public"."trusted_devices" TO "postgres" WITH GRANT OPTION;
+-- GRANT SELECT ON TABLE "public"."trusted_devices" TO "postgres" WITH GRANT OPTION;
+-- GRANT TRIGGER ON TABLE "public"."trusted_devices" TO "postgres" WITH GRANT OPTION;
+-- GRANT TRUNCATE ON TABLE "public"."trusted_devices" TO "postgres" WITH GRANT OPTION;
+-- GRANT UPDATE ON TABLE "public"."trusted_devices" TO "postgres" WITH GRANT OPTION;
+-- GRANT INSERT ON TABLE "public"."trusted_devices" TO "sandbox_exec";
+-- GRANT SELECT ON TABLE "public"."trusted_devices" TO "sandbox_exec";
+-- GRANT DELETE ON TABLE "public"."trusted_devices" TO "service_role";
+-- GRANT INSERT ON TABLE "public"."trusted_devices" TO "service_role";
+-- GRANT REFERENCES ON TABLE "public"."trusted_devices" TO "service_role";
+-- GRANT SELECT ON TABLE "public"."trusted_devices" TO "service_role";
+-- GRANT TRIGGER ON TABLE "public"."trusted_devices" TO "service_role";
+-- GRANT TRUNCATE ON TABLE "public"."trusted_devices" TO "service_role";
+-- GRANT UPDATE ON TABLE "public"."trusted_devices" TO "service_role";
+-- GRANT DELETE ON TABLE "public"."user_roles" TO "anon";
+-- GRANT INSERT ON TABLE "public"."user_roles" TO "anon";
+-- GRANT REFERENCES ON TABLE "public"."user_roles" TO "anon";
+-- GRANT SELECT ON TABLE "public"."user_roles" TO "anon";
+-- GRANT TRIGGER ON TABLE "public"."user_roles" TO "anon";
+-- GRANT TRUNCATE ON TABLE "public"."user_roles" TO "anon";
+-- GRANT UPDATE ON TABLE "public"."user_roles" TO "anon";
+-- GRANT DELETE ON TABLE "public"."user_roles" TO "authenticated";
+-- GRANT INSERT ON TABLE "public"."user_roles" TO "authenticated";
+-- GRANT REFERENCES ON TABLE "public"."user_roles" TO "authenticated";
+-- GRANT SELECT ON TABLE "public"."user_roles" TO "authenticated";
+-- GRANT TRIGGER ON TABLE "public"."user_roles" TO "authenticated";
+-- GRANT TRUNCATE ON TABLE "public"."user_roles" TO "authenticated";
+-- GRANT UPDATE ON TABLE "public"."user_roles" TO "authenticated";
+-- GRANT DELETE ON TABLE "public"."user_roles" TO "postgres" WITH GRANT OPTION;
+-- GRANT INSERT ON TABLE "public"."user_roles" TO "postgres" WITH GRANT OPTION;
+-- GRANT REFERENCES ON TABLE "public"."user_roles" TO "postgres" WITH GRANT OPTION;
+-- GRANT SELECT ON TABLE "public"."user_roles" TO "postgres" WITH GRANT OPTION;
+-- GRANT TRIGGER ON TABLE "public"."user_roles" TO "postgres" WITH GRANT OPTION;
+-- GRANT TRUNCATE ON TABLE "public"."user_roles" TO "postgres" WITH GRANT OPTION;
+-- GRANT UPDATE ON TABLE "public"."user_roles" TO "postgres" WITH GRANT OPTION;
+-- GRANT INSERT ON TABLE "public"."user_roles" TO "sandbox_exec";
+-- GRANT SELECT ON TABLE "public"."user_roles" TO "sandbox_exec";
+-- GRANT DELETE ON TABLE "public"."user_roles" TO "service_role";
+-- GRANT INSERT ON TABLE "public"."user_roles" TO "service_role";
+-- GRANT REFERENCES ON TABLE "public"."user_roles" TO "service_role";
+-- GRANT SELECT ON TABLE "public"."user_roles" TO "service_role";
+-- GRANT TRIGGER ON TABLE "public"."user_roles" TO "service_role";
+-- GRANT TRUNCATE ON TABLE "public"."user_roles" TO "service_role";
+-- GRANT UPDATE ON TABLE "public"."user_roles" TO "service_role";
+
+
+-- ================== STORAGE - SOMENTE METADADOS DE BUCKET ==================
+-- BUCKET downloads: private=true, file_size_limit=52428800, allowed_mime_types=null;
+
+
+-- ================== RESTRICOES E PROXIMOS PASSOS ==================
+-- As 14 tabelas e os objetos acima foram lidos diretamente do catalogo.
+-- A restauracao deve tratar schemas auth e storage gerenciados pelo provedor.
+-- Confirmar privilegios de funcoes e schema, extensoes e roles no destino.
+-- O catalogo nao inclui dados reais nem os binarios dos arquivos do Storage.
+-- Requer ensaio de restauracao isolado e reconciliacao de IDs de usuarios.
+-- NAO EXECUTAR ESTE ARQUIVO; serve como referencia versionada.
