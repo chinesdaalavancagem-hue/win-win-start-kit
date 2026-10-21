@@ -122,7 +122,7 @@ export function selecionarMesaGold(asset: Asset, mesa: MesaFuturos): void {
     // A meta do quarto dia deve respeitar o limite de consistência de 30%.
     const ultimoAval = baseAval[baseAval.length - 1] ?? primeiro;
     const diasAvaliacao = Array.from({ length: avaliacao }, (_, i) => structuredClone(baseAval[i] ?? ultimoAval));
-    const ultimosCinco = atual.slice(-5);
+    const ultimosCinco = atual.length === 8 ? atual.slice(-4) : atual.slice(-5);
     const primeiroPayout = ultimosCinco[0] ?? { mnq: 2, lotes: 0.2, meta: 200 };
     const diasPayout = Array.from({ length: 5 }, (_, i) => structuredClone(ultimosCinco[i] ?? primeiroPayout));
     versoes[mesa] = [...diasAvaliacao, ...diasPayout];
