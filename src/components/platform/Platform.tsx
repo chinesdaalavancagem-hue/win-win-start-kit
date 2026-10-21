@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { registrarAuditoria } from "@/lib/auditoria-registro";
 import { applyOfficialParams, buildOfficialParams, isOfficialParams } from "@/lib/platform/official-params";
 import {
-  type AssetKey, type State, type TabKey, type Asset, type MesaFuturos, MESAS_FUTUROS, diasAvaliacaoGold, adicionarDiaGold, removerDiaGold,
+  type AssetKey, type State, type TabKey, type Asset, type MesaFuturos, MESAS_FUTUROS, diasAvaliacaoGold, lossLimitGoldProjetado, adicionarDiaGold, removerDiaGold,
   aplicarDeposito, aplicarSaque, conciliarCreditoForex, calcAporteFracionado, calcCaixaCiclo, clampDayIndex, computeAssetCalcs, defaultState, fmt, fmtSigned, handleProfit, handleStop,
   historicoTotals, isValidState, normalizeState, parseNum, projetarZeragemBonus, resetBonus, tipoLabel, undoLast,
 } from "@/lib/platform/engine";
@@ -624,7 +624,7 @@ function DayCard({ row, assetKey, avaliacaoDias, mutate, excedenteAtualSacavel }
   }, [isCurrent]);
   const setD = (k: "mnq" | "lotes" | "meta") => (v: number) => mutate((s) => { s.assets[assetKey].days[i]![k] = v; });
   const limiteFixo = assetKey === "ouro" && i <= avaliacaoDias;
-  const limiteHoje = limiteFixo ? 2000 : d.mll && d.mll > 0 ? d.mll : undefined;
+  const limiteHoje = assetKey === "ouro" ? lossLimitGoldProjetado(asset, i) : 0;
   return (
     <div ref={ref} className={cn("platform-day-card overflow-hidden rounded-2xl border border-[#142b43] bg-[#0b0f19] p-3 text-slate-100 shadow-[0_12px_40px_rgba(0,0,0,0.22)] sm:p-5 lg:p-3", isCurrent && "border-[#087cff]/70 ring-1 ring-[#087cff]/25")}>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-[#142b43] pb-3">
@@ -650,7 +650,7 @@ function DayCard({ row, assetKey, avaliacaoDias, mutate, excedenteAtualSacavel }
         </div>
         <div className="min-w-0 rounded-xl border border-[#18324e] bg-gradient-to-br from-[#0d1b2b] to-[#080f1a] p-3 sm:p-4">
           <p className="flex items-center gap-1.5 text-xs text-blue-100/90"><TrendingUp className="h-3.5 w-3.5 text-emerald-400" />Alvo Reprova</p>
-          <p className="mt-2 font-mono text-2xl font-bold sm:text-[28px]">{assetKey === "ouro" && !limiteFixo && !limiteHoje ? "—" : fmt(c.pontosReprova * 10)} <span className="text-sm text-muted-foreground">pts</span></p>
+          <p className="mt-2 font-mono text-2xl font-bold sm:text-[28px]">{fmt(c.pontosReprova * 10)} <span className="text-sm text-muted-foreground">pts</span></p>
         </div>
       </div>
 
@@ -684,10 +684,8 @@ function DayCard({ row, assetKey, avaliacaoDias, mutate, excedenteAtualSacavel }
             </div>
             <div className="mt-3 flex items-center justify-between gap-2 rounded-lg border border-[#142b43] bg-[#0b1726] px-3 py-2.5 font-mono text-xs"><span className="flex items-center gap-1.5 text-muted-foreground"><Calculator className="h-3.5 w-3.5" />Necessário no CFD</span><span className="font-semibold">${fmt(cx.necessario)}</span></div>
             {assetKey === "ouro" && <div className="mt-1 flex items-center justify-between gap-3 rounded-xl border border-amber-800/50 bg-[#161924] px-3 py-2.5">
-              <label htmlFor={`loss-limit-${i}`} className="min-w-0 text-xs font-semibold text-amber-200">Loss Limit EOD na mesa ($)</label>
-              {limiteFixo ? <span className="font-mono text-base font-bold text-white">$2.000</span> :
-                <input id={`loss-limit-${i}`} aria-label="Loss Limit do dia em dólares" type="number" min="0.01" step="0.01" inputMode="decimal" value={limiteHoje ?? ""} placeholder="Valor do dia" className="w-32 max-w-[55%] rounded-lg border border-amber-800/70 bg-[#081321] px-2 py-1.5 text-right font-mono text-sm text-white focus:border-amber-400 focus:outline-none" onChange={(e) => { const raw = e.target.value; const v = Number(raw); mutate((st) => { const day = st.assets[assetKey].days[i]; if (!day) return; if (raw.trim() && Number.isFinite(v) && v > 0) day.mll = v; else delete day.mll; }); }} />
-              }
+              <label className="min-w-0 text-xs font-semibold text-amber-200">Loss Limit EOD na mesa ($)</label>
+              <span className="font-mono text-base font-bold text-white" title="Projeção de 4% sobre $50.000 mais metas financiadas dos dias anteriores; confirme o limite real no painel da mesa.">${fmt(limiteHoje)}</span>
             </div>}
 
           </div>
