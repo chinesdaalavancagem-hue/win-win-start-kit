@@ -3,7 +3,7 @@ import { challengeAccountSchema, type ChallengeAccount } from "../prop-firms";
 
 export type BancaAtivo = "nasdaq" | "ouro";
 export interface Banca { id: string; nome: string; criadaEm: number; state: State; ativo?: BancaAtivo; officialAcceptedAt?: string; challengeAccount?: ChallengeAccount }
-export interface ForexCompartilhado { cfdBalance: number; forexSaldoReal?: number; bonus: Record<AssetKey, Bonus> }
+export interface ForexCompartilhado { cfdBalance: number; forexSaldoReal?: number | undefined; bonus: Record<AssetKey, Bonus> }
 export interface BancasDoc { bancasVersion: 1; activeId: string; bancas: Banca[]; forex?: ForexCompartilhado }
 
 export function extrairForex(state: State): ForexCompartilhado {
