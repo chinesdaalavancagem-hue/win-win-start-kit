@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { LogOut } from "lucide-react";
 import { getMyAccess, signOut } from "@/lib/session";
 import { registrarAuditoria } from "@/lib/auditoria-registro";
 import { Bancas } from "@/components/platform/Bancas";
@@ -104,7 +105,7 @@ function Plataforma() {
           {isAdmin === true && <Button asChild size="sm" variant="outline" className="shrink-0 rounded-xl border-cyan-950 bg-[#07101f] text-blue-100 hover:border-cyan-500 hover:bg-blue-950/70"><Link to="/admin">♙ Aprovar cadastros</Link></Button>}
           {state === "ok" && isAdmin && <Button size="sm" disabled={publishBusy} className="shrink-0 rounded-xl bg-cyan-600 text-white hover:bg-cyan-500" onClick={() => void publishOfficial()}>↗ Enviar parâmetros aos usuários</Button>}
           {isAdmin === true && <Button asChild size="sm" variant="outline" className="shrink-0 rounded-xl border-cyan-950 bg-[#07101f] text-blue-100 hover:border-cyan-500 hover:bg-blue-950/70"><Link to="/auditoria">⛨ Auditoria</Link></Button>}
-          <Button size="sm" variant="outline" className="shrink-0 rounded-xl border-red-500/70 bg-red-950/50 font-bold text-red-200 shadow-[0_0_18px_rgba(220,38,38,0.16)] transition-colors hover:border-red-400 hover:bg-red-900/70 hover:text-white focus-visible:ring-red-400" onClick={() => signOut(navigate)}>Sair da plataforma</Button>
+          <Button size="sm" variant="outline" className="shrink-0 rounded-xl border-red-500/70 bg-red-950/50 font-bold text-red-200 shadow-[0_0_18px_rgba(220,38,38,0.16)] transition-colors hover:border-red-400 hover:bg-red-900/70 hover:text-white focus-visible:ring-red-400" onClick={() => signOut(navigate)}><LogOut className="mr-1.5 size-4 shrink-0" aria-hidden="true" />Sair da plataforma</Button>
         </div>
       </header>
       {publishMessage && <p role="status" className="px-4 py-2 text-xs text-cyan-200">{publishMessage}</p>}
