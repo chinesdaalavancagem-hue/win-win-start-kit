@@ -15,13 +15,15 @@ describe("Loss Limit EOD Gold projetado pelas metas", () => {
     a.days[aval]!.meta = 13000;
     expect(lossLimitGoldProjetado(a, aval + 1)).toBe(2520);
   });
-  it("ignora antigo campo manual mll na projeção dos dias financiados", () => {
+  it("usa ajuste manual nos cálculos e retorna à projeção quando removido", () => {
     const a = defaultState().assets.ouro;
     selecionarMesaGold(a, "lucid");
     a.days[2]!.meta = 3000;
-    a.days[3]!.mll = 9999;
-    const before = computeAssetCalcs(a, "ouro")[3]!.pontosReprova;
+    const automatico = computeAssetCalcs(a, "ouro")[3]!.pontosReprova;
+    a.days[3]!.mll = 1500;
+    const ajustado = computeAssetCalcs(a, "ouro")[3]!.pontosReprova;
+    expect(ajustado).not.toBe(automatico);
     delete a.days[3]!.mll;
-    expect(computeAssetCalcs(a, "ouro")[3]!.pontosReprova).toBe(before);
+    expect(computeAssetCalcs(a, "ouro")[3]!.pontosReprova).toBe(automatico);
   });
 });
