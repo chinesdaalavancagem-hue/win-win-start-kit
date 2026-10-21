@@ -1,462 +1,550 @@
--- WIN OR WIN PLATFORM | DOCUMENTO DE REFERENCIA SQL | 2026-10-21
--- IMPORTANTE: NAO EXECUTAR ESTE ARQUIVO. NAO E UMA MIGRACAO, NEM UM DUMP.
--- Fonte 1: migrações SQL efetivamente versionadas na branch main (transcritas
--- literalmente como comentarios abaixo, para impedir execucao acidental).
--- Fonte 2: inventario de metadados fornecido pelo proprietario a partir de
--- auditoria Lovable Cloud, NAO conferido diretamente por este processo.
--- ESTE DOCUMENTO NAO E UM SNAPSHOT INTEGRAL DO BANCO DE PRODUCAO.
---
--- OBJETOS RELATADOS NO LOVABLE CLOUD (14 tabelas public):
--- app_data, profiles, user_roles, order_queue, integration_tokens,
--- activity_logs, audit_logs, prop_firms, push_subscriptions, terms_acceptances,
--- trusted_devices, trusted_device_settings, ai_analysis_daily_usage,
--- master_number_sync.
---
--- ENUM RELATADO: public.app_role ('admin', 'user').
--- FUNCOES RELATADAS: has_role, is_approved, handle_new_user,
--- register_trusted_device, consume_ai_analysis_quota, log_failed_login.
--- FUNCAO ADICIONAL COM FONTE GITHUB: log_app_data_changes().
--- TRIGGERS: on_auth_user_created (relatado), trg_log_app_data_changes
--- (confirmado na migracao 0005; aplicacao em producao NAO verificada).
--- RLS: 17 politicas relatadas em producao; texto integral NAO verificado.
--- STORAGE: bucket downloads com 3 objetos, segundo auditoria; binarios nao
--- incluidos neste documento.
---
--- LACUNAS CRITICAS PARA RESTAURACAO:
--- 1. DDL efetiva de app_data, profiles, user_roles, order_queue,
---    integration_tokens, trusted_devices e trusted_device_settings.
--- 2. Politicas RLS e grants efetivos de TODAS as tabelas, incluindo objetos
---    criados na infraestrutura antes das migracoes GitHub.
--- 3. pg_get_functiondef, pg_get_triggerdef, pg_get_indexdef no banco real,
---    incluindo owners, search_path, SECURITY DEFINER e grants de EXECUTE.
--- 4. Estrutura auth.users, storage, extensoes, enums, triggers e constraints.
--- 5. Historico real drizzle.__drizzle_migrations e diferencas do estado atual.
--- 6. Dump/backup real dos dados e arquivos, EXCLUSIVAMENTE na etapa futura.
---
--- ACHADO IMPORTANTE: existem migracoes dentro de drizzle/migrations,
--- alem de supabase/migrations. A pasta supabase nao e inventario suficiente.
--- As migracoes abaixo representam historico versionado, nao estado final
--- comprovado. Ex.: 0004 substitui a funcao criada em 0003; 0012 modifica
--- a constraint de prop_firms criada em 0010.
---
--- TRANSCRICOES LITERAIS PARA REFERENCIA (TODAS AS LINHAS COMENTADAS):
+-- WIN OR WIN PLATFORM - SNAPSHOT ESTRUTURAL DE REFERENCIA (LOVABLE CLOUD)
+-- Origem: catalogos PostgreSQL do projeto e7afe98d-470f-42ee-a6a6-cbddcace342c, consultados via SELECT.
+-- Data da extracao: 2026-10-21.
+-- SOMENTE DOCUMENTACAO: NAO EXECUTAR NA PRODUCAO; NAO E UMA MIGRACAO.
+-- Nenhuma linha de dados e nenhum arquivo binario esta contido aqui.
+-- Restauracao requer revisao de ordem e dependencias em ambiente isolado.
+-- Contagem verificada: 14 tabelas publicas, 83 colunas,
+-- 54 constraints, 29 indices, 17 policies,
+-- 6 funcoes publicas e 1 triggers (auth+public).
+-- Extensoes: pg_stat_statements 1.11 em extensions, pgcrypto 1.3 em extensions, plpgsql 1.0 em pg_catalog, supabase_vault 0.3.1 em vault, uuid-ossp 1.1 em extensions.
+-- Storage (inventario SEM bytes): downloads (3 objetos, public=false).
+-- Aviso: nao inclui auth.users, dados de clientes, extensoes executaveis,
+-- roles/segredos, conteudos do Storage nem os schemas gerenciados do Supabase.
 
--- ================================================================
--- ORIGEM: drizzle/migrations/0001_downloads_policies.sql
--- ================================================================
--- CREATE POLICY "approved read downloads" ON storage.objects FOR SELECT TO authenticated USING (bucket_id = 'downloads' AND public.is_approved(auth.uid()));
--- CREATE POLICY "admin insert downloads" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'downloads' AND public.has_role(auth.uid(), 'admin'));
--- CREATE POLICY "admin update downloads" ON storage.objects FOR UPDATE TO authenticated USING (bucket_id = 'downloads' AND public.has_role(auth.uid(), 'admin'));
--- CREATE POLICY "admin delete downloads" ON storage.objects FOR DELETE TO authenticated USING (bucket_id = 'downloads' AND public.has_role(auth.uid(), 'admin'));
+-- TIPOS ENUM -----------------------------------------------------------
+CREATE TYPE public."app_role" AS ENUM ('admin', 'user');
 
--- ================================================================
--- ORIGEM: drizzle/migrations/0002_audit_logs.sql
--- ================================================================
--- -- Audit trail for security, strategy changes and integration diagnostics.
--- -- Access is mediated by server routes using the service-role client.
--- CREATE TABLE IF NOT EXISTS public.audit_logs (
---   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
---   user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
---   category text NOT NULL CHECK (category IN ('auth', 'strategy', 'integration', 'navigation', 'system', 'ui')),
---   action text NOT NULL,
---   outcome text NOT NULL CHECK (outcome IN ('success', 'failed', 'denied', 'started', 'unknown')),
---   details jsonb NOT NULL DEFAULT '{}'::jsonb,
---   request_id uuid NOT NULL DEFAULT gen_random_uuid(),
---   created_at timestamptz NOT NULL DEFAULT now()
--- );
--- 
--- CREATE INDEX IF NOT EXISTS audit_logs_created_at_idx
---   ON public.audit_logs (created_at DESC);
--- CREATE INDEX IF NOT EXISTS audit_logs_user_created_at_idx
---   ON public.audit_logs (user_id, created_at DESC);
--- CREATE INDEX IF NOT EXISTS audit_logs_category_created_at_idx
---   ON public.audit_logs (category, created_at DESC);
--- 
--- ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
--- 
--- -- No direct browser access. Server routes authenticate the caller and enforce
--- -- admin checks before using the service-role client.
--- REVOKE ALL ON TABLE public.audit_logs FROM anon, authenticated;
--- GRANT SELECT, INSERT ON TABLE public.audit_logs TO service_role;
--- 
--- COMMENT ON TABLE public.audit_logs IS
---   'Append-oriented audit events for Win or Win; never store passwords, tokens, or secret values here.';
--- 
+-- TABELAS --------------------------------------------------------------
+-- owner: postgres
+CREATE TABLE public."activity_logs" (
+  "id" uuid DEFAULT gen_random_uuid() NOT NULL,
+  "user_id" uuid,
+  "action" text NOT NULL,
+  "details" jsonb DEFAULT '{}'::jsonb NOT NULL,
+  "created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+-- owner: postgres
+CREATE TABLE public."ai_analysis_daily_usage" (
+  "user_id" uuid NOT NULL,
+  "usage_date" date NOT NULL,
+  "used" integer DEFAULT 0 NOT NULL
+);
+-- owner: postgres
+CREATE TABLE public."app_data" (
+  "user_id" uuid NOT NULL,
+  "data" text DEFAULT ''::text NOT NULL,
+  "updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+  "version" integer DEFAULT 1 NOT NULL
+);
+-- owner: postgres
+CREATE TABLE public."audit_logs" (
+  "id" uuid DEFAULT gen_random_uuid() NOT NULL,
+  "user_id" uuid NOT NULL,
+  "category" text NOT NULL,
+  "action" text NOT NULL,
+  "outcome" text NOT NULL,
+  "details" jsonb DEFAULT '{}'::jsonb NOT NULL,
+  "request_id" uuid DEFAULT gen_random_uuid() NOT NULL,
+  "created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+-- owner: postgres
+CREATE TABLE public."integration_tokens" (
+  "user_id" uuid NOT NULL,
+  "token_hash" text NOT NULL,
+  "created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+-- owner: postgres
+CREATE TABLE public."master_number_sync" (
+  "id" text DEFAULT 'default'::text NOT NULL,
+  "admin_user_id" uuid NOT NULL,
+  "enabled" boolean DEFAULT false NOT NULL,
+  "allowed_fields" jsonb DEFAULT '[]'::jsonb NOT NULL,
+  "published_values" jsonb DEFAULT '{}'::jsonb NOT NULL,
+  "updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+-- owner: postgres
+CREATE TABLE public."order_queue" (
+  "id" uuid DEFAULT gen_random_uuid() NOT NULL,
+  "user_id" uuid NOT NULL,
+  "external_id" text NOT NULL,
+  "symbol" text NOT NULL,
+  "side" text NOT NULL,
+  "mirror_side" text NOT NULL,
+  "qty" numeric NOT NULL,
+  "price" numeric,
+  "status" text DEFAULT 'pending'::text NOT NULL,
+  "error" text,
+  "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+  "updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+-- owner: postgres
+CREATE TABLE public."profiles" (
+  "id" uuid NOT NULL,
+  "full_name" text DEFAULT ''::text NOT NULL,
+  "phone" text DEFAULT ''::text NOT NULL,
+  "cpf" text DEFAULT ''::text NOT NULL,
+  "birth_date" date,
+  "email" text DEFAULT ''::text NOT NULL,
+  "approved" boolean DEFAULT false NOT NULL,
+  "rejected" boolean DEFAULT false NOT NULL,
+  "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+  "telegram_chat_id" text
+);
+-- owner: postgres
+CREATE TABLE public."prop_firms" (
+  "id" text NOT NULL,
+  "name" text NOT NULL,
+  "affiliate_url" text DEFAULT ''::text NOT NULL,
+  "coupon" text DEFAULT ''::text NOT NULL,
+  "account_sizes" integer[] DEFAULT '{}'::integer[] NOT NULL,
+  "updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+-- owner: postgres
+CREATE TABLE public."push_subscriptions" (
+  "id" uuid DEFAULT gen_random_uuid() NOT NULL,
+  "user_id" uuid NOT NULL,
+  "endpoint" text NOT NULL,
+  "p256dh" text NOT NULL,
+  "auth" text NOT NULL,
+  "created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+-- owner: postgres
+CREATE TABLE public."terms_acceptances" (
+  "id" uuid DEFAULT gen_random_uuid() NOT NULL,
+  "user_id" uuid NOT NULL,
+  "terms_version" text NOT NULL,
+  "accepted_at" timestamp with time zone DEFAULT now() NOT NULL,
+  "device_hash" text NOT NULL
+);
+-- owner: postgres
+CREATE TABLE public."trusted_device_settings" (
+  "singleton" boolean DEFAULT true NOT NULL,
+  "max_trusted_devices" integer DEFAULT 2 NOT NULL,
+  "monitor_mode" boolean DEFAULT true NOT NULL,
+  "updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+-- owner: postgres
+CREATE TABLE public."trusted_devices" (
+  "id" uuid DEFAULT gen_random_uuid() NOT NULL,
+  "user_id" uuid NOT NULL,
+  "device_token_hash" text NOT NULL,
+  "device_name" text,
+  "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+  "last_seen_at" timestamp with time zone DEFAULT now() NOT NULL,
+  "revoked_at" timestamp with time zone,
+  "revoked_by" uuid
+);
+-- owner: postgres
+CREATE TABLE public."user_roles" (
+  "id" uuid DEFAULT gen_random_uuid() NOT NULL,
+  "user_id" uuid NOT NULL,
+  "role" app_role NOT NULL
+);
 
--- ================================================================
--- ORIGEM: drizzle/migrations/0003_create_activity_logs.sql
--- ================================================================
--- CREATE TABLE public.activity_logs (
---   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
---   user_id uuid NULL,
---   action text NOT NULL CHECK (action IN ('login.success','login.failed','logout','create','update','delete')),
---   details jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (octet_length(details::text) <= 4096),
---   created_at timestamptz NOT NULL DEFAULT now()
--- );
--- 
--- GRANT SELECT, INSERT ON public.activity_logs TO authenticated;
--- GRANT ALL ON public.activity_logs TO service_role;
--- 
--- ALTER TABLE public.activity_logs ENABLE ROW LEVEL SECURITY;
--- 
--- CREATE POLICY "insert own activity" ON public.activity_logs
---   FOR INSERT TO authenticated
---   WITH CHECK (user_id = auth.uid());
--- 
--- CREATE POLICY "admin read activity" ON public.activity_logs
---   FOR SELECT TO authenticated
---   USING (has_role(auth.uid(), 'admin'::app_role));
--- 
--- CREATE INDEX activity_logs_created_at_idx ON public.activity_logs (created_at DESC);
--- CREATE INDEX activity_logs_user_id_idx ON public.activity_logs (user_id);
--- 
--- CREATE OR REPLACE FUNCTION public.log_failed_login(attempted_email text)
--- RETURNS void
--- LANGUAGE plpgsql
--- SECURITY DEFINER
--- SET search_path = public
--- AS $$
--- DECLARE
---   v_email text := left(lower(trim(coalesce(attempted_email, ''))), 254);
--- BEGIN
---   -- Limite simples: no máximo 5 registros por e-mail a cada 5 minutos
---   -- e no máximo 200 falhas no total por minuto.
---   IF (SELECT count(*) FROM public.activity_logs
---       WHERE action = 'login.failed'
---         AND created_at > now() - interval '5 minutes'
---         AND details->>'attempted_email' = v_email) >= 5 THEN
---     RETURN;
---   END IF;
---   IF (SELECT count(*) FROM public.activity_logs
---       WHERE action = 'login.failed'
---         AND created_at > now() - interval '1 minute') >= 200 THEN
---     RETURN;
---   END IF;
---   INSERT INTO public.activity_logs (user_id, action, details)
---   VALUES (NULL, 'login.failed', jsonb_build_object('attempted_email', v_email));
--- END;
--- $$;
--- 
--- REVOKE EXECUTE ON FUNCTION public.log_failed_login(text) FROM PUBLIC;
--- GRANT EXECUTE ON FUNCTION public.log_failed_login(text) TO anon, authenticated;
+-- CONSTRAINTS (FKs APOS TABELAS) ---------------------------------------
+ALTER TABLE activity_logs ADD CONSTRAINT "activity_logs_action_check" CHECK (action = ANY (ARRAY['login.success'::text, 'login.failed'::text, 'logout'::text, 'create'::text, 'update'::text, 'delete'::text, 'ai.analysis.completed'::text, 'device.first_seen'::text, 'device.within_limit'::text, 'device.limit_would_block'::text, 'device.master_exempt'::text, 'device.admin_release'::text, 'device.revoked'::text]));
+ALTER TABLE activity_logs ADD CONSTRAINT "activity_logs_details_check" CHECK (octet_length(details::text) <= 4096);
+ALTER TABLE activity_logs ADD CONSTRAINT "activity_logs_pkey" PRIMARY KEY (id);
+ALTER TABLE ai_analysis_daily_usage ADD CONSTRAINT "ai_analysis_daily_usage_pkey" PRIMARY KEY (user_id, usage_date);
+ALTER TABLE ai_analysis_daily_usage ADD CONSTRAINT "ai_analysis_daily_usage_used_check" CHECK (used >= 0 AND used <= 3);
+ALTER TABLE app_data ADD CONSTRAINT "app_data_pkey" PRIMARY KEY (user_id);
+ALTER TABLE audit_logs ADD CONSTRAINT "audit_logs_category_check" CHECK (category = ANY (ARRAY['auth'::text, 'strategy'::text, 'integration'::text, 'navigation'::text, 'system'::text, 'ui'::text]));
+ALTER TABLE audit_logs ADD CONSTRAINT "audit_logs_outcome_check" CHECK (outcome = ANY (ARRAY['success'::text, 'failed'::text, 'denied'::text, 'started'::text, 'unknown'::text]));
+ALTER TABLE audit_logs ADD CONSTRAINT "audit_logs_pkey" PRIMARY KEY (id);
+ALTER TABLE integration_tokens ADD CONSTRAINT "integration_tokens_pkey" PRIMARY KEY (user_id);
+ALTER TABLE integration_tokens ADD CONSTRAINT "integration_tokens_token_hash_key" UNIQUE (token_hash);
+ALTER TABLE master_number_sync ADD CONSTRAINT "master_number_sync_allowed_fields_check" CHECK (jsonb_typeof(allowed_fields) = 'array'::text);
+ALTER TABLE master_number_sync ADD CONSTRAINT "master_number_sync_id_check" CHECK (id = 'default'::text);
+ALTER TABLE master_number_sync ADD CONSTRAINT "master_number_sync_pkey" PRIMARY KEY (id);
+ALTER TABLE master_number_sync ADD CONSTRAINT "master_number_sync_published_values_check" CHECK (jsonb_typeof(published_values) = 'object'::text);
+ALTER TABLE order_queue ADD CONSTRAINT "order_queue_mirror_side_check" CHECK (mirror_side = ANY (ARRAY['buy'::text, 'sell'::text]));
+ALTER TABLE order_queue ADD CONSTRAINT "order_queue_pkey" PRIMARY KEY (id);
+ALTER TABLE order_queue ADD CONSTRAINT "order_queue_qty_check" CHECK (qty > 0::numeric);
+ALTER TABLE order_queue ADD CONSTRAINT "order_queue_side_check" CHECK (side = ANY (ARRAY['buy'::text, 'sell'::text]));
+ALTER TABLE order_queue ADD CONSTRAINT "order_queue_status_check" CHECK (status = ANY (ARRAY['pending'::text, 'sent'::text, 'done'::text, 'error'::text]));
+ALTER TABLE order_queue ADD CONSTRAINT "order_queue_user_id_external_id_key" UNIQUE (user_id, external_id);
+ALTER TABLE profiles ADD CONSTRAINT "profiles_pkey" PRIMARY KEY (id);
+ALTER TABLE prop_firms ADD CONSTRAINT "prop_firms_account_sizes_check" CHECK (cardinality(account_sizes) <= 20 AND (cardinality(account_sizes) = 0 OR (0 < ALL (account_sizes)) AND (10000000 >= ALL (account_sizes))));
+ALTER TABLE prop_firms ADD CONSTRAINT "prop_firms_affiliate_url_check" CHECK (char_length(affiliate_url) <= 2048 AND (affiliate_url = ''::text OR affiliate_url ~ '^https://[^[:space:]]+$'::text));
+ALTER TABLE prop_firms ADD CONSTRAINT "prop_firms_coupon_check" CHECK (char_length(coupon) <= 80);
+ALTER TABLE prop_firms ADD CONSTRAINT "prop_firms_id_check" CHECK (id = ANY (ARRAY['lucid-trading'::text, 'tradeify'::text, 'my-funded-futures'::text]));
+ALTER TABLE prop_firms ADD CONSTRAINT "prop_firms_name_check" CHECK (char_length(name) >= 1 AND char_length(name) <= 80);
+ALTER TABLE prop_firms ADD CONSTRAINT "prop_firms_pkey" PRIMARY KEY (id);
+ALTER TABLE push_subscriptions ADD CONSTRAINT "push_subscriptions_pkey" PRIMARY KEY (id);
+ALTER TABLE push_subscriptions ADD CONSTRAINT "push_subscriptions_user_endpoint_unique" UNIQUE (user_id, endpoint);
+ALTER TABLE terms_acceptances ADD CONSTRAINT "terms_acceptances_device_hash_check" CHECK (device_hash ~ '^[0-9a-f]{64}$'::text);
+ALTER TABLE terms_acceptances ADD CONSTRAINT "terms_acceptances_pkey" PRIMARY KEY (id);
+ALTER TABLE terms_acceptances ADD CONSTRAINT "terms_acceptances_terms_version_check" CHECK (char_length(terms_version) >= 1 AND char_length(terms_version) <= 64);
+ALTER TABLE terms_acceptances ADD CONSTRAINT "terms_acceptances_user_version_unique" UNIQUE (user_id, terms_version);
+ALTER TABLE trusted_device_settings ADD CONSTRAINT "trusted_device_settings_max_trusted_devices_check" CHECK (max_trusted_devices >= 1 AND max_trusted_devices <= 20);
+ALTER TABLE trusted_device_settings ADD CONSTRAINT "trusted_device_settings_pkey" PRIMARY KEY (singleton);
+ALTER TABLE trusted_device_settings ADD CONSTRAINT "trusted_device_settings_singleton_check" CHECK (singleton);
+ALTER TABLE trusted_devices ADD CONSTRAINT "trusted_devices_device_name_check" CHECK (device_name IS NULL OR length(device_name) <= 120);
+ALTER TABLE trusted_devices ADD CONSTRAINT "trusted_devices_device_token_hash_check" CHECK (device_token_hash ~ '^[0-9a-f]{64}$'::text);
+ALTER TABLE trusted_devices ADD CONSTRAINT "trusted_devices_pkey" PRIMARY KEY (id);
+ALTER TABLE trusted_devices ADD CONSTRAINT "trusted_devices_revocation_consistency" CHECK (revoked_at IS NULL AND revoked_by IS NULL OR revoked_at IS NOT NULL);
+ALTER TABLE trusted_devices ADD CONSTRAINT "trusted_devices_user_token_unique" UNIQUE (user_id, device_token_hash);
+ALTER TABLE user_roles ADD CONSTRAINT "user_roles_pkey" PRIMARY KEY (id);
+ALTER TABLE user_roles ADD CONSTRAINT "user_roles_user_id_role_key" UNIQUE (user_id, role);
+ALTER TABLE ai_analysis_daily_usage ADD CONSTRAINT "ai_analysis_daily_usage_user_id_fkey" FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE;
+ALTER TABLE app_data ADD CONSTRAINT "app_data_user_id_fkey" FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+ALTER TABLE audit_logs ADD CONSTRAINT "audit_logs_user_id_fkey" FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+ALTER TABLE master_number_sync ADD CONSTRAINT "master_number_sync_admin_user_id_fkey" FOREIGN KEY (admin_user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+ALTER TABLE profiles ADD CONSTRAINT "profiles_id_fkey" FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE;
+ALTER TABLE push_subscriptions ADD CONSTRAINT "push_subscriptions_user_id_fkey" FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE;
+ALTER TABLE terms_acceptances ADD CONSTRAINT "terms_acceptances_user_id_fkey" FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE;
+ALTER TABLE trusted_devices ADD CONSTRAINT "trusted_devices_revoked_by_fkey" FOREIGN KEY (revoked_by) REFERENCES profiles(id) ON DELETE SET NULL;
+ALTER TABLE trusted_devices ADD CONSTRAINT "trusted_devices_user_id_fkey" FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE;
+ALTER TABLE user_roles ADD CONSTRAINT "user_roles_user_id_fkey" FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
 
--- ================================================================
--- ORIGEM: drizzle/migrations/0004_log_failed_login_email_format.sql
--- ================================================================
--- CREATE OR REPLACE FUNCTION public.log_failed_login(attempted_email text)
---  RETURNS void
---  LANGUAGE plpgsql
---  SECURITY DEFINER
---  SET search_path TO 'public'
--- AS $function$
--- DECLARE
---   v_email text := left(lower(trim(coalesce(attempted_email, ''))), 254);
--- BEGIN
---   IF v_email !~ '^[^\s@]*@[^\s@]*\.[^\s@]*$' THEN
---     v_email := 'formato inválido';
---   END IF;
---   IF (SELECT count(*) FROM public.activity_logs
---       WHERE action = 'login.failed'
---         AND created_at > now() - interval '5 minutes'
---         AND details->>'attempted_email' = v_email) >= 5 THEN
---     RETURN;
---   END IF;
---   IF (SELECT count(*) FROM public.activity_logs
---       WHERE action = 'login.failed'
---         AND created_at > now() - interval '1 minute') >= 200 THEN
---     RETURN;
---   END IF;
---   INSERT INTO public.activity_logs (user_id, action, details)
---   VALUES (NULL, 'login.failed', jsonb_build_object('attempted_email', v_email));
--- END;
--- $function$;
+-- INDICES NAO CRIADOS POR CONSTRAINT -----------------------------------
+CREATE INDEX activity_logs_created_at_idx ON public.activity_logs USING btree (created_at DESC);
+CREATE INDEX activity_logs_user_id_idx ON public.activity_logs USING btree (user_id);
+CREATE INDEX audit_logs_category_created_at_idx ON public.audit_logs USING btree (category, created_at DESC);
+CREATE INDEX audit_logs_created_at_idx ON public.audit_logs USING btree (created_at DESC);
+CREATE INDEX audit_logs_user_created_at_idx ON public.audit_logs USING btree (user_id, created_at DESC);
+CREATE INDEX order_queue_user_status ON public.order_queue USING btree (user_id, status, created_at);
+CREATE INDEX terms_acceptances_user_accepted_at_idx ON public.terms_acceptances USING btree (user_id, accepted_at DESC);
+CREATE INDEX trusted_devices_active_user_idx ON public.trusted_devices USING btree (user_id, created_at) WHERE (revoked_at IS NULL);
+CREATE INDEX trusted_devices_last_seen_idx ON public.trusted_devices USING btree (last_seen_at DESC);
 
--- ================================================================
--- ORIGEM: drizzle/migrations/0005_log_app_data_changes_trigger.sql
--- ================================================================
--- CREATE OR REPLACE FUNCTION public.log_app_data_changes()
--- RETURNS TRIGGER
--- LANGUAGE plpgsql
--- SECURITY DEFINER
--- SET search_path = ''
--- AS $$
--- BEGIN
---   BEGIN
---     INSERT INTO public.activity_logs (user_id, action, details)
---     VALUES (
---       CASE
---         WHEN TG_OP = 'DELETE' THEN OLD.user_id
---         ELSE NEW.user_id
---       END,
---       CASE TG_OP
---         WHEN 'INSERT' THEN 'create'
---         WHEN 'UPDATE' THEN 'update'
---         WHEN 'DELETE' THEN 'delete'
---       END,
---       jsonb_build_object(
---         'table', TG_TABLE_NAME,
---         'id', CASE
---           WHEN TG_OP = 'DELETE' THEN to_jsonb(OLD)->>'user_id'
---           ELSE to_jsonb(NEW)->>'user_id'
---         END
---       )
---     );
---   EXCEPTION WHEN OTHERS THEN
---     NULL;
---   END;
--- 
---   IF TG_OP = 'DELETE' THEN
---     RETURN OLD;
---   END IF;
--- 
---   RETURN NEW;
--- END;
--- $$;
--- 
--- REVOKE EXECUTE ON FUNCTION public.log_app_data_changes() FROM PUBLIC, anon, authenticated;
--- 
--- DROP TRIGGER IF EXISTS trg_log_app_data_changes ON public.app_data;
--- 
--- CREATE TRIGGER trg_log_app_data_changes
--- AFTER INSERT OR UPDATE OR DELETE ON public.app_data
--- FOR EACH ROW
--- EXECUTE FUNCTION public.log_app_data_changes();
+-- FUNCOES PUBLICAS (pg_get_functiondef) --------------------------------
+-- owner: postgres; acl: {postgres=X/postgres,service_role=X/postgres}
+CREATE OR REPLACE FUNCTION public.consume_ai_analysis_quota(p_user_id uuid, p_limit integer DEFAULT 3)
+ RETURNS integer
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
 
--- ================================================================
--- ORIGEM: drizzle/migrations/0007_ai_analysis_quota.sql
--- ================================================================
--- CREATE TABLE public.ai_analysis_daily_usage (
---   user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
---   usage_date date NOT NULL,
---   used integer NOT NULL DEFAULT 0 CHECK (used >= 0 AND used <= 3),
---   PRIMARY KEY (user_id, usage_date)
--- );
--- 
--- REVOKE ALL ON public.ai_analysis_daily_usage FROM PUBLIC, anon, authenticated;
--- GRANT ALL ON public.ai_analysis_daily_usage TO service_role;
--- ALTER TABLE public.ai_analysis_daily_usage ENABLE ROW LEVEL SECURITY;
--- 
--- CREATE OR REPLACE FUNCTION public.consume_ai_analysis_quota(p_user_id uuid, p_limit integer DEFAULT 3)
--- RETURNS integer
--- LANGUAGE plpgsql
--- SECURITY DEFINER
--- SET search_path = public
--- AS $$
--- DECLARE
---   v_used integer;
--- BEGIN
---   IF p_user_id IS NULL OR p_limit < 1 OR p_limit > 3 THEN
---     RAISE EXCEPTION 'invalid quota request';
---   END IF;
--- 
---   INSERT INTO public.ai_analysis_daily_usage (user_id, usage_date, used)
---   VALUES (p_user_id, (now() AT TIME ZONE 'UTC')::date, 1)
---   ON CONFLICT (user_id, usage_date)
---   DO UPDATE SET used = public.ai_analysis_daily_usage.used + 1
---   WHERE public.ai_analysis_daily_usage.used < p_limit
---   RETURNING used INTO v_used;
--- 
---   IF v_used IS NULL THEN
---     RETURN NULL;
---   END IF;
--- 
---   RETURN p_limit - v_used;
--- END;
--- $$;
--- 
--- REVOKE EXECUTE ON FUNCTION public.consume_ai_analysis_quota(uuid, integer) FROM PUBLIC, anon, authenticated;
--- GRANT EXECUTE ON FUNCTION public.consume_ai_analysis_quota(uuid, integer) TO service_role;
--- 
--- -- Registra apenas o evento de conclusão, sem guardar o conteúdo da análise.
--- ALTER TABLE public.activity_logs DROP CONSTRAINT IF EXISTS activity_logs_action_check;
--- ALTER TABLE public.activity_logs
---   ADD CONSTRAINT activity_logs_action_check
---   CHECK (action IN ('login.success', 'login.failed', 'logout', 'create', 'update', 'delete', 'ai.analysis.completed'));
--- 
+DECLARE
 
--- ================================================================
--- ORIGEM: drizzle/migrations/0008_add_telegram_chat_id.sql
--- ================================================================
--- alter table public.profiles add column if not exists telegram_chat_id text;
+  v_used integer;
 
--- ================================================================
--- ORIGEM: drizzle/migrations/0009_push_subscriptions.sql
--- ================================================================
--- create table if not exists public.push_subscriptions (
---   id uuid primary key default gen_random_uuid(),
---   user_id uuid not null references public.profiles(id) on delete cascade,
---   endpoint text not null,
---   p256dh text not null,
---   auth text not null,
---   created_at timestamptz not null default now(),
---   constraint push_subscriptions_user_endpoint_unique unique (user_id, endpoint)
--- );
--- 
--- alter table public.push_subscriptions enable row level security;
--- 
--- drop policy if exists "Users can view their own push subscriptions" on public.push_subscriptions;
--- drop policy if exists "Users can insert their own push subscriptions" on public.push_subscriptions;
--- drop policy if exists "Users can delete their own push subscriptions" on public.push_subscriptions;
--- 
--- create policy "Users can view their own push subscriptions"
---   on public.push_subscriptions for select to authenticated
---   using (auth.uid() = user_id);
--- create policy "Users can insert their own push subscriptions"
---   on public.push_subscriptions for insert to authenticated
---   with check (auth.uid() = user_id);
--- create policy "Users can delete their own push subscriptions"
---   on public.push_subscriptions for delete to authenticated
---   using (auth.uid() = user_id);
--- 
--- revoke all on public.push_subscriptions from public, anon;
--- revoke all on public.push_subscriptions from authenticated;
--- grant select, insert, delete on public.push_subscriptions to authenticated;
--- grant all on public.push_subscriptions to service_role;
+BEGIN
 
--- ================================================================
--- ORIGEM: drizzle/migrations/0010_prop_firm_settings.sql
--- ================================================================
--- CREATE TABLE public.prop_firms (
---  id text PRIMARY KEY CHECK (id IN ('lucid-trading', 'tradeify', 'my-funded-futures')),
---  name text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 80),
---  affiliate_url text NOT NULL DEFAULT '' CHECK (char_length(affiliate_url) <= 2048 AND (affiliate_url = '' OR affiliate_url ~ '^https://[^[:space:]]+$')),
---  coupon text NOT NULL DEFAULT '' CHECK (char_length(coupon) <= 80),
---  account_sizes integer[] NOT NULL DEFAULT '{}' CHECK (cardinality(account_sizes) <= 20 AND (cardinality(account_sizes) = 0 OR (0 < ALL(account_sizes) AND 10000000 >= ALL(account_sizes)))),
---  updated_at timestamptz NOT NULL DEFAULT now()
--- );
--- GRANT SELECT, INSERT, UPDATE ON public.prop_firms TO authenticated;
--- GRANT ALL ON public.prop_firms TO service_role;
--- ALTER TABLE public.prop_firms ENABLE ROW LEVEL SECURITY;
--- CREATE POLICY "approved traders read firms" ON public.prop_firms FOR SELECT TO authenticated USING (public.is_approved(auth.uid()) OR public.has_role(auth.uid(), 'admin'));
--- CREATE POLICY "master inserts firms" ON public.prop_firms FOR INSERT TO authenticated WITH CHECK (public.has_role(auth.uid(), 'admin'));
--- CREATE POLICY "master updates firms" ON public.prop_firms FOR UPDATE TO authenticated USING (public.has_role(auth.uid(), 'admin')) WITH CHECK (public.has_role(auth.uid(), 'admin'));
+  IF p_user_id IS NULL OR p_limit < 1 OR p_limit > 3 THEN
 
--- ================================================================
--- ORIGEM: drizzle/migrations/0011_terms_acceptances.sql
--- ================================================================
--- CREATE TABLE IF NOT EXISTS public.terms_acceptances (
---   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
---   user_id uuid NOT NULL
---     REFERENCES public.profiles(id) ON DELETE CASCADE,
---   terms_version text NOT NULL
---     CHECK (char_length(terms_version) BETWEEN 1 AND 64),
---   accepted_at timestamptz NOT NULL DEFAULT now(),
---   device_hash text NOT NULL
---     CHECK (device_hash ~ '^[0-9a-f]{64}$'),
---   CONSTRAINT terms_acceptances_user_version_unique
---     UNIQUE (user_id, terms_version)
--- );
--- 
--- CREATE INDEX IF NOT EXISTS terms_acceptances_user_accepted_at_idx
---   ON public.terms_acceptances (user_id, accepted_at DESC);
--- 
--- REVOKE ALL ON TABLE public.terms_acceptances
---   FROM PUBLIC, anon, authenticated;
--- 
--- GRANT SELECT, INSERT ON TABLE public.terms_acceptances
---   TO service_role;
--- 
--- ALTER TABLE public.terms_acceptances
---   ENABLE ROW LEVEL SECURITY;
--- 
--- COMMENT ON TABLE public.terms_acceptances IS
---   'Versioned terms acceptance records. Access is mediated by trusted server code using service_role; raw IP addresses are not stored.';
+    RAISE EXCEPTION 'invalid quota request';
 
--- ================================================================
--- ORIGEM: drizzle/migrations/0012_topstep_and_50k_prop_firms.sql
--- ================================================================
--- -- Add Topstep and initialize the affiliate links.
--- -- The account size is intentionally fixed at USD 50,000 for every firm.
--- ALTER TABLE public.prop_firms DROP CONSTRAINT IF EXISTS prop_firms_id_check;
--- ALTER TABLE public.prop_firms
---   ADD CONSTRAINT prop_firms_id_check
---   CHECK (id IN ('lucid-trading', 'tradeify', 'my-funded-futures', 'topstep'));
--- 
--- INSERT INTO public.prop_firms (id, name, affiliate_url, coupon, account_sizes)
--- VALUES
---   ('lucid-trading', 'Lucid Trading', 'https://lucidtrading.com/?ref=cupommesasprop&utm_source=cupommesasprop&utm_medium=afiliado&utm_campaign=lucidtrading', '', ARRAY[50000]),
---   ('tradeify', 'Tradeify', 'https://tradeify.co/?ref=TWC&utm_source=cupommesasprop&utm_medium=afiliado&utm_campaign=tradeify', '', ARRAY[50000]),
---   ('my-funded-futures', 'My Funded Futures', 'https://myfundedfutures.com/challenge?ref=355&utm_source=cupommesasprop&utm_campaign=myfundedfutures&utm_medium=afiliado', '', ARRAY[50000]),
---   ('topstep', 'Topstep', 'https://www.topstep.com/?ref=TWC&utm_source=cupommesasprop&utm_medium=afiliado&utm_campaign=topstep&utm_content=topstep', '', ARRAY[50000])
--- ON CONFLICT (id) DO UPDATE SET
---   name = EXCLUDED.name,
---   affiliate_url = CASE
---     WHEN COALESCE(public.prop_firms.affiliate_url, '') = ''
---       OR public.prop_firms.affiliate_url IN (
---         'https://lucidtrading.com/',
---         'https://tradeify.co/',
---         'https://myfundedfutures.com/',
---         'https://www.topstep.com/'
---       )
---     THEN EXCLUDED.affiliate_url
---     ELSE public.prop_firms.affiliate_url
---   END,
---   account_sizes = EXCLUDED.account_sizes,
---   updated_at = now();
--- 
+  END IF;
 
--- ================================================================
--- ORIGEM: drizzle/migrations/0013_master_number_sync.sql
--- ================================================================
--- -- Configuração de sincronização seletiva controlada pela conta Master.
--- -- A tabela não é acessível diretamente por clientes; leitura/escrita passam pela API server-side.
--- CREATE TABLE IF NOT EXISTS public.master_number_sync (
---   id text PRIMARY KEY DEFAULT 'default' CHECK (id = 'default'),
---   admin_user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
---   enabled boolean NOT NULL DEFAULT false,
---   allowed_fields jsonb NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(allowed_fields) = 'array'),
---   published_values jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(published_values) = 'object'),
---   updated_at timestamptz NOT NULL DEFAULT now()
--- );
--- 
--- ALTER TABLE public.master_number_sync ENABLE ROW LEVEL SECURITY;
--- REVOKE ALL ON TABLE public.master_number_sync FROM anon, authenticated;
--- GRANT ALL ON TABLE public.master_number_sync TO service_role;
--- 
 
--- ================================================================
--- ORIGEM: drizzle/migrations/0014_app_data_version.sql
--- ================================================================
--- ALTER TABLE public.app_data
---   ADD COLUMN IF NOT EXISTS version integer NOT NULL DEFAULT 1;
--- 
 
--- ================================================================
--- ORIGEM: supabase/migrations/20261012000000_push_subscriptions.sql
--- ================================================================
--- create table if not exists public.push_subscriptions (
---   id uuid primary key default gen_random_uuid(),
---   user_id uuid not null references public.profiles(id) on delete cascade,
---   endpoint text not null,
---   p256dh text not null,
---   auth text not null,
---   created_at timestamptz not null default now(),
---   constraint push_subscriptions_user_endpoint_unique unique (user_id, endpoint)
--- );
--- 
--- alter table public.push_subscriptions enable row level security;
--- 
--- drop policy if exists "Users can view their own push subscriptions" on public.push_subscriptions;
--- drop policy if exists "Users can insert their own push subscriptions" on public.push_subscriptions;
--- drop policy if exists "Users can delete their own push subscriptions" on public.push_subscriptions;
--- 
--- create policy "Users can view their own push subscriptions"
---   on public.push_subscriptions for select to authenticated
---   using (auth.uid() = user_id);
--- create policy "Users can insert their own push subscriptions"
---   on public.push_subscriptions for insert to authenticated
---   with check (auth.uid() = user_id);
--- create policy "Users can delete their own push subscriptions"
---   on public.push_subscriptions for delete to authenticated
---   using (auth.uid() = user_id);
--- 
--- revoke all on public.push_subscriptions from public, anon;
--- revoke all on public.push_subscriptions from authenticated;
--- grant select, insert, delete on public.push_subscriptions to authenticated;
--- grant all on public.push_subscriptions to service_role;
--- 
+  INSERT INTO public.ai_analysis_daily_usage (user_id, usage_date, used)
 
--- FIM DAS TRANSCRICOES. NAO EXECUTAR.
--- PROXIMA ETAPA DOCUMENTAL: extrair catalogo somente-leitura no Lovable Cloud,
--- confrontar com estas migracoes, revisar diferencas, e somente entao
--- produzir snapshot de producao validado FORA do runner de migracoes.
+  VALUES (p_user_id, (now() AT TIME ZONE 'UTC')::date, 1)
+
+  ON CONFLICT (user_id, usage_date)
+
+  DO UPDATE SET used = public.ai_analysis_daily_usage.used + 1
+
+  WHERE public.ai_analysis_daily_usage.used < p_limit
+
+  RETURNING used INTO v_used;
+
+
+
+  IF v_used IS NULL THEN
+
+    RETURN NULL;
+
+  END IF;
+
+
+
+  RETURN p_limit - v_used;
+
+END;
+
+$function$;
+-- owner: postgres; acl: {=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+declare first_user boolean;
+begin
+  select not exists (select 1 from public.profiles) into first_user;
+  insert into public.profiles (id, full_name, phone, cpf, birth_date, email, approved)
+  values (
+    new.id,
+    coalesce(new.raw_user_meta_data->>'full_name',''),
+    coalesce(new.raw_user_meta_data->>'phone',''),
+    coalesce(new.raw_user_meta_data->>'cpf',''),
+    nullif(new.raw_user_meta_data->>'birth_date','')::date,
+    coalesce(new.email,''),
+    first_user
+  );
+  if first_user then
+    insert into public.user_roles (user_id, role) values (new.id, 'admin');
+  end if;
+  return new;
+end; $function$;
+-- owner: postgres; acl: {=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}
+CREATE OR REPLACE FUNCTION public.has_role(_user_id uuid, _role app_role)
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$ select exists (select 1 from public.user_roles where user_id = _user_id and role = _role) $function$;
+-- owner: postgres; acl: {=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}
+CREATE OR REPLACE FUNCTION public.is_approved(_user_id uuid)
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$ select coalesce((select approved from public.profiles where id = _user_id), false) $function$;
+-- owner: postgres; acl: {postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}
+CREATE OR REPLACE FUNCTION public.log_failed_login(attempted_email text)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_email text := left(lower(trim(coalesce(attempted_email, ''))), 254);
+BEGIN
+  IF v_email !~ '^[^\s@]*@[^\s@]*\.[^\s@]*$' THEN
+    v_email := 'formato inválido';
+  END IF;
+  IF (SELECT count(*) FROM public.activity_logs
+      WHERE action = 'login.failed'
+        AND created_at > now() - interval '5 minutes'
+        AND details->>'attempted_email' = v_email) >= 5 THEN
+    RETURN;
+  END IF;
+  IF (SELECT count(*) FROM public.activity_logs
+      WHERE action = 'login.failed'
+        AND created_at > now() - interval '1 minute') >= 200 THEN
+    RETURN;
+  END IF;
+  INSERT INTO public.activity_logs (user_id, action, details)
+  VALUES (NULL, 'login.failed', jsonb_build_object('attempted_email', v_email));
+END;
+$function$;
+-- owner: postgres; acl: {postgres=X/postgres,service_role=X/postgres}
+CREATE OR REPLACE FUNCTION public.register_trusted_device(p_user_id uuid, p_device_token_hash text, p_device_name text DEFAULT NULL::text)
+ RETURNS TABLE(device_id uuid, allowed boolean, monitor_mode boolean, device_limit integer, active_device_count integer, event_action text)
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'pg_catalog', 'public'
+AS $function$
+DECLARE
+  v_device_id uuid;
+  v_revoked_at timestamptz;
+  v_device_name text;
+  v_is_master boolean := false;
+  v_monitor_mode boolean;
+  v_device_limit integer;
+  v_active_count integer;
+  v_device_rank bigint;
+  v_event_action text;
+  v_allowed boolean;
+BEGIN
+  IF p_user_id IS NULL THEN
+    RAISE EXCEPTION 'invalid user id' USING ERRCODE = '22023';
+  END IF;
+  IF p_device_token_hash IS NULL OR p_device_token_hash !~ '^[0-9a-f]{64}$' THEN
+    RAISE EXCEPTION 'invalid device token hash' USING ERRCODE = '22023';
+  END IF;
+  v_device_name := NULLIF(left(btrim(coalesce(p_device_name, '')), 120), '');
+  PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(p_user_id::text, 0));
+  SELECT s.monitor_mode, s.max_trusted_devices INTO v_monitor_mode, v_device_limit
+  FROM public.trusted_device_settings AS s WHERE s.singleton = true;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'trusted device settings not configured';
+  END IF;
+  SELECT EXISTS (
+    SELECT 1 FROM public.user_roles AS ur WHERE ur.user_id = p_user_id AND ur.role = 'admin'
+  ) INTO v_is_master;
+  SELECT td.id, td.revoked_at INTO v_device_id, v_revoked_at
+  FROM public.trusted_devices AS td
+  WHERE td.user_id = p_user_id AND td.device_token_hash = p_device_token_hash;
+  IF FOUND THEN
+    IF v_revoked_at IS NOT NULL THEN
+      INSERT INTO public.activity_logs (user_id, action, details)
+      VALUES (p_user_id, 'device.revoked', jsonb_build_object(
+        'device_id', v_device_id, 'monitor_mode', v_monitor_mode, 'observed_at', now()
+      ));
+      SELECT count(*)::integer INTO v_active_count FROM public.trusted_devices AS td
+      WHERE td.user_id = p_user_id AND td.revoked_at IS NULL;
+      RETURN QUERY SELECT v_device_id, v_monitor_mode, v_monitor_mode, v_device_limit, v_active_count, 'device.revoked'::text;
+      RETURN;
+    END IF;
+    UPDATE public.trusted_devices AS td
+    SET last_seen_at = now(), device_name = coalesce(v_device_name, td.device_name)
+    WHERE td.id = v_device_id;
+    SELECT count(*)::integer INTO v_active_count FROM public.trusted_devices AS td
+    WHERE td.user_id = p_user_id AND td.revoked_at IS NULL;
+    IF v_is_master THEN
+      RETURN QUERY SELECT v_device_id, true, v_monitor_mode, v_device_limit, v_active_count, 'device.master_exempt'::text;
+      RETURN;
+    END IF;
+    SELECT ranked.device_rank INTO v_device_rank FROM (
+      SELECT td.id, row_number() OVER (ORDER BY td.created_at ASC, td.id ASC) AS device_rank
+      FROM public.trusted_devices AS td WHERE td.user_id = p_user_id AND td.revoked_at IS NULL
+    ) AS ranked WHERE ranked.id = v_device_id;
+    v_allowed := v_monitor_mode OR v_device_rank <= v_device_limit;
+    v_event_action := CASE WHEN v_device_rank > v_device_limit THEN 'device.limit_would_block' ELSE 'device.within_limit' END;
+    IF v_device_rank > v_device_limit THEN
+      INSERT INTO public.activity_logs (user_id, action, details)
+      VALUES (p_user_id, v_event_action, jsonb_build_object(
+        'device_id', v_device_id, 'device_limit', v_device_limit, 'active_device_count', v_active_count,
+        'device_rank', v_device_rank, 'monitor_mode', v_monitor_mode, 'observed_at', now()
+      ));
+    END IF;
+    RETURN QUERY SELECT v_device_id, v_allowed, v_monitor_mode, v_device_limit, v_active_count, v_event_action;
+    RETURN;
+  END IF;
+  SELECT count(*)::integer INTO v_active_count FROM public.trusted_devices AS td
+  WHERE td.user_id = p_user_id AND td.revoked_at IS NULL;
+  IF v_is_master THEN
+    INSERT INTO public.trusted_devices (user_id, device_token_hash, device_name)
+    VALUES (p_user_id, p_device_token_hash, v_device_name) RETURNING id INTO v_device_id;
+    v_active_count := v_active_count + 1;
+    INSERT INTO public.activity_logs (user_id, action, details)
+    VALUES (p_user_id, 'device.first_seen', jsonb_build_object(
+      'device_id', v_device_id, 'monitor_mode', v_monitor_mode, 'observed_at', now()
+    ));
+    INSERT INTO public.activity_logs (user_id, action, details)
+    VALUES (p_user_id, 'device.master_exempt', jsonb_build_object(
+      'device_id', v_device_id, 'device_limit', v_device_limit, 'observed_at', now()
+    ));
+    RETURN QUERY SELECT v_device_id, true, v_monitor_mode, v_device_limit, v_active_count, 'device.master_exempt'::text;
+    RETURN;
+  END IF;
+  IF v_active_count >= v_device_limit AND NOT v_monitor_mode THEN
+    INSERT INTO public.activity_logs (user_id, action, details)
+    VALUES (p_user_id, 'device.limit_would_block', jsonb_build_object(
+      'device_limit', v_device_limit, 'active_device_count', v_active_count, 'monitor_mode', false, 'observed_at', now()
+    ));
+    RETURN QUERY SELECT NULL::uuid, false, false, v_device_limit, v_active_count, 'device.limit_would_block'::text;
+    RETURN;
+  END IF;
+  INSERT INTO public.trusted_devices (user_id, device_token_hash, device_name)
+  VALUES (p_user_id, p_device_token_hash, v_device_name) RETURNING id INTO v_device_id;
+  v_active_count := v_active_count + 1;
+  INSERT INTO public.activity_logs (user_id, action, details)
+  VALUES (p_user_id, 'device.first_seen', jsonb_build_object(
+    'device_id', v_device_id, 'monitor_mode', v_monitor_mode, 'observed_at', now()
+  ));
+  SELECT ranked.device_rank INTO v_device_rank FROM (
+    SELECT td.id, row_number() OVER (ORDER BY td.created_at ASC, td.id ASC) AS device_rank
+    FROM public.trusted_devices AS td WHERE td.user_id = p_user_id AND td.revoked_at IS NULL
+  ) AS ranked WHERE ranked.id = v_device_id;
+  IF v_device_rank > v_device_limit THEN
+    v_event_action := 'device.limit_would_block';
+    INSERT INTO public.activity_logs (user_id, action, details)
+    VALUES (p_user_id, v_event_action, jsonb_build_object(
+      'device_id', v_device_id, 'device_limit', v_device_limit, 'active_device_count', v_active_count,
+      'device_rank', v_device_rank, 'monitor_mode', v_monitor_mode, 'observed_at', now()
+    ));
+  ELSE
+    v_event_action := 'device.within_limit';
+    INSERT INTO public.activity_logs (user_id, action, details)
+    VALUES (p_user_id, v_event_action, jsonb_build_object(
+      'device_id', v_device_id, 'device_limit', v_device_limit, 'active_device_count', v_active_count,
+      'device_rank', v_device_rank, 'monitor_mode', v_monitor_mode, 'observed_at', now()
+    ));
+  END IF;
+  v_allowed := v_monitor_mode OR v_device_rank <= v_device_limit;
+  RETURN QUERY SELECT v_device_id, v_allowed, v_monitor_mode, v_device_limit, v_active_count, v_event_action;
+END;
+$function$;
+
+-- RLS ------------------------------------------------------------------
+ALTER TABLE public."activity_logs" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."ai_analysis_daily_usage" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."app_data" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."audit_logs" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."integration_tokens" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."master_number_sync" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."order_queue" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."profiles" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."prop_firms" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."push_subscriptions" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."terms_acceptances" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."trusted_device_settings" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."trusted_devices" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."user_roles" ENABLE ROW LEVEL SECURITY;
+
+-- POLITICAS ------------------------------------------------------------
+CREATE POLICY "admin read activity" ON public."activity_logs" AS PERMISSIVE FOR SELECT TO "authenticated" USING (has_role(auth.uid(), 'admin'::app_role));
+CREATE POLICY "insert own activity" ON public."activity_logs" AS PERMISSIVE FOR INSERT TO "authenticated" WITH CHECK ((user_id = auth.uid()));
+CREATE POLICY "own data insert" ON public."app_data" AS PERMISSIVE FOR INSERT TO "authenticated" WITH CHECK (((user_id = auth.uid()) AND is_approved(auth.uid())));
+CREATE POLICY "own data select" ON public."app_data" AS PERMISSIVE FOR SELECT TO "authenticated" USING (((user_id = auth.uid()) AND is_approved(auth.uid())));
+CREATE POLICY "own data update" ON public."app_data" AS PERMISSIVE FOR UPDATE TO "authenticated" USING (((user_id = auth.uid()) AND is_approved(auth.uid()))) WITH CHECK ((user_id = auth.uid()));
+CREATE POLICY "own token read" ON public."integration_tokens" AS PERMISSIVE FOR SELECT TO "authenticated" USING ((user_id = auth.uid()));
+CREATE POLICY "own orders read" ON public."order_queue" AS PERMISSIVE FOR SELECT TO "authenticated" USING (((user_id = auth.uid()) AND is_approved(auth.uid())));
+CREATE POLICY "admin read profiles" ON public."profiles" AS PERMISSIVE FOR SELECT TO "authenticated" USING (has_role(auth.uid(), 'admin'::app_role));
+CREATE POLICY "admin update profiles" ON public."profiles" AS PERMISSIVE FOR UPDATE TO "authenticated" USING (has_role(auth.uid(), 'admin'::app_role)) WITH CHECK (has_role(auth.uid(), 'admin'::app_role));
+CREATE POLICY "read own profile" ON public."profiles" AS PERMISSIVE FOR SELECT TO "authenticated" USING ((id = auth.uid()));
+CREATE POLICY "approved traders read firms" ON public."prop_firms" AS PERMISSIVE FOR SELECT TO "authenticated" USING ((is_approved(auth.uid()) OR has_role(auth.uid(), 'admin'::app_role)));
+CREATE POLICY "master inserts firms" ON public."prop_firms" AS PERMISSIVE FOR INSERT TO "authenticated" WITH CHECK (has_role(auth.uid(), 'admin'::app_role));
+CREATE POLICY "master updates firms" ON public."prop_firms" AS PERMISSIVE FOR UPDATE TO "authenticated" USING (has_role(auth.uid(), 'admin'::app_role)) WITH CHECK (has_role(auth.uid(), 'admin'::app_role));
+CREATE POLICY "Users can delete their own push subscriptions" ON public."push_subscriptions" AS PERMISSIVE FOR DELETE TO "authenticated" USING ((auth.uid() = user_id));
+CREATE POLICY "Users can insert their own push subscriptions" ON public."push_subscriptions" AS PERMISSIVE FOR INSERT TO "authenticated" WITH CHECK ((auth.uid() = user_id));
+CREATE POLICY "Users can view their own push subscriptions" ON public."push_subscriptions" AS PERMISSIVE FOR SELECT TO "authenticated" USING ((auth.uid() = user_id));
+CREATE POLICY "own roles" ON public."user_roles" AS PERMISSIVE FOR SELECT TO "authenticated" USING ((user_id = auth.uid()));
+
+-- GRANTS DE TABELAS ----------------------------------------------------
+GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."activity_logs" TO "anon";
+GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."activity_logs" TO "authenticated";
+GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."activity_logs" TO "service_role";
+GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."ai_analysis_daily_usage" TO "service_role";
+GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."app_data" TO "anon";
+GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."app_data" TO "authenticated";
+GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."app_data" TO "service_role";
+GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."audit_logs" TO "service_role";
+GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."integration_tokens" TO "anon";
+GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."integration_tokens" TO "authenticated";
+GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."integration_tokens" TO "service_role";
+GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."master_number_sync" TO "service_role";
+GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."order_queue" TO "anon";
+GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."order_queue" TO "authenticated";
+GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."order_queue" TO "service_role";
+GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."profiles" TO "anon";
+GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."profiles" TO "authenticated";
+GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."profiles" TO "service_role";
+GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."prop_firms" TO "anon";
+GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."prop_firms" TO "authenticated";
+GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."prop_firms" TO "service_role";
+GRANT DELETE, INSERT, SELECT ON public."push_subscriptions" TO "authenticated";
+GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."push_subscriptions" TO "service_role";
+GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."terms_acceptances" TO "service_role";
+GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."trusted_device_settings" TO "service_role";
+GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."trusted_devices" TO "service_role";
+GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."user_roles" TO "anon";
+GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."user_roles" TO "authenticated";
+GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public."user_roles" TO "service_role";
+
+-- GRANTS DE FUNCOES ----------------------------------------------------
+GRANT EXECUTE ON FUNCTION public."consume_ai_analysis_quota"(p_user_id uuid, p_limit integer) TO "service_role";
+GRANT EXECUTE ON FUNCTION public."handle_new_user"() TO PUBLIC;
+GRANT EXECUTE ON FUNCTION public."handle_new_user"() TO "anon";
+GRANT EXECUTE ON FUNCTION public."handle_new_user"() TO "authenticated";
+GRANT EXECUTE ON FUNCTION public."handle_new_user"() TO "service_role";
+GRANT EXECUTE ON FUNCTION public."has_role"(_user_id uuid, _role app_role) TO PUBLIC;
+GRANT EXECUTE ON FUNCTION public."has_role"(_user_id uuid, _role app_role) TO "anon";
+GRANT EXECUTE ON FUNCTION public."has_role"(_user_id uuid, _role app_role) TO "authenticated";
+GRANT EXECUTE ON FUNCTION public."has_role"(_user_id uuid, _role app_role) TO "service_role";
+GRANT EXECUTE ON FUNCTION public."is_approved"(_user_id uuid) TO PUBLIC;
+GRANT EXECUTE ON FUNCTION public."is_approved"(_user_id uuid) TO "anon";
+GRANT EXECUTE ON FUNCTION public."is_approved"(_user_id uuid) TO "authenticated";
+GRANT EXECUTE ON FUNCTION public."is_approved"(_user_id uuid) TO "service_role";
+GRANT EXECUTE ON FUNCTION public."log_failed_login"(attempted_email text) TO "anon";
+GRANT EXECUTE ON FUNCTION public."log_failed_login"(attempted_email text) TO "authenticated";
+GRANT EXECUTE ON FUNCTION public."log_failed_login"(attempted_email text) TO "service_role";
+GRANT EXECUTE ON FUNCTION public."register_trusted_device"(p_user_id uuid, p_device_token_hash text, p_device_name text) TO "service_role";
+
+-- TRIGGERS -------------------------------------------------------------
+-- auth.users
+CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION handle_new_user();
+
+-- LIMITES: esquema SQL de referencia, NAO dump restauravel da instancia.
+-- Exige checar roles, grants de schemas, defaults, sequences, objetos auth/storage
+-- e testar restore antes de considerar plano de recuperacao completo.
