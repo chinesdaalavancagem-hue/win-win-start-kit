@@ -6,7 +6,7 @@ import type { DeterministicAnalysis } from "@/lib/platform/ai-analysis";
 
 type Result = { metrics: DeterministicAnalysis; explanation: string; remainingToday: number };
 const money = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "USD" });
-const assetLabels: Record<AssetKey, string> = { nasdaq: "Nasdaq", ouro: "Ouro", saque2: "Saque 2" };
+const assetLabels: Record<AssetKey, string> = { nasdaq: "Nasdaq", ouro: "Gold", saque2: "Saque 2" };
 
 export const Route = createFileRoute("/_authenticated/analise-ia")({
   head: () => ({ meta: [{ title: "Análise de risco com IA — Win or Win" }] }),
@@ -70,7 +70,7 @@ function AnaliseIA() {
             Ativo
             <select value={asset} onChange={(event) => setAsset(event.target.value as AssetKey)} className="h-11 rounded-xl border border-border bg-background px-3 transition focus:border-cyan-700">
               <option value="nasdaq">Nasdaq</option>
-              <option value="ouro">Ouro</option>
+              <option value="ouro">Gold</option>
               <option value="saque2">Saque 2</option>
             </select>
           </label>
