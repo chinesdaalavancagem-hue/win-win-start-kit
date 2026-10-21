@@ -368,7 +368,7 @@ function Integracao() {
         <p>Toda vez que for operar, siga esta sequência:</p>
         <ol className="list-decimal space-y-1 pl-5">
           <li>Abra o MetaTrader 5 na sua conta e verifique se o botão Algo Trading está verde.</li>
-          <li>Abra a Plataforma Win or Win no Chrome e clique na aba do ativo que vai operar (Ouro ou Nasdaq), deixando o card do dia visível.</li>
+          <li>Abra a Plataforma Win or Win no Chrome e clique na aba do ativo que vai operar (Gold ou Nasdaq), deixando o card do dia visível.</li>
           <li>Dê dois cliques no arquivo <code>LIGAR_ROBO.bat</code>. Uma tela preta se abrirá confirmando a conexão com a conta do MT5 e exibindo a mensagem abaixo. Deixe essa janela minimizada enquanto opera:</li>
         </ol>
         <pre className="overflow-x-auto rounded-md bg-muted p-3 text-xs"><code>* Running on http://127.0.0.1:5000</code></pre>
@@ -380,14 +380,14 @@ function Integracao() {
         <p>Antes de enviar ordens reais, faça um teste no navegador:</p>
         <ol className="list-decimal space-y-1 pl-5">
           <li>Abra a extensão no Chrome clicando no ícone do Win or Win.</li>
-          <li>Verifique se o lote do dia está verde: <strong>🟢 Ouro (GOLD): Dia X · 0.XX lotes</strong>.</li>
-          <li>Clique em <strong>Teste Ouro (MGC)</strong> ou <strong>Teste Nasdaq (MNQ)</strong>.</li>
+          <li>Verifique se o lote do dia está verde: <strong>🟢 Gold (GOLD): Dia X · 0.XX lotes</strong>.</li>
+          <li>Clique em <strong>Teste Gold (MGC)</strong> ou <strong>Teste Nasdaq (MNQ)</strong>.</li>
           <li>Confira na tela preta do robô a confirmação do recebimento do pacote com o lote do card e o envio da ordem de teste ao MetaTrader.</li>
         </ol>
 
         <h3 className="text-base font-semibold">⚠️ Dúvidas Frequentes &amp; Resolução de Problemas</h3>
         <ul className="list-disc space-y-2 pl-5">
-          <li><strong>A extensão mostra “Card ainda não lido”:</strong> dê F5 na aba da plataforma Win or Win com a aba do ativo (Ouro ou Nasdaq) aberta e reabra o ícone da extensão.</li>
+          <li><strong>A extensão mostra “Card ainda não lido”:</strong> dê F5 na aba da plataforma Win or Win com a aba do ativo (Gold ou Nasdaq) aberta e reabra o ícone da extensão.</li>
           <li><strong>O robô avisa “Mercado Fechado” (código 10018):</strong> o mercado de Forex/CFDs fecha nas sextas-feiras à tarde e reabre no domingo à noite. Durante o fim de semana, o robô valida a comunicação, mas o terminal só aceita ordens com o pregão aberto.</li>
           <li><strong>Erro de conexão ao clicar no .bat:</strong> verifique se o Python foi instalado com a opção <code>Add python.exe to PATH</code> marcada e se o MetaTrader 5 está aberto.</li>
         </ul>
