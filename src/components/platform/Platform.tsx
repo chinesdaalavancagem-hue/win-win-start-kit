@@ -38,6 +38,17 @@ export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas }:
   const [syncTarget, setSyncTarget] = useState<HTMLElement | null>(null);
   const heroRef = useRef<HTMLElement>(null);
   const [desktopRailTop, setDesktopRailTop] = useState(120);
+  const [headerHeight, setHeaderHeight] = useState(112);
+  useEffect(() => {
+    const header = document.querySelector("header.sticky");
+    if (!header) return;
+    const measure = () => setHeaderHeight(Math.ceil(header.getBoundingClientRect().height));
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(header);
+    return () => observer.disconnect();
+  }, []);
+
   useEffect(() => {
     const alignRails = () => {
       if (heroRef.current) setDesktopRailTop(Math.max(12, Math.round(heroRef.current.getBoundingClientRect().top + 24)));
@@ -148,7 +159,7 @@ export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas }:
           </button>
         ))}
       </nav>
-      <div className="sticky top-2 z-30 mb-3 rounded-xl border border-cyan-950/80 bg-[#06101f]/95 p-2 shadow-lg backdrop-blur-md sm:p-3">
+      <div className="sticky z-20 mb-3 rounded-xl border border-cyan-950/80 bg-[#06101f]/95 p-2 shadow-lg backdrop-blur-md sm:p-3" style={{ top: headerHeight + 8 }}>
         <div className="mb-3 flex flex-wrap items-center gap-2 text-sm text-blue-100/70">
           <span className="size-2.5 rounded-full bg-amber-400 shadow-[0_0_10px_rgba(255,190,40,0.4)]" />
           <span>{lastOperation ? `${ASSET_NAME[lastOperation.asset]} · D${lastOperation.day} · ${tipoLabel(lastOperation.tipo, lastOperation.asset)}` : "Nenhuma operação registrada"}</span>
