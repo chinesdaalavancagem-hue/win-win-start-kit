@@ -678,11 +678,15 @@ function BonusPanel({ state, assetKey, reserva, folga, mutate }: { state: State;
   const b = state.assets[assetKey].bonus;
   const [dep, setDep] = useState("");
   const [saq, setSaq] = useState("");
+  const [saquePendente, setSaquePendente] = useState<{ valor: number; saldoAnterior: number; creditoAnterior: number; ativo: AssetKey } | null>(null);
   const [saldoMt5, setSaldoMt5] = useState("");
   const [creditoMt5, setCreditoMt5] = useState("");
   const saldoReal = state.forexSaldoReal ?? 0;
   const bonusForex = Object.values(state.assets).reduce((t, a) => t + Math.max(0, a.bonus.bonusAtual), 0);
   const total = saldoReal + bonusForex;
+  const saqueValido = saquePendente !== null && saquePendente.ativo === assetKey && saquePendente.saldoAnterior === saldoReal && saquePendente.creditoAnterior === bonusForex && saquePendente.valor > 0 && saquePendente.valor <= saldoReal;
+  const percentualSaque = saqueValido && saquePendente ? saquePendente.valor / saldoReal : 0;
+  const reducaoBonus = bonusForex * percentualSaque;
   const last = b.log[b.log.length - 1];
   const dateStr = (ts: number) => { const d = new Date(ts); return d.toLocaleDateString("pt-BR") + " " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); };
   let ultima = "nenhum depósito ou saque registrado ainda.";
@@ -771,26 +775,56 @@ function BonusPanel({ state, assetKey, reserva, folga, mutate }: { state: State;
               <p className="mb-1 flex items-center gap-2 text-sm font-bold text-rose-300"><Wallet className="size-4" />Registrar saque</p>
               <p className="mb-3 text-xs leading-relaxed text-slate-400">A retirada reduz proporcionalmente o bônus sobre o saldo real anterior ao saque (com os resultados operacionais).</p>
               <label className={labelClass}>Valor do saque ($)
-                <input inputMode="decimal" value={saq} placeholder="Ex.: 200" onChange={(e) => setSaq(e.target.value)} className={inputClass} />
+                <input inputMode="decimal" value={saq} placeholder="Ex.: 200" onChange={(e) => { setSaq(e.target.value); setSaquePendente(null); }} className={inputClass} />
               </label>
               <div className="mt-3 grid grid-cols-[1fr_auto] gap-2">
-                <Button type="button" variant="destructive" className="rounded-xl font-bold" onClick={() => { const v = parseNum(saq); if (v <= 0 || v > saldoReal) return; mutate((s) => aplicarSaque(s, assetKey, v)); setSaq(""); }}>Aplicar saque</Button>
+                <Button type="button" variant="destructive" className="rounded-xl font-bold" onClick={() => { const v = parseNum(saq); if (!Number.isFinite(v) || v <= 0 || v > saldoReal) return; setSaquePendente({ valor: v, saldoAnterior: saldoReal, creditoAnterior: bonusForex, ativo: assetKey }); }}>Aplicar saque</Button>
                 <Button type="button" variant="outline" title="Zerar bônus atual e depósito próprio" aria-label="Zerar bônus atual e depósito próprio" className="rounded-xl border-[#35465b] bg-[#111c2b] text-slate-200 hover:border-rose-400/60 hover:bg-rose-950/40" onClick={() => mutate((s) => resetBonus(s, assetKey))}>↺</Button>
               </div>
-              <p className="mt-2 text-[10px] text-slate-500">Saque máximo registrado: ${fmt(saldoReal)}. O botão ↺ zera os valores do ativo selecionado.</p>
+              <p className="mt-2 text-[11px] text-slate-400">Saque máximo registrado: <strong className="text-slate-100">${fmt(saldoReal)}</strong>. O botão ↺ zera os valores do ativo selecionado.</p>
+              {saquePendente && !saqueValido && (
+                <p role="status" className="mt-3 rounded-lg border border-amber-500/40 bg-amber-950/30 p-3 text-xs font-semibold text-amber-200">O saldo ou crédito mudou. Clique em Aplicar saque para recalcular. Nenhum saque foi registrado.</p>
+              )}
+              {saqueValido && saquePendente && (
+                <div role="status" className="mt-4 space-y-3 rounded-xl border border-rose-400/60 bg-gradient-to-br from-[#33141f] to-[#130e1b] p-3.5 shadow-[0_0_22px_rgba(244,63,94,0.12)]">
+                  <p className="text-xs font-extrabold uppercase tracking-wider text-rose-200">Prévia do saque — ainda não registrado</p>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="rounded-lg border border-rose-500/20 bg-black/20 p-2"><span className="block text-slate-400">Saque do saldo real</span><strong className="font-mono text-base text-white">-${fmt(saquePendente.valor)}</strong></div>
+                    <div className="rounded-lg border border-rose-500/20 bg-black/20 p-2"><span className="block text-slate-400">Percentual retirado</span><strong className="font-mono text-base text-rose-200">{fmt(percentualSaque * 100)}%</strong></div>
+                    <div className="rounded-lg border border-amber-500/30 bg-amber-950/20 p-2"><span className="block text-amber-200">Redução do bônus</span><strong className="font-mono text-lg text-amber-300">-${fmt(reducaoBonus)}</strong></div>
+                    <div className="rounded-lg border border-cyan-500/20 bg-cyan-950/20 p-2"><span className="block text-slate-400">Bônus após saque</span><strong className="font-mono text-lg text-cyan-200">${fmt(bonusForex - reducaoBonus)}</strong></div>
+                  </div>
+                  <p className="text-[11px] leading-relaxed text-slate-300">A redução é proporcional ao saldo real anterior ao saque, incluindo lucros e perdas. Confirmar registra apenas na Win or Win; não solicita saque à corretora.</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button type="button" className="bg-rose-600 font-bold text-white hover:bg-rose-500" onClick={() => {
+                      const p = saquePendente;
+                      if (!p || !saqueValido) return;
+                      mutate((s) => {
+                        const saldoAtual = s.forexSaldoReal ?? 0;
+                        const creditoAtual = Object.values(s.assets).reduce((t, a) => t + Math.max(0, a.bonus.bonusAtual), 0);
+                        if (saldoAtual !== p.saldoAnterior || creditoAtual !== p.creditoAnterior) return;
+                        aplicarSaque(s, p.ativo, p.valor);
+                      });
+                      setSaquePendente(null);
+                      setSaq("");
+                    }}>Confirmar registro</Button>
+                    <Button type="button" variant="outline" className="border-slate-500/60 text-slate-200 hover:bg-slate-800" onClick={() => setSaquePendente(null)}>Rejeitar</Button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-        <div className="mb-4 rounded-xl border border-[#142b43] bg-[#071321]/75 p-3.5">
+        <div className="mb-4 rounded-xl border border-cyan-600/35 bg-gradient-to-r from-[#091b2b] to-[#0a1525] p-4 shadow-[0_8px_24px_rgba(0,0,0,0.16)]">
           <p className="mb-1 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-blue-100/80"><Check className="size-4 text-emerald-400" />Última movimentação</p>
-          <p className="text-xs leading-relaxed text-slate-400">{ultima}</p>
+          <p className="text-sm leading-relaxed font-medium text-slate-200">{ultima}</p>
         </div>
 
         <div className="space-y-2">
           <h3 className="flex items-center gap-2 text-sm font-bold text-slate-100"><ShieldCheck className="size-4 text-cyan-400" />Análise de saque e proteção de margem</h3>
           {linhas.map((l, i) => (
-            <div key={i} className="rounded-xl border border-[#142b43] bg-[#071321]/75 px-3.5 py-3 text-xs leading-relaxed text-blue-100/75">{l}</div>
+            <div key={i} className="rounded-xl border border-cyan-900/70 bg-gradient-to-r from-[#0b2131] to-[#081726] px-4 py-3 text-sm leading-relaxed text-blue-100/90 shadow-sm">{l}</div>
           ))}
         </div>
       </div>
