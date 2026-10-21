@@ -50,7 +50,10 @@ export function applyOfficialParams(current: State, payload: OfficialParamsPaylo
   for (const key of onlyAsset ? [onlyAsset] : ASSETS) {
     const incoming = payload.assets[key];
     const picked: Record<string, unknown> = {};
-    for (const f of PARAM_FIELDS) picked[f] = incoming.params[f];
+    for (const f of PARAM_FIELDS) {
+      // A taxa é o custo real pago por cada banca e não pode ser substituída por JSON oficial.
+      if (f !== "taxa") picked[f] = incoming.params[f];
+    }
     if (incoming.params.ativoReal !== undefined) picked.ativoReal = incoming.params.ativoReal;
     current.assets[key].params = { ...current.assets[key].params, ...picked } as State["assets"]["nasdaq"]["params"];
     current.assets[key].days = incoming.days.map(({ mnq, lotes, meta, mll }) => ({ mnq, lotes, meta, ...(typeof mll === "number" ? { mll } : {}) }));
