@@ -151,6 +151,8 @@ export function selecionarMesaGold(asset: Asset, mesa: MesaFuturos): void {
     const ultimosCinco = referencia.length === 8 ? referencia.slice(-4) : referencia.slice(-5);
     const primeiroPayout = ultimosCinco[0] ?? { mnq: 2, lotes: 0.2, meta: 200 };
     const diasPayout = Array.from({ length: 5 }, (_, i) => structuredClone(ultimosCinco[i] ?? primeiroPayout));
+    // Limites EOD de uma mesa não devem ser herdados automaticamente por outra.
+    diasPayout.forEach((dia, i) => { if (i > 0) delete dia.mll; });
     versoes[mesa] = [...diasAvaliacao, ...diasPayout];
   }
   asset.diasPorMesa = versoes;
@@ -219,7 +221,7 @@ export interface DayCalc {
 }
 
 export function computeAssetCalcs(a: Asset, key: AssetKey): DayCalc[] {
-  const { mnq: mnqPt, hfm: hfmPt, mll, taxa, lucroDesejado } = a.params;
+  const { mnq: mnqPt, hfm: hfmPt, taxa, lucroDesejado } = a.params;
   const incluiPretensao = key === "saque2";
   let divida = taxa;
   return a.days.map((d) => {
