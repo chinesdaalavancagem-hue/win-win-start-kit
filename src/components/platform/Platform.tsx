@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { registrarAuditoria } from "@/lib/auditoria-registro";
 import { applyOfficialParams, buildOfficialParams, isOfficialParams } from "@/lib/platform/official-params";
 import {
-  type AssetKey, type State, type TabKey, type Asset, type MesaFuturos, MESAS_FUTUROS, diasAvaliacaoGold, lossLimitGoldProjetado, adicionarDiaGold, removerDiaGold,
+  type AssetKey, type State, type TabKey, type Asset, type MesaFuturos, MESAS_FUTUROS, diasAvaliacaoGold, lossLimitGoldProjetado, lossLimitGoldEfetivo, adicionarDiaGold, removerDiaGold,
   aplicarDeposito, aplicarSaque, conciliarCreditoForex, calcAporteFracionado, calcCaixaCiclo, clampDayIndex, computeAssetCalcs, defaultState, fmt, fmtSigned, handleProfit, handleStop,
   historicoTotals, isValidState, normalizeState, parseNum, projetarZeragemBonus, resetBonus, tipoLabel, undoLast,
 } from "@/lib/platform/engine";
@@ -624,7 +624,9 @@ function DayCard({ row, asset, assetKey, avaliacaoDias, mutate, excedenteAtualSa
   }, [isCurrent]);
   const setD = (k: "mnq" | "lotes" | "meta") => (v: number) => mutate((s) => { s.assets[assetKey].days[i]![k] = v; });
   const limiteFixo = assetKey === "ouro" && i <= avaliacaoDias;
-  const limiteHoje = assetKey === "ouro" ? lossLimitGoldProjetado(asset, i) : 0;
+  const limiteHoje = assetKey === "ouro" ? lossLimitGoldEfetivo(asset, i) : 0;
+  const limiteProjetado = assetKey === "ouro" ? lossLimitGoldProjetado(asset, i) : 0;
+  const limiteManual = assetKey === "ouro" && !limiteFixo && typeof d.mll === "number" && d.mll > 0;
   return (
     <div ref={ref} className={cn("platform-day-card overflow-hidden rounded-2xl border border-[#142b43] bg-[#0b0f19] p-3 text-slate-100 shadow-[0_12px_40px_rgba(0,0,0,0.22)] sm:p-5 lg:p-3", isCurrent && "border-[#087cff]/70 ring-1 ring-[#087cff]/25")}>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-[#142b43] pb-3">
@@ -685,7 +687,11 @@ function DayCard({ row, asset, assetKey, avaliacaoDias, mutate, excedenteAtualSa
             <div className="mt-3 flex items-center justify-between gap-2 rounded-lg border border-[#142b43] bg-[#0b1726] px-3 py-2.5 font-mono text-xs"><span className="flex items-center gap-1.5 text-muted-foreground"><Calculator className="h-3.5 w-3.5" />Necessário no CFD</span><span className="font-semibold">${fmt(cx.necessario)}</span></div>
             {assetKey === "ouro" && <div className="mt-1 flex items-center justify-between gap-3 rounded-xl border border-amber-800/50 bg-[#161924] px-3 py-2.5">
               <label className="min-w-0 text-xs font-semibold text-amber-200">Loss Limit EOD na mesa ($)</label>
-              <span className="font-mono text-base font-bold text-white" title="Projeção de 4% sobre $50.000 mais metas financiadas dos dias anteriores; confirme o limite real no painel da mesa.">${fmt(limiteHoje)}</span>
+              {limiteFixo ? <span className="font-mono text-base font-bold text-white">$2.000</span> :
+                <div className="flex items-center gap-1.5">
+                  <input aria-label="Loss Limit EOD na mesa" type="number" min="0.01" step="0.01" inputMode="decimal" value={limiteManual ? d.mll : limiteProjetado} title={limiteManual ? "Valor ajustado manualmente" : "Projeção calculada pelas metas anteriores"} className="w-28 max-w-[43vw] rounded-lg border border-amber-800/70 bg-[#081321] px-2 py-1.5 text-right font-mono text-sm font-bold text-white focus:border-amber-400 focus:outline-none" onChange={(e) => { const raw = e.target.value; const valor = Number(raw); mutate((st) => { const dia = st.assets[assetKey].days[i]; if (!dia) return; if (raw.trim() && Number.isFinite(valor) && valor > 0) dia.mll = valor; else delete dia.mll; }); }} />
+                  {limiteManual && <button type="button" className="rounded border border-amber-900/60 px-1.5 py-1 text-[10px] text-amber-200" title="Voltar à projeção automática" onClick={() => mutate((st) => { delete st.assets[assetKey].days[i]!.mll; })}>Auto</button>}
+                </div>}
             </div>}
 
           </div>
