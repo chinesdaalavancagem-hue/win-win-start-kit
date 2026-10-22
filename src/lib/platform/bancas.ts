@@ -1,4 +1,4 @@
-import { type State, type AssetKey, type Bonus, type MesaFuturos, defaultState, historicoTotals, isValidState, normalizeState, tipoLabel } from "./engine";
+import { type State, type AssetKey, type Bonus, type MesaFuturos, defaultState, historicoTotals, isValidState, normalizeState, podeDesfazerUltimaOperacao, tipoLabel } from "./engine";
 import { challengeAccountSchema, type ChallengeAccount } from "../prop-firms";
 
 export type BancaAtivo = "nasdaq" | "ouro";
@@ -25,7 +25,7 @@ export function aplicarForex(state: State, forex: ForexCompartilhado): State {
 }
 /** A última operação só pode reverter o Forex quando seu snapshot ainda coincide com o compartilhado. */
 export function podeDesfazerBanca(doc: BancasDoc, banca: Banca): boolean {
-  return JSON.stringify(extrairForex(banca.state)) === JSON.stringify(forexDoDocumento(doc));
+  return podeDesfazerUltimaOperacao(banca.state) && JSON.stringify(extrairForex(banca.state)) === JSON.stringify(forexDoDocumento(doc));
 }
 
 export function forexDoDocumento(doc: BancasDoc): ForexCompartilhado {
