@@ -10,7 +10,7 @@ import { registrarAuditoria } from "@/lib/auditoria-registro";
 import { applyOfficialParams, buildOfficialParams, isOfficialParams } from "@/lib/platform/official-params";
 import {
   type AssetKey, type State, type TabKey, type Asset, type MesaFuturos, MESAS_FUTUROS, diasAvaliacaoGold, lossLimitGoldProjetado, lossLimitGoldEfetivo, adicionarDiaGold, removerDiaGold,
-  aplicarDeposito, aplicarSaque, aporteMinimoComBonus, conciliarCreditoForex, calcAporteFracionado, calcCaixaCiclo, clampDayIndex, computeAssetCalcs, defaultState, fmt, fmtSigned, handleProfit, handleStop,
+  aplicarDeposito, aplicarSaque, projetarAportesFuturos, conciliarCreditoForex, calcAporteFracionado, calcCaixaCiclo, clampDayIndex, computeAssetCalcs, defaultState, fmt, fmtSigned, handleProfit, handleStop,
   historicoTotals, isValidState, normalizeState, parseNum, projetarZeragemBonus, resetBonus, tipoLabel, undoLast,
 } from "@/lib/platform/engine";
 
@@ -327,12 +327,17 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, assetKey, section, setS
     return () => window.removeEventListener("keydown", onKey);
   }, [curIdx, assetKey, mutate]);
 
-  // projeção dia a dia (igual ao original)
+  // Partilha um único saldo Forex e um único teto de bônus ao projetar os dias restantes.
   let cum = saldo, totalMeta = 0, reservaMinima = 0;
-  let caixaProprioProjetado = state.forexSaldoReal ?? forexProprio;
-  let caixaBonusProjetado = forexBonus;
-  // O teto de bônus só pode ser utilizado uma vez ao longo dos dias projetados.
-  let bonusCapRestanteProjetado = Math.max(0, (asset.bonus.bonusCap || 0) - (asset.bonus.bonusGanhoTotal || 0));
+  const projecaoForex = projetarAportesFuturos({
+    necessidades: caixaCiclo.dias.map((d) => d.necessario),
+    perdas: calcs.map((c) => Math.max(0, c.custoSePassar)),
+    indiceAtual: asset.attempt.currentDayIndex,
+    saldoReal: state.forexSaldoReal ?? forexProprio,
+    bonusAtual: forexBonus,
+    bonusPct: parseNum(bonusPct),
+    bonusCapRestante: Math.max(0, (asset.bonus.bonusCap || 0) - (asset.bonus.bonusGanhoTotal || 0)),
+  });
   const rows = asset.days.map((d, i) => {
     const c = calcs[i]!;
     totalMeta += d.meta;
@@ -352,32 +357,8 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, assetKey, section, setS
     // e não a simulação que começa com saldo zero.
     // Para dias atuais e futuros, projetar a partir do saldo real compartilhado,
     // consumindo o saldo após cada dia. Dias anteriores não cobram novo depósito.
-    const caixaDia = caixaProjetado ? (() => {
-      const proprioAtual = Math.max(0, caixaProprioProjetado);
-      const bonusAtual = Math.max(0, caixaBonusProjetado);
-      const saldoAtual = proprioAtual + bonusAtual;
-      if (i < asset.attempt.currentDayIndex) {
-        return { ...caixaProjetado, saldoAntes: saldoAtual, proprioAntes: proprioAtual,
-          bonusAntes: bonusAtual, deposito: 0, bonusGanho: 0 };
-      }
-      const faltaAtual = Math.max(0, caixaProjetado.necessario - saldoAtual);
-      const bonusRate = Math.max(0, parseNum(bonusPct)) / 100;
-      // Usar o teto restante do dia anterior, não repetir o teto inicial em cada dia.
-      const espacoBonus = bonusCapRestanteProjetado;
-      const aporteProprio = aporteMinimoComBonus(faltaAtual, parseNum(bonusPct), espacoBonus);
-      const bonusGanho = Math.min(Math.max(0, aporteProprio) * bonusRate, espacoBonus);
-      bonusCapRestanteProjetado = Math.max(0, bonusCapRestanteProjetado - bonusGanho);
-      if (i >= asset.attempt.currentDayIndex) {
-        const perda = Math.max(0, c.custoSePassar);
-        const proprioDepois = proprioAtual + aporteProprio;
-        const bonusDepois = bonusAtual + bonusGanho;
-        const perdaPropria = Math.min(perda, proprioDepois);
-        caixaProprioProjetado = Math.max(0, proprioDepois - perdaPropria);
-        caixaBonusProjetado = Math.max(0, bonusDepois - Math.max(0, perda - perdaPropria));
-      }
-      return { ...caixaProjetado, saldoAntes: saldoAtual, proprioAntes: proprioAtual,
-        bonusAntes: bonusAtual, deposito: Math.max(0, aporteProprio), bonusGanho };
-    })() : caixaProjetado;
+    const detalhe = projecaoForex[i];
+    const caixaDia = caixaProjetado && detalhe ? { ...caixaProjetado, ...detalhe } : caixaProjetado;
     let status: "ok" | "alerta" | "risco" = "ok";
     let statusText = "— sem posição CFD hoje (0 lotes)";
     if (margem > 0 && caixaDia) {
