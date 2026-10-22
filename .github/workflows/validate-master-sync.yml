@@ -1,8 +1,9 @@
-name: Validate Master sync audit
+name: Validate Win or Win Platform
 
 on:
   push:
     branches:
+      - main
       - fix/master-sync-compat-versao
       - integracao/master-sync-final
       - test/json-oficial-sem-sync
