@@ -224,6 +224,16 @@ export function parseValorFinanceiro(input: string): number | null {
   return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
+/** Resultado CFD pode ser negativo (perda); rejeita quantias malformadas. */
+export function parseResultadoCfd(input: string): number | null {
+  const s = input.trim();
+  const negative = s.startsWith("-");
+  const unsigned = s.startsWith("-") || s.startsWith("+") ? s.slice(1) : s;
+  const value = parseValorFinanceiro(unsigned);
+  if (value === null) return null;
+  return negative ? -value : value;
+}
+
 export function clampDayIndex(a: Asset): number {
   if (a.days.length === 0) { a.attempt.currentDayIndex = 0; return -1; }
   if (a.attempt.currentDayIndex >= a.days.length) a.attempt.currentDayIndex = a.days.length - 1;
