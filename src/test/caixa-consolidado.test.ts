@@ -70,4 +70,51 @@ describe("margem simultânea de múltiplas bancas com Forex único", () => {
     expect(c.necessario).toBe(300);
     expect(c.falta).toBe(150);
   });
+  it("usa margem MT5 maior para simulação estressada sem reduzir a margem original", () => {
+    const { a, b, estadoAtivo } = setup();
+    const c = calcularCoberturaSimultanea({
+      bancas: [a, b], ativosPorBanca: { [a.id]: "ouro", [b.id]: "ouro" },
+      bancaAtivaId: a.id, estadoAtivo, bonusPct: 0, bonusCapRestante: 0,
+      margemObservadaGoldPorLote: 120, folgaMargemPct: 20,
+    });
+    expect(c.necessario).toBe(300);
+    expect(c.necessarioEstresse).toBeCloseTo(432);
+    expect(c.aporteEstresseSemBonusNovo).toBeCloseTo(282);
+  });
+
+  it("não diminui exigência simulada se observada MT5 for menor que a cadastrada", () => {
+    const { a, estadoAtivo } = setup();
+    const c = calcularCoberturaSimultanea({
+      bancas: [a], ativosPorBanca: { [a.id]: "ouro" },
+      bancaAtivaId: a.id, estadoAtivo, bonusPct: 0, bonusCapRestante: 0,
+      margemObservadaGoldPorLote: 90, folgaMargemPct: 0,
+    });
+    expect(c.necessarioEstresse).toBe(c.necessario);
+    expect(c.aporteEstresseSemBonusNovo).toBe(c.aporteSemBonusNovo);
+  });
+
+  it("compara 825 cadastrado versus 822,80 do MT5 com folga opcional", () => {
+    const { a, estadoAtivo } = setup();
+    estadoAtivo.assets.ouro.params.marginPerLot = 825;
+    const c = calcularCoberturaSimultanea({
+      bancas: [a], ativosPorBanca: { [a.id]: "ouro" },
+      bancaAtivaId: a.id, estadoAtivo, bonusPct: 0, bonusCapRestante: 0,
+      margemObservadaGoldPorLote: 822.8, folgaMargemPct: 10,
+    });
+    expect(c.necessario).toBeCloseTo(1237.5);
+    expect(c.necessarioEstresse).toBeCloseTo(1361.25);
+  });
+
+  it("um teto de bônus futuro não é contado repetidamente no cenário estressado", () => {
+    const { a, b, estadoAtivo } = setup();
+    const c = calcularCoberturaSimultanea({
+      bancas: [a, b], ativosPorBanca: { [a.id]: "ouro", [b.id]: "ouro" },
+      bancaAtivaId: a.id, estadoAtivo, bonusPct: 100, bonusCapRestante: 40,
+      margemObservadaGoldPorLote: 120, folgaMargemPct: 0,
+    });
+    expect(c.necessarioEstresse).toBe(360);
+    expect(c.faltaEstresse).toBe(210);
+    expect(c.aporteEstresseComBonusNovo).toBe(170);
+  });
+
 });
