@@ -13,10 +13,17 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
   const [nome, setNome] = useState("");
   const [taxaAvaliacao, setTaxaAvaliacao] = useState("");
   const docRef = useRef<BancasDoc | null>(null);
+  const pendingSave = useRef<Promise<boolean>>(Promise.resolve(true));
+  const gravarEmOrdem = useCallback((d: BancasDoc) => {
+    const snapshot = JSON.stringify(d);
+    const task = pendingSave.current.catch(() => false).then(() => save(snapshot));
+    pendingSave.current = task.catch(() => false);
+    return task;
+  }, [save]);
 
   useEffect(() => { load().then((r) => { const d = parseBancas(r); docRef.current = d; setDoc(d); }).catch(() => setErr(true)); }, [load]);
 
-  const persist = useCallback((d: BancasDoc) => { docRef.current = d; setDoc(d); return save(JSON.stringify(d)); }, [save]);
+  const persist = useCallback((d: BancasDoc) => { docRef.current = d; setDoc(d); return gravarEmOrdem(d); }, [gravarEmOrdem]);
 
   const mesa = doc?.mesaAtiva ?? "tradefive";
   const bancasDaMesa = doc?.bancas.filter((b) => (b.mesa ?? "tradefive") === mesa) ?? [];
@@ -43,10 +50,10 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
     const next = { ...d, forex: extrairForex(updated), bancas: d.bancas.map((b) => (b.id === id ? { ...b, state: updated, ...(acceptedAt ? { officialAcceptedAt: acceptedAt } : {}) } : b)) };
     docRef.current = next;
     setDoc(next);
-    const ok = await save(JSON.stringify(next));
+    const ok = await gravarEmOrdem(next);
     if (!ok && acceptedAt && docRef.current === next) { docRef.current = d; setDoc(d); }
     return ok;
-  }, [activeId, save]);
+  }, [activeId, gravarEmOrdem]);
 
   if (err) return <p className="m-auto text-destructive">Falha ao carregar as bancas.</p>;
   if (!doc) return <p className="m-auto text-muted-foreground">Carregando bancas...</p>;
@@ -179,7 +186,7 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
         </section>
       )}
 
-      {ativa ? <Platform key={ativa.id} load={loadActive} save={saveActive} isAdmin={isAdmin} officialAcceptedAt={ativa.officialAcceptedAt ?? null} allBancas={bancasDaMesa} mesaAtiva={mesa} onMesaChange={escolherMesa} /> : <section className="mx-auto my-10 max-w-lg rounded-xl border border-amber-800/60 bg-[#081321] p-5 text-center text-slate-200"><h3 className="font-bold">Nenhuma banca cadastrada na {MESAS_FUTUROS[mesa].nome}</h3><p className="mt-2 text-sm text-slate-400">As bancas das outras mesas permanecem preservadas. Crie uma banca nesta mesa para começar.</p><Button type="button" className="mt-3" onClick={() => setPainel(true)}>Cadastrar banca</Button></section>}
+      {ativa ? <Platform key={ativa.id} load={loadActive} save={saveActive} isAdmin={isAdmin} officialAcceptedAt={ativa.officialAcceptedAt ?? null} allBancas={bancasDaMesa} bancaAtivaId={ativa.id} mesaAtiva={mesa} onMesaChange={escolherMesa} /> : <section className="mx-auto my-10 max-w-lg rounded-xl border border-amber-800/60 bg-[#081321] p-5 text-center text-slate-200"><h3 className="font-bold">Nenhuma banca cadastrada na {MESAS_FUTUROS[mesa].nome}</h3><p className="mt-2 text-sm text-slate-400">As bancas das outras mesas permanecem preservadas. Crie uma banca nesta mesa para começar.</p><Button type="button" className="mt-3" onClick={() => setPainel(true)}>Cadastrar banca</Button></section>}
     </div>
   );
 }
