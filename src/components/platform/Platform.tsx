@@ -9,7 +9,7 @@ import { registrarAuditoria } from "@/lib/auditoria-registro";
 import { applyOfficialParams, buildOfficialParams, isOfficialParams } from "@/lib/platform/official-params";
 import {
   type AssetKey, type State, type TabKey, type Asset, type MesaFuturos, MESAS_FUTUROS, diasAvaliacaoGold, lossLimitGoldProjetado, lossLimitGoldEfetivo, adicionarDiaGold, removerDiaGold,
-  aplicarDeposito, aplicarSaque, conciliarCreditoForex, calcAporteFracionado, calcCaixaCiclo, clampDayIndex, computeAssetCalcs, defaultState, fmt, fmtSigned, handleProfit, handleStop,
+  aplicarDeposito, aplicarSaque, aporteMinimoComBonus, conciliarCreditoForex, calcAporteFracionado, calcCaixaCiclo, clampDayIndex, computeAssetCalcs, defaultState, fmt, fmtSigned, handleProfit, handleStop,
   historicoTotals, isValidState, normalizeState, parseNum, projetarZeragemBonus, resetBonus, tipoLabel, undoLast,
 } from "@/lib/platform/engine";
 
@@ -358,9 +358,7 @@ function AssetView({ state, assetKey, section, setSection, leftMenuOpen, setLeft
       const espacoBonus = Math.max(0, asset.bonus.bonusCap - (asset.bonus.bonusGanhoTotal || 0));
       // O bônus depende do depósito: ganho = min(deposito * taxa, teto restante).
       // Aporte mínimo precisa satisfazer depósito + ganho >= faltaAtual.
-      const aporteProprio = faltaAtual <= 0 ? 0 : bonusRate > 0 && espacoBonus > 0
-        ? Math.max(faltaAtual / (1 + bonusRate), faltaAtual - espacoBonus)
-        : faltaAtual;
+      const aporteProprio = aporteMinimoComBonus(faltaAtual, parseNum(bonusPct), espacoBonus);
       const bonusGanho = Math.min(Math.max(0, aporteProprio) * bonusRate, espacoBonus);
       if (i >= asset.attempt.currentDayIndex) {
         const perda = Math.max(0, c.custoSePassar);
