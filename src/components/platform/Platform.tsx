@@ -866,7 +866,7 @@ function BonusPanel({ state, assetKey, reserva, folga, mutate }: { state: State;
 function Historico({ state, mutate, bancas, bancaAtivaId }: { state: State; mutate: (fn: (s: State) => void) => void; bancas?: Banca[] | undefined; bancaAtivaId?: string }) {
   const [filtroBanca, setFiltroBanca] = useState(bancaAtivaId ?? "todas");
   const filtradas = bancas?.filter((b) => filtroBanca === "todas" || b.id === filtroBanca);
-  const resumo = filtradas?.length ? filtradas.reduce((acc, b) => {
+  const resumo = bancas ? (filtradas ?? []).reduce((acc, b) => {
     const t = historicoTotals(b.state);
     acc.profit += t.profit; acc.resultadoReal += t.resultadoReal; acc.custoProprio += t.custoProprio;
     acc.aprovadas += b.state.counts.aprovadas; acc.reprovadas += b.state.counts.reprovadas;
@@ -874,7 +874,7 @@ function Historico({ state, mutate, bancas, bancaAtivaId }: { state: State; muta
   }, { profit: 0, resultadoReal: 0, custoProprio: 0, aprovadas: 0, reprovadas: 0 }) : { ...historicoTotals(state), ...state.counts };
   const { profit, resultadoReal, custoProprio } = resumo;
   const total = resumo.aprovadas + resumo.reprovadas;
-  const logFiltrado = filtradas?.length ? filtradas.flatMap((b) => b.state.log.map((e) => ({ ...e, bancaNome: b.nome }))).sort((a, b) => a.ts - b.ts) : state.log;
+  const logFiltrado = bancas ? (filtradas ?? []).flatMap((b) => b.state.log.map((e) => ({ ...e, bancaNome: b.nome }))).sort((a, b) => a.ts - b.ts) : state.log;
   const estadoHistorico = { ...state, log: logFiltrado };
   const roi = custoProprio > 0 ? (resultadoReal / custoProprio) * 100 : null;
   const base = custoProprio + resultadoReal;
