@@ -470,10 +470,8 @@ export function calcAporteFracionado(o: { margem: number; stopoutPct: number; cu
   const margem = Math.max(0, o.margem || 0);
   const total = margem * (1 + Math.max(0, o.stopoutPct || 0) / 100) + Math.max(0, o.custoDia || 0);
   const p = Math.max(0, o.bonusPct || 0) / 100;
-  const cap = o.bonusCap > 0 ? o.bonusCap : Infinity;
-  const proprio = Number.isFinite(cap)
-    ? aporteMinimoComBonus(total, o.bonusPct, cap)
-    : total / (1 + p);
+  const cap = Number.isFinite(o.bonusCap) ? Math.max(0, o.bonusCap) : 0;
+  const proprio = aporteMinimoComBonus(total, o.bonusPct, cap);
   const bonus = total - proprio;
   const economia = Math.max(0, (o.bancaIntegral || 0) - proprio);
   return { total, proprio, bonus, economia };
@@ -484,7 +482,7 @@ export interface CaixaDia { dia: number; necessario: number; saldoAntes: number;
 export function calcCaixaCiclo(a: Asset, key: AssetKey, bonusPct: number) {
   const calcs = computeAssetCalcs(a, key);
   const p = Math.max(0, bonusPct || 0) / 100;
-  const cap = a.bonus.bonusCap > 0 ? a.bonus.bonusCap : Infinity;
+  const cap = Number.isFinite(a.bonus.bonusCap) ? Math.max(0, a.bonus.bonusCap) : 0;
   const taxa = a.params.taxa || 0;
   let proprio = 0, bonus = 0, bonusTotal = 0, depositado = 0, perdaPropriaTotal = 0, perdaBonusTotal = 0;
   const dias: CaixaDia[] = a.days.map((d, i) => {
