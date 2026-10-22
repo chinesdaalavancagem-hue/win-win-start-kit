@@ -22,4 +22,14 @@ describe("mesma conta de aporte no card e no caixa", () => {
     const plano = calcCaixaCiclo(a, "ouro", 100);
     expect(plano.dias.every(d => d.deposito >= 0 && d.bonusGanho >= 0)).toBe(true);
   });
+  it("interpreta teto de bônus zerado como ausência de bônus, sem criar crédito ilimitado", () => {
+    const r = calcAporteFracionado({ margem: 0, stopoutPct: 50, custoDia: 100, bonusPct: 100, bonusCap: 0, bancaIntegral: 100 });
+    expect(r.proprio).toBe(100);
+    expect(r.bonus).toBe(0);
+    const a = defaultState().assets.ouro;
+    a.bonus.bonusCap = 0;
+    const plano = calcCaixaCiclo(a, "ouro", 100);
+    expect(plano.bonusTotal).toBe(0);
+    expect(plano.dias.every(d => d.bonusGanho === 0)).toBe(true);
+  });
 });
