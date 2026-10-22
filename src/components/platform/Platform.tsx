@@ -1238,6 +1238,8 @@ function SimuladorConsolidado({ bancas, estadoAtivo, bancaAtivaId, ativoAtual, b
   const [escolhas, setEscolhas] = useState<Record<string, AssetKey | "nenhum">>(
     () => bancaAtivaId ? { [bancaAtivaId]: ativoAtual } : {},
   );
+  const [margemObservada, setMargemObservada] = useState("");
+  const [folgaEstresse, setFolgaEstresse] = useState("20");
   const ativosPorBanca: Record<string, AssetKey | undefined> = {};
   for (const banca of bancas) {
     const ativo = escolhas[banca.id];
@@ -1247,6 +1249,8 @@ function SimuladorConsolidado({ bancas, estadoAtivo, bancaAtivaId, ativoAtual, b
   const espacoBonus = Math.max(0, bonusDoAtivo.bonusCap - bonusDoAtivo.bonusGanhoTotal);
   const cenario = calcularCoberturaSimultanea({
     bancas, ativosPorBanca, estadoAtivo, bancaAtivaId, bonusPct, bonusCapRestante: espacoBonus,
+    margemObservadaGoldPorLote: margemObservada.trim() ? parseNum(margemObservada) : undefined,
+    folgaMargemPct: parseNum(folgaEstresse),
   });
   return (
     <section className="rounded-xl border border-amber-700/40 bg-[#101a29] p-4">
@@ -1265,11 +1269,29 @@ function SimuladorConsolidado({ bancas, estadoAtivo, bancaAtivaId, ativoAtual, b
           </label>
         ))}
       </div>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <label className="text-xs text-blue-100/80">Margem observada no MT5 por 1 lote de Gold (US$)
+          <input inputMode="decimal" value={margemObservada} placeholder="Ex.: 822,80" onChange={(e) => setMargemObservada(e.target.value)} className="mt-1 w-full rounded-lg border border-cyan-900 bg-[#071426] p-2 font-mono text-white" />
+        </label>
+        <label className="text-xs text-blue-100/80">Folga adicional para simulação de estresse (%)
+          <input inputMode="decimal" value={folgaEstresse} onChange={(e) => setFolgaEstresse(e.target.value)} className="mt-1 w-full rounded-lg border border-cyan-900 bg-[#071426] p-2 font-mono text-white" />
+        </label>
+      </div>
+      <p className="mt-2 text-xs text-slate-400">A margem observada é usada apenas se for maior que a cadastrada; o valor salvo nos parâmetros não muda. A folga adicional se aplica à parcela de margem, não à perda projetada.</p>
       <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div><p className="text-[11px] text-slate-400">Cobertura das posições</p><p className="font-mono text-lg font-bold text-white">${fmt(cenario.necessario)}</p></div>
         <div><p className="text-[11px] text-slate-400">Saldo + bônus atual</p><p className="font-mono text-lg font-bold text-cyan-300">${fmt(cenario.disponivel)}</p></div>
         <div><p className="text-[11px] text-slate-400">Falta sem bônus novo</p><p className="font-mono text-lg font-bold text-amber-200">${fmt(cenario.aporteSemBonusNovo)}</p></div>
         <div><p className="text-[11px] text-slate-400">Aporte com bônus futuro*</p><p className="font-mono text-lg font-bold text-emerald-300">${fmt(cenario.aporteComBonusNovo)}</p></div>
+      </div>
+      <div className="mt-3 rounded-lg border border-amber-700/40 bg-[#0c1625] p-3">
+        <p className="text-xs font-semibold text-amber-200">Cenário com margem MT5 e folga adicional (estresse)</p>
+        <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <div><p className="text-[11px] text-slate-400">Cobertura exigida</p><p className="font-mono text-lg font-bold text-white">${fmt(cenario.necessarioEstresse)}</p></div>
+          <div><p className="text-[11px] text-slate-400">Aporte sem bônus futuro</p><p className="font-mono text-lg font-bold text-amber-200">${fmt(cenario.aporteEstresseSemBonusNovo)}</p></div>
+          <div><p className="text-[11px] text-slate-400">Aporte considerando bônus futuro*</p><p className="font-mono text-lg font-bold text-emerald-300">${fmt(cenario.aporteEstresseComBonusNovo)}</p></div>
+        </div>
+        <p className="mt-2 text-[11px] text-slate-400">Este cenário não é uma exigência oficial da corretora e não substitui a conferência da margem livre no MT5.</p>
       </div>
       <p className="mt-3 text-xs text-slate-400">Posições simuladas: {cenario.linhas.length}. Os valores pressupõem que todas as posições selecionadas estejam simultaneamente expostas à perda planejada. *Bônus futuro é hipotético e depende das condições reais da corretora; não é garantia de margem disponível. Não abrir operações somente com base nesta simulação.</p>
     </section>
