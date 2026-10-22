@@ -439,13 +439,24 @@ export function resetBonus(s: State, key: AssetKey) {
   b.bonusAtual = 0; b.deposito = 0; b.bonusGanhoTotal = 0;
 }
 
+/** Dinheiro novo mínimo que cobre a falta, contando somente bônus ainda concedível. */
+export function aporteMinimoComBonus(falta: number, bonusPct: number, espacoBonus: number): number {
+  const necessidade = Math.max(0, Number.isFinite(falta) ? falta : 0);
+  const taxa = Math.max(0, Number.isFinite(bonusPct) ? bonusPct : 0) / 100;
+  const teto = Math.max(0, Number.isFinite(espacoBonus) ? espacoBonus : 0);
+  if (necessidade === 0 || taxa === 0 || teto === 0) return necessidade;
+  return Math.max(necessidade / (1 + taxa), necessidade - teto);
+}
+
 /** Aporte fracionado: deposita só a parte que, somada ao bônus (pct% do depósito, limitado ao teto), cobre o necessário do dia. */
 export function calcAporteFracionado(o: { margem: number; stopoutPct: number; custoDia: number; bonusPct: number; bonusCap: number; bancaIntegral: number }) {
   const margem = Math.max(0, o.margem || 0);
   const total = margem * (1 + Math.max(0, o.stopoutPct || 0) / 100) + Math.max(0, o.custoDia || 0);
   const p = Math.max(0, o.bonusPct || 0) / 100;
   const cap = o.bonusCap > 0 ? o.bonusCap : Infinity;
-  const proprio = Math.max(total / (1 + p), total - cap);
+  const proprio = Number.isFinite(cap)
+    ? aporteMinimoComBonus(total, o.bonusPct, cap)
+    : total / (1 + p);
   const bonus = total - proprio;
   const economia = Math.max(0, (o.bancaIntegral || 0) - proprio);
   return { total, proprio, bonus, economia };
@@ -467,7 +478,7 @@ export function calcCaixaCiclo(a: Asset, key: AssetKey, bonusPct: number) {
     const saldoAntes = proprioAntes + bonusAntes;
     const falta = Math.max(0, necessario - saldoAntes);
     const espaco = Math.max(0, cap - bonusTotal);
-    const deposito = falta > 0 ? Math.max(falta / (1 + p), falta - espaco) : 0;
+    const deposito = aporteMinimoComBonus(falta, bonusPct, espaco);
     const bonusGanho = Math.min(deposito * p, espaco);
     proprio += deposito; bonus += bonusGanho; bonusTotal += bonusGanho; depositado += deposito;
     const proprioDisponivel = proprioAntes + deposito;
