@@ -25,7 +25,7 @@ const TABS: { key: TabKey; label: string; dot: string }[] = [
 const ASSET_NAME: Record<AssetKey, string> = { nasdaq: "NASDAQ", ouro: "GOLD", saque2: "SAQUE 2" };
 const rotuloDia = (asset: Asset, key: AssetKey, indice: number) => { const avaliacao = key === "ouro" ? diasAvaliacaoGold(asset) : key === "saque2" ? 0 : 3; return `D${indice < avaliacao ? indice + 1 : indice - avaliacao + 1} ${indice < avaliacao ? "Avaliação" : "Financiada"}`; };
 
-export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas, bancaAtivaId, mesaAtiva = "tradefive", onMesaChange = () => {} }: { load: () => Promise<string | null>; save: (v: string, acceptedAt?: string) => Promise<boolean>; isAdmin: boolean; officialAcceptedAt: string | null; allBancas?: Banca[]; bancaAtivaId?: string; mesaAtiva?: MesaFuturos; onMesaChange?: (mesa: MesaFuturos) => void }) {
+export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas, bancaAtivaId, podeDesfazerForex = true, mesaAtiva = "tradefive", onMesaChange = () => {} }: { load: () => Promise<string | null>; save: (v: string, acceptedAt?: string) => Promise<boolean>; isAdmin: boolean; officialAcceptedAt: string | null; allBancas?: Banca[]; bancaAtivaId?: string; podeDesfazerForex?: boolean; mesaAtiva?: MesaFuturos; onMesaChange?: (mesa: MesaFuturos) => void }) {
   const [state, setState] = useState<State | null>(null);
   const [section, setSection] = useState<Section>("operacoes");
   const [leftMenuOpen, setLeftMenuOpen] = useState(false);
@@ -197,7 +197,7 @@ export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas, b
         </Button>
       </div>
 
-      {tab === "historico" ? <Historico state={state} mutate={mutate} bancas={allBancas} bancaAtivaId={bancaAtivaId} /> : (
+      {tab === "historico" ? <Historico state={state} mutate={mutate} bancas={allBancas} bancaAtivaId={bancaAtivaId} podeDesfazerForex={podeDesfazerForex} /> : (
         <AssetView key={tab} state={state} assetKey={tab} section={section} setSection={setSection} leftMenuOpen={leftMenuOpen} setLeftMenuOpen={setLeftMenuOpen} desktopRailTop={desktopRailTop} mutate={mutate} isAdmin={isAdmin} />
       )}
 
@@ -863,7 +863,7 @@ function BonusPanel({ state, assetKey, reserva, folga, mutate }: { state: State;
 
 /* ---------- histórico ---------- */
 
-function Historico({ state, mutate, bancas, bancaAtivaId }: { state: State; mutate: (fn: (s: State) => void) => void; bancas?: Banca[] | undefined; bancaAtivaId?: string }) {
+function Historico({ state, mutate, bancas, bancaAtivaId, podeDesfazerForex = true }: { state: State; mutate: (fn: (s: State) => void) => void; bancas?: Banca[] | undefined; bancaAtivaId?: string; podeDesfazerForex?: boolean }) {
   const [filtroBanca, setFiltroBanca] = useState(bancaAtivaId ?? "todas");
   const filtradas = bancas?.filter((b) => filtroBanca === "todas" || b.id === filtroBanca);
   const resumo = bancas ? (filtradas ?? []).reduce((acc, b) => {
@@ -906,12 +906,13 @@ function Historico({ state, mutate, bancas, bancaAtivaId }: { state: State; muta
       <Chart state={estadoHistorico} />
       <Simulador state={estadoHistorico} />
       <div className="mb-3 flex justify-between">
-        {filtroBanca === (bancaAtivaId ?? "todas") && state.log.length > 0 ? <ConfirmButton variant="ghost" confirmText="clique de novo p/ confirmar" onConfirm={() => mutate(undoLast)}>desfazer última ação</ConfirmButton> : <span />}
+        {filtroBanca === (bancaAtivaId ?? "todas") && state.log.length > 0 ? <ConfirmButton variant="ghost" disabled={!podeDesfazerForex} confirmText="clique de novo p/ confirmar" onConfirm={() => mutate(undoLast)}>desfazer última ação</ConfirmButton> : <span />}
         <ConfirmButton variant="ghost" disabled={filtroBanca !== (bancaAtivaId ?? "todas")} className="text-destructive" confirmText="clique de novo (apaga o histórico)" onConfirm={() => mutate((s) => {
           s.log = []; s.totalGasto = 0; s.counts = { aprovadas: 0, reprovadas: 0 };
           for (const k of ["nasdaq", "ouro", "saque2"] as AssetKey[]) { s.assets[k].attempt.currentDayIndex = 0; s.assets[k].attempt.cycleCost = 0; }
         })}>limpar histórico</ConfirmButton>
       </div>
+      {!podeDesfazerForex && <p className="mb-2 text-xs text-amber-300">Desfazer indisponível: outra banca movimentou o saldo compartilhado após este registro.</p>}
       <LogList state={estadoHistorico} />
     </div>
   );
