@@ -352,20 +352,17 @@ export function tipoLabel(tipo: string, asset: string) {
 }
 
 export function historicoTotals(s: State) {
-  const profit = s.log.reduce((t, e) => {
-    if (e.tipo === "aprovada" && typeof e.custoProprioCiclo === "number") {
-      const a = s.assets[e.asset];
-      return t + ((a ? a.params.saqueAprovada || 0 : e.saque || 0) - e.custoProprioCiclo);
-    }
-    if (e.tipo === "reprovada" && typeof e.resultadoReal === "number") {
-      // resultadoReal já inclui a taxa de avaliação no custo do ciclo.
-      // Não somar a taxa de volta: o Profit deve ser líquido.
-      return t + e.resultadoReal;
-    }
-    return t;
+  const ciclos = s.log.filter((e) => e.tipo === "aprovada" || e.tipo === "reprovada");
+  // Usar os valores registrados na época da operação, nunca parâmetros atuais da banca.
+  const profit = ciclos.reduce((total, e) => {
+    if (typeof e.resultadoReal === "number" && Number.isFinite(e.resultadoReal)) return total + e.resultadoReal;
+    if (e.tipo === "aprovada" && typeof e.custoProprioCiclo === "number") return total + (e.saque ?? 0) - e.custoProprioCiclo;
+    return total;
   }, 0);
-  const resultadoReal = s.log.reduce((t, e) => ((e.tipo === "aprovada" || e.tipo === "reprovada") && typeof e.custoCiclo === "number" ? t + e.custoCiclo : t), 0);
-  const custoProprio = s.log.reduce((t, e) => ((e.tipo === "aprovada" || e.tipo === "reprovada") && typeof e.custoProprioCiclo === "number" ? t + Math.max(0, e.custoProprioCiclo - (e.taxaCobrada || 0)) : t), 0);
+  const resultadoReal = ciclos.reduce((total, e) =>
+    total + (typeof e.resultadoReal === "number" && Number.isFinite(e.resultadoReal) ? e.resultadoReal : 0), 0);
+  const custoProprio = ciclos.reduce((total, e) =>
+    total + (typeof e.custoProprioCiclo === "number" && Number.isFinite(e.custoProprioCiclo) ? Math.max(0, e.custoProprioCiclo) : 0), 0);
   return { profit, resultadoReal, custoProprio };
 }
 
