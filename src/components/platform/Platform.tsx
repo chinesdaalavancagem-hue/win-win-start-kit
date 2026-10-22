@@ -1,4 +1,5 @@
 import type { Banca } from "@/lib/platform/bancas";
+import { calcularCoberturaSimultanea } from "@/lib/platform/caixa-consolidado";
 import { createPortal } from "react-dom";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
@@ -25,7 +26,7 @@ const TABS: { key: TabKey; label: string; dot: string }[] = [
 const ASSET_NAME: Record<AssetKey, string> = { nasdaq: "NASDAQ", ouro: "GOLD", saque2: "SAQUE 2" };
 const rotuloDia = (asset: Asset, key: AssetKey, indice: number) => { const avaliacao = key === "ouro" ? diasAvaliacaoGold(asset) : key === "saque2" ? 0 : 3; return `D${indice < avaliacao ? indice + 1 : indice - avaliacao + 1} ${indice < avaliacao ? "Avaliação" : "Financiada"}`; };
 
-export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas, bancaAtivaId, podeDesfazerForex = true, mesaAtiva = "tradefive", onMesaChange = () => {} }: { load: () => Promise<string | null>; save: (v: string, acceptedAt?: string) => Promise<boolean>; isAdmin: boolean; officialAcceptedAt: string | null; allBancas?: Banca[]; bancaAtivaId?: string | undefined; podeDesfazerForex?: boolean; mesaAtiva?: MesaFuturos; onMesaChange?: (mesa: MesaFuturos) => void }) {
+export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas, bancasGlobais, bancaAtivaId, podeDesfazerForex = true, mesaAtiva = "tradefive", onMesaChange = () => {} }: { load: () => Promise<string | null>; save: (v: string, acceptedAt?: string) => Promise<boolean>; isAdmin: boolean; officialAcceptedAt: string | null; allBancas?: Banca[]; bancasGlobais?: Banca[] | undefined; bancaAtivaId?: string | undefined; podeDesfazerForex?: boolean; mesaAtiva?: MesaFuturos; onMesaChange?: (mesa: MesaFuturos) => void }) {
   const [state, setState] = useState<State | null>(null);
   const [section, setSection] = useState<Section>("operacoes");
   const [leftMenuOpen, setLeftMenuOpen] = useState(false);
@@ -198,7 +199,7 @@ export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas, b
       </div>
 
       {tab === "historico" ? <Historico state={state} mutate={mutate} bancas={allBancas} bancaAtivaId={bancaAtivaId} podeDesfazerForex={podeDesfazerForex} /> : (
-        <AssetView key={tab} state={state} assetKey={tab} section={section} setSection={setSection} leftMenuOpen={leftMenuOpen} setLeftMenuOpen={setLeftMenuOpen} desktopRailTop={desktopRailTop} mutate={mutate} isAdmin={isAdmin} />
+        <AssetView key={tab} state={state} bancasGlobais={bancasGlobais} bancaAtivaId={bancaAtivaId} assetKey={tab} section={section} setSection={setSection} leftMenuOpen={leftMenuOpen} setLeftMenuOpen={setLeftMenuOpen} desktopRailTop={desktopRailTop} mutate={mutate} isAdmin={isAdmin} />
       )}
 
       <BackupMenu state={state} mutate={mutate} save={save} onApplied={setState} isAdmin={isAdmin} officialAcceptedAt={officialAcceptedAt} mesaAtiva={mesaAtiva} />
@@ -294,7 +295,7 @@ const Note = ({ children }: { children: ReactNode }) => <p className="mt-3 font-
 
 /* ---------- aba de ativo ---------- */
 
-function AssetView({ state, assetKey, section, setSection, leftMenuOpen, setLeftMenuOpen, desktopRailTop, mutate, isAdmin }: { state: State; assetKey: AssetKey; section: Section; setSection: (s: Section) => void; leftMenuOpen: boolean; setLeftMenuOpen: (v: boolean) => void; desktopRailTop: number; mutate: (fn: (s: State) => void) => void; isAdmin: boolean }) {
+function AssetView({ state, bancasGlobais, bancaAtivaId, assetKey, section, setSection, leftMenuOpen, setLeftMenuOpen, desktopRailTop, mutate, isAdmin }: { state: State; bancasGlobais?: Banca[] | undefined; bancaAtivaId?: string | undefined; assetKey: AssetKey; section: Section; setSection: (s: Section) => void; leftMenuOpen: boolean; setLeftMenuOpen: (v: boolean) => void; desktopRailTop: number; mutate: (fn: (s: State) => void) => void; isAdmin: boolean }) {
   const asset = state.assets[assetKey];
   const avaliacaoDias = assetKey === "ouro" ? diasAvaliacaoGold(asset) : 3;
   const calcs = useMemo(() => computeAssetCalcs(asset, assetKey), [asset, assetKey]);
@@ -598,7 +599,7 @@ function AssetView({ state, assetKey, section, setSection, leftMenuOpen, setLeft
       )}
 
       {section === "aporte" && <AportePanel asset={asset} assetKey={assetKey} calcs={calcs} />}
-      {section === "caixa" && <CaixaPanel asset={asset} assetKey={assetKey} bonusPct={bonusPct} setBonusPct={setBonusPct} /> }
+      {section === "caixa" && <CaixaPanel asset={asset} state={state} bancasGlobais={bancasGlobais} bancaAtivaId={bancaAtivaId} assetKey={assetKey} bonusPct={bonusPct} setBonusPct={setBonusPct} /> }
       {section === "bonus" && <BonusPanel state={state} assetKey={assetKey} reserva={reservaComFolga} folga={folga} mutate={mutate} />}
 
       {section === "operacoes" && (
@@ -1249,7 +1250,52 @@ function AportePanel({ asset, assetKey, calcs }: { asset: Asset; assetKey: Asset
   );
 }
 
-function CaixaPanel({ asset, assetKey, bonusPct, setBonusPct }: { asset: Asset; assetKey: AssetKey; bonusPct: string; setBonusPct: (value: string) => void }) {
+/** O usuário escolhe explicitamente quais bancas planeja operar ao mesmo tempo. */
+function SimuladorConsolidado({ bancas, estadoAtivo, bancaAtivaId, ativoAtual, bonusPct }: {
+  bancas: Banca[]; estadoAtivo: State; bancaAtivaId?: string | undefined; ativoAtual: AssetKey; bonusPct: number;
+}) {
+  const [escolhas, setEscolhas] = useState<Record<string, AssetKey | "nenhum">>(
+    () => bancaAtivaId ? { [bancaAtivaId]: ativoAtual } : {},
+  );
+  const ativosPorBanca: Record<string, AssetKey | undefined> = {};
+  for (const banca of bancas) {
+    const ativo = escolhas[banca.id];
+    if (ativo && ativo !== "nenhum") ativosPorBanca[banca.id] = ativo;
+  }
+  const bonusDoAtivo = estadoAtivo.assets[ativoAtual].bonus;
+  const espacoBonus = Math.max(0, bonusDoAtivo.bonusCap - bonusDoAtivo.bonusGanhoTotal);
+  const cenario = calcularCoberturaSimultanea({
+    bancas, ativosPorBanca, estadoAtivo, bancaAtivaId, bonusPct, bonusCapRestante: espacoBonus,
+  });
+  return (
+    <section className="rounded-xl border border-amber-700/40 bg-[#101a29] p-4">
+      <h3 className="text-sm font-bold text-amber-100">Simulador de bancas simultâneas</h3>
+      <p className="mt-1 text-xs leading-relaxed text-slate-400">Selecione manualmente os dias que pretende operar ao mesmo tempo, inclusive em outras mesas. A plataforma não detecta posições abertas no MT5. O saldo Forex é descontado uma única vez.</p>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        {bancas.map((b) => (
+          <label key={b.id} className="flex min-w-0 items-center justify-between gap-2 rounded-lg border border-cyan-950 bg-[#081321] p-2 text-xs">
+            <span className="min-w-0 truncate font-semibold text-blue-100">{b.nome}</span>
+            <select aria-label={"Operação simulada da banca " + b.nome} className="max-w-[160px] rounded border border-cyan-900 bg-[#071426] p-1 text-xs text-white" value={escolhas[b.id] ?? "nenhum"} onChange={(e) => setEscolhas((prev) => ({ ...prev, [b.id]: e.target.value as AssetKey | "nenhum" }))}>
+              <option value="nenhum">Não incluir</option>
+              <option value="ouro">Gold</option>
+              <option value="nasdaq">Nasdaq</option>
+              <option value="saque2">Saque 2</option>
+            </select>
+          </label>
+        ))}
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div><p className="text-[11px] text-slate-400">Cobertura das posições</p><p className="font-mono text-lg font-bold text-white">${fmt(cenario.necessario)}</p></div>
+        <div><p className="text-[11px] text-slate-400">Saldo + bônus atual</p><p className="font-mono text-lg font-bold text-cyan-300">${fmt(cenario.disponivel)}</p></div>
+        <div><p className="text-[11px] text-slate-400">Falta sem bônus novo</p><p className="font-mono text-lg font-bold text-amber-200">${fmt(cenario.aporteSemBonusNovo)}</p></div>
+        <div><p className="text-[11px] text-slate-400">Aporte com bônus futuro*</p><p className="font-mono text-lg font-bold text-emerald-300">${fmt(cenario.aporteComBonusNovo)}</p></div>
+      </div>
+      <p className="mt-3 text-xs text-slate-400">Posições simuladas: {cenario.linhas.length}. Os valores pressupõem que todas as posições selecionadas estejam simultaneamente expostas à perda planejada. *Bônus futuro é hipotético e depende das condições reais da corretora; não é garantia de margem disponível. Não abrir operações somente com base nesta simulação.</p>
+    </section>
+  );
+}
+
+function CaixaPanel({ asset, state, bancasGlobais, bancaAtivaId, assetKey, bonusPct, setBonusPct }: { asset: Asset; state: State; bancasGlobais?: Banca[] | undefined; bancaAtivaId?: string | undefined; assetKey: AssetKey; bonusPct: string; setBonusPct: (value: string) => void }) {
   if (!asset.days.length) return <p className="text-muted-foreground">Cadastre os dias do ciclo em Parâmetros para ver o caixa.</p>;
   const r = calcCaixaCiclo(asset, assetKey, parseNum(bonusPct));
   const items: [string, number, string, string][] = [
@@ -1296,6 +1342,8 @@ function CaixaPanel({ asset, assetKey, bonusPct, setBonusPct }: { asset: Asset; 
           </article>
         ))}
       </div>
+
+      {bancasGlobais && bancasGlobais.length > 0 && <SimuladorConsolidado key={assetKey} bancas={bancasGlobais} estadoAtivo={state} bancaAtivaId={bancaAtivaId} ativoAtual={assetKey} bonusPct={parseNum(bonusPct)} />}
 
       <div className="overflow-hidden rounded-xl border border-cyan-950/90 bg-[#050d19]/85">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cyan-950/90 px-4 py-3">
