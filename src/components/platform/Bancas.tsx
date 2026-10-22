@@ -58,6 +58,8 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
   if (err) return <p className="m-auto text-destructive">Falha ao carregar as bancas.</p>;
   if (!doc) return <p className="m-auto text-muted-foreground">Carregando bancas...</p>;
   const ativa = selecionada;
+  // Desfazer só é permitido se nenhuma outra banca movimentou o Forex compartilhado.
+  const podeDesfazerForex = !!ativa && JSON.stringify(extrairForex(ativa.state)) === JSON.stringify(forexDoDocumento(doc));
 
   function exportar() {
     const current = docRef.current;
@@ -186,7 +188,7 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
         </section>
       )}
 
-      {ativa ? <Platform key={ativa.id} load={loadActive} save={saveActive} isAdmin={isAdmin} officialAcceptedAt={ativa.officialAcceptedAt ?? null} allBancas={bancasDaMesa} bancaAtivaId={ativa.id} mesaAtiva={mesa} onMesaChange={escolherMesa} /> : <section className="mx-auto my-10 max-w-lg rounded-xl border border-amber-800/60 bg-[#081321] p-5 text-center text-slate-200"><h3 className="font-bold">Nenhuma banca cadastrada na {MESAS_FUTUROS[mesa].nome}</h3><p className="mt-2 text-sm text-slate-400">As bancas das outras mesas permanecem preservadas. Crie uma banca nesta mesa para começar.</p><Button type="button" className="mt-3" onClick={() => setPainel(true)}>Cadastrar banca</Button></section>}
+      {ativa ? <Platform key={ativa.id} load={loadActive} save={saveActive} isAdmin={isAdmin} officialAcceptedAt={ativa.officialAcceptedAt ?? null} allBancas={bancasDaMesa} bancaAtivaId={ativa.id} podeDesfazerForex={podeDesfazerForex} mesaAtiva={mesa} onMesaChange={escolherMesa} /> : <section className="mx-auto my-10 max-w-lg rounded-xl border border-amber-800/60 bg-[#081321] p-5 text-center text-slate-200"><h3 className="font-bold">Nenhuma banca cadastrada na {MESAS_FUTUROS[mesa].nome}</h3><p className="mt-2 text-sm text-slate-400">As bancas das outras mesas permanecem preservadas. Crie uma banca nesta mesa para começar.</p><Button type="button" className="mt-3" onClick={() => setPainel(true)}>Cadastrar banca</Button></section>}
     </div>
   );
 }
