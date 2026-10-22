@@ -920,7 +920,7 @@ function Historico({ state, mutate, bancas, bancaAtivaId }: { state: State; muta
 function Chart({ state }: { state: State }) {
   const W = 700, H = 220, padL = 46, padR = 14, padT = 14, padB = 24;
   if (state.log.length === 0) return <div className="mb-4 rounded-lg border bg-card p-8 text-center font-mono text-xs text-muted-foreground">sem eventos registrados ainda</div>;
-  const pts = [0, ...state.log.map((e) => e.saldoApos)];
+  const pts = state.log.reduce<number[]>((acc, e) => { acc.push(acc[acc.length - 1]! + e.delta); return acc; }, [0]);
   let minV = Math.min(...pts), maxV = Math.max(...pts);
   if (minV === maxV) { minV -= 10; maxV += 10; }
   const pad = (maxV - minV) * 0.1; minV -= pad; maxV += pad;
@@ -936,7 +936,7 @@ function Chart({ state }: { state: State }) {
         <text x={padL - 6} y={H - padB} textAnchor="end" style={txt}>${fmt(minV)}</text>
         <path d={pts.map((v, i) => `${i ? "L" : "M"}${x(i)},${y(v)}`).join(" ")} fill="none" strokeWidth={2} style={{ stroke: "var(--market-up)" }} />
         {state.log.map((e, i) => (
-          <circle key={e.id} cx={x(i + 1)} cy={y(e.saldoApos)} r={3.5}
+          <circle key={e.id} cx={x(i + 1)} cy={y(pts[i + 1]!)} r={3.5}
             style={{ fill: e.tipo === "reprovada" ? "var(--market-down)" : e.asset === "ouro" && e.tipo === "profit" ? "var(--brand-gold)" : "var(--market-up)" }} />
         ))}
       </svg>
