@@ -867,14 +867,15 @@ function Historico({ state, mutate, bancas, bancaAtivaId }: { state: State; muta
   const [filtroBanca, setFiltroBanca] = useState(bancaAtivaId ?? "todas");
   const filtradas = bancas?.filter((b) => filtroBanca === "todas" || b.id === filtroBanca);
   const resumo = bancas ? (filtradas ?? []).reduce((acc, b) => {
-    const t = historicoTotals(b.state);
+    const atual = b.id === bancaAtivaId ? state : b.state;
+    const t = historicoTotals(atual);
     acc.profit += t.profit; acc.resultadoReal += t.resultadoReal; acc.custoProprio += t.custoProprio;
-    acc.aprovadas += b.state.counts.aprovadas; acc.reprovadas += b.state.counts.reprovadas;
+    acc.aprovadas += atual.counts.aprovadas; acc.reprovadas += atual.counts.reprovadas;
     return acc;
   }, { profit: 0, resultadoReal: 0, custoProprio: 0, aprovadas: 0, reprovadas: 0 }) : { ...historicoTotals(state), ...state.counts };
   const { profit, resultadoReal, custoProprio } = resumo;
   const total = resumo.aprovadas + resumo.reprovadas;
-  const logFiltrado = bancas ? (filtradas ?? []).flatMap((b) => b.state.log.map((e) => ({ ...e, bancaNome: b.nome }))).sort((a, b) => a.ts - b.ts) : state.log;
+  const logFiltrado = bancas ? (filtradas ?? []).flatMap((b) => (b.id === bancaAtivaId ? state.log : b.state.log).map((e) => ({ ...e, bancaNome: b.nome, id: `${b.id}:${e.id}` }))).sort((a, b) => a.ts - b.ts) : state.log;
   const estadoHistorico = { ...state, log: logFiltrado };
   const roi = custoProprio > 0 ? (resultadoReal / custoProprio) * 100 : null;
   const base = custoProprio + resultadoReal;
@@ -907,7 +908,7 @@ function Historico({ state, mutate, bancas, bancaAtivaId }: { state: State; muta
       <div className="mb-3 flex justify-between">
         {filtroBanca === (bancaAtivaId ?? "todas") && state.log.length > 0 ? <ConfirmButton variant="ghost" confirmText="clique de novo p/ confirmar" onConfirm={() => mutate(undoLast)}>desfazer última ação</ConfirmButton> : <span />}
         <ConfirmButton variant="ghost" disabled={filtroBanca !== (bancaAtivaId ?? "todas")} className="text-destructive" confirmText="clique de novo (apaga o histórico)" onConfirm={() => mutate((s) => {
-          s.log = []; s.cfdBalance = 0; s.totalGasto = 0; s.counts = { aprovadas: 0, reprovadas: 0 };
+          s.log = []; s.totalGasto = 0; s.counts = { aprovadas: 0, reprovadas: 0 };
           for (const k of ["nasdaq", "ouro", "saque2"] as AssetKey[]) { s.assets[k].attempt.currentDayIndex = 0; s.assets[k].attempt.cycleCost = 0; }
         })}>limpar histórico</ConfirmButton>
       </div>
