@@ -23,6 +23,11 @@ export function aplicarForex(state: State, forex: ForexCompartilhado): State {
   }
   return next;
 }
+/** A última operação só pode reverter o Forex quando seu snapshot ainda coincide com o compartilhado. */
+export function podeDesfazerBanca(doc: BancasDoc, banca: Banca): boolean {
+  return JSON.stringify(extrairForex(banca.state)) === JSON.stringify(forexDoDocumento(doc));
+}
+
 export function forexDoDocumento(doc: BancasDoc): ForexCompartilhado {
   if (doc.forex && Number.isFinite(doc.forex.cfdBalance) && ["nasdaq", "ouro", "saque2"].every((k) => doc.forex?.bonus?.[k as AssetKey])) return doc.forex;
   const ordered = [...doc.bancas].sort((a, b) => {
