@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Platform } from "./Platform";
 import { fmt, fmtSigned, MESAS_FUTUROS, selecionarMesaGold, type MesaFuturos } from "@/lib/platform/engine";
-import { type BancasDoc, aplicarForex, extrairForex, forexDoDocumento, novaBanca, parseBancas, relatorioCsv, resumoBanca } from "@/lib/platform/bancas";
+import { type BancasDoc, aplicarForex, extrairForex, forexDoDocumento, novaBanca, parseBancas, podeDesfazerBanca, relatorioCsv, resumoBanca } from "@/lib/platform/bancas";
 import { Plus, Building2, CheckCircle2, Pencil, Trash2, Download, ArrowUpRight, WalletCards, Activity } from "lucide-react";
 
 export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | null>; save: (v: string) => Promise<boolean>; isAdmin: boolean }) {
@@ -59,7 +59,7 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
   if (!doc) return <p className="m-auto text-muted-foreground">Carregando bancas...</p>;
   const ativa = selecionada;
   // Desfazer só é permitido se nenhuma outra banca movimentou o Forex compartilhado.
-  const podeDesfazerForex = !!ativa && JSON.stringify(extrairForex(ativa.state)) === JSON.stringify(forexDoDocumento(doc));
+  const podeDesfazerForex = !!ativa && podeDesfazerBanca(doc, ativa);
 
   function exportar() {
     const current = docRef.current;
