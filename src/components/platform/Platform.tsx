@@ -356,8 +356,10 @@ function AssetView({ state, assetKey, section, setSection, leftMenuOpen, setLeft
       const faltaAtual = Math.max(0, caixaProjetado.necessario - saldoAtual);
       const bonusRate = Math.max(0, parseNum(bonusPct)) / 100;
       const espacoBonus = Math.max(0, asset.bonus.bonusCap - (asset.bonus.bonusGanhoTotal || 0));
+      // O bônus depende do depósito: ganho = min(deposito * taxa, teto restante).
+      // Aporte mínimo precisa satisfazer depósito + ganho >= faltaAtual.
       const aporteProprio = faltaAtual <= 0 ? 0 : bonusRate > 0 && espacoBonus > 0
-        ? (faltaAtual <= espacoBonus ? faltaAtual / (1 + bonusRate) : faltaAtual - espacoBonus)
+        ? Math.max(faltaAtual / (1 + bonusRate), faltaAtual - espacoBonus)
         : faltaAtual;
       const bonusGanho = Math.min(Math.max(0, aporteProprio) * bonusRate, espacoBonus);
       if (i >= asset.attempt.currentDayIndex) {
