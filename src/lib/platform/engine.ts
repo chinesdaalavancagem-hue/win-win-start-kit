@@ -63,6 +63,8 @@ export interface LogEntry {
   prevBonusTodos?: Record<AssetKey, Bonus>;
   /** Registro real de saída: valor teórico sugerido, valor real liquidado e a diferença (spread/slippage). */
   cfdTeorico?: number; cfdReal?: number; spread?: number;
+  /** Assinatura do Forex compartilhado após a operação, para reversão segura. */
+  assinaturaForexApos?: string;
 }
 export interface State {
   activeTab: TabKey; assets: Record<AssetKey, Asset>; log: LogEntry[]; cfdBalance: number; totalGasto: number;
@@ -256,7 +258,21 @@ export function computeAssetCalcs(a: Asset, key: AssetKey): DayCalc[] {
 }
 
 export function nextLogId(s: State) { return s.log.reduce((m, e) => Math.max(m, e.id || 0), 0) + 1; }
-function pushLog(s: State, e: Omit<LogEntry, "id" | "ts">) { s.log.push({ ...e, id: nextLogId(s), ts: Date.now() } as LogEntry); }
+/** Inclui saldo, resultado CFD, crédito, depósitos e logs de movimentação. */
+function assinaturaForex(s: State): string {
+  return JSON.stringify({
+    cfdBalance: s.cfdBalance, forexSaldoReal: s.forexSaldoReal,
+    bonus: ASSETS.map((key) => s.assets[key].bonus),
+  });
+}
+function pushLog(s: State, e: Omit<LogEntry, "id" | "ts">) {
+  s.log.push({ ...e, id: nextLogId(s), ts: Date.now(), assinaturaForexApos: assinaturaForex(s) } as LogEntry);
+}
+export function podeDesfazerUltimaOperacao(s: State): boolean {
+  const last = s.log.at(-1);
+  // Sem assinatura (registros antigos), não há como garantir que o saldo não mudou.
+  return !!last?.assinaturaForexApos && last.assinaturaForexApos === assinaturaForex(s);
+}
 
 function debitarCustoDoBonus(s: State, key: AssetKey, custo: number) {
   if (!(custo > 0)) return { proporcaoPropria: 1, custoProprio: 0, custoBonus: 0 };
@@ -328,6 +344,7 @@ export function handleStop(s: State, key: AssetKey, realCfd?: number) {
 }
 
 export function undoLast(s: State) {
+  if (!podeDesfazerUltimaOperacao(s)) return;
   const last = s.log[s.log.length - 1];
   if (!last) return;
   if (typeof last.prevCfdBalance === "number") s.cfdBalance = last.prevCfdBalance;
