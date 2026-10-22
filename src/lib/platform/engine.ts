@@ -214,12 +214,12 @@ export function parseNum(s: unknown): number {
  * Aceita 1200,50, 1.200,50 e 1200.50; rejeita texto, Infinity e negativos.
  */
 export function parseValorFinanceiro(input: string): number | null {
-  const value = input.trim().replace(/\\s/g, "");
+  const value = input.trim().replace(/\s/g, "");
   if (!value) return null;
-  const brasileiro = /^\\d{1,3}(?:\\.\\d{3})+(?:,\\d+)?$/.test(value);
-  const simples = /^\\d+(?:[.,]\\d+)?$/.test(value);
+  const brasileiro = /^\d{1,3}(?:\.\d{3})+(?:,\d+)?$/.test(value);
+  const simples = /^\d+(?:[.,]\d+)?$/.test(value);
   if (!brasileiro && !simples) return null;
-  const normalizado = brasileiro ? value.replace(/\\./g, "").replace(",", ".") : value.replace(",", ".");
+  const normalizado = brasileiro ? value.replace(/\./g, "").replace(",", ".") : value.replace(",", ".");
   const n = Number(normalizado);
   return Number.isFinite(n) && n >= 0 ? n : null;
 }
