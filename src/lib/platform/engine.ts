@@ -469,7 +469,6 @@ export function aporteMinimoComBonus(falta: number, bonusPct: number, espacoBonu
 export function calcAporteFracionado(o: { margem: number; stopoutPct: number; custoDia: number; bonusPct: number; bonusCap: number; bancaIntegral: number }) {
   const margem = Math.max(0, o.margem || 0);
   const total = margem * (1 + Math.max(0, o.stopoutPct || 0) / 100) + Math.max(0, o.custoDia || 0);
-  const p = Math.max(0, o.bonusPct || 0) / 100;
   const cap = Number.isFinite(o.bonusCap) ? Math.max(0, o.bonusCap) : 0;
   const proprio = aporteMinimoComBonus(total, o.bonusPct, cap);
   const bonus = total - proprio;
