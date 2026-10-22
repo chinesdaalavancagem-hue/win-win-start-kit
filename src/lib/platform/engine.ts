@@ -210,6 +210,20 @@ export function parseNum(s: unknown): number {
   return isNaN(n) ? 0 : n;
 }
 
+/** Interpreta quantias inseridas manualmente sem converter entradas inválidas em zero.
+ * Aceita 1200,50, 1.200,50 e 1200.50; rejeita texto, Infinity e negativos.
+ */
+export function parseValorFinanceiro(input: string): number | null {
+  const value = input.trim().replace(/\\s/g, "");
+  if (!value) return null;
+  const brasileiro = /^\\d{1,3}(?:\\.\\d{3})+(?:,\\d+)?$/.test(value);
+  const simples = /^\\d+(?:[.,]\\d+)?$/.test(value);
+  if (!brasileiro && !simples) return null;
+  const normalizado = brasileiro ? value.replace(/\\./g, "").replace(",", ".") : value.replace(",", ".");
+  const n = Number(normalizado);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
 export function clampDayIndex(a: Asset): number {
   if (a.days.length === 0) { a.attempt.currentDayIndex = 0; return -1; }
   if (a.attempt.currentDayIndex >= a.days.length) a.attempt.currentDayIndex = a.days.length - 1;
@@ -398,7 +412,7 @@ export function atualizarSaldoReal(s: State, delta: number) {
 }
 
 export function aplicarDeposito(s: State, key: AssetKey, valor: number) {
-  if (valor <= 0) return;
+  if (!Number.isFinite(valor) || valor <= 0) return;
   const b = s.assets[key].bonus;
   const espaco = Math.max(0, b.bonusCap - b.bonusGanhoTotal);
   const ganho = Math.min(valor, espaco);
@@ -408,7 +422,7 @@ export function aplicarDeposito(s: State, key: AssetKey, valor: number) {
 }
 
 export function aplicarSaque(s: State, key: AssetKey, valor: number) {
-  if (valor <= 0) return;
+  if (!Number.isFinite(valor) || valor <= 0) return;
   const b = s.assets[key].bonus;
   const saldoAntes = s.forexSaldoReal ?? 0;
   if (saldoAntes <= 0 || valor > saldoAntes) return;
