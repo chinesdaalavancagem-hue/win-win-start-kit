@@ -11,7 +11,7 @@ import { applyOfficialParams, buildOfficialParams, isOfficialParams } from "@/li
 import {
   type AssetKey, type State, type TabKey, type Asset, type MesaFuturos, MESAS_FUTUROS, diasAvaliacaoGold, lossLimitGoldProjetado, lossLimitGoldEfetivo, adicionarDiaGold, removerDiaGold,
   aplicarDeposito, aplicarSaque, projetarAportesFuturos, conciliarCreditoForex, calcAporteFracionado, calcCaixaCiclo, clampDayIndex, computeAssetCalcs, defaultState, fmt, fmtSigned, handleProfit, handleStop,
-  historicoTotals, isValidState, normalizeState, parseNum, projetarZeragemBonus, resetBonus, tipoLabel, undoLast,
+  historicoTotals, isValidState, normalizeState, parseNum, parseValorFinanceiro, projetarZeragemBonus, resetBonus, tipoLabel, undoLast,
 } from "@/lib/platform/engine";
 
 type Section = "operacoes" | "parametros" | "bonus" | "aporte" | "caixa" | "meta";
@@ -698,6 +698,10 @@ function BonusPanel({ state, assetKey, reserva, folga, mutate }: { state: State;
   const [saquePendente, setSaquePendente] = useState<{ valor: number; saldoAnterior: number; creditoAnterior: number; ativo: AssetKey } | null>(null);
   const [saldoMt5, setSaldoMt5] = useState("");
   const [creditoMt5, setCreditoMt5] = useState("");
+  const valorSaldoMt5 = parseValorFinanceiro(saldoMt5);
+  const valorCreditoMt5 = parseValorFinanceiro(creditoMt5);
+  const valorDeposito = parseValorFinanceiro(dep);
+  const valorSaque = parseValorFinanceiro(saq);
   const saldoReal = state.forexSaldoReal ?? 0;
   const bonusForex = Object.values(state.assets).reduce((t, a) => t + Math.max(0, a.bonus.bonusAtual), 0);
   const total = saldoReal + bonusForex;
@@ -715,16 +719,16 @@ function BonusPanel({ state, assetKey, reserva, folga, mutate }: { state: State;
   const linhas: ReactNode[] = [];
   if (total <= 0 && reserva <= 0) linhas.push("estratégia de saque: registre um depósito e pelo menos 1 dia do ciclo atual pra calcular.");
   else {
-    linhas.push(<>composição atual: <strong>{fmt(total > 0 ? (saldoReal / total) * 100 : 0)}% próprio</strong> (${fmt(saldoReal)}) + <strong>{fmt(total > 0 ? (bonusForex / total) * 100 : 0)}% bônus</strong> (${fmt(bonusForex)})</>);
-    if ((b.deposito || 0) <= 0 && (b.bonusAtual || 0) > 0) linhas.push("🔴 seu depósito próprio já zerou — a partir de agora, toda perda sai direto do bônus.");
-    else if ((b.deposito || 0) > 0 && (b.bonusAtual || 0) > 0) linhas.push(<>faltam <strong>${fmt(b.deposito)}</strong> de depósito próprio pra zerar (a perda consome o próprio inteiro primeiro; só depois tira do bônus).</>);
+    linhas.push(<>composição atual: <strong>{fmt(total > 0 ? (saldoReal / total) * 100 : 0)}% saldo real</strong> (${fmt(saldoReal)}) + <strong>{fmt(total > 0 ? (bonusForex / total) * 100 : 0)}% bônus</strong> (${fmt(bonusForex)})</>);
+    if (saldoReal <= 0 && bonusForex > 0) linhas.push("🔴 o saldo real global chegou a zero: as próximas perdas podem consumir o bônus disponível.");
+    else if (saldoReal > 0 && bonusForex > 0) linhas.push(<>saldo real global disponível antes de consumir o bônus: <strong>${fmt(saldoReal)}</strong> (inclui resultados operacionais, não apenas depósitos).</>);
     if (reserva > 0) {
       linhas.push(<>reserva mínima pros dias que faltam (margem + buffer + {fmt(folga)}% de folga): <strong>${fmt(reserva)}</strong></>);
       const saqueSeguro = saldoReal > 0
         ? Math.min(saldoReal, Math.max(0, total - reserva) / (1 + bonusForex / saldoReal))
         : 0;
-      linhas.push(saqueSeguro > 0 ? <>👉 dá pra sacar até <strong>${fmt(saqueSeguro)}</strong> agora sem comprometer a reserva projetada (considerando a redução proporcional do bônus).</> : "🔴 não sobra espaço pra saque agora — sacar arrisca stop-out.");
-    } else linhas.push("sem exigência de margem registrada pros dias restantes — dá pra considerar sacar o saldo com bônus.");
+      linhas.push(saqueSeguro > 0 ? <>estimativa condicional de saque: <strong>${fmt(saqueSeguro)}</strong> apenas se não houver outras posições ou exigências de margem compartilhando o Forex. Confira a margem livre e o crédito no MT5 antes de registrar.</> : "🔴 não sobra espaço pra saque agora — sacar arrisca stop-out.");
+    } else linhas.push("sem reserva estimada para este ativo. Isso não significa que o saldo está livre para saque: verifique as demais posições e a margem no MT5.");
     const proj = projetarZeragemBonus(state, assetKey, b.bonusAtual || 0);
     if ((b.bonusAtual || 0) <= 0) linhas.push("bônus já está zerado.");
     else if (proj) linhas.push(<>no ritmo atual (média de ${fmt(proj.media)}/dia saindo do bônus, últimos {proj.amostras} registros), o bônus deve zerar em ~<strong>{fmt(proj.dias)} dias</strong>.</>);
@@ -770,7 +774,7 @@ function BonusPanel({ state, assetKey, reserva, folga, mutate }: { state: State;
           </div>
         </div>
 
-        <div className="mb-4 rounded-xl border border-[#18324e] bg-[#081321]/80 p-3.5"><p className="mb-2 text-xs text-slate-300">Conferir saldo real com o MetaTrader (para conciliar registros antigos; não apaga histórico)</p><div className="flex gap-2"><input aria-label="Saldo real MetaTrader" inputMode="decimal" className="min-w-0 flex-1 rounded-lg border border-[#19334f] bg-[#071321] px-3 py-2 font-mono text-sm" placeholder="Saldo real atual ($)" value={saldoMt5} onChange={(e) => setSaldoMt5(e.target.value)} /><Button type="button" variant="outline" disabled={!saldoMt5.trim() || parseNum(saldoMt5) < 0} onClick={() => { const valor = parseNum(saldoMt5); mutate((s) => { s.forexSaldoReal = valor; }); setSaldoMt5(""); }}>Conferir</Button></div><div className="mt-2 flex gap-2"><input aria-label="Crédito atual MetaTrader" inputMode="decimal" className="min-w-0 flex-1 rounded-lg border border-[#19334f] bg-[#071321] px-3 py-2 font-mono text-sm" placeholder="Crédito atual MT5 ($)" value={creditoMt5} onChange={(e) => setCreditoMt5(e.target.value)} /><Button type="button" variant="outline" disabled={!creditoMt5.trim() || parseNum(creditoMt5) < 0} onClick={() => { const valor = parseNum(creditoMt5); mutate((s) => conciliarCreditoForex(s, assetKey, valor)); setCreditoMt5(""); }}>Conferir crédito</Button></div></div>
+        <div className="mb-4 rounded-xl border border-[#18324e] bg-[#081321]/80 p-3.5"><p className="mb-2 text-xs text-slate-300">Conferir saldo real com o MetaTrader (para conciliar registros antigos; não apaga histórico)</p><div className="flex gap-2"><input aria-label="Saldo real MetaTrader" inputMode="decimal" className="min-w-0 flex-1 rounded-lg border border-[#19334f] bg-[#071321] px-3 py-2 font-mono text-sm" placeholder="Saldo real atual ($)" value={saldoMt5} onChange={(e) => setSaldoMt5(e.target.value)} /><Button type="button" variant="outline" disabled={valorSaldoMt5 === null} onClick={() => { if (valorSaldoMt5 === null) return; mutate((s) => { s.forexSaldoReal = valorSaldoMt5; }); setSaldoMt5(""); }}>Conferir</Button></div><div className="mt-2 flex gap-2"><input aria-label="Crédito atual MetaTrader" inputMode="decimal" className="min-w-0 flex-1 rounded-lg border border-[#19334f] bg-[#071321] px-3 py-2 font-mono text-sm" placeholder="Crédito atual MT5 ($)" value={creditoMt5} onChange={(e) => setCreditoMt5(e.target.value)} /><Button type="button" variant="outline" disabled={valorCreditoMt5 === null} onClick={() => { if (valorCreditoMt5 === null) return; mutate((s) => conciliarCreditoForex(s, assetKey, valorCreditoMt5)); setCreditoMt5(""); }}>Conferir crédito</Button></div></div>
         <div className="mb-5 rounded-xl border border-[#18324e] bg-[#081321]/80 p-4 sm:p-5">
           <div className="mb-4 flex items-center gap-2">
             <Calculator className="size-4 text-cyan-400" />
@@ -786,7 +790,7 @@ function BonusPanel({ state, assetKey, reserva, folga, mutate }: { state: State;
               <label className={labelClass}>Valor do depósito ($)
                 <input inputMode="decimal" value={dep} placeholder="Ex.: 1000" onChange={(e) => setDep(e.target.value)} className={inputClass} />
               </label>
-              <Button type="button" className="mt-3 w-full rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 font-bold text-slate-950 hover:from-emerald-400 hover:to-cyan-300" onClick={() => { const v = parseNum(dep); mutate((s) => aplicarDeposito(s, assetKey, v)); setDep(""); }}>Aplicar depósito</Button>
+              <Button type="button" className="mt-3 w-full rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 font-bold text-slate-950 hover:from-emerald-400 hover:to-cyan-300" disabled={valorDeposito === null || valorDeposito <= 0} onClick={() => { if (valorDeposito === null || valorDeposito <= 0) return; mutate((s) => aplicarDeposito(s, assetKey, valorDeposito)); setDep(""); }}>Aplicar depósito</Button>
             </div>
             <div className="rounded-xl border border-[#482d39] bg-gradient-to-br from-[#27131e]/70 to-[#0b101b] p-3.5 sm:p-4">
               <p className="mb-1 flex items-center gap-2 text-sm font-bold text-rose-300"><Wallet className="size-4" />Registrar saque</p>
@@ -795,10 +799,10 @@ function BonusPanel({ state, assetKey, reserva, folga, mutate }: { state: State;
                 <input inputMode="decimal" value={saq} placeholder="Ex.: 200" onChange={(e) => { setSaq(e.target.value); setSaquePendente(null); }} className={inputClass} />
               </label>
               <div className="mt-3 grid grid-cols-[1fr_auto] gap-2">
-                <Button type="button" variant="destructive" className="rounded-xl font-bold" onClick={() => { const v = parseNum(saq); if (!Number.isFinite(v) || v <= 0 || v > saldoReal) return; setSaquePendente({ valor: v, saldoAnterior: saldoReal, creditoAnterior: bonusForex, ativo: assetKey }); }}>Aplicar saque</Button>
-                <Button type="button" variant="outline" title="Zerar bônus atual e depósito próprio" aria-label="Zerar bônus atual e depósito próprio" className="rounded-xl border-[#35465b] bg-[#111c2b] text-slate-200 hover:border-rose-400/60 hover:bg-rose-950/40" onClick={() => mutate((s) => resetBonus(s, assetKey))}>↺</Button>
+                <Button type="button" variant="destructive" className="rounded-xl font-bold" disabled={valorSaque === null || valorSaque <= 0 || valorSaque > saldoReal} onClick={() => { if (valorSaque === null || valorSaque <= 0 || valorSaque > saldoReal) return; setSaquePendente({ valor: valorSaque, saldoAnterior: saldoReal, creditoAnterior: bonusForex, ativo: assetKey }); }}>Aplicar saque</Button>
+                <Button type="button" variant="outline" title="Zerar bônus atual e depósito próprio" aria-label="Zerar bônus atual e depósito próprio" className="rounded-xl border-[#35465b] bg-[#111c2b] text-slate-200 hover:border-rose-400/60 hover:bg-rose-950/40" onClick={() => { if (window.confirm("Zerar bônus, histórico de bônus acumulado e capital registrado deste ativo? Esta ação não pode ser desfeita pelo histórico de operações.")) mutate((s) => resetBonus(s, assetKey)); }}>↺</Button>
               </div>
-              <p className="mt-2 text-[11px] text-slate-400">Saque máximo registrado: <strong className="text-slate-100">${fmt(saldoReal)}</strong>. O botão ↺ zera os valores do ativo selecionado.</p>
+              <p className="mt-2 text-[11px] text-slate-400">Limite contábil de saque: <strong className="text-slate-100">${fmt(saldoReal)}</strong> (não significa margem livre para retirada). O botão ↺ exige confirmação antes de zerar os registros deste ativo.</p>
               {saquePendente && !saqueValido && (
                 <p role="status" className="mt-3 rounded-lg border border-amber-500/40 bg-amber-950/30 p-3 text-xs font-semibold text-amber-200">O saldo ou crédito mudou. Clique em Aplicar saque para recalcular. Nenhum saque foi registrado.</p>
               )}
