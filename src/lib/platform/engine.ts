@@ -403,7 +403,14 @@ export function aplicarSaque(s: State, key: AssetKey, valor: number) {
     return total + reduzido;
   }, 0);
   atualizarSaldoReal(s, -valor);
-  b.deposito = Math.max(0, b.deposito - valor);
+  // O saldo real é global. Reduzir apenas o depósito do ativo selecionado
+  // deixa valores antigos disponíveis em outros ativos e distorce os indicadores.
+  // Os campos "deposito" são parcelas históricas de capital próprio, não
+  // representam todo o saldo Forex (que também incorpora lucros/prejuízos).
+  for (const assetKey of ASSETS) {
+    const credit = s.assets[assetKey].bonus;
+    credit.deposito = Math.max(0, credit.deposito * (1 - proporcao));
+  }
   b.log.push({ ts: Date.now(), tipo: "saque", valor, proporcao, bonusReduzido });
 }
 
