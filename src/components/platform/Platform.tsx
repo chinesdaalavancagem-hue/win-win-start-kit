@@ -330,6 +330,8 @@ function AssetView({ state, assetKey, section, setSection, leftMenuOpen, setLeft
   let cum = saldo, totalMeta = 0, reservaMinima = 0;
   let caixaProprioProjetado = state.forexSaldoReal ?? forexProprio;
   let caixaBonusProjetado = forexBonus;
+  // O teto de bônus só pode ser utilizado uma vez ao longo dos dias projetados.
+  let bonusCapRestanteProjetado = Math.max(0, (asset.bonus.bonusCap || 0) - (asset.bonus.bonusGanhoTotal || 0));
   const rows = asset.days.map((d, i) => {
     const c = calcs[i]!;
     totalMeta += d.meta;
@@ -353,13 +355,17 @@ function AssetView({ state, assetKey, section, setSection, leftMenuOpen, setLeft
       const proprioAtual = Math.max(0, caixaProprioProjetado);
       const bonusAtual = Math.max(0, caixaBonusProjetado);
       const saldoAtual = proprioAtual + bonusAtual;
+      if (i < asset.attempt.currentDayIndex) {
+        return { ...caixaProjetado, saldoAntes: saldoAtual, proprioAntes: proprioAtual,
+          bonusAntes: bonusAtual, deposito: 0, bonusGanho: 0 };
+      }
       const faltaAtual = Math.max(0, caixaProjetado.necessario - saldoAtual);
       const bonusRate = Math.max(0, parseNum(bonusPct)) / 100;
-      const espacoBonus = Math.max(0, asset.bonus.bonusCap - (asset.bonus.bonusGanhoTotal || 0));
-      // O bônus depende do depósito: ganho = min(deposito * taxa, teto restante).
-      // Aporte mínimo precisa satisfazer depósito + ganho >= faltaAtual.
+      // Usar o teto restante do dia anterior, não repetir o teto inicial em cada dia.
+      const espacoBonus = bonusCapRestanteProjetado;
       const aporteProprio = aporteMinimoComBonus(faltaAtual, parseNum(bonusPct), espacoBonus);
       const bonusGanho = Math.min(Math.max(0, aporteProprio) * bonusRate, espacoBonus);
+      bonusCapRestanteProjetado = Math.max(0, bonusCapRestanteProjetado - bonusGanho);
       if (i >= asset.attempt.currentDayIndex) {
         const perda = Math.max(0, c.custoSePassar);
         const proprioDepois = proprioAtual + aporteProprio;
