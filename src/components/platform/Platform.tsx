@@ -11,7 +11,7 @@ import { applyOfficialParams, buildOfficialParams, isOfficialParams } from "@/li
 import {
   type AssetKey, type State, type TabKey, type Asset, type MesaFuturos, MESAS_FUTUROS, diasAvaliacaoGold, lossLimitGoldProjetado, lossLimitGoldEfetivo, adicionarDiaGold, removerDiaGold,
   aplicarDeposito, aplicarSaque, projetarAportesFuturos, conciliarCreditoForex, calcAporteFracionado, calcCaixaCiclo, clampDayIndex, computeAssetCalcs, defaultState, fmt, fmtSigned, handleProfit, handleStop,
-  historicoTotals, isValidState, normalizeState, parseNum, parseValorFinanceiro, projetarZeragemBonus, resetBonus, tipoLabel, undoLast,
+  historicoTotals, isValidState, normalizeState, parseNum, parseValorFinanceiro, parseResultadoCfd, podeDesfazerUltimaOperacao, projetarZeragemBonus, resetBonus, tipoLabel, undoLast,
 } from "@/lib/platform/engine";
 
 type Section = "operacoes" | "parametros" | "bonus" | "aporte" | "caixa" | "meta";
@@ -188,9 +188,9 @@ export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas, b
           <span className="size-2.5 rounded-full bg-amber-400 shadow-[0_0_10px_rgba(255,190,40,0.4)]" />
           <span>{lastOperation ? `${ASSET_NAME[lastOperation.asset]} · ${rotuloDia(state.assets[lastOperation.asset], lastOperation.asset, Math.max(0, lastOperation.day - 1))} · ${tipoLabel(lastOperation.tipo, lastOperation.asset)}` : "Nenhuma operação registrada"}</span>
         </div>
-        <Button type="button" variant="outline" className="w-full justify-start rounded-xl border-cyan-900/80 bg-[#071426] text-blue-100 hover:border-cyan-400 hover:bg-blue-950/60 sm:w-auto" disabled={!lastOperation} onClick={() => mutate((s) => {
+        <Button type="button" variant="outline" className="w-full justify-start rounded-xl border-cyan-900/80 bg-[#071426] text-blue-100 hover:border-cyan-400 hover:bg-blue-950/60 sm:w-auto" disabled={!lastOperation || !podeDesfazerForex || !podeDesfazerUltimaOperacao(state)} title={!lastOperation ? "Nenhuma operação para desfazer" : !podeDesfazerForex || !podeDesfazerUltimaOperacao(state) ? "Saldo Forex alterado ou registro antigo: desfazer bloqueado para proteger os saldos" : "Desfazer a última operação"} onClick={() => mutate((s) => {
           const last = s.log.at(-1);
-          if (!last) return;
+          if (!last || !podeDesfazerForex || !podeDesfazerUltimaOperacao(s)) return;
           undoLast(s);
           s.activeTab = last.asset;
         })}>
@@ -246,8 +246,11 @@ function Settle({ risco, custo, reprova, onProfit, onStop }: { risco: boolean; c
   const [modo, setModo] = useState<null | "profit" | "stop">(null);
   const [valor, setValor] = useState("");
   const teorico = modo === "profit" ? -custo : reprova;
-  const real = valor.trim() === "" ? teorico : parseNum(valor);
-  const spread = real - teorico;
+  const valorPreenchido = valor.trim() !== "";
+  const valorConvertido = valorPreenchido ? parseResultadoCfd(valor) : teorico;
+  const valorInvalido = valorConvertido === null;
+  const real = valorConvertido ?? teorico;
+  const spread = valorInvalido ? null : real - teorico;
   const abrir = (m: "profit" | "stop") => { setModo(m); setValor(String(Math.round((m === "profit" ? -custo : reprova) * 100) / 100)); };
   if (!modo) return (
     <div className="mt-3 grid grid-cols-2 gap-2">
@@ -261,12 +264,12 @@ function Settle({ risco, custo, reprova, onProfit, onStop }: { risco: boolean; c
       <p className="mt-1 font-mono text-xs text-muted-foreground">Valor teórico no CFD: <span className={teorico >= 0 ? "text-market-up" : "text-market-down"}>{fmtSigned(teorico)}</span></p>
       <label className="mt-2 block text-xs text-muted-foreground" htmlFor="valor-real">Valor real liquidado no CFD ($, use − para perda)</label>
       <input id="valor-real" inputMode="decimal" enterKeyHint="done" value={valor} onChange={(e) => setValor(e.target.value)} autoFocus
-        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); setModo(null); (modo === "profit" ? onProfit : onStop)(real); } else if (e.key === "Escape") setModo(null); }}
+        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (valorInvalido) return; setModo(null); (modo === "profit" ? onProfit : onStop)(real); } else if (e.key === "Escape") setModo(null); }}
         className="mt-1 w-full rounded-md border bg-background px-2 py-1.5 font-mono text-foreground" />
-      <p className="mt-1 font-mono text-xs">spread/slippage: <span className={spread >= 0 ? "text-market-up" : "text-market-down"}>{fmtSigned(spread)}</span></p>
+      <p className="mt-1 font-mono text-xs">spread/slippage: <span className={spread === null ? "text-market-down" : spread >= 0 ? "text-market-up" : "text-market-down"}>{spread === null ? "Valor CFD inválido" : fmtSigned(spread)}</span></p>
       {modo === "profit" && risco && <p className="mt-1 text-xs text-market-down">⚠️ margem em risco</p>}
       <div className="mt-3 grid grid-cols-2 gap-2">
-        <Button type="button" variant={modo === "stop" ? "destructive" : "default"} onClick={() => { setModo(null); (modo === "profit" ? onProfit : onStop)(real); }}>confirmar</Button>
+        <Button type="button" variant={modo === "stop" ? "destructive" : "default"} disabled={valorInvalido} onClick={() => { if (valorInvalido) return; setModo(null); (modo === "profit" ? onProfit : onStop)(real); }}>confirmar</Button>
         <Button type="button" variant="ghost" onClick={() => setModo(null)}>cancelar</Button>
       </div>
     </div>
