@@ -85,6 +85,6 @@ export function relatorioCsv(bancas: Banca[]): string {
   for (const b of bancas) { const r = resumoBanca(b); rows.push([b.nome, r.ciclos, r.aprovadas, r.reprovadas, num(r.lucro), num(r.totalGasto), num(r.cfd)]); }
   rows.push([], ["HISTÓRICO"], ["Banca", "Data", "Aba", "Dia", "Evento", "Resultado ($)", "Teórico CFD ($)", "Real CFD ($)", "Spread ($)", "Saldo após ($)"]);
   for (const b of bancas) for (const e of [...b.state.log].sort((x, y) => x.ts - y.ts))
-    rows.push([b.nome, new Date(e.ts).toLocaleString("pt-BR"), ASSET[e.asset] ?? e.asset, (e.day ?? 0) + 1, tipoLabel(e.tipo, e.asset), num(e.delta), typeof e.cfdTeorico === "number" ? num(e.cfdTeorico) : "", typeof e.cfdReal === "number" ? num(e.cfdReal) : "", typeof e.spread === "number" ? num(e.spread) : "", num(e.saldoApos)]);
+    rows.push([b.nome, new Date(e.ts).toLocaleString("pt-BR"), ASSET[e.asset] ?? e.asset, e.day ?? 0, tipoLabel(e.tipo, e.asset), num(e.delta), typeof e.cfdTeorico === "number" ? num(e.cfdTeorico) : "", typeof e.cfdReal === "number" ? num(e.cfdReal) : "", typeof e.spread === "number" ? num(e.spread) : "", num(e.saldoApos)]);
   return "\uFEFF" + rows.map((r) => r.map(csvCell).join(";")).join("\n");
 }
