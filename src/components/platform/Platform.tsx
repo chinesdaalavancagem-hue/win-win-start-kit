@@ -912,7 +912,7 @@ function Historico({ state, mutate, bancas, bancaAtivaId, podeDesfazerForex = tr
           for (const k of ["nasdaq", "ouro", "saque2"] as AssetKey[]) { s.assets[k].attempt.currentDayIndex = 0; s.assets[k].attempt.cycleCost = 0; }
         })}>limpar histórico</ConfirmButton>
       </div>
-      {!podeDesfazerForex && <p className="mb-2 text-xs text-amber-300">Desfazer indisponível: outra banca movimentou o saldo compartilhado após este registro.</p>}
+      {!podeDesfazerForex && state.log.length > 0 && filtroBanca === (bancaAtivaId ?? "todas") && <p className="mb-2 text-xs text-amber-300">Desfazer indisponível: o saldo compartilhado mudou após a operação ou o registro antigo não possui verificação segura. Os dados foram preservados.</p>}
       <LogList state={estadoHistorico} />
     </div>
   );
