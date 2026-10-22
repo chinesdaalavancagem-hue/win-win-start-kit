@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aplicarDeposito, aplicarSaque, defaultState, parseValorFinanceiro } from "@/lib/platform/engine";
+import { aplicarDeposito, aplicarSaque, defaultState, parseValorFinanceiro, parseResultadoCfd } from "@/lib/platform/engine";
 
 describe("integridade dos formulários financeiros", () => {
   it.each([
@@ -14,6 +14,19 @@ describe("integridade dos formulários financeiros", () => {
   it.each(["", "   ", "abc", "100abc", "Infinity", "NaN", "-5", "1.200.50", "1,200.50", "1e6"])(
     "rejeita entradas ambíguas ou inválidas %s", (raw) => {
       expect(parseValorFinanceiro(raw)).toBeNull();
+    },
+  );
+  it.each([
+    ["-1200,50", -1200.5],
+    ["-1.200,50", -1200.5],
+    ["+350,75", 350.75],
+    ["0", 0],
+  ])("interpreta lucro ou perda CFD %s", (raw, value) => {
+    expect(parseResultadoCfd(raw)).toBe(value);
+  });
+  it.each(["", "abc", "-Infinity", "12xyz", "--5", "1,200.50"])(
+    "impede liquidação CFD com valor inválido %s", (raw) => {
+      expect(parseResultadoCfd(raw)).toBeNull();
     },
   );
   it.each([Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, -5, 0])(
