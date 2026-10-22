@@ -465,6 +465,31 @@ export function aporteMinimoComBonus(falta: number, bonusPct: number, espacoBonu
   return Math.max(necessidade / (1 + taxa), necessidade - teto);
 }
 
+/** Projeta depósitos sobre o Forex compartilhado, consumindo o teto promocional uma única vez. */
+export function projetarAportesFuturos(o: {
+  necessidades: number[]; perdas: number[]; indiceAtual: number;
+  saldoReal: number; bonusAtual: number; bonusPct: number; bonusCapRestante: number;
+}) {
+  let proprio = Math.max(0, o.saldoReal || 0);
+  let bonus = Math.max(0, o.bonusAtual || 0);
+  let capRestante = Math.max(0, o.bonusCapRestante || 0);
+  const taxa = Math.max(0, o.bonusPct || 0) / 100;
+  return o.necessidades.map((necessario, indice) => {
+    const proprioAntes = proprio, bonusAntes = bonus;
+    const saldoAntes = proprioAntes + bonusAntes;
+    if (indice < o.indiceAtual) return { proprioAntes, bonusAntes, saldoAntes, deposito: 0, bonusGanho: 0 };
+    const falta = Math.max(0, necessario - saldoAntes);
+    const deposito = aporteMinimoComBonus(falta, o.bonusPct, capRestante);
+    const bonusGanho = Math.min(deposito * taxa, capRestante);
+    capRestante = Math.max(0, capRestante - bonusGanho);
+    const perda = Math.max(0, o.perdas[indice] || 0);
+    const restante = Math.max(0, perda - (proprio + deposito));
+    proprio = Math.max(0, proprio + deposito - perda);
+    bonus = Math.max(0, bonus + bonusGanho - restante);
+    return { proprioAntes, bonusAntes, saldoAntes, deposito, bonusGanho };
+  });
+}
+
 /** Aporte fracionado: deposita só a parte que, somada ao bônus (pct% do depósito, limitado ao teto), cobre o necessário do dia. */
 export function calcAporteFracionado(o: { margem: number; stopoutPct: number; custoDia: number; bonusPct: number; bonusCap: number; bancaIntegral: number }) {
   const margem = Math.max(0, o.margem || 0);
