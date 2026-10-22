@@ -729,13 +729,13 @@ function BonusPanel({ state, assetKey, reserva, folga, mutate }: { state: State;
   const linhas: ReactNode[] = [];
   if (total <= 0 && reserva <= 0) linhas.push("estratégia de saque: registre um depósito e pelo menos 1 dia do ciclo atual pra calcular.");
   else {
-    linhas.push(<>composição atual: <strong>{fmt(total > 0 ? (b.deposito / total) * 100 : 0)}% próprio</strong> (${fmt(b.deposito || 0)}) + <strong>{fmt(total > 0 ? (b.bonusAtual / total) * 100 : 0)}% bônus</strong> (${fmt(b.bonusAtual || 0)})</>);
+    linhas.push(<>composição atual: <strong>{fmt(total > 0 ? (saldoReal / total) * 100 : 0)}% próprio</strong> (${fmt(saldoReal)}) + <strong>{fmt(total > 0 ? (bonusForex / total) * 100 : 0)}% bônus</strong> (${fmt(bonusForex)})</>);
     if ((b.deposito || 0) <= 0 && (b.bonusAtual || 0) > 0) linhas.push("🔴 seu depósito próprio já zerou — a partir de agora, toda perda sai direto do bônus.");
     else if ((b.deposito || 0) > 0 && (b.bonusAtual || 0) > 0) linhas.push(<>faltam <strong>${fmt(b.deposito)}</strong> de depósito próprio pra zerar (a perda consome o próprio inteiro primeiro; só depois tira do bônus).</>);
     if (reserva > 0) {
       linhas.push(<>reserva mínima pros dias que faltam (margem + buffer + {fmt(folga)}% de folga): <strong>${fmt(reserva)}</strong></>);
-      const saqueSeguro = (b.deposito || 0) > 0
-        ? Math.min(b.deposito, Math.max(0, total - reserva) / (1 + (b.bonusAtual || 0) / b.deposito))
+      const saqueSeguro = saldoReal > 0
+        ? Math.min(saldoReal, Math.max(0, total - reserva) / (1 + bonusForex / saldoReal))
         : 0;
       linhas.push(saqueSeguro > 0 ? <>👉 dá pra sacar até <strong>${fmt(saqueSeguro)}</strong> agora sem comprometer a reserva projetada (considerando a redução proporcional do bônus).</> : "🔴 não sobra espaço pra saque agora — sacar arrisca stop-out.");
     } else linhas.push("sem exigência de margem registrada pros dias restantes — dá pra considerar sacar o saldo com bônus.");
