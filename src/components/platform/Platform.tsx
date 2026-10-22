@@ -25,7 +25,7 @@ const TABS: { key: TabKey; label: string; dot: string }[] = [
 const ASSET_NAME: Record<AssetKey, string> = { nasdaq: "NASDAQ", ouro: "GOLD", saque2: "SAQUE 2" };
 const rotuloDia = (asset: Asset, key: AssetKey, indice: number) => { const avaliacao = key === "ouro" ? diasAvaliacaoGold(asset) : key === "saque2" ? 0 : 3; return `D${indice < avaliacao ? indice + 1 : indice - avaliacao + 1} ${indice < avaliacao ? "Avaliação" : "Financiada"}`; };
 
-export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas, bancaAtivaId, podeDesfazerForex = true, mesaAtiva = "tradefive", onMesaChange = () => {} }: { load: () => Promise<string | null>; save: (v: string, acceptedAt?: string) => Promise<boolean>; isAdmin: boolean; officialAcceptedAt: string | null; allBancas?: Banca[]; bancaAtivaId?: string; podeDesfazerForex?: boolean; mesaAtiva?: MesaFuturos; onMesaChange?: (mesa: MesaFuturos) => void }) {
+export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas, bancaAtivaId, podeDesfazerForex = true, mesaAtiva = "tradefive", onMesaChange = () => {} }: { load: () => Promise<string | null>; save: (v: string, acceptedAt?: string) => Promise<boolean>; isAdmin: boolean; officialAcceptedAt: string | null; allBancas?: Banca[]; bancaAtivaId?: string | undefined; podeDesfazerForex?: boolean; mesaAtiva?: MesaFuturos; onMesaChange?: (mesa: MesaFuturos) => void }) {
   const [state, setState] = useState<State | null>(null);
   const [section, setSection] = useState<Section>("operacoes");
   const [leftMenuOpen, setLeftMenuOpen] = useState(false);
@@ -609,7 +609,7 @@ function AssetView({ state, assetKey, section, setSection, leftMenuOpen, setLeft
   );
 }
 
-type Row = { d: { mnq: number; lotes: number; meta: number }; c: ReturnType<typeof computeAssetCalcs>[number]; i: number; isCurrent: boolean; status: "ok" | "alerta" | "risco"; statusText: string; ticks: number; mult: number; caixaDia?: ReturnType<typeof calcCaixaCiclo>["dias"][number] | undefined };
+type Row = { d: Asset["days"][number]; c: ReturnType<typeof computeAssetCalcs>[number]; i: number; isCurrent: boolean; status: "ok" | "alerta" | "risco"; statusText: string; ticks: number; mult: number; caixaDia?: ReturnType<typeof calcCaixaCiclo>["dias"][number] | undefined };
 
 function DayCard({ row, asset, assetKey, avaliacaoDias, mutate, excedenteAtualSacavel }: { row: Row; asset: Asset; assetKey: AssetKey; avaliacaoDias: number; mutate: (fn: (s: State) => void) => void; excedenteAtualSacavel: number }) {
   const { d, c, i, isCurrent } = row;
@@ -863,7 +863,7 @@ function BonusPanel({ state, assetKey, reserva, folga, mutate }: { state: State;
 
 /* ---------- histórico ---------- */
 
-function Historico({ state, mutate, bancas, bancaAtivaId, podeDesfazerForex = true }: { state: State; mutate: (fn: (s: State) => void) => void; bancas?: Banca[] | undefined; bancaAtivaId?: string; podeDesfazerForex?: boolean }) {
+function Historico({ state, mutate, bancas, bancaAtivaId, podeDesfazerForex = true }: { state: State; mutate: (fn: (s: State) => void) => void; bancas?: Banca[] | undefined; bancaAtivaId?: string | undefined; podeDesfazerForex?: boolean }) {
   const [filtroBanca, setFiltroBanca] = useState(bancaAtivaId ?? "todas");
   const filtradas = bancas?.filter((b) => filtroBanca === "todas" || b.id === filtroBanca);
   const resumo = bancas ? (filtradas ?? []).reduce((acc, b) => {
@@ -875,7 +875,7 @@ function Historico({ state, mutate, bancas, bancaAtivaId, podeDesfazerForex = tr
   }, { profit: 0, resultadoReal: 0, custoProprio: 0, aprovadas: 0, reprovadas: 0 }) : { ...historicoTotals(state), ...state.counts };
   const { profit, resultadoReal, custoProprio } = resumo;
   const total = resumo.aprovadas + resumo.reprovadas;
-  const logFiltrado = bancas ? (filtradas ?? []).flatMap((b) => (b.id === bancaAtivaId ? state.log : b.state.log).map((e) => ({ ...e, bancaNome: b.nome, id: `${b.id}:${e.id}` }))).sort((a, b) => a.ts - b.ts) : state.log;
+  const logFiltrado = bancas ? (filtradas ?? []).flatMap((b) => (b.id === bancaAtivaId ? state.log : b.state.log).map((e) => ({ ...e, bancaNome: b.nome }))).sort((a, b) => a.ts - b.ts).map((e, index) => ({ ...e, id: index + 1 })) : state.log;
   const estadoHistorico = { ...state, log: logFiltrado };
   const roi = custoProprio > 0 ? (resultadoReal / custoProprio) * 100 : null;
   const base = custoProprio + resultadoReal;
