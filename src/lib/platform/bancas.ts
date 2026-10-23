@@ -75,17 +75,15 @@ export function resumoBanca(b: Banca) {
   const t = historicoTotals(b.state);
   const encerramentos = b.state.log.filter((e) => e.tipo === "aprovada" || e.tipo === "reprovada");
   const ciclos = encerramentos.length;
-  // Corrigir o preço de compra altera a visão econômica dos ciclos encerrados,
-  // sem reescrever logs históricos, saldo do Forex ou operações executadas.
-  // Cada encerramento registra o custo de compra efetivamente contabilizado
-  // no ciclo; a diferença é aplicada apenas à apresentação do resultado.
+  // O custo de compra é cobrado apenas nos eventos que registraram taxa.
+  // Eventos de encerramento sem taxa não representam uma nova compra.
+  // Corrigimos a apresentação sem modificar lançamentos, saldos ou histórico.
   const precoCorrigido = b.taxaCompra;
+  const comprasRegistradas = encerramentos.filter((evento) =>
+    typeof evento.taxaCobrada === "number" && Number.isFinite(evento.taxaCobrada) && evento.taxaCobrada > 0
+  );
   const ajusteCompra = typeof precoCorrigido === "number" && Number.isFinite(precoCorrigido)
-    ? encerramentos.reduce((ajuste, evento) => {
-        const custoRegistrado = typeof evento.taxaCobrada === "number" && Number.isFinite(evento.taxaCobrada)
-          ? evento.taxaCobrada : b.state.assets[evento.asset].params.taxa;
-        return ajuste + custoRegistrado - precoCorrigido;
-      }, 0)
+    ? comprasRegistradas.reduce((ajuste, evento) => ajuste + evento.taxaCobrada! - precoCorrigido, 0)
     : 0;
   return {
     aprovadas: b.state.counts.aprovadas, reprovadas: b.state.counts.reprovadas, ciclos,
