@@ -73,10 +73,23 @@ export function parseBancas(raw: string | null): BancasDoc {
 
 export function resumoBanca(b: Banca) {
   const t = historicoTotals(b.state);
-  const ciclos = b.state.log.filter((e) => e.tipo === "aprovada" || e.tipo === "reprovada").length;
+  const encerramentos = b.state.log.filter((e) => e.tipo === "aprovada" || e.tipo === "reprovada");
+  const ciclos = encerramentos.length;
+  // Corrigir o preço de compra altera a visão econômica dos ciclos encerrados,
+  // sem reescrever logs históricos, saldo do Forex ou operações executadas.
+  // Cada encerramento registra o custo de compra efetivamente contabilizado
+  // no ciclo; a diferença é aplicada apenas à apresentação do resultado.
+  const precoCorrigido = b.taxaCompra;
+  const ajusteCompra = typeof precoCorrigido === "number" && Number.isFinite(precoCorrigido)
+    ? encerramentos.reduce((ajuste, evento) => {
+        const custoRegistrado = typeof evento.taxaCobrada === "number" && Number.isFinite(evento.taxaCobrada)
+          ? evento.taxaCobrada : b.state.assets[evento.asset].params.taxa;
+        return ajuste + custoRegistrado - precoCorrigido;
+      }, 0)
+    : 0;
   return {
     aprovadas: b.state.counts.aprovadas, reprovadas: b.state.counts.reprovadas, ciclos,
-    lucro: t.profit, totalGasto: b.state.totalGasto, cfd: b.state.cfdBalance,
+    lucro: t.profit + ajusteCompra, totalGasto: b.state.totalGasto - ajusteCompra, cfd: b.state.cfdBalance,
     ultima: b.state.log.length ? Math.max(...b.state.log.map((e) => e.ts || 0)) : 0,
   };
 }
