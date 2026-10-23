@@ -63,7 +63,8 @@ export function parseBancas(raw: string | null): BancasDoc {
     const activeId = bancas.some((b) => b.id === p.activeId) ? p.activeId : bancas[0]?.id ?? "";
     const mesaAtiva: MesaFuturos = p.mesaAtiva === "lucid" || p.mesaAtiva === "mff" ? p.mesaAtiva : "tradefive";
     const ids = p.activeIdsMesa && typeof p.activeIdsMesa === "object" ? p.activeIdsMesa as Partial<Record<MesaFuturos, string>> : {};
-    const { ylos: _removedYlos, ...remainingIds } = ids as typeof ids & { ylos?: string };
+    const remainingIds = { ...ids } as typeof ids & { ylos?: string };
+    delete remainingIds.ylos;
     const activeIdsMesa = { ...remainingIds, tradefive: remainingIds.tradefive ?? bancas.find((b) => b.mesa === "tradefive")?.id ?? "" };
     const doc: BancasDoc = { bancasVersion: 1, activeId, bancas, mesaAtiva, activeIdsMesa };
     return { ...doc, forex: p.forex && Number.isFinite(p.forex.cfdBalance) && p.forex.bonus ? p.forex : forexDoDocumento(doc) };
