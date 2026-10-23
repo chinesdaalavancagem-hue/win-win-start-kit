@@ -14,10 +14,11 @@ export interface Params {
 export interface Attempt { currentDayIndex: number; cycleCost: number; custoProprioAcumulado: number }
 export interface BonusLog { ts: number; tipo: "deposito" | "saque" | "reset" | "ajuste_credito"; valor: number; dia?: number; bonusGanho?: number; proporcao?: number; bonusReduzido?: number; depositoZerado?: number }
 export interface Bonus { deposito: number; bonusAtual: number; bonusGanhoTotal: number; bonusCap: number; log: BonusLog[] }
-export type MesaFuturos = "tradefive" | "lucid" | "mff";
+export type MesaFuturos = "tradefive" | "lucid" | "mff" | "topstep";
 export const MESAS_FUTUROS: Record<MesaFuturos, { nome: string; consistencia: number; avaliacao: number; payout: number }> = {
   tradefive: { nome: "Tradeify", consistencia: 40, avaliacao: 3, payout: 5 },
   lucid: { nome: "Lucid Trading", consistencia: 50, avaliacao: 2, payout: 5 },
+  topstep: { nome: "Topstep 50K", consistencia: 55, avaliacao: 2, payout: 5 },
   mff: { nome: "My Funded Futures (MFF)", consistencia: 30, avaliacao: 4, payout: 5 },
 };
 export interface Asset { params: Params; days: Day[]; attempt: Attempt; bonus: Bonus; mesaFuturos?: MesaFuturos; diasPorMesa?: Partial<Record<MesaFuturos, Day[]>>; avaliacaoPorMesa?: Partial<Record<MesaFuturos, number>> }
