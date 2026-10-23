@@ -54,11 +54,20 @@ export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas, b
 
   useEffect(() => {
     const alignRails = () => {
-      if (heroRef.current) setDesktopRailTop(Math.max(12, Math.round(heroRef.current.getBoundingClientRect().top + 24)));
+      if (!heroRef.current) return;
+      const heroTop = heroRef.current.getBoundingClientRect().top + 24;
+      // A gestão de bancas pode ficar aberta acima da plataforma. Nunca usar
+      // a posição do hero fora da viewport para empurrar os menus fixos para baixo.
+      const top = heroTop >= 12 && heroTop <= window.innerHeight - 160 ? heroTop : 120;
+      setDesktopRailTop(Math.round(top));
     };
     alignRails();
     window.addEventListener("resize", alignRails);
-    return () => { window.removeEventListener("resize", alignRails); };
+    window.addEventListener("scroll", alignRails, { passive: true });
+    return () => {
+      window.removeEventListener("resize", alignRails);
+      window.removeEventListener("scroll", alignRails);
+    };
   }, [state !== null]);
   useEffect(() => { setSyncTarget(document.getElementById("wow-header-sync")); }, []);
   const dirty = useRef(false);
