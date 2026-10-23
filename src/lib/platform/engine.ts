@@ -14,12 +14,11 @@ export interface Params {
 export interface Attempt { currentDayIndex: number; cycleCost: number; custoProprioAcumulado: number }
 export interface BonusLog { ts: number; tipo: "deposito" | "saque" | "reset" | "ajuste_credito"; valor: number; dia?: number; bonusGanho?: number; proporcao?: number; bonusReduzido?: number; depositoZerado?: number }
 export interface Bonus { deposito: number; bonusAtual: number; bonusGanhoTotal: number; bonusCap: number; log: BonusLog[] }
-export type MesaFuturos = "tradefive" | "lucid" | "mff" | "ylos";
+export type MesaFuturos = "tradefive" | "lucid" | "mff";
 export const MESAS_FUTUROS: Record<MesaFuturos, { nome: string; consistencia: number; avaliacao: number; payout: number }> = {
   tradefive: { nome: "Tradeify", consistencia: 40, avaliacao: 3, payout: 5 },
   lucid: { nome: "Lucid Trading", consistencia: 50, avaliacao: 2, payout: 5 },
   mff: { nome: "My Funded Futures (MFF)", consistencia: 30, avaliacao: 4, payout: 5 },
-  ylos: { nome: "YlosTrading 50K (EOD + Sem Regras)", consistencia: 0, avaliacao: 1, payout: 7 },
 };
 export interface Asset { params: Params; days: Day[]; attempt: Attempt; bonus: Bonus; mesaFuturos?: MesaFuturos; diasPorMesa?: Partial<Record<MesaFuturos, Day[]>>; avaliacaoPorMesa?: Partial<Record<MesaFuturos, number>> }
 export interface LogEntry {
@@ -250,15 +249,13 @@ export interface DayCalc {
 /** Projeção sobre metas planejadas, não um limite efetivo confirmado pela mesa. */
 export function lossLimitGoldProjetado(a: Asset, indice: number): number {
   const avaliacao = diasAvaliacaoGold(a);
-  const ylos = a.mesaFuturos === "ylos";
-  const limiteBase = ylos ? 2500 : 2000;
-  if (indice <= avaliacao) return limiteBase;
+  if (indice <= avaliacao) return 2000;
   const metasAnteriores = a.days.slice(avaliacao, indice).reduce((soma, dia) => soma + (Number.isFinite(dia.meta) ? dia.meta : 0), 0);
-  return Math.max(0, (50000 + metasAnteriores) * (ylos ? 0.05 : 0.04));
+  return Math.max(0, (50000 + metasAnteriores) * 0.04);
 }
 
 export function lossLimitGoldEfetivo(a: Asset, indice: number): number {
-  if (indice <= diasAvaliacaoGold(a)) return a.mesaFuturos === "ylos" ? 2500 : 2000;
+  if (indice <= diasAvaliacaoGold(a)) return 2000;
   const manual = a.days[indice]?.mll;
   return typeof manual === "number" && Number.isFinite(manual) && manual > 0 ? manual : lossLimitGoldProjetado(a, indice);
 }
