@@ -168,7 +168,7 @@ export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas, b
           <div className="mb-3 flex items-center justify-between gap-2"><h3 className="font-bold text-amber-200">Mesa de futuros · Gold</h3><button type="button" aria-label="Fechar seleção de mesa" className="text-slate-300 hover:text-white" onClick={() => setMostrarMesas(false)}>✕</button></div>
           <label className="block text-xs text-slate-300">Mesa utilizada nesta banca</label>
           <select className="mt-2 w-full rounded-lg border border-amber-800/70 bg-[#06101f] p-3 text-sm text-white" value={mesaAtiva} onChange={(e) => onMesaChange(e.target.value as MesaFuturos)}>
-            {Object.entries(MESAS_FUTUROS).map(([id, m]) => <option key={id} value={id}>{m.nome} · {m.consistencia}%</option>)}
+            {Object.entries(MESAS_FUTUROS).map(([id, m]) => <option key={id} value={id}>{m.nome} · {m.consistencia === 0 ? "Sem consistência" : `${m.consistencia}%`}</option>)}
           </select>
           <p className="mt-3 text-xs leading-relaxed text-slate-300">{(() => { const m = MESAS_FUTUROS[mesaAtiva]; const avaliacao = diasAvaliacaoGold(state.assets.ouro); return `${avaliacao} dias de avaliação + ${state.assets.ouro.days.length - avaliacao} dias de conta financiada = ${state.assets.ouro.days.length} cards (padrão da mesa: ${m.avaliacao}+${m.payout}).`; })()}</p>
           <div className="mt-3 rounded-lg border border-amber-900/60 bg-black/20 p-3 text-xs text-slate-200">
@@ -177,6 +177,7 @@ export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas, b
               const dias = state.assets.ouro.days.slice(0, diasAvaliacaoGold(state.assets.ouro));
               const totalMetas = dias.reduce((v, dia) => v + Math.max(0, dia.meta), 0);
               const percentualMaiorDia = totalMetas > 0 ? Math.max(...dias.map((dia) => Math.max(0, dia.meta))) / totalMetas * 100 : 0;
+              if (mesa.consistencia === 0) return <p>Sem regra de consistência. Saque: 7 dias úteis com lucro mínimo de US$ 50 por dia (condição separada da avaliação).</p>;
               return <><p>Consistência máxima: <strong className="text-amber-200">{mesa.consistencia}%</strong></p><p className="mt-1">Maior meta diária / soma das metas: <strong>{fmt(percentualMaiorDia)}%</strong></p><p className={cn("mt-1", percentualMaiorDia > mesa.consistencia ? "text-rose-300" : "text-emerald-300")}>{totalMetas <= 0 ? "Configure as metas da avaliação." : percentualMaiorDia > mesa.consistencia ? "Atenção: metas ultrapassam o limite de consistência." : "Metas compatíveis com o limite informado."}</p></>;
             })()}
           </div>
