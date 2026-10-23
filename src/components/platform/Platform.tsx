@@ -180,7 +180,6 @@ export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas, b
             {Object.entries(MESAS_FUTUROS).map(([id, m]) => <option key={id} value={id}>{m.nome} · {m.consistencia === 0 ? "Sem consistência" : `${m.consistencia}%`}</option>)}
           </select>
           <p className="mt-3 text-xs leading-relaxed text-slate-300">{(() => { const m = MESAS_FUTUROS[mesaAtiva]; const avaliacao = diasAvaliacaoGold(state.assets.ouro); return `${avaliacao} dias de avaliação + ${state.assets.ouro.days.length - avaliacao} dias de conta financiada = ${state.assets.ouro.days.length} cards (padrão da mesa: ${m.avaliacao}+${m.payout}).`; })()}</p>
-          {mesaAtiva === "topstep" && <p className="mt-2 text-xs text-amber-200">Topstep 50K: meta da avaliação US$ 3.000; Loss Limit geral US$ 2.000; sem consistência na financiada. A desativação do limite diário depende da opção contratada na Topstep.</p>}
           <div className="mt-3 rounded-lg border border-amber-900/60 bg-black/20 p-3 text-xs text-slate-200">
             {(() => {
               const mesa = MESAS_FUTUROS[mesaAtiva];
