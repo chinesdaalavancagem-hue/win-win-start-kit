@@ -33,7 +33,7 @@ export function isOfficialParams(payload: unknown): payload is OfficialParamsPay
   const p = payload as { format?: unknown; version?: unknown; assets?: Record<string, unknown> };
   if (p.format !== OFFICIAL_PARAMS_FORMAT || p.version !== 1 || !p.assets || typeof p.assets !== "object") return false;
   const mesa = (payload as { mesaFuturos?: unknown }).mesaFuturos;
-  if (mesa !== undefined && mesa !== "tradefive" && mesa !== "lucid" && mesa !== "mff") return false;
+  if (mesa !== undefined && mesa !== "tradefive" && mesa !== "lucid" && mesa !== "mff" && mesa !== "ylos") return false;
   return ASSETS.every((key) => {
     const asset = p.assets![key] as { params?: unknown; days?: unknown } | undefined;
     const params = asset?.params as Record<string, unknown> | undefined;
