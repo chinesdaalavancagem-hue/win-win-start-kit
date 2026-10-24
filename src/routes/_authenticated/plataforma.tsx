@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Download, LogOut } from "lucide-react";
+import { Download, LogOut, Menu, X } from "lucide-react";
 import { getMyAccess, signOut } from "@/lib/session";
 import { registrarAuditoria } from "@/lib/auditoria-registro";
 import { Bancas } from "@/components/platform/Bancas";
@@ -24,6 +24,7 @@ function Plataforma() {
   const [installPrompt, setInstallPrompt] = useState<Event | null>(null);
   const [showInstall, setShowInstall] = useState(false);
   const [installHelp, setInstallHelp] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const standalone = () => window.matchMedia("(display-mode: standalone)").matches ||
@@ -143,13 +144,20 @@ function Plataforma() {
           {isAdmin && <span className="shrink-0 rounded-full bg-primary px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-primary-foreground">Master</span>}
           <span id="wow-header-sync" className="shrink-0" />
         </span>
-        <div className="flex max-w-full gap-2 overflow-x-auto pb-0.5">
+        <div className="flex items-center gap-2 lg:hidden">
           {state === "ok" && showInstall && (
             <Button size="sm" type="button" onClick={() => void installApp()}
-              className="shrink-0 rounded-xl border border-amber-300/80 bg-amber-400 font-extrabold text-slate-950 shadow-[0_0_18px_rgba(251,191,36,0.32)] hover:bg-amber-300">
+              className="min-w-0 rounded-xl border border-amber-300/80 bg-amber-400 font-extrabold text-slate-950 shadow-[0_0_18px_rgba(251,191,36,0.32)] hover:bg-amber-300">
               <Download className="mr-1.5 size-4" aria-hidden="true" />Baixar aplicativo
             </Button>
           )}
+
+          <Button type="button" size="sm" variant="outline" aria-label={mobileMenuOpen ? "Fechar menu" : "Abrir menu"} aria-expanded={mobileMenuOpen} onClick={() => setMobileMenuOpen(v => !v)}
+            className="shrink-0 rounded-xl border-cyan-700 bg-[#07162a] text-blue-100">
+            {mobileMenuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
+          </Button>
+        </div>
+        <div className="hidden max-w-full flex-wrap gap-2 lg:flex">
           {state === "ok" && <Button asChild size="sm" variant="outline" className="shrink-0 rounded-xl border-cyan-800/70 bg-[#07162a] text-blue-100 hover:border-cyan-400 hover:bg-blue-950/70"><Link to="/integracao">▦ Integração</Link></Button>}
           {state === "ok" && <Button asChild size="sm" variant="outline" className="shrink-0 rounded-xl border-cyan-950 bg-[#07101f] text-blue-100 hover:border-cyan-500 hover:bg-blue-950/70"><Link to="/analise-ia">◉ Análise IA</Link></Button>}
           {isAdmin === true && <Button asChild size="sm" variant="outline" className="shrink-0 rounded-xl border-cyan-950 bg-[#07101f] text-blue-100 hover:border-cyan-500 hover:bg-blue-950/70"><Link to="/admin">♙ Aprovar cadastros</Link></Button>}
@@ -158,6 +166,19 @@ function Plataforma() {
           <Button size="sm" variant="outline" className="shrink-0 rounded-xl border-red-500/70 bg-red-950/50 font-bold text-red-200 shadow-[0_0_18px_rgba(220,38,38,0.16)] transition-colors hover:border-red-400 hover:bg-red-900/70 hover:text-white focus-visible:ring-red-400" onClick={() => signOut(navigate)}><LogOut className="mr-1.5 size-4 shrink-0" aria-hidden="true" />Sair da plataforma</Button>
         </div>
       </header>
+      {mobileMenuOpen && (
+        <nav aria-label="Menu da plataforma" className="sticky top-[var(--wow-header-height,0px)] z-20 flex flex-col gap-2 border-b border-cyan-800 bg-[#050d1b] p-3 lg:hidden" onClick={() => setMobileMenuOpen(false)}>
+
+          {state === "ok" && <Button asChild size="sm" variant="outline" className="w-full justify-start rounded-xl border-cyan-800/70 bg-[#07162a] text-blue-100 hover:border-cyan-400 hover:bg-blue-950/70"><Link to="/integracao">▦ Integração</Link></Button>}
+          {state === "ok" && <Button asChild size="sm" variant="outline" className="w-full justify-start rounded-xl border-cyan-950 bg-[#07101f] text-blue-100 hover:border-cyan-500 hover:bg-blue-950/70"><Link to="/analise-ia">◉ Análise IA</Link></Button>}
+          {isAdmin === true && <Button asChild size="sm" variant="outline" className="w-full justify-start rounded-xl border-cyan-950 bg-[#07101f] text-blue-100 hover:border-cyan-500 hover:bg-blue-950/70"><Link to="/admin">♙ Aprovar cadastros</Link></Button>}
+          {state === "ok" && isAdmin && <Button size="sm" disabled={publishBusy} className="w-full justify-start rounded-xl bg-cyan-600 text-white hover:bg-cyan-500" onClick={() => void publishOfficial()}>↗ Enviar parâmetros aos usuários</Button>}
+          {isAdmin === true && <Button asChild size="sm" variant="outline" className="w-full justify-start rounded-xl border-cyan-950 bg-[#07101f] text-blue-100 hover:border-cyan-500 hover:bg-blue-950/70"><Link to="/auditoria">⛨ Auditoria</Link></Button>}
+          <Button size="sm" variant="outline" className="w-full justify-start rounded-xl border-red-500/70 bg-red-950/50 font-bold text-red-200 shadow-[0_0_18px_rgba(220,38,38,0.16)] transition-colors hover:border-red-400 hover:bg-red-900/70 hover:text-white focus-visible:ring-red-400" onClick={() => signOut(navigate)}><LogOut className="mr-1.5 size-4 shrink-0" aria-hidden="true" />Sair da plataforma</Button>
+        
+        </nav>
+      )}
+
       {state === "ok" && installHelp && showInstall && (
         <div role="status" className="border-b border-amber-700/40 bg-[#142032] px-4 py-2 text-sm text-amber-100">
           { /iPad|iPhone|iPod/.test(navigator.userAgent)
