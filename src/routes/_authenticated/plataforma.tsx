@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { LogOut } from "lucide-react";
+import { Download, LogOut } from "lucide-react";
 import { getMyAccess, signOut } from "@/lib/session";
 import { registrarAuditoria } from "@/lib/auditoria-registro";
 import { Bancas } from "@/components/platform/Bancas";
@@ -21,6 +21,50 @@ function Plataforma() {
   const [name, setName] = useState("");
   const [publishBusy, setPublishBusy] = useState(false);
   const [publishMessage, setPublishMessage] = useState("");
+  const [installPrompt, setInstallPrompt] = useState<Event | null>(null);
+  const [showInstall, setShowInstall] = useState(false);
+  const [installHelp, setInstallHelp] = useState(false);
+
+  useEffect(() => {
+    const standalone = () => window.matchMedia("(display-mode: standalone)").matches ||
+      (navigator as Navigator & { standalone?: boolean }).standalone === true;
+    const installedHere = () => window.localStorage.getItem("wow-pwa-installed") === "1";
+    setShowInstall(!standalone() && !installedHere());
+    const onPrompt = (event: Event) => {
+      event.preventDefault();
+      setInstallPrompt(event);
+      if (!standalone() && !installedHere()) setShowInstall(true);
+    };
+    const onInstalled = () => {
+      window.localStorage.setItem("wow-pwa-installed", "1");
+      setShowInstall(false);
+      setInstallHelp(false);
+      setInstallPrompt(null);
+    };
+    const onModeChange = () => { if (standalone()) setShowInstall(false); };
+    window.addEventListener("beforeinstallprompt", onPrompt);
+    window.addEventListener("appinstalled", onInstalled);
+    const media = window.matchMedia("(display-mode: standalone)");
+    media.addEventListener?.("change", onModeChange);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onPrompt);
+      window.removeEventListener("appinstalled", onInstalled);
+      media.removeEventListener?.("change", onModeChange);
+    };
+  }, []);
+
+  const installApp = async () => {
+    const prompt = installPrompt as (Event & {
+      prompt?: () => Promise<void>;
+      userChoice?: Promise<{ outcome: string }>;
+    }) | null;
+    if (!prompt?.prompt) { setInstallHelp(true); return; }
+    setInstallPrompt(null);
+    await prompt.prompt();
+    // Só ocultar após o evento appinstalled: o usuário pode cancelar.
+    await prompt.userChoice?.catch(() => undefined);
+  };
+
   const versionRef = useRef<number | null>(null);
   const conflictRef = useRef(false);
 
@@ -100,6 +144,12 @@ function Plataforma() {
           <span id="wow-header-sync" className="shrink-0" />
         </span>
         <div className="flex max-w-full gap-2 overflow-x-auto pb-0.5">
+          {state === "ok" && showInstall && (
+            <Button size="sm" type="button" onClick={() => void installApp()}
+              className="shrink-0 rounded-xl border border-amber-300/80 bg-amber-400 font-extrabold text-slate-950 shadow-[0_0_18px_rgba(251,191,36,0.32)] hover:bg-amber-300">
+              <Download className="mr-1.5 size-4" aria-hidden="true" />Baixar aplicativo
+            </Button>
+          )}
           {state === "ok" && <Button asChild size="sm" variant="outline" className="shrink-0 rounded-xl border-cyan-800/70 bg-[#07162a] text-blue-100 hover:border-cyan-400 hover:bg-blue-950/70"><Link to="/integracao">▦ Integração</Link></Button>}
           {state === "ok" && <Button asChild size="sm" variant="outline" className="shrink-0 rounded-xl border-cyan-950 bg-[#07101f] text-blue-100 hover:border-cyan-500 hover:bg-blue-950/70"><Link to="/analise-ia">◉ Análise IA</Link></Button>}
           {isAdmin === true && <Button asChild size="sm" variant="outline" className="shrink-0 rounded-xl border-cyan-950 bg-[#07101f] text-blue-100 hover:border-cyan-500 hover:bg-blue-950/70"><Link to="/admin">♙ Aprovar cadastros</Link></Button>}
@@ -108,6 +158,14 @@ function Plataforma() {
           <Button size="sm" variant="outline" className="shrink-0 rounded-xl border-red-500/70 bg-red-950/50 font-bold text-red-200 shadow-[0_0_18px_rgba(220,38,38,0.16)] transition-colors hover:border-red-400 hover:bg-red-900/70 hover:text-white focus-visible:ring-red-400" onClick={() => signOut(navigate)}><LogOut className="mr-1.5 size-4 shrink-0" aria-hidden="true" />Sair da plataforma</Button>
         </div>
       </header>
+      {state === "ok" && installHelp && showInstall && (
+        <div role="status" className="border-b border-amber-700/40 bg-[#142032] px-4 py-2 text-sm text-amber-100">
+          { /iPad|iPhone|iPod/.test(navigator.userAgent)
+            ? "No iPhone/iPad: abra no Safari, toque em Compartilhar e depois em Adicionar à Tela de Início."
+            : "A instalação direta não está disponível neste navegador. No Chrome ou Edge, abra o menu do navegador e escolha Instalar aplicativo ou Adicionar à tela inicial."}
+          <button type="button" onClick={() => setInstallHelp(false)} className="ml-3 underline">Fechar</button>
+        </div>
+      )}
       {publishMessage && <p role="status" className="px-4 py-2 text-xs text-cyan-200">{publishMessage}</p>}
       {state === "loading" && <p className="m-auto text-muted-foreground">Carregando...</p>}
       {state === "pending" && (
