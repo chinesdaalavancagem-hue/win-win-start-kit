@@ -1,6 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Download, LogOut, Menu, X } from "lucide-react";
@@ -26,15 +25,6 @@ function Plataforma() {
   const [showInstall, setShowInstall] = useState(false);
   const [installHelp, setInstallHelp] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [mobileMenuTarget, setMobileMenuTarget] = useState<HTMLElement | null>(null);
-  useEffect(() => {
-    const update = () => setMobileMenuTarget(document.getElementById("wow-mobile-actions-slot"));
-    update();
-    const observer = new MutationObserver(update);
-    observer.observe(document.body, { childList: true, subtree: true });
-    return () => observer.disconnect();
-  }, []);
-
   useEffect(() => {
     const standalone = () => window.matchMedia("(display-mode: standalone)").matches ||
       (navigator as Navigator & { standalone?: boolean }).standalone === true;
@@ -168,8 +158,8 @@ function Plataforma() {
           <Button size="sm" variant="outline" className="shrink-0 rounded-xl border-red-500/70 bg-red-950/50 font-bold text-red-200 shadow-[0_0_18px_rgba(220,38,38,0.16)] transition-colors hover:border-red-400 hover:bg-red-900/70 hover:text-white focus-visible:ring-red-400" onClick={() => signOut(navigate)}><LogOut className="mr-1.5 size-4 shrink-0" aria-hidden="true" />Sair da plataforma</Button>
         </div>
       </header>
-      {mobileMenuOpen && mobileMenuTarget && createPortal(
-        <nav aria-label="Menu da plataforma" className="absolute left-full top-0 z-50 ml-2 flex w-52 max-w-[calc(100vw-5rem)] flex-col gap-2 rounded-xl border border-cyan-800 bg-[#050d1b] p-3 shadow-2xl lg:hidden" onClick={() => setMobileMenuOpen(false)}>
+      {mobileMenuOpen && (
+        <nav aria-label="Menu da plataforma" className="fixed left-14 top-[calc(50%+26px)] z-50 flex w-52 max-w-[calc(100vw-5rem)] flex-col gap-2 rounded-xl border border-cyan-800 bg-[#050d1b] p-3 shadow-2xl lg:hidden" onClick={() => setMobileMenuOpen(false)}>
 
           {state === "ok" && <Button asChild size="sm" variant="outline" className="w-full justify-start rounded-xl border-cyan-800/70 bg-[#07162a] text-blue-100 hover:border-cyan-400 hover:bg-blue-950/70"><Link to="/integracao">▦ Integração</Link></Button>}
           {state === "ok" && <Button asChild size="sm" variant="outline" className="w-full justify-start rounded-xl border-cyan-950 bg-[#07101f] text-blue-100 hover:border-cyan-500 hover:bg-blue-950/70"><Link to="/analise-ia">◉ Análise IA</Link></Button>}
@@ -178,14 +168,14 @@ function Plataforma() {
           {isAdmin === true && <Button asChild size="sm" variant="outline" className="w-full justify-start rounded-xl border-cyan-950 bg-[#07101f] text-blue-100 hover:border-cyan-500 hover:bg-blue-950/70"><Link to="/auditoria">⛨ Auditoria</Link></Button>}
           <Button size="sm" variant="outline" className="w-full justify-start rounded-xl border-red-500/70 bg-red-950/50 font-bold text-red-200 shadow-[0_0_18px_rgba(220,38,38,0.16)] transition-colors hover:border-red-400 hover:bg-red-900/70 hover:text-white focus-visible:ring-red-400" onClick={() => signOut(navigate)}><LogOut className="mr-1.5 size-4 shrink-0" aria-hidden="true" />Sair da plataforma</Button>
         
-        </nav>, mobileMenuTarget
+        </nav>
       )}
 
-      {mobileMenuTarget && createPortal(
+      {state === "ok" && (
         <Button type="button" size="sm" variant="outline" aria-label={mobileMenuOpen ? "Fechar menu da plataforma" : "Abrir menu da plataforma"} aria-expanded={mobileMenuOpen} onClick={() => setMobileMenuOpen(v => !v)}
-          className="flex size-9 items-center justify-center rounded-xl border-cyan-700 bg-[#07162a] p-0 text-blue-100 shadow-xl sm:size-11 lg:hidden">
+          className="fixed left-1 top-[calc(50%+27px)] z-40 flex size-9 items-center justify-center rounded-xl border-cyan-700 bg-[#07162a] p-0 text-blue-100 shadow-xl sm:size-11 lg:hidden">
           {mobileMenuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
-        </Button>, mobileMenuTarget
+        </Button>
       )}
       {state === "ok" && installHelp && showInstall && (
         <div role="status" className="border-b border-amber-700/40 bg-[#142032] px-4 py-2 text-sm text-amber-100">
