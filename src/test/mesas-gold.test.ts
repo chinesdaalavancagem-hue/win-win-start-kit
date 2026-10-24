@@ -10,7 +10,10 @@ describe("perfis Gold por mesa de futuros", () => {
     expect(gold.days).toHaveLength(7);
     expect(gold.days.slice(0, 2).map((day) => day.meta)).toEqual([1500, 1500]);
     expect(gold.days.slice(2).map((day) => day.meta)).toEqual([150, 150, 150, 150, 150]);
-    expect(gold.days.every((_, i) => lossLimitGoldEfetivo(gold, i) === 2000)).toBe(true);
+    expect(gold.days.slice(0, 3).every((_, i) => lossLimitGoldEfetivo(gold, i) === 2000)).toBe(true);
+    expect(gold.days.slice(3).map((_, i) => lossLimitGoldEfetivo(gold, i + 3))).toEqual([2006, 2012, 2018, 2024]);
+    gold.days[3]!.mll = 2075;
+    expect(lossLimitGoldEfetivo(gold, 3)).toBe(2075);
   });
   it("usa 2+5 dias na Lucid e 4+5 na MFF", () => {
     const gold = defaultState().assets.ouro;

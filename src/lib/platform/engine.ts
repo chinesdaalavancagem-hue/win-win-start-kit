@@ -257,7 +257,6 @@ export interface DayCalc {
 
 /** Projeção sobre metas planejadas, não um limite efetivo confirmado pela mesa. */
 export function lossLimitGoldProjetado(a: Asset, indice: number): number {
-  if (a.mesaFuturos === "topstep") return 2000;
   const avaliacao = diasAvaliacaoGold(a);
   if (indice <= avaliacao) return 2000;
   const metasAnteriores = a.days.slice(avaliacao, indice).reduce((soma, dia) => soma + (Number.isFinite(dia.meta) ? dia.meta : 0), 0);
@@ -265,7 +264,6 @@ export function lossLimitGoldProjetado(a: Asset, indice: number): number {
 }
 
 export function lossLimitGoldEfetivo(a: Asset, indice: number): number {
-  if (a.mesaFuturos === "topstep") return 2000;
   if (indice <= diasAvaliacaoGold(a)) return 2000;
   const manual = a.days[indice]?.mll;
   return typeof manual === "number" && Number.isFinite(manual) && manual > 0 ? manual : lossLimitGoldProjetado(a, indice);
