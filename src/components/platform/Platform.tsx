@@ -166,7 +166,7 @@ export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas, b
       </section>
 
 
-      <nav className="fixed right-1 z-30 flex flex-col gap-2 lg:right-2 rounded-2xl border border-cyan-900/70 bg-[#050d1b]/95 p-1 shadow-xl sm:p-1.5" aria-label="Ativos e histórico" style={{ top: desktopRailTop }}>
+      <nav className="relative mx-auto mb-4 flex w-fit max-w-full flex-row flex-wrap justify-center gap-2 rounded-2xl lg:fixed lg:right-2 lg:z-30 lg:mb-0 lg:flex-col border border-cyan-900/70 bg-[#050d1b]/95 p-1 shadow-xl sm:p-1.5" aria-label="Ativos e histórico" style={{ top: typeof window !== "undefined" && window.innerWidth >= 1024 ? desktopRailTop : undefined }}>
         <button type="button" title="Escolher mesa de futuros" aria-label="Escolher mesa de futuros" aria-expanded={mostrarMesas} onClick={() => setMostrarMesas((v) => !v)} className={cn("relative flex size-10 items-center justify-center rounded-xl border transition-colors lg:size-14", mostrarMesas ? "border-amber-400/70 bg-amber-950/60 text-amber-200" : "border-transparent text-amber-300 hover:bg-amber-950/50")}><Building2 className="size-5" /></button>
         {TABS.map((t) => (
           <button key={t.key} type="button" title={t.label} aria-label={t.label} aria-pressed={tab === t.key} onClick={() => { setActiveTabLabel(null); mutate((s) => { s.activeTab = t.key; }); setActiveTabLabel(t.key); }}
@@ -177,7 +177,7 @@ export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas, b
         ))}
       </nav>
       {mostrarMesas && (
-        <aside className="fixed right-14 top-1/2 z-50 w-[min(20rem,calc(100vw-5rem))] -translate-y-1/2 rounded-xl border border-amber-500/40 bg-[#091525] p-4 shadow-2xl lg:right-20" aria-label="Escolher mesa de futuros">
+        <aside className="fixed left-1/2 top-1/2 z-50 w-[min(20rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-amber-500/40 bg-[#091525] p-4 shadow-2xl lg:right-20" aria-label="Escolher mesa de futuros">
           <div className="mb-3 flex items-center justify-between gap-2"><h3 className="font-bold text-amber-200">Mesa de futuros · Gold</h3><button type="button" aria-label="Fechar seleção de mesa" className="text-slate-300 hover:text-white" onClick={() => setMostrarMesas(false)}>✕</button></div>
           <label className="block text-xs text-slate-300">Mesa utilizada nesta banca</label>
           <select className="mt-2 w-full rounded-lg border border-amber-800/70 bg-[#06101f] p-3 text-sm text-white" value={mesaAtiva} onChange={(e) => onMesaChange(e.target.value as MesaFuturos)}>
@@ -430,7 +430,6 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, assetKey, section, setS
             className="flex size-9 items-center justify-center rounded-xl border border-cyan-700/70 bg-[#061322] sm:size-11 lg:size-12 text-cyan-300 shadow-xl hover:bg-blue-950">
             {leftMenuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
           </button>
-          <div id="wow-mobile-actions-slot" className="absolute left-0 top-11 flex flex-col gap-2 sm:top-14 lg:hidden" />
           {leftMenuOpen && <nav className="flex w-48 flex-col gap-1 rounded-xl border border-cyan-800/70 bg-[#061322] p-2 shadow-2xl" aria-label="Seções da plataforma">
             {sections.map(([k, l]) => (
               <button key={k} type="button" aria-pressed={section === k} onClick={() => { setSection(k); setLeftMenuOpen(false); }}
