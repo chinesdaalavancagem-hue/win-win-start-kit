@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Download, LogOut, Menu, X } from "lucide-react";
@@ -25,6 +26,14 @@ function Plataforma() {
   const [showInstall, setShowInstall] = useState(false);
   const [installHelp, setInstallHelp] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileMenuTarget, setMobileMenuTarget] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    const update = () => setMobileMenuTarget(document.getElementById("wow-mobile-actions-slot"));
+    update();
+    const observer = new MutationObserver(update);
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const standalone = () => window.matchMedia("(display-mode: standalone)").matches ||
@@ -143,20 +152,13 @@ function Plataforma() {
           <span className="truncate">Olá, {name.split(" ")[0] || user.email}</span>
           {isAdmin && <span className="shrink-0 rounded-full bg-primary px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-primary-foreground">Master</span>}
           <span id="wow-header-sync" className="shrink-0" />
-        </span>
-        <div className="flex items-center gap-2 lg:hidden">
           {state === "ok" && showInstall && (
             <Button size="sm" type="button" onClick={() => void installApp()}
-              className="min-w-0 rounded-xl border border-amber-300/80 bg-amber-400 font-extrabold text-slate-950 shadow-[0_0_18px_rgba(251,191,36,0.32)] hover:bg-amber-300">
-              <Download className="mr-1.5 size-4" aria-hidden="true" />Baixar aplicativo
+              className="h-7 shrink-0 gap-1 rounded-lg border border-amber-300/80 bg-amber-400 px-2 text-[10px] font-bold text-slate-950 hover:bg-amber-300 sm:text-xs">
+              <Download className="size-3.5" aria-hidden="true" /><span>Baixar aplicativo</span>
             </Button>
           )}
-
-          <Button type="button" size="sm" variant="outline" aria-label={mobileMenuOpen ? "Fechar menu" : "Abrir menu"} aria-expanded={mobileMenuOpen} onClick={() => setMobileMenuOpen(v => !v)}
-            className="shrink-0 rounded-xl border-cyan-700 bg-[#07162a] text-blue-100">
-            {mobileMenuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
-          </Button>
-        </div>
+        </span>
         <div className="hidden max-w-full flex-wrap gap-2 lg:flex">
           {state === "ok" && <Button asChild size="sm" variant="outline" className="shrink-0 rounded-xl border-cyan-800/70 bg-[#07162a] text-blue-100 hover:border-cyan-400 hover:bg-blue-950/70"><Link to="/integracao">▦ Integração</Link></Button>}
           {state === "ok" && <Button asChild size="sm" variant="outline" className="shrink-0 rounded-xl border-cyan-950 bg-[#07101f] text-blue-100 hover:border-cyan-500 hover:bg-blue-950/70"><Link to="/analise-ia">◉ Análise IA</Link></Button>}
@@ -166,8 +168,8 @@ function Plataforma() {
           <Button size="sm" variant="outline" className="shrink-0 rounded-xl border-red-500/70 bg-red-950/50 font-bold text-red-200 shadow-[0_0_18px_rgba(220,38,38,0.16)] transition-colors hover:border-red-400 hover:bg-red-900/70 hover:text-white focus-visible:ring-red-400" onClick={() => signOut(navigate)}><LogOut className="mr-1.5 size-4 shrink-0" aria-hidden="true" />Sair da plataforma</Button>
         </div>
       </header>
-      {mobileMenuOpen && (
-        <nav aria-label="Menu da plataforma" className="sticky top-[var(--wow-header-height,0px)] z-20 flex flex-col gap-2 border-b border-cyan-800 bg-[#050d1b] p-3 lg:hidden" onClick={() => setMobileMenuOpen(false)}>
+      {mobileMenuOpen && mobileMenuTarget && createPortal(
+        <nav aria-label="Menu da plataforma" className="absolute left-full top-0 z-50 ml-2 flex w-52 max-w-[calc(100vw-5rem)] flex-col gap-2 rounded-xl border border-cyan-800 bg-[#050d1b] p-3 shadow-2xl lg:hidden" onClick={() => setMobileMenuOpen(false)}>
 
           {state === "ok" && <Button asChild size="sm" variant="outline" className="w-full justify-start rounded-xl border-cyan-800/70 bg-[#07162a] text-blue-100 hover:border-cyan-400 hover:bg-blue-950/70"><Link to="/integracao">▦ Integração</Link></Button>}
           {state === "ok" && <Button asChild size="sm" variant="outline" className="w-full justify-start rounded-xl border-cyan-950 bg-[#07101f] text-blue-100 hover:border-cyan-500 hover:bg-blue-950/70"><Link to="/analise-ia">◉ Análise IA</Link></Button>}
@@ -176,9 +178,15 @@ function Plataforma() {
           {isAdmin === true && <Button asChild size="sm" variant="outline" className="w-full justify-start rounded-xl border-cyan-950 bg-[#07101f] text-blue-100 hover:border-cyan-500 hover:bg-blue-950/70"><Link to="/auditoria">⛨ Auditoria</Link></Button>}
           <Button size="sm" variant="outline" className="w-full justify-start rounded-xl border-red-500/70 bg-red-950/50 font-bold text-red-200 shadow-[0_0_18px_rgba(220,38,38,0.16)] transition-colors hover:border-red-400 hover:bg-red-900/70 hover:text-white focus-visible:ring-red-400" onClick={() => signOut(navigate)}><LogOut className="mr-1.5 size-4 shrink-0" aria-hidden="true" />Sair da plataforma</Button>
         
-        </nav>
+        </nav>, mobileMenuTarget
       )}
 
+      {mobileMenuTarget && createPortal(
+        <Button type="button" size="sm" variant="outline" aria-label={mobileMenuOpen ? "Fechar menu da plataforma" : "Abrir menu da plataforma"} aria-expanded={mobileMenuOpen} onClick={() => setMobileMenuOpen(v => !v)}
+          className="flex size-9 items-center justify-center rounded-xl border-cyan-700 bg-[#07162a] p-0 text-blue-100 shadow-xl sm:size-11 lg:hidden">
+          {mobileMenuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
+        </Button>, mobileMenuTarget
+      )}
       {state === "ok" && installHelp && showInstall && (
         <div role="status" className="border-b border-amber-700/40 bg-[#142032] px-4 py-2 text-sm text-amber-100">
           { /iPad|iPhone|iPod/.test(navigator.userAgent)
