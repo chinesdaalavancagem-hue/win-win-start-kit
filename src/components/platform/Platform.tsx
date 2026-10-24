@@ -166,7 +166,7 @@ export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas, b
       </section>
 
 
-      <nav className="fixed right-1 top-[65%] z-30 flex -translate-y-1/2 flex-col gap-2 lg:right-2 lg:top-auto lg:translate-y-0" aria-label="Ativos e histórico" style={{ top: typeof window !== "undefined" && window.innerWidth >= 1024 ? desktopRailTop : undefined }}>
+      <nav className="fixed right-1 top-[calc(65%-54px)] z-30 flex -translate-y-1/2 flex-col gap-2 lg:right-2 lg:top-auto lg:translate-y-0" aria-label="Ativos e histórico" style={{ top: typeof window !== "undefined" && window.innerWidth >= 1024 ? desktopRailTop : undefined }}>
         <button type="button" title="Escolher mesa de futuros" aria-label="Escolher mesa de futuros" aria-expanded={mostrarMesas} onClick={() => setMostrarMesas((v) => !v)} className={cn("relative flex size-9 items-center justify-center rounded-xl border border-cyan-700/70 bg-[#061322] shadow-xl transition-colors lg:size-14", mostrarMesas ? "border-amber-400/70 bg-amber-950/60 text-amber-200" : "border-transparent text-amber-300 hover:bg-amber-950/50")}><Building2 className="size-4 lg:size-5" /></button>
         {TABS.map((t) => (
           <button key={t.key} type="button" title={t.label} aria-label={t.label} aria-pressed={tab === t.key} onClick={() => { setActiveTabLabel(null); mutate((s) => { s.activeTab = t.key; }); setActiveTabLabel(t.key); }}
@@ -424,7 +424,7 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, assetKey, section, setS
 
   return (
     <div>
-      <aside className="fixed left-1 top-1/2 z-40 flex -translate-y-1/2 lg:left-2 lg:translate-y-0" aria-label="Menu de operações" style={{ top: typeof window !== "undefined" && window.innerWidth >= 1024 ? desktopRailTop : undefined }}>
+      <aside className="fixed left-1 top-[calc(50%-28px)] z-40 flex -translate-y-1/2 lg:left-2 lg:translate-y-0" aria-label="Menu de operações" style={{ top: typeof window !== "undefined" && window.innerWidth >= 1024 ? desktopRailTop : undefined }}>
         <div className="flex items-start gap-1">
           <button type="button" aria-label={leftMenuOpen ? "Recolher menu" : "Expandir menu"} aria-expanded={leftMenuOpen} onClick={() => setLeftMenuOpen(!leftMenuOpen)}
             className="flex size-9 items-center justify-center rounded-xl border border-cyan-700/70 bg-[#061322] sm:size-11 lg:size-12 text-cyan-300 shadow-xl hover:bg-blue-950">
