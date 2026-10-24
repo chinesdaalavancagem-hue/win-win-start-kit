@@ -11,6 +11,19 @@ import {
 import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
+ 
+// Captura a oferta do Chrome antes do login; a tela autenticada pode montar depois do evento.
+if (typeof window !== "undefined") {
+  window.addEventListener("beforeinstallprompt", (event) => {
+    event.preventDefault();
+    (window as Window & { __wowPwaPrompt?: Event }).__wowPwaPrompt = event;
+    window.dispatchEvent(new Event("wow-pwa-install-ready"));
+  });
+  window.addEventListener("appinstalled", () => {
+    delete (window as Window & { __wowPwaPrompt?: Event }).__wowPwaPrompt;
+  });
+}
+
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { registrarAuditoria } from "@/lib/auditoria-registro";
 
