@@ -159,7 +159,7 @@ function Plataforma() {
         </div>
       </header>
       {mobileMenuOpen && (
-        <nav aria-label="Menu da plataforma" className="fixed left-14 top-[calc(50%+26px)] z-50 flex w-52 max-w-[calc(100vw-5rem)] flex-col gap-2 rounded-xl border border-cyan-800 bg-[#050d1b] p-3 shadow-2xl lg:hidden" onClick={() => setMobileMenuOpen(false)}>
+        <nav aria-label="Menu da plataforma" className="fixed left-14 top-[calc(50%-2px)] z-50 flex w-52 max-w-[calc(100vw-5rem)] flex-col gap-2 rounded-xl border border-cyan-800 bg-[#050d1b] p-3 shadow-2xl lg:hidden" onClick={() => setMobileMenuOpen(false)}>
 
           {state === "ok" && <Button asChild size="sm" variant="outline" className="w-full justify-start rounded-xl border-cyan-800/70 bg-[#07162a] text-blue-100 hover:border-cyan-400 hover:bg-blue-950/70"><Link to="/integracao">▦ Integração</Link></Button>}
           {state === "ok" && <Button asChild size="sm" variant="outline" className="w-full justify-start rounded-xl border-cyan-950 bg-[#07101f] text-blue-100 hover:border-cyan-500 hover:bg-blue-950/70"><Link to="/analise-ia">◉ Análise IA</Link></Button>}
@@ -173,7 +173,7 @@ function Plataforma() {
 
       {state === "ok" && (
         <Button type="button" size="sm" variant="outline" aria-label={mobileMenuOpen ? "Fechar menu da plataforma" : "Abrir menu da plataforma"} aria-expanded={mobileMenuOpen} onClick={() => setMobileMenuOpen(v => !v)}
-          className="fixed left-1 top-[calc(50%+27px)] z-40 flex size-9 items-center justify-center rounded-xl border-cyan-700 bg-[#07162a] p-0 text-blue-100 shadow-xl sm:size-11 lg:hidden">
+          className="fixed left-1 top-[calc(50%-1px)] z-40 flex size-9 items-center justify-center rounded-xl border-cyan-700 bg-[#07162a] p-0 text-blue-100 shadow-xl sm:size-11 lg:hidden">
           {mobileMenuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
         </Button>
       )}
