@@ -1,7 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { defaultState, MESAS_FUTUROS, selecionarMesaGold, diasAvaliacaoGold, removerDiaGold, adicionarDiaGold } from "../lib/platform/engine";
+import { defaultState, MESAS_FUTUROS, selecionarMesaGold, diasAvaliacaoGold, removerDiaGold, adicionarDiaGold, lossLimitGoldEfetivo } from "../lib/platform/engine";
 
 describe("perfis Gold por mesa de futuros", () => {
+  it("restaura Topstep com avaliação 3k em 2 dias, consistência 55% e 5 dias financiados de 150", () => {
+    const gold = defaultState().assets.ouro;
+    selecionarMesaGold(gold, "topstep");
+    expect(MESAS_FUTUROS.topstep.consistencia).toBe(55);
+    expect(diasAvaliacaoGold(gold)).toBe(2);
+    expect(gold.days).toHaveLength(7);
+    expect(gold.days.slice(0, 2).map((day) => day.meta)).toEqual([1500, 1500]);
+    expect(gold.days.slice(2).map((day) => day.meta)).toEqual([150, 150, 150, 150, 150]);
+    expect(gold.days.every((_, i) => lossLimitGoldEfetivo(gold, i) === 2000)).toBe(true);
+  });
   it("usa 2+5 dias na Lucid e 4+5 na MFF", () => {
     const gold = defaultState().assets.ouro;
     const original = structuredClone(gold.days);

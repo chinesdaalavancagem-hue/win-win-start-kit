@@ -4,8 +4,9 @@ export const FIRM_NAMES = {
   "lucid-trading": "Lucid Trading",
   tradeify: "Tradeify",
   "my-funded-futures": "My Funded Futures",
+  topstep: "Topstep",
 } as const;
-export const firmIdSchema = z.enum(["lucid-trading", "tradeify", "my-funded-futures"]);
+export const firmIdSchema = z.enum(["lucid-trading", "tradeify", "my-funded-futures", "topstep"]);
 export const affiliateUrlSchema = z.string().trim().max(2048).refine((value) => {
   if (!value) return true;
   try { const url = new URL(value); return url.protocol === "https:" && !!url.hostname && !url.username && !url.password && !/\s/.test(value); } catch { return false; }
@@ -25,6 +26,7 @@ const DEFAULT_FIRM_URLS: Record<keyof typeof FIRM_NAMES, string> = {
     "https://tradeify.co/?ref=TWC&utm_source=cupommesasprop&utm_medium=afiliado&utm_campaign=tradeify",
   "my-funded-futures":
     "https://myfundedfutures.com/challenge?ref=355&utm_source=cupommesasprop&utm_campaign=myfundedfutures&utm_medium=afiliado",
+  topstep: "https://www.topstep.com/?ref=TWC&utm_source=cupommesasprop&utm_medium=afiliado&utm_campaign=topstep&utm_content=topstep",
 };
 
 export const EMPTY_FIRMS: Firm[] = Object.entries(FIRM_NAMES).map(([id, name]) => ({

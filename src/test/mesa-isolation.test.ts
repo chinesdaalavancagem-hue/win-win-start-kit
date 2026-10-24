@@ -11,6 +11,18 @@ describe("ambientes independentes por mesa", () => {
     expect(restored.bancas[0]?.mesa).toBe("tradefive");
     expect(restored.bancas[0]?.state.assets.ouro.days[0]?.meta).toBe(1234);
   });
+  it("restaura bancas Topstep antigas e sua seleção sem apagar dados", () => {
+    const banca = novaBanca("Topstep antiga");
+    banca.mesa = "topstep";
+    selecionarMesaGold(banca.state.assets.ouro, "topstep");
+    banca.state.assets.ouro.days[0]!.meta = 1600;
+    const doc = parseBancas(JSON.stringify({ bancasVersion: 1, bancas: [banca], activeId: banca.id, mesaAtiva: "topstep", activeIdsMesa: { topstep: banca.id } }));
+    expect(doc.bancas).toHaveLength(1);
+    expect(doc.bancas[0]?.mesa).toBe("topstep");
+    expect(doc.bancas[0]?.state.assets.ouro.days[0]?.meta).toBe(1600);
+    expect(doc.mesaAtiva).toBe("topstep");
+    expect(doc.activeIdsMesa?.topstep).toBe(banca.id);
+  });
   it("não mistura metas, dias, bancas e histórico entre mesas", () => {
     const tradeify = novaBanca("Tradeify");
     tradeify.mesa = "tradefive";
