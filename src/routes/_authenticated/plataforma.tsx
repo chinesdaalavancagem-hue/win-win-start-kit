@@ -30,24 +30,34 @@ function Plataforma() {
       (navigator as Navigator & { standalone?: boolean }).standalone === true;
     const installedHere = () => window.localStorage.getItem("wow-pwa-installed") === "1";
     setShowInstall(!standalone() && !installedHere());
+    const savedPrompt = (window as Window & { __wowPwaPrompt?: Event }).__wowPwaPrompt;
+    if (savedPrompt) setInstallPrompt(savedPrompt);
     const onPrompt = (event: Event) => {
       event.preventDefault();
+      (window as Window & { __wowPwaPrompt?: Event }).__wowPwaPrompt = event;
       setInstallPrompt(event);
       if (!standalone() && !installedHere()) setShowInstall(true);
+    };
+    const onSavedPrompt = () => {
+      const saved = (window as Window & { __wowPwaPrompt?: Event }).__wowPwaPrompt;
+      if (saved) setInstallPrompt(saved);
     };
     const onInstalled = () => {
       window.localStorage.setItem("wow-pwa-installed", "1");
       setShowInstall(false);
       setInstallHelp(false);
       setInstallPrompt(null);
+      delete (window as Window & { __wowPwaPrompt?: Event }).__wowPwaPrompt;
     };
     const onModeChange = () => { if (standalone()) setShowInstall(false); };
     window.addEventListener("beforeinstallprompt", onPrompt);
+    window.addEventListener("wow-pwa-install-ready", onSavedPrompt);
     window.addEventListener("appinstalled", onInstalled);
     const media = window.matchMedia("(display-mode: standalone)");
     media.addEventListener?.("change", onModeChange);
     return () => {
       window.removeEventListener("beforeinstallprompt", onPrompt);
+      window.removeEventListener("wow-pwa-install-ready", onSavedPrompt);
       window.removeEventListener("appinstalled", onInstalled);
       media.removeEventListener?.("change", onModeChange);
     };
@@ -60,7 +70,13 @@ function Plataforma() {
     }) | null;
     if (!prompt?.prompt) { setInstallHelp(true); return; }
     setInstallPrompt(null);
-    await prompt.prompt();
+    delete (window as Window & { __wowPwaPrompt?: Event }).__wowPwaPrompt;
+    try {
+      await prompt.prompt();
+    } catch {
+      setInstallHelp(true);
+      return;
+    }
     // Só ocultar após o evento appinstalled: o usuário pode cancelar.
     await prompt.userChoice?.catch(() => undefined);
   };
