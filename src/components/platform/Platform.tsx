@@ -61,7 +61,7 @@ export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas, b
       // a posição do hero fora da viewport para empurrar os menus fixos para baixo.
       const mobile = window.innerWidth < 1024;
       const top = mobile
-        ? Math.max(headerHeight + 12, rect.bottom > headerHeight + 12 ? rect.bottom + 12 : headerHeight + 12)
+        ? Math.max(headerHeight + 12, Math.min(rect.bottom + 12, window.innerHeight - 300))
         : heroTop >= 12 && heroTop <= window.innerHeight - 160 ? heroTop : 120;
       setDesktopRailTop(Math.round(top));
     };
@@ -166,7 +166,7 @@ export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas, b
       </section>
 
 
-      <nav className="relative mx-auto mb-4 flex w-fit max-w-full flex-row flex-wrap justify-center gap-2 rounded-2xl lg:fixed lg:right-2 lg:z-30 lg:mb-0 lg:flex-col border border-cyan-900/70 bg-[#050d1b]/95 p-1 shadow-xl sm:p-1.5" aria-label="Ativos e histórico" style={{ top: typeof window !== "undefined" && window.innerWidth >= 1024 ? desktopRailTop : undefined }}>
+      <nav className="fixed right-1 z-30 flex flex-col gap-2 rounded-2xl lg:right-2 border border-cyan-900/70 bg-[#050d1b]/95 p-1 shadow-xl sm:p-1.5" aria-label="Ativos e histórico" style={{ top: desktopRailTop }}>
         <button type="button" title="Escolher mesa de futuros" aria-label="Escolher mesa de futuros" aria-expanded={mostrarMesas} onClick={() => setMostrarMesas((v) => !v)} className={cn("relative flex size-10 items-center justify-center rounded-xl border transition-colors lg:size-14", mostrarMesas ? "border-amber-400/70 bg-amber-950/60 text-amber-200" : "border-transparent text-amber-300 hover:bg-amber-950/50")}><Building2 className="size-5" /></button>
         {TABS.map((t) => (
           <button key={t.key} type="button" title={t.label} aria-label={t.label} aria-pressed={tab === t.key} onClick={() => { setActiveTabLabel(null); mutate((s) => { s.activeTab = t.key; }); setActiveTabLabel(t.key); }}
