@@ -55,10 +55,14 @@ export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas, b
   useEffect(() => {
     const alignRails = () => {
       if (!heroRef.current) return;
-      const heroTop = heroRef.current.getBoundingClientRect().top + 24;
+      const rect = heroRef.current.getBoundingClientRect();
+      const heroTop = rect.top + 24;
       // A gestão de bancas pode ficar aberta acima da plataforma. Nunca usar
       // a posição do hero fora da viewport para empurrar os menus fixos para baixo.
-      const top = heroTop >= 12 && heroTop <= window.innerHeight - 160 ? heroTop : 120;
+      const mobile = window.innerWidth < 1024;
+      const top = mobile
+        ? Math.max(headerHeight + 12, rect.bottom > headerHeight + 12 ? rect.bottom + 12 : headerHeight + 12)
+        : heroTop >= 12 && heroTop <= window.innerHeight - 160 ? heroTop : 120;
       setDesktopRailTop(Math.round(top));
     };
     alignRails();
@@ -68,7 +72,7 @@ export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas, b
       window.removeEventListener("resize", alignRails);
       window.removeEventListener("scroll", alignRails);
     };
-  }, [state !== null]);
+  }, [state !== null, headerHeight]);
   useEffect(() => { setSyncTarget(document.getElementById("wow-header-sync")); }, []);
   const dirty = useRef(false);
 
@@ -162,7 +166,7 @@ export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas, b
       </section>
 
 
-      <nav className="fixed right-1 top-1/2 z-40 flex -translate-y-1/2 flex-col lg:right-2 lg:translate-y-0 gap-2 rounded-2xl border border-cyan-900/70 bg-[#050d1b]/95 p-1 shadow-xl sm:p-1.5" aria-label="Ativos e histórico" style={{ top: typeof window !== "undefined" && window.innerWidth >= 1024 ? desktopRailTop : undefined }}>
+      <nav className="fixed right-1 z-30 flex flex-col gap-2 lg:right-2 rounded-2xl border border-cyan-900/70 bg-[#050d1b]/95 p-1 shadow-xl sm:p-1.5" aria-label="Ativos e histórico" style={{ top: desktopRailTop }}>
         <button type="button" title="Escolher mesa de futuros" aria-label="Escolher mesa de futuros" aria-expanded={mostrarMesas} onClick={() => setMostrarMesas((v) => !v)} className={cn("relative flex size-10 items-center justify-center rounded-xl border transition-colors lg:size-14", mostrarMesas ? "border-amber-400/70 bg-amber-950/60 text-amber-200" : "border-transparent text-amber-300 hover:bg-amber-950/50")}><Building2 className="size-5" /></button>
         {TABS.map((t) => (
           <button key={t.key} type="button" title={t.label} aria-label={t.label} aria-pressed={tab === t.key} onClick={() => { setActiveTabLabel(null); mutate((s) => { s.activeTab = t.key; }); setActiveTabLabel(t.key); }}
@@ -426,6 +430,7 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, assetKey, section, setS
             className="flex size-9 items-center justify-center rounded-xl border border-cyan-700/70 bg-[#061322] sm:size-11 lg:size-12 text-cyan-300 shadow-xl hover:bg-blue-950">
             {leftMenuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
           </button>
+          <div id="wow-mobile-actions-slot" className="absolute left-0 top-11 flex flex-col gap-2 sm:top-14 lg:hidden" />
           {leftMenuOpen && <nav className="flex w-48 flex-col gap-1 rounded-xl border border-cyan-800/70 bg-[#061322] p-2 shadow-2xl" aria-label="Seções da plataforma">
             {sections.map(([k, l]) => (
               <button key={k} type="button" aria-pressed={section === k} onClick={() => { setSection(k); setLeftMenuOpen(false); }}
