@@ -35,7 +35,9 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
     const contas = doc.bancas.filter((b) => (b.mesa ?? "tradefive") === nova);
     const id = contas.find((b) => b.id === doc.activeIdsMesa?.[nova])?.id ?? contas[0]?.id ?? "";
     persist({ ...doc, mesaAtiva: nova, activeId: id, activeIdsMesa: { ...doc.activeIdsMesa, [nova]: id } });
-    setPainel(true);
+    // Ao alternar entre mesas com bancas, mostrar diretamente os cards operacionais.
+    // Abrir a gestão apenas para mesas ainda sem nenhuma banca cadastrada.
+    setPainel(contas.length === 0);
   };
   const loadActive = useCallback(async () => {
     const d = docRef.current; const b = d?.bancas.find((x) => x.id === activeId);
