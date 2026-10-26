@@ -199,7 +199,7 @@ export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas, b
         </aside>
       )}
       <div className="sticky z-20 mb-3 rounded-xl border border-cyan-950/80 bg-[#06101f]/95 p-2 shadow-lg backdrop-blur-md sm:p-3" style={{ top: headerHeight + 8 }}>
-        <div className="mb-3 flex flex-wrap items-center gap-2 text-sm text-blue-100/70">
+        <div className="mb-3 flex flex-wrap items-center gap-2 text-base font-semibold text-blue-100">
           <span className="size-2.5 rounded-full bg-amber-400 shadow-[0_0_10px_rgba(255,190,40,0.4)]" />
           <span>{lastOperation ? `${ASSET_NAME[lastOperation.asset]} · ${rotuloDia(state.assets[lastOperation.asset], lastOperation.asset, Math.max(0, lastOperation.day - 1))} · ${tipoLabel(lastOperation.tipo, lastOperation.asset)}` : "Nenhuma operação registrada"}</span>
         </div>
