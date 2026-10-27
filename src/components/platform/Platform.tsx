@@ -26,15 +26,9 @@ const TABS: { key: TabKey; label: string; dot: string }[] = [
 const ASSET_NAME: Record<AssetKey, string> = { nasdaq: "NASDAQ", ouro: "GOLD", saque2: "SAQUE 2" };
 const rotuloDia = (asset: Asset, key: AssetKey, indice: number) => { const avaliacao = key === "ouro" ? diasAvaliacaoGold(asset) : key === "saque2" ? 0 : 3; return `D${indice < avaliacao ? indice + 1 : indice - avaliacao + 1} ${indice < avaliacao ? "Avaliação" : "Financiada"}`; };
 
-export function Platform({ load, save, isAdmin, officialAcceptedAt, allBancas, bancasGlobais, bancaAtivaId, podeDesfazerForex = true, mesaAtiva = "tradefive", onMesaChange = () => {} }: { load: () => Promise<string | null>; save: (v: string, acceptedAt?: string) => Promise<boolean>; isAdmin: boolean; officialAcceptedAt: string | null; allBancas?: Banca[]; bancasGlobais?: Banca[] | undefined; bancaAtivaId?: string | undefined; podeDesfazerForex?: boolean; mesaAtiva?: MesaFuturos; onMesaChange?: (mesa: MesaFuturos) => void }) {
+export function Platform({ leftMenuOpen = false, setLeftMenuOpen = () => {}, load, save, isAdmin, officialAcceptedAt, allBancas, bancasGlobais, bancaAtivaId, podeDesfazerForex = true, mesaAtiva = "tradefive", onMesaChange = () => {} }: { leftMenuOpen?: boolean; setLeftMenuOpen?: (open: boolean) => void; load: () => Promise<string | null>; save: (v: string, acceptedAt?: string) => Promise<boolean>; isAdmin: boolean; officialAcceptedAt: string | null; allBancas?: Banca[]; bancasGlobais?: Banca[] | undefined; bancaAtivaId?: string | undefined; podeDesfazerForex?: boolean; mesaAtiva?: MesaFuturos; onMesaChange?: (mesa: MesaFuturos) => void }) {
   const [state, setState] = useState<State | null>(null);
   const [section, setSection] = useState<Section>("operacoes");
-  const [leftMenuOpen, setLeftMenuOpen] = useState(false);
-  useEffect(() => {
-    const close = () => setLeftMenuOpen(false);
-    window.addEventListener("wow-open-main-menu", close);
-    return () => window.removeEventListener("wow-open-main-menu", close);
-  }, []);
   const [activeTabLabel, setActiveTabLabel] = useState<TabKey | null>(null);
   const [mostrarMesas, setMostrarMesas] = useState(false);
   useEffect(() => {
@@ -430,7 +424,7 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, assetKey, section, setS
     <div>
       <aside className="fixed left-1 top-[calc(50%-28px)] z-40 flex -translate-y-1/2 lg:left-2 lg:translate-y-0" aria-label="Menu de operações" style={{ top: typeof window !== "undefined" && window.innerWidth >= 1024 ? desktopRailTop : undefined }}>
         <div className="flex items-start gap-1">
-          <button type="button" aria-label={leftMenuOpen ? "Recolher menu" : "Expandir menu"} aria-expanded={leftMenuOpen} onClick={() => { if (!leftMenuOpen) window.dispatchEvent(new Event("wow-open-sections-menu")); setLeftMenuOpen(!leftMenuOpen); }}
+          <button type="button" aria-label={leftMenuOpen ? "Recolher menu" : "Expandir menu"} aria-expanded={leftMenuOpen} onClick={() => setLeftMenuOpen(!leftMenuOpen)}
             className="flex size-9 items-center justify-center rounded-xl border border-cyan-700/70 bg-[#061322] sm:size-11 lg:size-12 text-cyan-300 shadow-xl hover:bg-blue-950">
             {leftMenuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
           </button>

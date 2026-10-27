@@ -6,7 +6,7 @@ import { fmt, fmtSigned, MESAS_FUTUROS, selecionarMesaGold, type MesaFuturos } f
 import { type BancasDoc, aplicarForex, extrairForex, forexDoDocumento, novaBanca, parseBancas, podeDesfazerBanca, relatorioCsv, resumoBanca } from "@/lib/platform/bancas";
 import { Plus, Building2, CheckCircle2, Pencil, Trash2, Download, ArrowUpRight, WalletCards, Activity } from "lucide-react";
 
-export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | null>; save: (v: string) => Promise<boolean>; isAdmin: boolean }) {
+export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectionsMenuChange = () => {} }: { sectionsMenuOpen?: boolean; onSectionsMenuChange?: (open: boolean) => void; load: () => Promise<string | null>; save: (v: string) => Promise<boolean>; isAdmin: boolean }) {
   const [doc, setDoc] = useState<BancasDoc | null>(null);
   const [err, setErr] = useState(false);
   const [painel, setPainel] = useState(false);
@@ -190,7 +190,7 @@ export function Bancas({ load, save, isAdmin }: { load: () => Promise<string | n
         </section>
       )}
 
-      {ativa ? <Platform key={ativa.id} load={loadActive} save={saveActive} isAdmin={isAdmin} officialAcceptedAt={ativa.officialAcceptedAt ?? null} allBancas={bancasDaMesa} bancasGlobais={doc.bancas} bancaAtivaId={ativa.id} podeDesfazerForex={podeDesfazerForex} mesaAtiva={mesa} onMesaChange={escolherMesa} /> : <section className="mx-auto my-10 max-w-lg rounded-xl border border-amber-800/60 bg-[#081321] p-5 text-center text-slate-200"><h3 className="font-bold">Nenhuma banca cadastrada na {MESAS_FUTUROS[mesa].nome}</h3><p className="mt-2 text-sm text-slate-400">As bancas das outras mesas permanecem preservadas. Crie uma banca nesta mesa para começar.</p><Button type="button" className="mt-3" onClick={() => setPainel(true)}>Cadastrar banca</Button></section>}
+      {ativa ? <Platform key={ativa.id} leftMenuOpen={sectionsMenuOpen} setLeftMenuOpen={onSectionsMenuChange} load={loadActive} save={saveActive} isAdmin={isAdmin} officialAcceptedAt={ativa.officialAcceptedAt ?? null} allBancas={bancasDaMesa} bancasGlobais={doc.bancas} bancaAtivaId={ativa.id} podeDesfazerForex={podeDesfazerForex} mesaAtiva={mesa} onMesaChange={escolherMesa} /> : <section className="mx-auto my-10 max-w-lg rounded-xl border border-amber-800/60 bg-[#081321] p-5 text-center text-slate-200"><h3 className="font-bold">Nenhuma banca cadastrada na {MESAS_FUTUROS[mesa].nome}</h3><p className="mt-2 text-sm text-slate-400">As bancas das outras mesas permanecem preservadas. Crie uma banca nesta mesa para começar.</p><Button type="button" className="mt-3" onClick={() => setPainel(true)}>Cadastrar banca</Button></section>}
     </div>
   );
 }

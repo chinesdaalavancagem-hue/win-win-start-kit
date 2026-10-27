@@ -24,12 +24,10 @@ function Plataforma() {
   const [installPrompt, setInstallPrompt] = useState<Event | null>(null);
   const [showInstall, setShowInstall] = useState(false);
   const [installHelp, setInstallHelp] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  useEffect(() => {
-    const close = () => setMobileMenuOpen(false);
-    window.addEventListener("wow-open-sections-menu", close);
-    return () => window.removeEventListener("wow-open-sections-menu", close);
-  }, []);
+  const [openMenu, setOpenMenu] = useState<"main" | "sections" | null>(null);
+  const mobileMenuOpen = openMenu === "main";
+  const setMobileMenuOpen = (open: boolean) => setOpenMenu((current) => open ? "main" : current === "main" ? null : current);
+  const setSectionsMenuOpen = (open: boolean) => setOpenMenu((current) => open ? "sections" : current === "sections" ? null : current);
   useEffect(() => {
     const standalone = () => window.matchMedia("(display-mode: standalone)").matches ||
       (navigator as Navigator & { standalone?: boolean }).standalone === true;
@@ -193,7 +191,7 @@ function Plataforma() {
       )}
 
       {state === "ok" && (
-        <Button type="button" size="sm" variant="outline" aria-label={mobileMenuOpen ? "Fechar menu da plataforma" : "Abrir menu da plataforma"} aria-expanded={mobileMenuOpen} onClick={() => { if (!mobileMenuOpen) window.dispatchEvent(new Event("wow-open-main-menu")); setMobileMenuOpen(!mobileMenuOpen); }}
+        <Button type="button" size="sm" variant="outline" aria-label={mobileMenuOpen ? "Fechar menu da plataforma" : "Abrir menu da plataforma"} aria-expanded={mobileMenuOpen} onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           className="fixed left-1 top-[calc(50%-1px)] z-40 flex size-9 items-center justify-center rounded-xl border-cyan-700 bg-[#07162a] p-0 text-blue-100 shadow-xl sm:size-11 lg:hidden">
           {mobileMenuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
         </Button>
@@ -220,7 +218,7 @@ function Plataforma() {
           <p className="mt-2 text-muted-foreground">Seu cadastro não foi aprovado. Se achar que houve um engano, fale com o administrador.</p>
         </div>
       )}
-      {state === "ok" && <Bancas load={load} save={save} isAdmin={isAdmin} />}
+      {state === "ok" && <Bancas load={load} save={save} isAdmin={isAdmin} sectionsMenuOpen={openMenu === "sections"} onSectionsMenuChange={setSectionsMenuOpen} />}
       {state === "ok" && (
         <a
           href="https://t.me/yansignal"
