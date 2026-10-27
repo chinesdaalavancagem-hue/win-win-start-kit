@@ -347,15 +347,17 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, assetKey, section, setS
 
   // Partilha um único saldo Forex e um único teto de bônus ao projetar os dias restantes.
   let cum = saldo, totalMeta = 0, reservaMinima = 0;
-  const projecaoForex = projetarAportesFuturos({
-    necessidades: caixaCiclo.dias.map((d) => d.necessario),
-    perdas: calcs.map((c) => Math.max(0, c.custoSePassar)),
-    indiceAtual: asset.attempt.currentDayIndex,
+  // Cada card compara sua necessidade com o saldo disponível agora.
+  // Aportes simulados de outros dias nunca viram saldo disponível na barra.
+  const projecaoForex = caixaCiclo.dias.map((dia) => projetarAportesFuturos({
+    necessidades: [dia.necessario],
+    perdas: [0],
+    indiceAtual: 0,
     saldoReal: state.forexSaldoReal ?? forexProprio,
     bonusAtual: forexBonus,
     bonusPct: parseNum(bonusPct),
     bonusCapRestante: Math.max(0, (asset.bonus.bonusCap || 0) - (asset.bonus.bonusGanhoTotal || 0)),
-  });
+  })[0]);
   const rows = asset.days.map((d, i) => {
     const c = calcs[i]!;
     totalMeta += d.meta;
@@ -371,10 +373,7 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, assetKey, section, setS
       reservaMinima = margem > 0 ? margemTotal + Math.max(0, c.custoSePassar) : 0;
     }
     const caixaProjetado = caixaCiclo.dias[i];
-    // No dia atual, a barra deve refletir o saldo real já registrado em Bônus,
-    // e não a simulação que começa com saldo zero.
-    // Para dias atuais e futuros, projetar a partir do saldo real compartilhado,
-    // consumindo o saldo após cada dia. Dias anteriores não cobram novo depósito.
+    // Somente saldo real e crédito já disponíveis; sem depósitos hipotéticos.
     const detalhe = projecaoForex[i];
     const caixaDia = caixaProjetado && detalhe ? { ...caixaProjetado, ...detalhe } : caixaProjetado;
     let status: "ok" | "alerta" | "risco" = "ok";
@@ -672,9 +671,12 @@ function DayCard({ row, asset, assetKey, avaliacaoDias, mutate, excedenteAtualSa
 
       {row.caixaDia && d.lotes > 0 ? (() => {
         const cx = row.caixaDia;
-        const total = Math.max(cx.necessario, cx.proprioAntes + cx.bonusAntes + cx.deposito, 1);
+        const total = Math.max(cx.necessario, cx.proprioAntes + cx.bonusAntes, 1);
         const pct = (v: number) => `${Math.max(0, (v / total) * 100)}%`;
-        const badge = row.status === "ok" ? "Coberto" : row.status === "alerta" ? "Pendente" : "Risco";
+        const concluido = i < asset.attempt.currentDayIndex;
+        const futuro = i > asset.attempt.currentDayIndex;
+        const cobertura = row.status === "ok" ? "Coberto" : row.status === "alerta" ? "Pendente" : "Risco";
+        const badge = concluido ? "Concluído" : futuro ? `Projeção · ${cobertura}` : cobertura;
         return (
           <div className="mt-3 rounded-xl border border-[#142b43] bg-gradient-to-b from-[#0a1421] to-[#080f19] p-3.5 lg:p-3">
             <div className="mb-2 flex items-center justify-between gap-2">
@@ -684,12 +686,12 @@ function DayCard({ row, asset, assetKey, avaliacaoDias, mutate, excedenteAtualSa
             <div className="flex h-3 overflow-hidden rounded-full bg-slate-800">
               <div className="bg-slate-500" style={{ width: pct(cx.proprioAntes) }} />
               <div className="bg-gradient-to-r from-sky-500 to-cyan-400" style={{ width: pct(cx.bonusAntes) }} />
-              <div className="bg-gradient-to-r from-emerald-500 to-teal-400" style={{ width: pct(cx.deposito) }} />
             </div>
-            <div className="mt-2 flex items-center justify-between gap-2 rounded-xl border border-blue-600/80 bg-gradient-to-r from-blue-950/70 to-[#071a31] px-3 py-2.5">
-              <span className="flex items-center gap-2 text-[11px] font-semibold leading-snug text-cyan-300 sm:text-sm"><Wallet className="h-4 w-4 shrink-0" />Aporte Recomendado Hoje</span>
+            <p className="mt-1 text-[10px] text-slate-400">Saldo real + bônus disponível agora{futuro ? " · projeção sem novos depósitos" : ""}</p>
+            {!concluido && <div className="mt-2 flex items-center justify-between gap-2 rounded-xl border border-blue-600/80 bg-gradient-to-r from-blue-950/70 to-[#071a31] px-3 py-2.5">
+              <span className="flex items-center gap-2 text-[11px] font-semibold leading-snug text-cyan-300 sm:text-sm"><Wallet className="h-4 w-4 shrink-0" />{futuro ? "Aporte estimado para este dia" : "Aporte Recomendado Hoje"}</span>
               <span className="font-mono text-base font-bold text-sky-400 sm:text-xl">${fmt(cx.deposito)}</span>
-            </div>
+            </div>}
             <div className="mt-3 flex items-center justify-between gap-2 rounded-lg border border-[#142b43] bg-[#0b1726] px-3 py-2.5 font-mono text-xs"><span className="flex items-center gap-1.5 text-muted-foreground"><Calculator className="h-3.5 w-3.5" />Necessário no CFD</span><span className="font-semibold">${fmt(cx.necessario)}</span></div>
             {assetKey === "ouro" && <div className="mt-1 flex items-center justify-between gap-3 rounded-xl border border-amber-800/50 bg-[#161924] px-3 py-2.5">
               <label className="min-w-0 text-xs font-semibold text-amber-200">Loss Limit EOD na mesa ($)</label>
