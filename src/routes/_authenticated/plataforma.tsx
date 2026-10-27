@@ -26,6 +26,11 @@ function Plataforma() {
   const [installHelp, setInstallHelp] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   useEffect(() => {
+    const close = () => setMobileMenuOpen(false);
+    window.addEventListener("wow-open-sections-menu", close);
+    return () => window.removeEventListener("wow-open-sections-menu", close);
+  }, []);
+  useEffect(() => {
     const standalone = () => window.matchMedia("(display-mode: standalone)").matches ||
       (navigator as Navigator & { standalone?: boolean }).standalone === true;
     const installedHere = () => window.localStorage.getItem("wow-pwa-installed") === "1";
@@ -188,7 +193,7 @@ function Plataforma() {
       )}
 
       {state === "ok" && (
-        <Button type="button" size="sm" variant="outline" aria-label={mobileMenuOpen ? "Fechar menu da plataforma" : "Abrir menu da plataforma"} aria-expanded={mobileMenuOpen} onClick={() => setMobileMenuOpen(v => !v)}
+        <Button type="button" size="sm" variant="outline" aria-label={mobileMenuOpen ? "Fechar menu da plataforma" : "Abrir menu da plataforma"} aria-expanded={mobileMenuOpen} onClick={() => { if (!mobileMenuOpen) window.dispatchEvent(new Event("wow-open-main-menu")); setMobileMenuOpen(!mobileMenuOpen); }}
           className="fixed left-1 top-[calc(50%-1px)] z-40 flex size-9 items-center justify-center rounded-xl border-cyan-700 bg-[#07162a] p-0 text-blue-100 shadow-xl sm:size-11 lg:hidden">
           {mobileMenuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
         </Button>
