@@ -1034,13 +1034,15 @@ function BackupMenu({ state, mutate, save, onApplied, isAdmin, officialAcceptedA
         const response = await fetch(`/api/plataforma/parametros-oficiais?mesa=${mesaAtiva}`, { headers: { authorization: "Bearer " + data.session.access_token }, cache: "no-store" });
         if (!response.ok) return;
         const result = await response.json() as { published?: { payload: unknown; updatedAt: string } | null };
-        if (active && result.published && isOfficialParams(result.published.payload)) setPublished({ payload: result.published.payload, updatedAt: result.published.updatedAt });
+        if (active) setPublished(result.published && isOfficialParams(result.published.payload) && (result.published.payload.mesaFuturos ?? "tradefive") === mesaAtiva
+          ? { payload: result.published.payload, updatedAt: result.published.updatedAt } : null);
       } catch { /* keep personal parameters unchanged */ }
     };
+    setPublished(null);
     void refreshPublished();
     window.addEventListener("wow-official-parameters-published", refreshPublished);
     return () => { active = false; window.removeEventListener("wow-official-parameters-published", refreshPublished); };
-  }, []);
+  }, [mesaAtiva]);
   async function publishOfficial(): Promise<boolean> {
     if (!window.confirm("Publicar os parâmetros desta banca como nova versão oficial?")) return false;
     setOfficialBusy(true);

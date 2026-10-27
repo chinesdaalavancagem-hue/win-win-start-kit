@@ -27,7 +27,7 @@ export const Route = createFileRoute("/api/plataforma/parametros-oficiais")({
       if (error) return reply({ error: "read_failed" }, 503);
       const values = data?.published_values as Record<string, unknown> | undefined;
       const requested = new URL(request.url).searchParams.get("mesa");
-      const mesa = requested === "lucid" || requested === "mff" ? requested : "tradefive";
+      const mesa = requested === "lucid" || requested === "mff" || requested === "topstep" ? requested : "tradefive";
       const collection = values?.official_parameters_by_mesa;
       const profiles = collection && typeof collection === "object" && !Array.isArray(collection) ? collection as Record<string, unknown> : {};
       const payload = profiles[mesa] ?? (mesa === "tradefive" ? values?.official_parameters : null);
