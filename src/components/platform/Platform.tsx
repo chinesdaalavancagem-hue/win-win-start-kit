@@ -26,7 +26,7 @@ const TABS: { key: TabKey; label: string; dot: string }[] = [
 const ASSET_NAME: Record<AssetKey, string> = { nasdaq: "NASDAQ", ouro: "GOLD", saque2: "SAQUE 2" };
 const rotuloDia = (asset: Asset, key: AssetKey, indice: number) => { const avaliacao = key === "ouro" ? diasAvaliacaoGold(asset) : key === "saque2" ? 0 : 3; return `D${indice < avaliacao ? indice + 1 : indice - avaliacao + 1} ${indice < avaliacao ? "Avaliação" : "Financiada"}`; };
 
-export function Platform({ leftMenuOpen = false, setLeftMenuOpen = () => {}, load, save, isAdmin, officialAcceptedAt, allBancas, bancasGlobais, bancaAtivaId, podeDesfazerForex = true, mesaAtiva = "tradefive", onMesaChange = () => {} }: { leftMenuOpen?: boolean; setLeftMenuOpen?: (open: boolean) => void; load: () => Promise<string | null>; save: (v: string, acceptedAt?: string) => Promise<boolean>; isAdmin: boolean; officialAcceptedAt: string | null; allBancas?: Banca[]; bancasGlobais?: Banca[] | undefined; bancaAtivaId?: string | undefined; podeDesfazerForex?: boolean; mesaAtiva?: MesaFuturos; onMesaChange?: (mesa: MesaFuturos) => void }) {
+export function Platform({ leftMenuOpen = false, setLeftMenuOpen = () => {}, load, save, isAdmin, officialAcceptedAt, allBancas, bancasGlobais, bancaAtivaId, contaMesa, podeDesfazerForex = true, mesaAtiva = "tradefive", onMesaChange = () => {} }: { leftMenuOpen?: boolean; setLeftMenuOpen?: (open: boolean) => void; load: () => Promise<string | null>; save: (v: string, acceptedAt?: string) => Promise<boolean>; isAdmin: boolean; officialAcceptedAt: string | null; allBancas?: Banca[]; bancasGlobais?: Banca[] | undefined; bancaAtivaId?: string | undefined; contaMesa?: string | undefined; podeDesfazerForex?: boolean; mesaAtiva?: MesaFuturos; onMesaChange?: (mesa: MesaFuturos) => void }) {
   const [state, setState] = useState<State | null>(null);
   const [section, setSection] = useState<Section>("operacoes");
   const [activeTabLabel, setActiveTabLabel] = useState<TabKey | null>(null);
@@ -227,7 +227,7 @@ export function Platform({ leftMenuOpen = false, setLeftMenuOpen = () => {}, loa
       </div>
 
       {tab === "historico" ? <Historico state={state} mutate={mutate} bancas={allBancas} bancaAtivaId={bancaAtivaId} podeDesfazerForex={podeDesfazerForex} /> : (
-        <AssetView key={tab} state={state} bancasGlobais={bancasGlobais} bancaAtivaId={bancaAtivaId} assetKey={tab} section={section} setSection={setSection} leftMenuOpen={leftMenuOpen} setLeftMenuOpen={setLeftMenuOpen} desktopRailTop={desktopRailTop} mutate={mutate} isAdmin={isAdmin} />
+        <AssetView key={tab} state={state} bancasGlobais={bancasGlobais} bancaAtivaId={bancaAtivaId} contaMesa={contaMesa} mesaAtiva={mesaAtiva} assetKey={tab} section={section} setSection={setSection} leftMenuOpen={leftMenuOpen} setLeftMenuOpen={setLeftMenuOpen} desktopRailTop={desktopRailTop} mutate={mutate} isAdmin={isAdmin} />
       )}
 
       <BackupMenu state={state} mutate={mutate} save={save} onApplied={setState} isAdmin={isAdmin} officialAcceptedAt={officialAcceptedAt} mesaAtiva={mesaAtiva} />
@@ -326,7 +326,7 @@ const Note = ({ children }: { children: ReactNode }) => <p className="mt-3 font-
 
 /* ---------- aba de ativo ---------- */
 
-function AssetView({ state, bancasGlobais, bancaAtivaId, assetKey, section, setSection, leftMenuOpen, setLeftMenuOpen, desktopRailTop, mutate, isAdmin }: { state: State; bancasGlobais?: Banca[] | undefined; bancaAtivaId?: string | undefined; assetKey: AssetKey; section: Section; setSection: (s: Section) => void; leftMenuOpen: boolean; setLeftMenuOpen: (v: boolean) => void; desktopRailTop: number; mutate: (fn: (s: State) => void) => void; isAdmin: boolean }) {
+function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, assetKey, section, setSection, leftMenuOpen, setLeftMenuOpen, desktopRailTop, mutate, isAdmin }: { state: State; bancasGlobais?: Banca[] | undefined; bancaAtivaId?: string | undefined; contaMesa?: string | undefined; mesaAtiva: MesaFuturos; assetKey: AssetKey; section: Section; setSection: (s: Section) => void; leftMenuOpen: boolean; setLeftMenuOpen: (v: boolean) => void; desktopRailTop: number; mutate: (fn: (s: State) => void) => void; isAdmin: boolean }) {
   const asset = state.assets[assetKey];
   const avaliacaoDias = assetKey === "ouro" ? diasAvaliacaoGold(asset) : 3;
   const calcs = useMemo(() => computeAssetCalcs(asset, assetKey), [asset, assetKey]);
@@ -618,7 +618,7 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, assetKey, section, setS
         <div>
           <div className="space-y-3">
             {visibleRows.map((r) => (
-              <DayCard key={r.i} row={r} asset={asset} assetKey={assetKey} avaliacaoDias={assetKey === "ouro" ? diasAvaliacaoGold(asset) : 3} mutate={mutate} excedenteAtualSacavel={excedenteAtualSacavel} />
+              <DayCard key={r.i} row={r} asset={asset} assetKey={assetKey} bancaId={bancaAtivaId} contaMesa={contaMesa} mesa={mesaAtiva} avaliacaoDias={assetKey === "ouro" ? diasAvaliacaoGold(asset) : 3} mutate={mutate} excedenteAtualSacavel={excedenteAtualSacavel} />
             ))}
           </div>
           {isAdmin && <div className="mt-3 flex flex-wrap gap-2"><Button type="button" variant="outline" className="flex-1 border-dashed" onClick={() => mutate((s) => { if (assetKey === "ouro") adicionarDiaGold(s.assets.ouro, "financiada"); else s.assets[assetKey].days.push({ mnq: 1, lotes: 1, meta: 150 }); })}>+ adicionar dia {assetKey === "ouro" ? "financiado" : ""}</Button>{assetKey === "ouro" && <Button type="button" variant="outline" className="flex-1 border-dashed border-amber-800 text-amber-200" onClick={() => mutate((s) => adicionarDiaGold(s.assets.ouro, "avaliacao"))}>+ adicionar dia de avaliação</Button>}</div>}
@@ -630,7 +630,7 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, assetKey, section, setS
 
 type Row = { d: Asset["days"][number]; c: ReturnType<typeof computeAssetCalcs>[number]; i: number; isCurrent: boolean; status: "ok" | "alerta" | "risco"; statusText: string; ticks: number; mult: number; caixaDia?: ReturnType<typeof calcCaixaCiclo>["dias"][number] | undefined };
 
-function DayCard({ row, asset, assetKey, avaliacaoDias, mutate, excedenteAtualSacavel }: { row: Row; asset: Asset; assetKey: AssetKey; avaliacaoDias: number; mutate: (fn: (s: State) => void) => void; excedenteAtualSacavel: number }) {
+function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias, mutate, excedenteAtualSacavel }: { row: Row; asset: Asset; assetKey: AssetKey; bancaId?: string | undefined; contaMesa?: string | undefined; mesa: MesaFuturos; avaliacaoDias: number; mutate: (fn: (s: State) => void) => void; excedenteAtualSacavel: number }) {
   const { d, c, i, isCurrent } = row;
   const ref = useRef<HTMLDivElement>(null);
   const wasCurrent = useRef(isCurrent);
@@ -647,7 +647,18 @@ function DayCard({ row, asset, assetKey, avaliacaoDias, mutate, excedenteAtualSa
   const limiteProjetado = assetKey === "ouro" ? lossLimitGoldProjetado(asset, i) : 0;
   const limiteManual = assetKey === "ouro" && !limiteFixo && typeof d.mll === "number" && d.mll > 0;
   return (
-    <div ref={ref} className={cn("platform-day-card overflow-hidden rounded-2xl border border-[#142b43] bg-[#0b0f19] p-3 text-slate-100 shadow-[0_12px_40px_rgba(0,0,0,0.22)] sm:p-5 lg:p-3", isCurrent && "border-[#087cff]/70 ring-1 ring-[#087cff]/25")}>
+    <div ref={ref}
+      data-wow-card={isCurrent && assetKey !== "saque2" ? "active" : undefined}
+      data-wow-banca-id={isCurrent ? bancaId : undefined}
+      data-wow-mesa={isCurrent ? mesa : undefined}
+      data-wow-conta-mesa={isCurrent ? contaMesa : undefined}
+      data-wow-ativo={isCurrent && assetKey !== "saque2" ? assetKey : undefined}
+      data-wow-fase={isCurrent ? (i < avaliacaoDias ? "avaliacao" : "financiada") : undefined}
+      data-wow-dia={isCurrent ? `D${i < avaliacaoDias ? i + 1 : i - avaliacaoDias + 1}` : undefined}
+      data-wow-contratos-planejados={isCurrent ? d.mnq : undefined}
+      data-wow-lote-cfd={isCurrent ? d.lotes : undefined}
+      data-wow-ready={isCurrent && !!bancaId && !!contaMesa && assetKey !== "saque2" && Number.isFinite(d.mnq) && d.mnq > 0 && Number.isFinite(d.lotes) && d.lotes > 0 ? "true" : "false"}
+      className={cn("platform-day-card overflow-hidden rounded-2xl border border-[#142b43] bg-[#0b0f19] p-3 text-slate-100 shadow-[0_12px_40px_rgba(0,0,0,0.22)] sm:p-5 lg:p-3", isCurrent && "border-[#087cff]/70 ring-1 ring-[#087cff]/25")}>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-[#142b43] pb-3">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <span className="rounded-lg border border-blue-500 bg-blue-600 px-2.5 py-1 font-mono text-sm font-bold text-white shadow-[0_0_18px_rgba(0,119,255,0.18)]">D{i < avaliacaoDias ? i + 1 : i - avaliacaoDias + 1} <span className="text-[10px] font-semibold uppercase tracking-wide">{i < avaliacaoDias ? "Avaliação" : "Financiada"}</span></span>
