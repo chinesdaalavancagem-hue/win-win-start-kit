@@ -74,7 +74,7 @@ export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectio
 
   return (
     <div className="win-platform-desktop-compact flex flex-1 flex-col bg-[radial-gradient(ellipse_at_top,rgba(0,111,255,0.10),transparent_58%)]">
-      <header className="border-b border-cyan-950/80 bg-[#050d1b]/90 px-4 py-4 sm:px-6">
+      <header className="border-b border-cyan-950/80 bg-[#050d1b]/90 px-4 py-4 sm:px-6 lg:px-20">
         <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-start gap-3">
             <div className="flex size-20 shrink-0 items-center justify-center rounded-2xl border border-cyan-400/20 bg-cyan-400/10 shadow-[0_0_24px_rgba(0,190,255,0.08)]"><img src="/logo.png" alt="Win or Win" className="size-[72px] object-contain [filter:hue-rotate(150deg)_saturate(1.25)]" /></div>
@@ -98,7 +98,7 @@ export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectio
         </div>
       </header>
       {painel && (
-        <section className="border-b border-cyan-950/70 bg-[#06101f]/80 px-4 py-5 sm:px-6">
+        <section className="border-b border-cyan-950/70 bg-[#06101f]/80 px-4 py-5 sm:px-6 lg:px-20">
           <div className="mx-auto max-w-[1600px] space-y-5">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
               <div><p className="text-[11px] font-bold uppercase tracking-[0.2em] text-cyan-300/80">Central de contas</p><h3 className="mt-1 text-lg font-bold text-slate-100">Seu portfólio de bancas</h3><p className="mt-1 max-w-2xl text-sm text-slate-400">Cada banca mantém seu próprio ciclo e histórico. Escolha uma para continuar operando ou crie uma nova.</p></div>
@@ -194,3 +194,4 @@ export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectio
     </div>
   );
 }
+
