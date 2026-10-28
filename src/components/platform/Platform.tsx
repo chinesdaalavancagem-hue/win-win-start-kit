@@ -1,7 +1,7 @@
 import type { Banca } from "@/lib/platform/bancas";
 import { calcularCoberturaSimultanea } from "@/lib/platform/caixa-consolidado";
 import { createPortal } from "react-dom";
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { Undo2, FileText, Layers, Target, TrendingUp, ShieldCheck, Wallet, ChevronRight, Crosshair, Calculator, Check, ChartNoAxesCombined, Landmark, History, Menu, X, SlidersHorizontal, Gift, CircleDollarSign, ChartPie, Building2 } from "lucide-react";
@@ -51,23 +51,32 @@ export function Platform({ leftMenuOpen = false, setLeftMenuOpen = () => {}, loa
     return () => observer.disconnect();
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const alignRails = () => {
       if (!heroRef.current) return;
       const rect = heroRef.current.getBoundingClientRect();
       const heroTop = rect.top + 24;
-      // A gestão de bancas pode ficar aberta acima da plataforma. Nunca usar
-      // a posição do hero fora da viewport para empurrar os menus fixos para baixo.
+      // No desktop, os dois menus acompanham o hero mesmo fora da viewport.
+      // Não reposicioná-los sobre a gestão de bancas ou o cabeçalho global.
       const mobile = window.innerWidth < 1024;
       const top = mobile
         ? Math.max(headerHeight + 12, Math.min(rect.bottom + 12, window.innerHeight - 300))
-        : heroTop >= 12 && heroTop <= window.innerHeight - 160 ? heroTop : 120;
+        : heroTop;
       setDesktopRailTop(Math.round(top));
     };
     alignRails();
+    // Abrir/fechar a gestão desloca o hero sem resize/scroll da janela e sem
+    // mudar o tamanho do próprio hero. Observar também seus contêineres.
+    const observer = new ResizeObserver(alignRails);
+    let container: HTMLElement | null = heroRef.current;
+    while (container) {
+      observer.observe(container);
+      container = container.parentElement;
+    }
     window.addEventListener("resize", alignRails);
     window.addEventListener("scroll", alignRails, { passive: true });
     return () => {
+      observer.disconnect();
       window.removeEventListener("resize", alignRails);
       window.removeEventListener("scroll", alignRails);
     };
@@ -1432,4 +1441,5 @@ function CaixaPanel({ asset, state, bancasGlobais, bancaAtivaId, assetKey, bonus
     </section>
   );
 }
+
 
