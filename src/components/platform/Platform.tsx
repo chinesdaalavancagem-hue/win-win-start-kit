@@ -346,17 +346,18 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, assetKey, section, setS
 
   // Partilha um único saldo Forex e um único teto de bônus ao projetar os dias restantes.
   let cum = saldo, totalMeta = 0, reservaMinima = 0;
-  // Cada card compara sua necessidade com o saldo disponível agora.
-  // Aportes simulados de outros dias nunca viram saldo disponível na barra.
-  const projecaoForex = caixaCiclo.dias.map((dia) => projetarAportesFuturos({
-    necessidades: [dia.necessario],
-    perdas: [0],
-    indiceAtual: 0,
+  // O dia atual parte do saldo real. Dias futuros simulam passar cada dia
+  // anterior, com suas perdas CFD e os aportes estimados necessários.
+  // A projeção não registra depósitos nem altera o saldo salvo.
+  const projecaoForex = projetarAportesFuturos({
+    necessidades: caixaCiclo.dias.map((dia) => dia.necessario),
+    perdas: caixaCiclo.dias.map((dia) => dia.perda),
+    indiceAtual: curIdx,
     saldoReal: state.forexSaldoReal ?? forexProprio,
     bonusAtual: forexBonus,
     bonusPct: parseNum(bonusPct),
     bonusCapRestante: Math.max(0, (asset.bonus.bonusCap || 0) - (asset.bonus.bonusGanhoTotal || 0)),
-  })[0]);
+  });
   const rows = asset.days.map((d, i) => {
     const c = calcs[i]!;
     totalMeta += d.meta;
@@ -372,7 +373,7 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, assetKey, section, setS
       reservaMinima = margem > 0 ? margemTotal + Math.max(0, c.custoSePassar) : 0;
     }
     const caixaProjetado = caixaCiclo.dias[i];
-    // Somente saldo real e crédito já disponíveis; sem depósitos hipotéticos.
+    // Saldo antes do aporte deste dia; nos futuros, após passar os anteriores.
     const detalhe = projecaoForex[i];
     const caixaDia = caixaProjetado && detalhe ? { ...caixaProjetado, ...detalhe } : caixaProjetado;
     let status: "ok" | "alerta" | "risco" = "ok";
@@ -383,7 +384,7 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, assetKey, section, setS
         statusText = "✅ dia já concluído";
       } else if (caixaDia.deposito <= 0) {
         status = "ok";
-        statusText = "✅ saldo compartilhado do Forex cobre o necessário";
+        statusText = i > curIdx ? "✅ saldo projetado cobre o necessário após passar os dias anteriores" : "✅ saldo compartilhado do Forex cobre o necessário";
       } else if (caixaDia.saldoAntes >= margemTotal) {
         status = "alerta";
         statusText = `⚠️ margem coberta; falta aporte de ${fmt(caixaDia.deposito)} para a cobertura completa`;
@@ -392,7 +393,7 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, assetKey, section, setS
         statusText = `🔴 saldo compartilhado insuficiente; falta aporte de ${fmt(caixaDia.deposito)}`;
       }
       const depositarHoje = i < asset.attempt.currentDayIndex ? 0 : caixaDia.deposito;
-      statusText += ` · depositar hoje: ${fmt(depositarHoje)} · saldo antes: ${fmt(caixaDia.saldoAntes)} (próprio: ${fmt(caixaDia.proprioAntes)} + bônus: ${fmt(caixaDia.bonusAntes)}) · bônus do depósito: ${fmt(caixaDia.bonusGanho)} · necessário no CFD: ${fmt(caixaDia.necessario)}`;
+      statusText += ` · ${i > curIdx ? "aporte estimado neste dia" : "depositar hoje"}: ${fmt(depositarHoje)} · saldo antes: ${fmt(caixaDia.saldoAntes)} (próprio: ${fmt(caixaDia.proprioAntes)} + bônus: ${fmt(caixaDia.bonusAntes)}) · bônus do depósito: ${fmt(caixaDia.bonusGanho)} · necessário no CFD: ${fmt(caixaDia.necessario)}`;
     }
     const ativoTicks = assetKey === "saque2" ? (asset.params.ativoReal === "nasdaq" ? "nasdaq" : "ouro") : assetKey;
     const ticks = c.pontos * (ativoTicks === "ouro" ? 10 : 4);
@@ -675,7 +676,7 @@ function DayCard({ row, asset, assetKey, avaliacaoDias, mutate, excedenteAtualSa
         const concluido = i < asset.attempt.currentDayIndex;
         const futuro = i > asset.attempt.currentDayIndex;
         const cobertura = row.status === "ok" ? "Coberto" : row.status === "alerta" ? "Pendente" : "Risco";
-        const badge = concluido ? "Concluído" : futuro ? `Projeção · ${cobertura}` : cobertura;
+        const badge = concluido ? "Concluído" : futuro ? `Projeção · ${cx.deposito > 0 ? "Precisa de aporte" : "Coberto"}` : cobertura;
         return (
           <div className="mt-3 rounded-xl border border-[#142b43] bg-gradient-to-b from-[#0a1421] to-[#080f19] p-3.5 lg:p-3">
             <div className="mb-2 flex items-center justify-between gap-2">
@@ -686,7 +687,7 @@ function DayCard({ row, asset, assetKey, avaliacaoDias, mutate, excedenteAtualSa
               <div className="bg-slate-500" style={{ width: pct(cx.proprioAntes) }} />
               <div className="bg-gradient-to-r from-sky-500 to-cyan-400" style={{ width: pct(cx.bonusAntes) }} />
             </div>
-            <p className="mt-1 text-[10px] text-slate-400">Saldo real + bônus disponível agora{futuro ? " · projeção sem novos depósitos" : ""}</p>
+            <p className="mt-1 text-[10px] text-slate-400">{futuro ? "Saldo projetado após passar os dias anteriores, considerando as perdas no Forex e os aportes estimados anteriores. Antes do aporte deste dia." : concluido ? "Dia concluído" : "Saldo real + bônus disponível agora"}</p>
             {!concluido && <div className="mt-2 flex items-center justify-between gap-2 rounded-xl border border-blue-600/80 bg-gradient-to-r from-blue-950/70 to-[#071a31] px-3 py-2.5">
               <span className="flex items-center gap-2 text-[11px] font-semibold leading-snug text-cyan-300 sm:text-sm"><Wallet className="h-4 w-4 shrink-0" />{futuro ? "Aporte estimado para este dia" : "Aporte Recomendado Hoje"}</span>
               <span className="font-mono text-base font-bold text-sky-400 sm:text-xl">${fmt(cx.deposito)}</span>
@@ -1431,3 +1432,4 @@ function CaixaPanel({ asset, state, bancasGlobais, bancaAtivaId, assetKey, bonus
     </section>
   );
 }
+
