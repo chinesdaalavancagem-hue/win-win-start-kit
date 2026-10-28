@@ -649,6 +649,7 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
   return (
     <div ref={ref}
       data-wow-card={isCurrent && assetKey !== "saque2" ? "active" : undefined}
+      data-wow-schema={isCurrent && assetKey !== "saque2" ? "1" : undefined}
       data-wow-banca-id={isCurrent ? bancaId : undefined}
       data-wow-mesa={isCurrent ? mesa : undefined}
       data-wow-conta-mesa={isCurrent ? contaMesa : undefined}
