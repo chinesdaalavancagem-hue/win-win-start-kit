@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Platform } from "./Platform";
 import { fmt, fmtSigned, MESAS_FUTUROS, selecionarMesaGold, type MesaFuturos } from "@/lib/platform/engine";
 import { type BancasDoc, aplicarForex, extrairForex, forexDoDocumento, novaBanca, parseBancas, podeDesfazerBanca, relatorioCsv, resumoBanca } from "@/lib/platform/bancas";
+import { validarCatalogoTopstep, type CatalogoTopstep } from "@/lib/platform/topstep-vinculo";
 import { Plus, Building2, CheckCircle2, Pencil, Trash2, Download, ArrowUpRight, WalletCards, Activity } from "lucide-react";
 
 export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectionsMenuChange = () => {} }: { sectionsMenuOpen?: boolean; onSectionsMenuChange?: (open: boolean) => void; load: () => Promise<string | null>; save: (v: string) => Promise<boolean>; isAdmin: boolean }) {
@@ -12,6 +13,11 @@ export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectio
   const [painel, setPainel] = useState(false);
   const [nome, setNome] = useState("");
   const [taxaAvaliacao, setTaxaAvaliacao] = useState("");
+  const [catalogoTopstep, setCatalogoTopstep] = useState<CatalogoTopstep | null>(null);
+  const [consultandoContas, setConsultandoContas] = useState(false);
+  const [bancaPorConta, setBancaPorConta] = useState<Record<string, string>>({});
+  const pedidoContasRef = useRef<string | null>(null);
+  const timeoutContasRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const docRef = useRef<BancasDoc | null>(null);
   const pendingSave = useRef<Promise<boolean>>(Promise.resolve(true));
   const gravarEmOrdem = useCallback((d: BancasDoc) => {
@@ -23,7 +29,70 @@ export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectio
 
   useEffect(() => { load().then((r) => { const d = parseBancas(r); docRef.current = d; setDoc(d); }).catch(() => setErr(true)); }, [load]);
 
+  useEffect(() => {
+    const receber = (event: MessageEvent) => {
+      if (event.source !== window || event.origin !== window.location.origin ||
+          event.data?.tipo !== "WOW_TOPSTEP_CATALOG_RESPONSE_V1" ||
+          event.data.requestId !== pedidoContasRef.current) return;
+      pedidoContasRef.current = null;
+      if (timeoutContasRef.current) clearTimeout(timeoutContasRef.current);
+      setCatalogoTopstep(validarCatalogoTopstep(event.data));
+      setConsultandoContas(false);
+    };
+    window.addEventListener("message", receber);
+    return () => {
+      window.removeEventListener("message", receber);
+      pedidoContasRef.current = null;
+      if (timeoutContasRef.current) clearTimeout(timeoutContasRef.current);
+    };
+  }, []);
+
   const persist = useCallback((d: BancasDoc) => { docRef.current = d; setDoc(d); return gravarEmOrdem(d); }, [gravarEmOrdem]);
+
+  const buscarContasTopstep = () => {
+    if (pedidoContasRef.current) return;
+    const requestId = window.crypto.randomUUID();
+    pedidoContasRef.current = requestId;
+    setCatalogoTopstep(null);
+    setConsultandoContas(true);
+    timeoutContasRef.current = setTimeout(() => {
+      if (pedidoContasRef.current !== requestId) return;
+      pedidoContasRef.current = null;
+      setConsultandoContas(false);
+      setCatalogoTopstep({ situacao: "EXTENSAO_INDISPONIVEL", contas: [] });
+    }, 3500);
+    window.postMessage({ tipo: "WOW_TOPSTEP_CATALOG_REQUEST_V1", requestId }, window.location.origin);
+  };
+
+  const confirmarVinculoTopstep = async (contaId: string) => {
+    const d = docRef.current;
+    const catalogo = validarCatalogoTopstep(catalogoTopstep);
+    const conta = catalogo.contas.find((c) => c.id === contaId);
+    const bancaId = bancaPorConta[contaId];
+    const destino = d?.bancas.find((b) => b.id === bancaId && b.mesa === "topstep");
+    if (!d || !conta || !destino || catalogo.situacao !== "PRONTO") {
+      window.alert("Identificação vencida ou banca inválida. Busque novamente as contas.");
+      return;
+    }
+    const jaVinculada = destino.contaMesa ?? destino.challengeAccount?.account_external_id;
+    if (jaVinculada) {
+      window.alert("Esta banca já tem uma conta vinculada. Para preservar o histórico, crie outra banca para a nova conta.");
+      return;
+    }
+    if (d.bancas.some((b) => b.id !== bancaId && (b.contaMesa === conta.id || b.challengeAccount?.account_external_id === conta.id))) {
+      window.alert("Esta conta já está vinculada a outra banca. Nenhum dado foi alterado.");
+      return;
+    }
+    if (!window.confirm(`Vincular a conta TopstepX ${conta.nome} (ID ${conta.id}) à banca "${destino.nome}"?\n\nO vínculo não ativa operações no MT5 e não modifica o histórico.`)) return;
+    const next: BancasDoc = { ...d, bancas: d.bancas.map((b) => b.id === bancaId ? { ...b, contaMesa: conta.id, contaMesaNome: conta.nome } : b) };
+    const ok = await persist(next);
+    if (!ok) {
+      if (docRef.current === next) { docRef.current = d; setDoc(d); }
+      window.alert("Não foi possível salvar o vínculo. Verifique a conexão e tente novamente.");
+    } else {
+      setCatalogoTopstep(null);
+    }
+  };
 
   const mesa = doc?.mesaAtiva ?? "tradefive";
   const bancasDaMesa = doc?.bancas.filter((b) => (b.mesa ?? "tradefive") === mesa) ?? [];
@@ -126,6 +195,47 @@ export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectio
                 <Button type="button" variant="outline" className="h-10 rounded-xl border-cyan-900/80 bg-[#071426] text-blue-100 hover:border-cyan-400" onClick={exportar}><Download className="size-4" />Exportar CSV</Button>
               </div>
             </div>
+            {mesa === "topstep" && (
+              <section className="rounded-xl border border-cyan-900/70 bg-[#081629] p-3 sm:p-4" aria-label="Vincular contas TopstepX">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h4 className="text-sm font-bold text-cyan-100">Contas TopstepX detectadas</h4>
+                    <p className="mt-1 max-w-2xl text-xs text-slate-400">A extensão identifica automaticamente contas de avaliação e financiadas. A Practice não aparece. Você escolhe a banca e confirma o vínculo; nenhuma ordem é enviada.</p>
+                  </div>
+                  <Button type="button" size="sm" variant="outline" className="border-cyan-700 text-cyan-100" disabled={consultandoContas} onClick={buscarContasTopstep}>
+                    {consultandoContas ? "Consultando extensão..." : "Buscar contas detectadas"}
+                  </Button>
+                </div>
+                {catalogoTopstep && catalogoTopstep.situacao !== "PRONTO" && (
+                  <p className="mt-3 rounded-lg border border-amber-900/60 bg-amber-950/20 px-3 py-2 text-xs text-amber-200" role="status">
+                    {catalogoTopstep.situacao === "EXTENSAO_INDISPONIVEL" ? "Extensão não encontrada nesta aba. Instale/atualize o pacote DEV v1.15 e recarregue a plataforma." :
+                     catalogoTopstep.situacao === "AMBIGUO" ? "Há mais de uma aba TopstepX ou identidades conflitantes. Deixe somente uma aba TopstepX aberta e tente novamente." :
+                     catalogoTopstep.situacao === "DESATUALIZADO" ? "As identificações passaram de 2 minutos. Atualize a aba TopstepX e busque novamente." :
+                     "Nenhuma conta operacional detectada. Abra a aba autenticada da TopstepX, recarregue-a e busque novamente."}
+                  </p>
+                )}
+                {catalogoTopstep?.situacao === "PRONTO" && (
+                  <div className="mt-3 space-y-2">
+                    {catalogoTopstep.contas.map((conta) => {
+                      const existente = doc.bancas.find((b) => b.contaMesa === conta.id || b.challengeAccount?.account_external_id === conta.id);
+                      const livres = bancasDaMesa.filter((b) => !b.contaMesa && !b.challengeAccount?.account_external_id);
+                      const escolha = bancaPorConta[conta.id] ?? "";
+                      return <div key={conta.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-white/10 bg-black/15 p-2 text-xs">
+                        <div className="min-w-0 flex-1 text-slate-200"><p className="break-all font-semibold">{conta.nome}</p><p className="mt-0.5 font-mono text-cyan-300">accountId {conta.id}</p></div>
+                        {existente ? <span className="rounded-md bg-emerald-500/10 px-2 py-1 text-emerald-300">Vinculada: {existente.nome}</span> : <>
+                          <select aria-label={`Banca de destino para ${conta.nome}`} value={escolha} onChange={(e) => setBancaPorConta((atual) => ({ ...atual, [conta.id]: e.target.value }))} className="h-9 max-w-[220px] rounded-md border border-cyan-950 bg-[#071426] px-2 text-slate-100">
+                            <option value="">Escolha uma banca livre</option>
+                            {livres.map((b) => <option key={b.id} value={b.id}>{b.nome}</option>)}
+                          </select>
+                          <Button type="button" size="sm" className="bg-cyan-300 text-slate-950 hover:bg-cyan-200" disabled={!escolha} onClick={() => void confirmarVinculoTopstep(conta.id)}>Confirmar vínculo</Button>
+                        </>}
+                      </div>;
+                    })}
+                    <p className="text-[11px] text-slate-500">Quando a Topstep emitir outra conta, crie uma nova banca e confirme o novo ID. As bancas antigas e seus históricos permanecem intactos.</p>
+                  </div>
+                )}
+              </section>
+            )}
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
               {bancasDaMesa.map((b) => {
                 const r = resumoBanca(b);
@@ -153,13 +263,16 @@ export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectio
                       <div><dt className="text-slate-500">Último evento</dt><dd className=" text-slate-300">{r.ultima ? new Date(r.ultima).toLocaleDateString("pt-BR") : "Sem eventos"}</dd></div>
                     </dl>
                     <div className="mt-2 flex items-center justify-between gap-2 border-t border-white/5 pt-2 text-[11px]"><span className="text-slate-400">ID da Conta na Mesa</span><span className="truncate font-mono text-cyan-200" title={b.contaMesa ?? b.challengeAccount?.account_external_id ?? "Não configurada"}>{b.contaMesa ?? b.challengeAccount?.account_external_id ?? "Não configurada"}</span></div>
+                    {b.contaMesaNome && <p className="mt-1 truncate text-[10px] text-emerald-300" title={b.contaMesaNome}>{b.contaMesaNome}</p>}
                     <div className="mt-2 flex flex-wrap items-center gap-1 border-t border-white/5 pt-2">
                       <Button size="sm" variant="ghost" className="h-7 rounded-lg px-1.5 text-[11px] text-cyan-200 hover:bg-cyan-950/60" onClick={() => {
                         const entrada = window.prompt("ID COMPLETO da conta na mesa (não use apenas os 4 últimos dígitos)", b.contaMesa ?? b.challengeAccount?.account_external_id ?? "");
                         if (entrada === null) return;
                         const contaMesa = entrada.trim();
                         if (contaMesa.length > 100 || /[\x00-\x1F\x7F]/.test(contaMesa)) { window.alert("ID inválido (máximo de 100 caracteres, sem controles)."); return; }
-                        persist({ ...doc, bancas: doc.bancas.map((x) => x.id === b.id ? { ...x, contaMesa: contaMesa || undefined, ...(x.challengeAccount && contaMesa ? { challengeAccount: { ...x.challengeAccount, account_external_id: contaMesa } } : {}) } : x) });
+                        if (contaMesa && doc.bancas.some((x) => x.id !== b.id && (x.contaMesa === contaMesa || x.challengeAccount?.account_external_id === contaMesa))) { window.alert("Este ID já pertence a outra banca."); return; }
+                        if (mesa === "topstep" && !window.confirm("Alterar o ID manualmente não comprova identidade TopstepX. Confirma esta alteração? O histórico permanecerá na banca.")) return;
+                        persist({ ...doc, bancas: doc.bancas.map((x) => x.id === b.id ? { ...x, contaMesa: contaMesa || undefined, contaMesaNome: undefined, ...(x.challengeAccount && contaMesa ? { challengeAccount: { ...x.challengeAccount, account_external_id: contaMesa } } : {}) } : x) });
                       }}><Pencil className="size-3.5" />ID da conta</Button>
                       <Button size="sm" variant="ghost" className="h-7 rounded-lg px-1.5 text-[11px] text-slate-300 hover:bg-cyan-950/60 hover:text-cyan-200" onClick={() => {
                         const n = window.prompt("Novo nome da banca", b.nome)?.trim();
