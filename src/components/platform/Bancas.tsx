@@ -152,7 +152,15 @@ export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectio
                       <div><dt className="text-slate-500">Total gasto</dt><dd className=" font-mono text-slate-200">${fmt(r.totalGasto)}</dd></div>
                       <div><dt className="text-slate-500">Último evento</dt><dd className=" text-slate-300">{r.ultima ? new Date(r.ultima).toLocaleDateString("pt-BR") : "Sem eventos"}</dd></div>
                     </dl>
+                    <div className="mt-2 flex items-center justify-between gap-2 border-t border-white/5 pt-2 text-[11px]"><span className="text-slate-400">ID da Conta na Mesa</span><span className="truncate font-mono text-cyan-200" title={b.contaMesa ?? b.challengeAccount?.account_external_id ?? "Não configurada"}>{b.contaMesa ?? b.challengeAccount?.account_external_id ?? "Não configurada"}</span></div>
                     <div className="mt-2 flex flex-wrap items-center gap-1 border-t border-white/5 pt-2">
+                      <Button size="sm" variant="ghost" className="h-7 rounded-lg px-1.5 text-[11px] text-cyan-200 hover:bg-cyan-950/60" onClick={() => {
+                        const entrada = window.prompt("ID COMPLETO da conta na mesa (não use apenas os 4 últimos dígitos)", b.contaMesa ?? b.challengeAccount?.account_external_id ?? "");
+                        if (entrada === null) return;
+                        const contaMesa = entrada.trim();
+                        if (contaMesa.length > 100 || /[\x00-\x1F\x7F]/.test(contaMesa)) { window.alert("ID inválido (máximo de 100 caracteres, sem controles)."); return; }
+                        persist({ ...doc, bancas: doc.bancas.map((x) => x.id === b.id ? { ...x, contaMesa: contaMesa || undefined, ...(x.challengeAccount && contaMesa ? { challengeAccount: { ...x.challengeAccount, account_external_id: contaMesa } } : {}) } : x) });
+                      }}><Pencil className="size-3.5" />ID da conta</Button>
                       <Button size="sm" variant="ghost" className="h-7 rounded-lg px-1.5 text-[11px] text-slate-300 hover:bg-cyan-950/60 hover:text-cyan-200" onClick={() => {
                         const n = window.prompt("Novo nome da banca", b.nome)?.trim();
                         if (n) persist({ ...doc, bancas: doc.bancas.map((x) => (x.id === b.id ? { ...x, nome: n.slice(0, 60) } : x)) });
@@ -190,7 +198,7 @@ export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectio
         </section>
       )}
 
-      {ativa ? <Platform key={ativa.id} leftMenuOpen={sectionsMenuOpen} setLeftMenuOpen={onSectionsMenuChange} load={loadActive} save={saveActive} isAdmin={isAdmin} officialAcceptedAt={ativa.officialAcceptedAt ?? null} allBancas={bancasDaMesa} bancasGlobais={doc.bancas} bancaAtivaId={ativa.id} podeDesfazerForex={podeDesfazerForex} mesaAtiva={mesa} onMesaChange={escolherMesa} /> : <section className="mx-auto my-10 max-w-lg rounded-xl border border-amber-800/60 bg-[#081321] p-5 text-center text-slate-200"><h3 className="font-bold">Nenhuma banca cadastrada na {MESAS_FUTUROS[mesa].nome}</h3><p className="mt-2 text-sm text-slate-400">As bancas das outras mesas permanecem preservadas. Crie uma banca nesta mesa para começar.</p><Button type="button" className="mt-3" onClick={() => setPainel(true)}>Cadastrar banca</Button></section>}
+      {ativa ? <Platform key={ativa.id} leftMenuOpen={sectionsMenuOpen} setLeftMenuOpen={onSectionsMenuChange} load={loadActive} save={saveActive} isAdmin={isAdmin} officialAcceptedAt={ativa.officialAcceptedAt ?? null} allBancas={bancasDaMesa} bancasGlobais={doc.bancas} bancaAtivaId={ativa.id} contaMesa={ativa.contaMesa ?? ativa.challengeAccount?.account_external_id} podeDesfazerForex={podeDesfazerForex} mesaAtiva={mesa} onMesaChange={escolherMesa} /> : <section className="mx-auto my-10 max-w-lg rounded-xl border border-amber-800/60 bg-[#081321] p-5 text-center text-slate-200"><h3 className="font-bold">Nenhuma banca cadastrada na {MESAS_FUTUROS[mesa].nome}</h3><p className="mt-2 text-sm text-slate-400">As bancas das outras mesas permanecem preservadas. Crie uma banca nesta mesa para começar.</p><Button type="button" className="mt-3" onClick={() => setPainel(true)}>Cadastrar banca</Button></section>}
     </div>
   );
 }
