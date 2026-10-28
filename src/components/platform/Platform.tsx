@@ -1,7 +1,7 @@
 import type { Banca } from "@/lib/platform/bancas";
 import { calcularCoberturaSimultanea } from "@/lib/platform/caixa-consolidado";
 import { createPortal } from "react-dom";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type CSSProperties } from "react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { Undo2, FileText, Layers, Target, TrendingUp, ShieldCheck, Wallet, ChevronRight, Crosshair, Calculator, Check, ChartNoAxesCombined, Landmark, History, Menu, X, SlidersHorizontal, Gift, CircleDollarSign, ChartPie, Building2 } from "lucide-react";
@@ -39,6 +39,7 @@ export function Platform({ leftMenuOpen = false, setLeftMenuOpen = () => {}, loa
   const [sync, setSync] = useState<Sync>({ mode: "busy", text: "carregando…" });
   const [syncTarget, setSyncTarget] = useState<HTMLElement | null>(null);
   const heroRef = useRef<HTMLElement>(null);
+  const rightRailRef = useRef<HTMLElement>(null);
   const [desktopRailTop, setDesktopRailTop] = useState(120);
   const [headerHeight, setHeaderHeight] = useState(112);
   useEffect(() => {
@@ -56,18 +57,22 @@ export function Platform({ leftMenuOpen = false, setLeftMenuOpen = () => {}, loa
       if (!heroRef.current) return;
       const rect = heroRef.current.getBoundingClientRect();
       const heroTop = rect.top + 24;
-      // No desktop, os dois menus acompanham o hero mesmo fora da viewport.
-      // Não reposicioná-los sobre a gestão de bancas ou o cabeçalho global.
+      // Acompanhar o hero somente dentro da área útil da tela. A faixa lateral
+      // permanece acessível durante a rolagem e ao abrir a gestão de bancas.
+      const minTop = headerHeight + 12;
+      const railHeight = rightRailRef.current?.getBoundingClientRect().height ?? 312;
+      const maxTop = Math.max(minTop, window.innerHeight - railHeight - 80);
       const mobile = window.innerWidth < 1024;
       const top = mobile
         ? Math.max(headerHeight + 12, Math.min(rect.bottom + 12, window.innerHeight - 300))
-        : heroTop;
+        : Math.max(minTop, Math.min(heroTop, maxTop));
       setDesktopRailTop(Math.round(top));
     };
     alignRails();
     // Abrir/fechar a gestão desloca o hero sem resize/scroll da janela e sem
     // mudar o tamanho do próprio hero. Observar também seus contêineres.
     const observer = new ResizeObserver(alignRails);
+    if (rightRailRef.current) observer.observe(rightRailRef.current);
     let container: HTMLElement | null = heroRef.current;
     while (container) {
       observer.observe(container);
@@ -151,7 +156,7 @@ export function Platform({ leftMenuOpen = false, setLeftMenuOpen = () => {}, loa
   const lastOperation = state.log.at(-1);
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-12 py-3 sm:px-14 lg:py-3">
+    <div className="mx-auto w-full max-w-6xl px-12 py-3 sm:px-14 lg:py-3" style={{ "--rail-max-height": `max(56px, calc(100dvh - ${headerHeight + 92}px))` } as CSSProperties}>
       {syncTarget && createPortal(
         <span role="status" className="inline-flex items-center gap-1.5 whitespace-nowrap text-[11px] text-blue-100/75">
           <span className={cn("size-2 rounded-full", sync.mode === "ok" && "bg-emerald-400", sync.mode === "busy" && "bg-amber-400", sync.mode === "err" && "bg-rose-400")} />
@@ -174,7 +179,7 @@ export function Platform({ leftMenuOpen = false, setLeftMenuOpen = () => {}, loa
       </section>
 
 
-      <nav className="fixed right-1 top-[calc(65%-54px)] z-30 flex -translate-y-1/2 flex-col gap-2 lg:right-2 lg:top-auto lg:translate-y-0" aria-label="Ativos e histórico" style={{ top: typeof window !== "undefined" && window.innerWidth >= 1024 ? desktopRailTop : undefined }}>
+      <nav ref={rightRailRef} className="lg:max-h-[var(--rail-max-height)] lg:overflow-y-auto fixed right-1 top-[calc(65%-54px)] z-30 flex -translate-y-1/2 flex-col gap-2 lg:right-2 lg:top-auto lg:translate-y-0" aria-label="Ativos e histórico" style={{ top: typeof window !== "undefined" && window.innerWidth >= 1024 ? desktopRailTop : undefined }}>
         <button type="button" title="Escolher mesa de futuros" aria-label="Escolher mesa de futuros" aria-expanded={mostrarMesas} onClick={() => setMostrarMesas((v) => !v)} className={cn("relative flex size-9 items-center justify-center rounded-xl border border-cyan-700/70 bg-[#061322] shadow-xl transition-colors lg:size-14", mostrarMesas ? "border-amber-400/70 bg-amber-950/60 text-amber-200" : "border-transparent text-amber-300 hover:bg-amber-950/50")}><Building2 className="size-4 lg:size-5" /></button>
         {TABS.map((t) => (
           <button key={t.key} type="button" title={t.label} aria-label={t.label} aria-pressed={tab === t.key} onClick={() => { setActiveTabLabel(null); mutate((s) => { s.activeTab = t.key; }); setActiveTabLabel(t.key); }}
@@ -438,7 +443,7 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, assetKey, section, setS
             className="pointer-events-auto flex size-9 items-center justify-center rounded-xl border border-cyan-700/70 bg-[#061322] sm:size-11 lg:size-12 text-cyan-300 shadow-xl hover:bg-blue-950">
             {leftMenuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
           </button>
-          {leftMenuOpen && <nav className="pointer-events-auto flex w-48 flex-col gap-1 rounded-xl border border-cyan-800/70 bg-[#061322] p-2 shadow-2xl" aria-label="Seções da plataforma">
+          {leftMenuOpen && <nav className="pointer-events-auto lg:max-h-[var(--rail-max-height)] lg:overflow-y-auto flex w-48 flex-col gap-1 rounded-xl border border-cyan-800/70 bg-[#061322] p-2 shadow-2xl" aria-label="Seções da plataforma">
             {sections.map(([k, l]) => (
               <button key={k} type="button" aria-pressed={section === k} onClick={() => { setSection(k); setLeftMenuOpen(false); }}
                 className={cn("rounded-lg px-3 py-2 text-left text-xs font-semibold transition-colors", section === k ? "bg-emerald-500/20 text-emerald-300" : "text-blue-100 hover:bg-blue-950")}>{l}</button>
@@ -1441,5 +1446,6 @@ function CaixaPanel({ asset, state, bancasGlobais, bancaAtivaId, assetKey, bonus
     </section>
   );
 }
+
 
 
