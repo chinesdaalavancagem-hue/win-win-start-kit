@@ -1,10 +1,11 @@
+import { type MesaPersonalizada, idMesaPersonalizada, normalizarMesasPersonalizadas } from "./mesas-personalizadas";
 import { type State, type AssetKey, type Bonus, type MesaFuturos, defaultState, historicoTotals, isValidState, normalizeState, podeDesfazerUltimaOperacao, tipoLabel } from "./engine";
 import { challengeAccountSchema, type ChallengeAccount } from "../prop-firms";
 
 export type BancaAtivo = "nasdaq" | "ouro";
 export interface Banca { id: string; nome: string; criadaEm: number; state: State; taxaCompra?: number; mesa?: MesaFuturos; ativo?: BancaAtivo; officialAcceptedAt?: string; challengeAccount?: ChallengeAccount; contaMesa?: string | undefined; contaMesaNome?: string | undefined }
 export interface ForexCompartilhado { cfdBalance: number; forexSaldoReal?: number | undefined; bonus: Record<AssetKey, Bonus> }
-export interface BancasDoc { bancasVersion: 1; activeId: string; bancas: Banca[]; mesaAtiva?: MesaFuturos; activeIdsMesa?: Partial<Record<MesaFuturos, string>>; forex?: ForexCompartilhado }
+export interface BancasDoc { mesasPersonalizadas?: MesaPersonalizada[]; bancasVersion: 1; activeId: string; bancas: Banca[]; mesaAtiva?: MesaFuturos; activeIdsMesa?: Partial<Record<MesaFuturos, string>>; forex?: ForexCompartilhado }
 
 export function extrairForex(state: State): ForexCompartilhado {
   return { cfdBalance: state.cfdBalance, forexSaldoReal: state.forexSaldoReal, bonus: {
@@ -49,12 +50,13 @@ export function parseBancas(raw: string | null): BancasDoc {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let p: any = null;
   try { p = raw ? JSON.parse(raw) : null; } catch { p = null; }
-  if (p && Array.isArray(p.bancas) && p.bancas.length) {
+  if (p && Array.isArray(p.bancas) && (p.bancas.length || p.bancasVersion === 1)) {
+    const mesasPersonalizadas = normalizarMesasPersonalizadas(p.mesasPersonalizadas);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const bancas: Banca[] = p.bancas.filter((b: any) => b.mesa !== "ylos").map((b: any, i: number) => ({
       id: String(b.id || newId()), nome: String(b.nome || `Banca ${i + 1}`), criadaEm: Number(b.criadaEm) || Date.now(),
       state: isValidState(b.state) ? normalizeState(b.state) : defaultState(),
-      mesa: b.mesa === "lucid" || b.mesa === "mff" || b.mesa === "topstep" ? b.mesa : "tradefive",
+      mesa: b.mesa === "lucid" || b.mesa === "mff" || b.mesa === "topstep" || idMesaPersonalizada(b.mesa) ? b.mesa : "tradefive",
       ...(Number.isFinite(b.taxaCompra) && b.taxaCompra >= 0 ? { taxaCompra: b.taxaCompra } : {}),
       ...(b.ativo === "nasdaq" || b.ativo === "ouro" ? { ativo: b.ativo } : {}),
       ...(typeof b.officialAcceptedAt === "string" ? { officialAcceptedAt: b.officialAcceptedAt } : {}),
@@ -63,12 +65,12 @@ export function parseBancas(raw: string | null): BancasDoc {
       ...(challengeAccountSchema.safeParse(b.challengeAccount).success ? { challengeAccount: challengeAccountSchema.parse(b.challengeAccount) } : {}),
     }));
     const activeId = bancas.some((b) => b.id === p.activeId) ? p.activeId : bancas[0]?.id ?? "";
-    const mesaAtiva: MesaFuturos = p.mesaAtiva === "lucid" || p.mesaAtiva === "mff" || p.mesaAtiva === "topstep" ? p.mesaAtiva : "tradefive";
+    const mesaAtiva: MesaFuturos = p.mesaAtiva === "lucid" || p.mesaAtiva === "mff" || p.mesaAtiva === "topstep" || (idMesaPersonalizada(p.mesaAtiva) && (mesasPersonalizadas.some(m => m.id === p.mesaAtiva) || bancas.some(b => b.mesa === p.mesaAtiva))) ? p.mesaAtiva : "tradefive";
     const ids = p.activeIdsMesa && typeof p.activeIdsMesa === "object" ? p.activeIdsMesa as Partial<Record<MesaFuturos, string>> : {};
     const remainingIds = { ...ids } as typeof ids & { ylos?: string };
     delete remainingIds.ylos;
     const activeIdsMesa = { ...remainingIds, tradefive: remainingIds.tradefive ?? bancas.find((b) => b.mesa === "tradefive")?.id ?? "" };
-    const doc: BancasDoc = { bancasVersion: 1, activeId, bancas, mesaAtiva, activeIdsMesa };
+    const doc: BancasDoc = { bancasVersion: 1, activeId, bancas, mesaAtiva, activeIdsMesa, mesasPersonalizadas };
     return { ...doc, forex: p.forex && Number.isFinite(p.forex.cfdBalance) && p.forex.bonus ? p.forex : forexDoDocumento(doc) };
   }
   const first = novaBanca("Banca principal", isValidState(p) ? normalizeState(p) : defaultState());
@@ -108,3 +110,4 @@ export function relatorioCsv(bancas: Banca[]): string {
     rows.push([b.nome, new Date(e.ts).toLocaleString("pt-BR"), ASSET[e.asset] ?? e.asset, e.day ?? 0, tipoLabel(e.tipo, e.asset), num(e.delta), typeof e.cfdTeorico === "number" ? num(e.cfdTeorico) : "", typeof e.cfdReal === "number" ? num(e.cfdReal) : "", typeof e.spread === "number" ? num(e.spread) : "", num(e.saldoApos)]);
   return "\uFEFF" + rows.map((r) => r.map(csvCell).join(";")).join("\n");
 }
+

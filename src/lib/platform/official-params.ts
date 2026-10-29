@@ -1,3 +1,4 @@
+import { idMesaPersonalizada, validarMesaPersonalizada, type MesaPersonalizada } from "./mesas-personalizadas";
 import type { AssetKey, State, MesaFuturos } from "@/lib/platform/engine";
 
 export const OFFICIAL_PARAMS_FORMAT = "win-or-win-official-parameters";
@@ -11,7 +12,7 @@ export type OfficialParamsPayload = {
   version: 1;
   exportedAt: string;
   mesaFuturos?: MesaFuturos;
-  assets: Record<AssetKey, { params: Record<string, unknown>; days: OfficialDay[] }>;
+  assets: Record<AssetKey, { params: Record<string, unknown>; days: OfficialDay[]; mesaConfig?: MesaPersonalizada; avaliacaoDias?: number }>;
 };
 
 const isNum = (v: unknown) => typeof v === "number" && Number.isFinite(v);
@@ -21,6 +22,7 @@ export function buildOfficialParams(state: State, exportedAt = new Date().toISOS
   const assets = Object.fromEntries(ASSETS.map((key) => {
     const { ativoReal, mnq, hfm, mll, taxa, lucroDesejado, marginPerLot, stopoutPct, saqueAprovada, folgaExtraPct } = state.assets[key].params;
     return [key, {
+      ...(state.assets[key].mesaConfig ? {mesaConfig: structuredClone(state.assets[key].mesaConfig), avaliacaoDias: state.assets[key].avaliacaoPorMesa?.[mesaFuturos!] ?? (key === "saque2" ? 0 : state.assets[key].mesaConfig!.avaliacao)} : {}),
       params: { mnq, hfm, mll, taxa, lucroDesejado, marginPerLot, stopoutPct, saqueAprovada, folgaExtraPct, ...(ativoReal ? { ativoReal } : {}) },
       days: state.assets[key].days.map(({ mnq, lotes, meta, mll }) => ({ mnq, lotes, meta, ...(typeof mll === "number" ? { mll } : {}) })),
     }];
@@ -33,10 +35,12 @@ export function isOfficialParams(payload: unknown): payload is OfficialParamsPay
   const p = payload as { format?: unknown; version?: unknown; assets?: Record<string, unknown> };
   if (p.format !== OFFICIAL_PARAMS_FORMAT || p.version !== 1 || !p.assets || typeof p.assets !== "object") return false;
   const mesa = (payload as { mesaFuturos?: unknown }).mesaFuturos;
-  if (mesa !== undefined && mesa !== "tradefive" && mesa !== "lucid" && mesa !== "mff" && mesa !== "topstep") return false;
+  if (mesa !== undefined && mesa !== "tradefive" && mesa !== "lucid" && mesa !== "mff" && mesa !== "topstep" && !idMesaPersonalizada(mesa)) return false;
   return ASSETS.every((key) => {
-    const asset = p.assets![key] as { params?: unknown; days?: unknown } | undefined;
+    const asset = p.assets![key] as { params?: unknown; days?: unknown; mesaConfig?: MesaPersonalizada; avaliacaoDias?: number } | undefined;
     const params = asset?.params as Record<string, unknown> | undefined;
+    if (idMesaPersonalizada(mesa) && (!asset?.mesaConfig || validarMesaPersonalizada(asset.mesaConfig) || asset.mesaConfig.id !== mesa || !Number.isInteger(asset.avaliacaoDias) || asset.avaliacaoDias! < 0 || !Array.isArray(asset.days) || asset.avaliacaoDias! > asset.days.length)) return false;
+    if (!idMesaPersonalizada(mesa) && asset?.mesaConfig !== undefined) return false;
     return !!asset && !!params && typeof params === "object" &&
       PARAM_FIELDS.every((f) => isNum(params[f])) &&
       (params.ativoReal === undefined || params.ativoReal === "ouro" || params.ativoReal === "nasdaq") &&
@@ -52,6 +56,11 @@ export function isOfficialParams(payload: unknown): payload is OfficialParamsPay
 export function applyOfficialParams(current: State, payload: OfficialParamsPayload, onlyAsset?: AssetKey): void {
   for (const key of onlyAsset ? [onlyAsset] : ASSETS) {
     const incoming = payload.assets[key];
+    if (incoming.mesaConfig && !validarMesaPersonalizada(incoming.mesaConfig) && incoming.mesaConfig.id === payload.mesaFuturos) {
+      current.assets[key].mesaConfig = structuredClone(incoming.mesaConfig);
+      current.assets[key].mesaFuturos = incoming.mesaConfig.id;
+      current.assets[key].avaliacaoPorMesa = {...current.assets[key].avaliacaoPorMesa, [incoming.mesaConfig.id]: incoming.avaliacaoDias ?? incoming.mesaConfig.avaliacao};
+    }
     const picked: Record<string, unknown> = {};
     for (const f of PARAM_FIELDS) {
       // A taxa é o custo real pago por cada banca e não pode ser substituída por JSON oficial.
@@ -62,3 +71,4 @@ export function applyOfficialParams(current: State, payload: OfficialParamsPaylo
     current.assets[key].days = incoming.days.map(({ mnq, lotes, meta, mll }) => ({ mnq, lotes, meta, ...(typeof mll === "number" ? { mll } : {}) }));
   }
 }
+

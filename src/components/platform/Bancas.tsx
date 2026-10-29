@@ -1,8 +1,10 @@
+import { CadastrarMesa } from "./CadastrarMesa";
+import type { MesaPersonalizada } from "@/lib/platform/mesas-personalizadas";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Platform } from "./Platform";
-import { fmt, fmtSigned, MESAS_FUTUROS, selecionarMesaGold, type MesaFuturos } from "@/lib/platform/engine";
+import { fmt, fmtSigned, MESAS_FUTUROS, prepararMesaPersonalizada, selecionarMesaGold, type MesaFuturos } from "@/lib/platform/engine";
 import { type BancasDoc, aplicarForex, extrairForex, forexDoDocumento, novaBanca, parseBancas, podeDesfazerBanca, relatorioCsv, resumoBanca } from "@/lib/platform/bancas";
 import { validarCatalogoTopstep, type CatalogoTopstep } from "@/lib/platform/topstep-vinculo";
 import { Plus, Building2, CheckCircle2, Pencil, Trash2, Download, ArrowUpRight, WalletCards, Activity } from "lucide-react";
@@ -11,6 +13,7 @@ export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectio
   const [doc, setDoc] = useState<BancasDoc | null>(null);
   const [err, setErr] = useState(false);
   const [painel, setPainel] = useState(false);
+  const [cadastroMesa, setCadastroMesa] = useState(false);
   const [nome, setNome] = useState("");
   const [taxaAvaliacao, setTaxaAvaliacao] = useState("");
   const [catalogoTopstep, setCatalogoTopstep] = useState<CatalogoTopstep | null>(null);
@@ -94,6 +97,9 @@ export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectio
     }
   };
 
+  const mesasDisponiveis: typeof MESAS_FUTUROS = { ...MESAS_FUTUROS,
+    ...Object.fromEntries((doc?.bancas ?? []).flatMap(b => b.state.assets.ouro.mesaConfig ? [[b.state.assets.ouro.mesaConfig.id, b.state.assets.ouro.mesaConfig]] : [])),
+    ...Object.fromEntries((doc?.mesasPersonalizadas ?? []).map(m => [m.id, m])) };
   const mesa = doc?.mesaAtiva ?? "tradefive";
   const bancasDaMesa = doc?.bancas.filter((b) => (b.mesa ?? "tradefive") === mesa) ?? [];
   const selecionada = bancasDaMesa.find((b) => b.id === doc?.activeIdsMesa?.[mesa]) ?? bancasDaMesa.find((b) => b.id === doc?.activeId) ?? bancasDaMesa[0];
@@ -132,6 +138,22 @@ export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectio
   // Desfazer só é permitido se nenhuma outra banca movimentou o Forex compartilhado.
   const podeDesfazerForex = !!ativa && podeDesfazerBanca(doc, ativa);
 
+  async function criarMesa(regra: MesaPersonalizada, taxa: number): Promise<boolean> {
+    const current = docRef.current;
+    if (!current) return false;
+    const banca = novaBanca(`${regra.nome} · Banca 1`);
+    banca.mesa = regra.id; banca.taxaCompra = taxa;
+    prepararMesaPersonalizada(banca.state, regra);
+    banca.state = aplicarForex(banca.state, forexDoDocumento(current));
+    banca.state.assets.nasdaq.params.taxa = taxa;
+    banca.state.assets.ouro.params.taxa = taxa;
+    const next: BancasDoc = {...current, mesasPersonalizadas:[...(current.mesasPersonalizadas ?? []), regra],
+      mesaAtiva:regra.id, activeId:banca.id, activeIdsMesa:{...current.activeIdsMesa,[regra.id]:banca.id}, bancas:[...current.bancas,banca]};
+    const ok = await persist(next).catch(() => false);
+    if (!ok) { if (docRef.current === next) {docRef.current = current; setDoc(current);} return false; }
+    setPainel(false); return true;
+  }
+
   function exportar() {
     const current = docRef.current;
     if (!current) return;
@@ -150,7 +172,7 @@ export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectio
             <div><p className="text-[11px] font-bold uppercase tracking-[0.22em] text-cyan-300/80">Workspace financeiro</p><h2 className="mt-1 text-xl font-bold tracking-tight text-slate-100 sm:text-2xl">Gerenciar bancas</h2><p className="mt-1 text-sm text-slate-400">Organize suas contas, acompanhe resultados e alterne entre ciclos.</p></div>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-            <label className="flex items-center gap-1 text-sm text-amber-200"><Building2 className="size-4" /><select aria-label="Mesa de futuros" value={mesa} onChange={(e) => escolherMesa(e.target.value as MesaFuturos)} className="rounded-lg border border-amber-800 bg-[#071426] px-2 py-2 text-sm font-semibold text-amber-100">{Object.entries(MESAS_FUTUROS).map(([k, m]) => <option key={k} value={k}>{m.nome}</option>)}</select></label>
+            <label className="flex items-center gap-1 text-sm text-amber-200"><Building2 className="size-4" /><select aria-label="Mesa de futuros" value={mesa} onChange={(e) => escolherMesa(e.target.value as MesaFuturos)} className="rounded-lg border border-amber-800 bg-[#071426] px-2 py-2 text-sm font-semibold text-amber-100">{Object.entries(mesasDisponiveis).map(([k, m]) => <option key={k} value={k}>{m.nome}</option>)}</select></label>
             <label htmlFor="banca-sel" className="sr-only">Banca ativa</label>
             <div className="flex min-w-0 items-center gap-2 rounded-xl border border-cyan-950 bg-[#071426] px-3 py-2.5 sm:min-w-[230px]">
               <Activity className="size-4 shrink-0 text-cyan-300" />
@@ -166,6 +188,8 @@ export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectio
           </div>
         </div>
       </header>
+      <div className="mx-auto w-full max-w-[1600px] px-4 pt-3 sm:px-6 lg:px-20"><Button type="button" variant="outline" onClick={() => setCadastroMesa(v => !v)}><Plus className="size-4" />Cadastrar mesa</Button></div>
+      {cadastroMesa && <CadastrarMesa nomes={Object.values(mesasDisponiveis).map(m => m.nome)} onSave={criarMesa} onClose={() => setCadastroMesa(false)} />}
       {painel && (
         <section className="border-b border-cyan-950/70 bg-[#06101f]/80 px-4 py-5 sm:px-6 lg:px-20">
           <div className="mx-auto max-w-[1600px] space-y-5">
@@ -179,7 +203,9 @@ export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectio
                   const b = novaBanca(nome);
                   b.taxaCompra = valor;
                   b.mesa = mesa;
-                  if (mesa !== "tradefive") selecionarMesaGold(b.state.assets.ouro, mesa);
+                  const personalizada = doc.mesasPersonalizadas?.find(m => m.id === mesa) ?? selecionada?.state.assets.ouro.mesaConfig;
+                  if (personalizada?.id === mesa) prepararMesaPersonalizada(b.state, personalizada);
+                  else if (mesa !== "tradefive") selecionarMesaGold(b.state.assets.ouro, mesa);
                   b.state = aplicarForex(b.state, forexDoDocumento(doc));
                   b.state.assets.nasdaq.params.taxa = valor;
                   b.state.assets.ouro.params.taxa = valor;
@@ -311,8 +337,9 @@ export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectio
         </section>
       )}
 
-      {ativa ? <Platform key={ativa.id} leftMenuOpen={sectionsMenuOpen} setLeftMenuOpen={onSectionsMenuChange} load={loadActive} save={saveActive} isAdmin={isAdmin} officialAcceptedAt={ativa.officialAcceptedAt ?? null} allBancas={bancasDaMesa} bancasGlobais={doc.bancas} bancaAtivaId={ativa.id} contaMesa={ativa.contaMesa ?? ativa.challengeAccount?.account_external_id} podeDesfazerForex={podeDesfazerForex} mesaAtiva={mesa} onMesaChange={escolherMesa} /> : <section className="mx-auto my-10 max-w-lg rounded-xl border border-amber-800/60 bg-[#081321] p-5 text-center text-slate-200"><h3 className="font-bold">Nenhuma banca cadastrada na {MESAS_FUTUROS[mesa].nome}</h3><p className="mt-2 text-sm text-slate-400">As bancas das outras mesas permanecem preservadas. Crie uma banca nesta mesa para começar.</p><Button type="button" className="mt-3" onClick={() => setPainel(true)}>Cadastrar banca</Button></section>}
+      {ativa ? <Platform mesasDisponiveis={mesasDisponiveis} key={ativa.id} leftMenuOpen={sectionsMenuOpen} setLeftMenuOpen={onSectionsMenuChange} load={loadActive} save={saveActive} isAdmin={isAdmin} officialAcceptedAt={ativa.officialAcceptedAt ?? null} allBancas={bancasDaMesa} bancasGlobais={doc.bancas} bancaAtivaId={ativa.id} contaMesa={ativa.contaMesa ?? ativa.challengeAccount?.account_external_id} podeDesfazerForex={podeDesfazerForex} mesaAtiva={mesa} onMesaChange={escolherMesa} /> : <section className="mx-auto my-10 max-w-lg rounded-xl border border-amber-800/60 bg-[#081321] p-5 text-center text-slate-200"><h3 className="font-bold">Nenhuma banca cadastrada na {(mesasDisponiveis[mesa]?.nome ?? "Mesa personalizada")}</h3><p className="mt-2 text-sm text-slate-400">As bancas das outras mesas permanecem preservadas. Crie uma banca nesta mesa para começar.</p><Button type="button" className="mt-3" onClick={() => setPainel(true)}>Cadastrar banca</Button></section>}
     </div>
   );
 }
+
 

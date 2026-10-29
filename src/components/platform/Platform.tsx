@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { registrarAuditoria } from "@/lib/auditoria-registro";
 import { applyOfficialParams, buildOfficialParams, isOfficialParams } from "@/lib/platform/official-params";
 import {
-  type AssetKey, type State, type TabKey, type Asset, type MesaFuturos, MESAS_FUTUROS, diasAvaliacaoGold, lossLimitGoldProjetado, lossLimitGoldEfetivo, adicionarDiaGold, removerDiaGold,
+  type AssetKey, type State, type TabKey, type Asset, type MesaFuturos, MESAS_FUTUROS, nomeMesa, diasAvaliacaoAtivo, diasAvaliacaoGold, lossLimitGoldProjetado, lossLimitGoldEfetivo, adicionarDiaGold, removerDiaGold,
   aplicarDeposito, aplicarSaque, projetarAportesFuturos, conciliarCreditoForex, calcAporteFracionado, calcCaixaCiclo, clampDayIndex, computeAssetCalcs, defaultState, fmt, fmtSigned, handleProfit, handleStop,
   historicoTotals, isValidState, normalizeState, parseNum, parseValorFinanceiro, parseResultadoCfd, podeDesfazerUltimaOperacao, projetarZeragemBonus, resetBonus, tipoLabel, undoLast,
 } from "@/lib/platform/engine";
@@ -24,9 +24,9 @@ const TABS: { key: TabKey; label: string; dot: string }[] = [
   { key: "historico", label: "Histórico", dot: "bg-muted-foreground" },
 ];
 const ASSET_NAME: Record<AssetKey, string> = { nasdaq: "NASDAQ", ouro: "GOLD", saque2: "SAQUE 2" };
-const rotuloDia = (asset: Asset, key: AssetKey, indice: number) => { const avaliacao = key === "ouro" ? diasAvaliacaoGold(asset) : key === "saque2" ? 0 : 3; return `D${indice < avaliacao ? indice + 1 : indice - avaliacao + 1} ${indice < avaliacao ? "Avaliação" : "Financiada"}`; };
+const rotuloDia = (asset: Asset, key: AssetKey, indice: number) => { const avaliacao = diasAvaliacaoAtivo(asset, key); return `D${indice < avaliacao ? indice + 1 : indice - avaliacao + 1} ${indice < avaliacao ? "Avaliação" : "Financiada"}`; };
 
-export function Platform({ leftMenuOpen = false, setLeftMenuOpen = () => {}, load, save, isAdmin, officialAcceptedAt, allBancas, bancasGlobais, bancaAtivaId, contaMesa, podeDesfazerForex = true, mesaAtiva = "tradefive", onMesaChange = () => {} }: { leftMenuOpen?: boolean; setLeftMenuOpen?: (open: boolean) => void; load: () => Promise<string | null>; save: (v: string, acceptedAt?: string) => Promise<boolean>; isAdmin: boolean; officialAcceptedAt: string | null; allBancas?: Banca[]; bancasGlobais?: Banca[] | undefined; bancaAtivaId?: string | undefined; contaMesa?: string | undefined; podeDesfazerForex?: boolean; mesaAtiva?: MesaFuturos; onMesaChange?: (mesa: MesaFuturos) => void }) {
+export function Platform({ mesasDisponiveis = MESAS_FUTUROS, leftMenuOpen = false, setLeftMenuOpen = () => {}, load, save, isAdmin, officialAcceptedAt, allBancas, bancasGlobais, bancaAtivaId, contaMesa, podeDesfazerForex = true, mesaAtiva = "tradefive", onMesaChange = () => {} }: { mesasDisponiveis?: typeof MESAS_FUTUROS; leftMenuOpen?: boolean; setLeftMenuOpen?: (open: boolean) => void; load: () => Promise<string | null>; save: (v: string, acceptedAt?: string) => Promise<boolean>; isAdmin: boolean; officialAcceptedAt: string | null; allBancas?: Banca[]; bancasGlobais?: Banca[] | undefined; bancaAtivaId?: string | undefined; contaMesa?: string | undefined; podeDesfazerForex?: boolean; mesaAtiva?: MesaFuturos; onMesaChange?: (mesa: MesaFuturos) => void }) {
   const [state, setState] = useState<State | null>(null);
   const [section, setSection] = useState<Section>("operacoes");
   const [activeTabLabel, setActiveTabLabel] = useState<TabKey | null>(null);
@@ -194,15 +194,17 @@ export function Platform({ leftMenuOpen = false, setLeftMenuOpen = () => {}, loa
           <div className="mb-3 flex items-center justify-between gap-2"><h3 className="font-bold text-amber-200">Mesa de futuros · Gold</h3><button type="button" aria-label="Fechar seleção de mesa" className="text-slate-300 hover:text-white" onClick={() => setMostrarMesas(false)}>✕</button></div>
           <label className="block text-xs text-slate-300">Mesa utilizada nesta banca</label>
           <select className="mt-2 w-full rounded-lg border border-amber-800/70 bg-[#06101f] p-3 text-sm text-white" value={mesaAtiva} onChange={(e) => onMesaChange(e.target.value as MesaFuturos)}>
-            {Object.entries(MESAS_FUTUROS).map(([id, m]) => <option key={id} value={id}>{m.nome} · {m.consistencia === 0 ? "Sem consistência" : `${m.consistencia}%`}</option>)}
+            {Object.entries(mesasDisponiveis).map(([id, m]) => <option key={id} value={id}>{m.nome} · {m.consistencia === 0 ? "Sem consistência" : `${m.consistencia}%`}</option>)}
           </select>
-          <p className="mt-3 text-xs leading-relaxed text-slate-300">{(() => { const m = MESAS_FUTUROS[mesaAtiva]; const avaliacao = diasAvaliacaoGold(state.assets.ouro); return `${avaliacao} dias de avaliação + ${state.assets.ouro.days.length - avaliacao} dias de conta financiada = ${state.assets.ouro.days.length} cards (padrão da mesa: ${m.avaliacao}+${m.payout}).`; })()}</p>
+          <p className="mt-3 text-xs leading-relaxed text-slate-300">{(() => { const m = mesasDisponiveis[mesaAtiva] ?? MESAS_FUTUROS.tradefive; const avaliacao = diasAvaliacaoGold(state.assets.ouro); return `${avaliacao} dias de avaliação + ${state.assets.ouro.days.length - avaliacao} dias de conta financiada = ${state.assets.ouro.days.length} cards (padrão da mesa: ${m.avaliacao}+${m.payout}).`; })()}</p>
           <div className="mt-3 rounded-lg border border-amber-900/60 bg-black/20 p-3 text-xs text-slate-200">
             {(() => {
-              const mesa = MESAS_FUTUROS[mesaAtiva];
+              const mesa = mesasDisponiveis[mesaAtiva] ?? MESAS_FUTUROS.tradefive;
               const dias = state.assets.ouro.days.slice(0, diasAvaliacaoGold(state.assets.ouro));
               const totalMetas = dias.reduce((v, dia) => v + Math.max(0, dia.meta), 0);
               const percentualMaiorDia = totalMetas > 0 ? Math.max(...dias.map((dia) => Math.max(0, dia.meta))) / totalMetas * 100 : 0;
+              const custom = state.assets.ouro.mesaConfig;
+              if (custom) return <><p>Avaliação: target <strong>${fmt(custom.target)}</strong> · loss limit geral <strong>${fmt(custom.lossLimit)}</strong> · consistência <strong>{custom.consistencia ? `${custom.consistencia}%` : "sem regra"}</strong>.</p><p className="mt-1">Maior meta diária: {fmt(percentualMaiorDia)}% do total{custom.consistencia > 0 && percentualMaiorDia > custom.consistencia ? " — atenção: acima da consistência." : "."}</p><p className="mt-1">Financiada: {custom.payout} dias · meta diária ${fmt(custom.metaFinanciada)} · consistência {custom.consistenciaFinanciada ? `${custom.consistenciaFinanciada}%` : "sem regra"}.</p></>;
               if (mesaAtiva === "topstep") return <><p>Avaliação: meta de <strong>US$ 3.000</strong>, loss limit de <strong>US$ 2.000</strong> e consistência máxima de <strong>55%</strong> (possível concluir em 2 dias).</p><p className="mt-1">Maior meta diária / soma das metas: <strong>{fmt(percentualMaiorDia)}%</strong> · {percentualMaiorDia > 55 ? "Atenção: acima da consistência." : "Dentro da consistência planejada."}</p><p className="mt-1">Financiada: <strong>sem consistência</strong>. Para pedir saque: <strong>5 dias operados com lucro mínimo de US$ 150 em cada dia</strong>.</p></>;
               if (mesa.consistencia === 0) return <p>Sem regra de consistência. Saque: 7 dias úteis com lucro mínimo de US$ 50 por dia (condição separada da avaliação).</p>;
               return <><p>Consistência máxima: <strong className="text-amber-200">{mesa.consistencia}%</strong></p><p className="mt-1">Maior meta diária / soma das metas: <strong>{fmt(percentualMaiorDia)}%</strong></p><p className={cn("mt-1", percentualMaiorDia > mesa.consistencia ? "text-rose-300" : "text-emerald-300")}>{totalMetas <= 0 ? "Configure as metas da avaliação." : percentualMaiorDia > mesa.consistencia ? "Atenção: metas ultrapassam o limite de consistência." : "Metas compatíveis com o limite informado."}</p></>;
@@ -328,7 +330,7 @@ const Note = ({ children }: { children: ReactNode }) => <p className="mt-3 font-
 
 function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, assetKey, section, setSection, leftMenuOpen, setLeftMenuOpen, desktopRailTop, mutate, isAdmin }: { state: State; bancasGlobais?: Banca[] | undefined; bancaAtivaId?: string | undefined; contaMesa?: string | undefined; mesaAtiva: MesaFuturos; assetKey: AssetKey; section: Section; setSection: (s: Section) => void; leftMenuOpen: boolean; setLeftMenuOpen: (v: boolean) => void; desktopRailTop: number; mutate: (fn: (s: State) => void) => void; isAdmin: boolean }) {
   const asset = state.assets[assetKey];
-  const avaliacaoDias = assetKey === "ouro" ? diasAvaliacaoGold(asset) : 3;
+  const avaliacaoDias = diasAvaliacaoAtivo(asset, assetKey);
   const calcs = useMemo(() => computeAssetCalcs(asset, assetKey), [asset, assetKey]);
   const setP = (k: keyof Asset["params"]) => (v: number) => mutate((s) => { (s.assets[assetKey].params as unknown as Record<string, number>)[k] = v; });
   const bonus = asset.bonus;
@@ -352,11 +354,12 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
       if (!isProfit && !isStop) return;
       e.preventDefault();
       if (n - 1 !== curIdx) return;
+      if (asset.mesaConfig && (!asset.days[curIdx]?.mnq || !asset.days[curIdx]?.lotes)) return;
       mutate((s) => (isProfit ? handleProfit(s, assetKey) : handleStop(s, assetKey)));
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [curIdx, assetKey, mutate]);
+  }, [curIdx, assetKey, mutate, asset]);
 
   // Partilha um único saldo Forex e um único teto de bônus ao projetar os dias restantes.
   let cum = saldo, totalMeta = 0, reservaMinima = 0;
@@ -618,10 +621,10 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
         <div>
           <div className="space-y-3">
             {visibleRows.map((r) => (
-              <DayCard key={r.i} row={r} asset={asset} assetKey={assetKey} bancaId={bancaAtivaId} contaMesa={contaMesa} mesa={mesaAtiva} avaliacaoDias={assetKey === "ouro" ? diasAvaliacaoGold(asset) : 3} mutate={mutate} excedenteAtualSacavel={excedenteAtualSacavel} />
+              <DayCard key={r.i} row={r} asset={asset} assetKey={assetKey} bancaId={bancaAtivaId} contaMesa={contaMesa} mesa={mesaAtiva} avaliacaoDias={diasAvaliacaoAtivo(asset, assetKey)} mutate={mutate} excedenteAtualSacavel={excedenteAtualSacavel} />
             ))}
           </div>
-          {isAdmin && <div className="mt-3 flex flex-wrap gap-2"><Button type="button" variant="outline" className="flex-1 border-dashed" onClick={() => mutate((s) => { if (assetKey === "ouro") adicionarDiaGold(s.assets.ouro, "financiada"); else s.assets[assetKey].days.push({ mnq: 1, lotes: 1, meta: 150 }); })}>+ adicionar dia {assetKey === "ouro" ? "financiado" : ""}</Button>{assetKey === "ouro" && <Button type="button" variant="outline" className="flex-1 border-dashed border-amber-800 text-amber-200" onClick={() => mutate((s) => adicionarDiaGold(s.assets.ouro, "avaliacao"))}>+ adicionar dia de avaliação</Button>}</div>}
+          {isAdmin && <div className="mt-3 flex flex-wrap gap-2"><Button type="button" variant="outline" className="flex-1 border-dashed" onClick={() => mutate((s) => { if (assetKey === "ouro" || asset.mesaConfig) adicionarDiaGold(s.assets[assetKey], "financiada"); else s.assets[assetKey].days.push({ mnq: 1, lotes: 1, meta: 150 }); })}>+ adicionar dia {assetKey === "ouro" ? "financiado" : ""}</Button>{(assetKey === "ouro" || (asset.mesaConfig && assetKey !== "saque2")) && <Button type="button" variant="outline" className="flex-1 border-dashed border-amber-800 text-amber-200" onClick={() => mutate((s) => adicionarDiaGold(s.assets[assetKey], "avaliacao"))}>+ adicionar dia de avaliação</Button>}</div>}
         </div>
       )}
     </div>
@@ -642,10 +645,10 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
     wasCurrent.current = isCurrent;
   }, [isCurrent]);
   const setD = (k: "mnq" | "lotes" | "meta") => (v: number) => mutate((s) => { s.assets[assetKey].days[i]![k] = v; });
-  const limiteFixo = assetKey === "ouro" && i <= avaliacaoDias;
-  const limiteHoje = assetKey === "ouro" ? lossLimitGoldEfetivo(asset, i) : 0;
-  const limiteProjetado = assetKey === "ouro" ? lossLimitGoldProjetado(asset, i) : 0;
-  const limiteManual = assetKey === "ouro" && !limiteFixo && typeof d.mll === "number" && d.mll > 0;
+  const limiteFixo = !asset.mesaConfig && assetKey === "ouro" && i <= avaliacaoDias;
+  const limiteHoje = assetKey === "ouro" || asset.mesaConfig ? lossLimitGoldEfetivo(asset, i) : 0;
+  const limiteProjetado = assetKey === "ouro" || asset.mesaConfig ? lossLimitGoldProjetado(asset, i) : 0;
+  const limiteManual = (assetKey === "ouro" || !!asset.mesaConfig) && !limiteFixo && typeof d.mll === "number" && d.mll > 0;
   return (
     <div ref={ref}
       data-wow-card={isCurrent && assetKey !== "saque2" ? "active" : undefined}
@@ -666,7 +669,7 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
           <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-blue-200/85 sm:text-[11px]"><Crosshair className="h-3.5 w-3.5 shrink-0 text-blue-400" />Matriz operacional</p>
           {isCurrent && <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-400 sm:text-xs"><span className="h-2 w-2 rounded-full bg-market-up" />dia atual</span>}
         </div>
-        <button type="button" className="shrink-0 rounded-lg border border-[#19334f] px-2.5 py-1.5 text-xs font-medium text-slate-300 hover:border-blue-500/60 hover:text-white" onClick={() => mutate((s) => { if (assetKey === "ouro") removerDiaGold(s.assets.ouro, i); else s.assets[assetKey].days.splice(i, 1); })}>remover</button>
+        <button type="button" className="shrink-0 rounded-lg border border-[#19334f] px-2.5 py-1.5 text-xs font-medium text-slate-300 hover:border-blue-500/60 hover:text-white" onClick={() => mutate((s) => { if (assetKey === "ouro" || asset.mesaConfig) removerDiaGold(s.assets[assetKey], i); else s.assets[assetKey].days.splice(i, 1); })}>remover</button>
       </div>
       <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
         <div className="min-w-0 rounded-xl border border-[#18324e] bg-gradient-to-br from-[#0d1b2b] to-[#080f1a] p-3 lg:p-2.5">
@@ -719,8 +722,8 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
               <span className="font-mono text-base font-bold text-sky-400 sm:text-xl">${fmt(cx.deposito)}</span>
             </div>}
             <div className="mt-3 flex items-center justify-between gap-2 rounded-lg border border-[#142b43] bg-[#0b1726] px-3 py-2.5 font-mono text-xs"><span className="flex items-center gap-1.5 text-muted-foreground"><Calculator className="h-3.5 w-3.5" />Necessário no CFD</span><span className="font-semibold">${fmt(cx.necessario)}</span></div>
-            {assetKey === "ouro" && <div className="mt-1 flex items-center justify-between gap-3 rounded-xl border border-amber-800/50 bg-[#161924] px-3 py-2.5">
-              <label className="min-w-0 text-xs font-semibold text-amber-200">Loss Limit EOD na mesa ($)</label>
+            {(assetKey === "ouro" || asset.mesaConfig) && <div className="mt-1 flex items-center justify-between gap-3 rounded-xl border border-amber-800/50 bg-[#161924] px-3 py-2.5">
+              <label className="min-w-0 text-xs font-semibold text-amber-200">{asset.mesaConfig ? "Loss limit na mesa ($)" : "Loss Limit EOD na mesa ($)"}</label>
               {limiteFixo ? <span className="font-mono text-base font-bold text-white">${"2.000"}</span> :
                 <div className="flex items-center gap-1.5">
                   <input aria-label="Loss Limit EOD na mesa" type="number" min="0.01" step="0.01" inputMode="decimal" value={limiteManual ? d.mll : limiteProjetado} title={limiteManual ? "Valor ajustado manualmente" : "Projeção calculada pelas metas anteriores"} className="w-28 max-w-[43vw] rounded-lg border border-amber-800/70 bg-[#081321] px-2 py-1.5 text-right font-mono text-sm font-bold text-white focus:border-amber-400 focus:outline-none" onChange={(e) => { const raw = e.target.value; const valor = Number(raw); mutate((st) => { const dia = st.assets[assetKey].days[i]; if (!dia) return; if (raw.trim() && Number.isFinite(valor) && valor > 0) dia.mll = valor; else delete dia.mll; }); }} />
@@ -731,7 +734,8 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
           </div>
         );
       })() : <p className="mt-2 font-mono text-[11px] text-muted-foreground">{row.statusText}</p>}
-       {isCurrent && <Settle risco={row.status === "risco"} custo={c.custoSePassar} reprova={c.reprova}
+       {isCurrent && asset.mesaConfig && (d.mnq <= 0 || d.lotes <= 0) && <p className="mt-3 text-sm text-amber-200">Preencha os contratos e os lotes CFD para calcular e registrar a operação.</p>}
+       {isCurrent && (!asset.mesaConfig || (d.mnq > 0 && d.lotes > 0)) && <Settle risco={row.status === "risco"} custo={c.custoSePassar} reprova={c.reprova}
         onProfit={(real) => mutate((s) => handleProfit(s, assetKey, real))} onStop={(real) => mutate((s) => handleStop(s, assetKey, real))} />}
     </div>
   );
@@ -917,7 +921,7 @@ function Historico({ state, mutate, bancas, bancasGlobais, mesaAtiva, bancaAtiva
   }, { profit: 0, resultadoReal: 0, custoProprio: 0, aprovadas: 0, reprovadas: 0 }) : { ...historicoTotals(state), ...state.counts };
   const { profit, resultadoReal, custoProprio } = resumo;
   const total = resumo.aprovadas + resumo.reprovadas;
-  const logFiltrado = origem ? (filtradas ?? []).flatMap((b) => (b.id === bancaAtivaId ? state.log : b.state.log).map((e) => ({ ...e, bancaNome: todasMesas ? `${MESAS_FUTUROS[b.mesa ?? "tradefive"].nome} · ${b.nome}` : b.nome }))).sort((a, b) => a.ts - b.ts).map((e, index) => ({ ...e, id: index + 1 })) : state.log;
+  const logFiltrado = origem ? (filtradas ?? []).flatMap((b) => (b.id === bancaAtivaId ? state.log : b.state.log).map((e) => ({ ...e, bancaNome: todasMesas ? `${nomeMesa(b.mesa ?? "tradefive", b.state.assets.ouro.mesaConfig)} · ${b.nome}` : b.nome }))).sort((a, b) => a.ts - b.ts).map((e, index) => ({ ...e, id: index + 1 })) : state.log;
   const estadoHistorico = { ...state, log: logFiltrado, counts: { aprovadas: resumo.aprovadas, reprovadas: resumo.reprovadas } };
   const roi = custoProprio > 0 ? (resultadoReal / custoProprio) * 100 : null;
   const base = custoProprio + resultadoReal;
@@ -941,7 +945,7 @@ function Historico({ state, mutate, bancas, bancasGlobais, mesaAtiva, bancaAtiva
       </div>
       <label className="mb-4 block text-sm">Abrangência do histórico
         <select aria-label="Abrangência do histórico" value={escopo} onChange={(e) => setEscopo(e.target.value === "todasMesas" ? "todasMesas" : "mesa")} className="mt-1 block w-full max-w-xs rounded-md border bg-background p-2">
-          <option value="mesa">Mesa selecionada · {MESAS_FUTUROS[mesaAtiva].nome}</option>
+          <option value="mesa">Mesa selecionada · {nomeMesa(mesaAtiva, state.assets.ouro.mesaConfig)}</option>
           <option value="todasMesas">Todas as mesas</option>
         </select>
       </label>
@@ -1468,6 +1472,7 @@ function CaixaPanel({ asset, state, bancasGlobais, bancaAtivaId, assetKey, bonus
     </section>
   );
 }
+
 
 
 

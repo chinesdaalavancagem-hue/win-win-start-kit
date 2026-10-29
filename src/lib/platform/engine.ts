@@ -1,3 +1,4 @@
+import { type MesaPersonalizada, validarMesaPersonalizada, metasAvaliacao } from "./mesas-personalizadas";
 // Lógica da plataforma Win or Win (portada 1:1 do HTML original).
 // O formato do estado salvo em app_data NÃO deve mudar — mantém os dados dos usuários.
 
@@ -14,14 +15,14 @@ export interface Params {
 export interface Attempt { currentDayIndex: number; cycleCost: number; custoProprioAcumulado: number }
 export interface BonusLog { ts: number; tipo: "deposito" | "saque" | "reset" | "ajuste_credito"; valor: number; dia?: number; bonusGanho?: number; proporcao?: number; bonusReduzido?: number; depositoZerado?: number }
 export interface Bonus { deposito: number; bonusAtual: number; bonusGanhoTotal: number; bonusCap: number; log: BonusLog[] }
-export type MesaFuturos = "tradefive" | "lucid" | "mff" | "topstep";
+export type MesaFuturos = "tradefive" | "lucid" | "mff" | "topstep" | MesaPersonalizada["id"];
 export const MESAS_FUTUROS: Record<MesaFuturos, { nome: string; consistencia: number; avaliacao: number; payout: number }> = {
   tradefive: { nome: "Tradeify", consistencia: 40, avaliacao: 3, payout: 5 },
   lucid: { nome: "Lucid Trading", consistencia: 50, avaliacao: 2, payout: 5 },
   mff: { nome: "My Funded Futures (MFF)", consistencia: 30, avaliacao: 4, payout: 5 },
   topstep: { nome: "Topstep", consistencia: 55, avaliacao: 2, payout: 5 },
 };
-export interface Asset { params: Params; days: Day[]; attempt: Attempt; bonus: Bonus; mesaFuturos?: MesaFuturos; diasPorMesa?: Partial<Record<MesaFuturos, Day[]>>; avaliacaoPorMesa?: Partial<Record<MesaFuturos, number>> }
+export interface Asset { mesaConfig?: MesaPersonalizada; params: Params; days: Day[]; attempt: Attempt; bonus: Bonus; mesaFuturos?: MesaFuturos; diasPorMesa?: Partial<Record<MesaFuturos, Day[]>>; avaliacaoPorMesa?: Partial<Record<MesaFuturos, number>> }
 export interface LogEntry {
   id: number; ts: number; asset: AssetKey; day: number; tipo: "profit" | "aprovada" | "reprovada"; delta: number; saldoApos: number;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -112,7 +113,7 @@ const defaultAssetsBase = {
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v));
 export function diasAvaliacaoGold(asset: Asset): number {
   const mesa = asset.mesaFuturos ?? "tradefive";
-  return Math.max(0, Math.min(asset.days.length, asset.avaliacaoPorMesa?.[mesa] ?? MESAS_FUTUROS[mesa].avaliacao));
+  return Math.max(0, Math.min(asset.days.length, asset.avaliacaoPorMesa?.[mesa] ?? asset.mesaConfig?.avaliacao ?? MESAS_FUTUROS[mesa]?.avaliacao ?? 3));
 }
 
 export function removerDiaGold(asset: Asset, indice: number): void {
@@ -172,6 +173,30 @@ export function selecionarMesaGold(asset: Asset, mesa: MesaFuturos): void {
   asset.attempt.currentDayIndex = Math.min(asset.attempt.currentDayIndex, asset.days.length - 1);
 }
 
+/** Aplica regras apenas ao criar uma banca nova. Não reescreve planos existentes. */
+export function prepararMesaPersonalizada(state: State, mesa: MesaPersonalizada): void {
+  const erro = validarMesaPersonalizada(mesa);
+  if (erro) throw new Error(erro);
+  for (const key of ASSETS) {
+    const asset = state.assets[key];
+    asset.mesaConfig = structuredClone(mesa);
+    asset.mesaFuturos = mesa.id;
+    const avaliacao = key === "saque2" ? [] : metasAvaliacao(mesa);
+    asset.avaliacaoPorMesa = {[mesa.id]: avaliacao.length};
+    asset.days = [...avaliacao, ...Array.from({length: mesa.payout}, () => mesa.metaFinanciada)]
+      .map(meta => ({mnq: 0, lotes: 0, meta, mll: mesa.lossLimit}));
+    asset.params.mll = mesa.lossLimit;
+    asset.params.saqueAprovada = mesa.saque;
+    asset.attempt = freshAttempt();
+  }
+}
+export function diasAvaliacaoAtivo(asset: Asset, key: AssetKey): number {
+  return key === "saque2" ? 0 : key === "ouro" || asset.mesaConfig ? diasAvaliacaoGold(asset) : 3;
+}
+export function nomeMesa(mesa: MesaFuturos, config?: MesaPersonalizada): string {
+  return config?.id === mesa ? config.nome : MESAS_FUTUROS[mesa]?.nome ?? "Mesa personalizada";
+}
+
 export const freshAttempt = (): Attempt => ({ currentDayIndex: 0, cycleCost: 0, custoProprioAcumulado: 0 });
 export const freshBonus = (): Bonus => ({ deposito: 0, bonusAtual: 0, bonusGanhoTotal: 0, bonusCap: 3000, log: [] });
 
@@ -191,6 +216,7 @@ export function normalizeState(p: any): State {
   if (!p.assets.saque2) p.assets.saque2 = clone(defaultAssetsBase.saque2);
   for (const k of ASSETS) {
     const a = p.assets[k];
+    if (a.mesaConfig && validarMesaPersonalizada(a.mesaConfig)) delete a.mesaConfig;
     if (!a.attempt) a.attempt = freshAttempt();
     if (typeof a.attempt.cycleCost !== "number") a.attempt.cycleCost = 0;
     if (typeof a.attempt.custoProprioAcumulado !== "number") a.attempt.custoProprioAcumulado = 0;
@@ -257,6 +283,7 @@ export interface DayCalc {
 
 /** Projeção sobre metas planejadas, não um limite efetivo confirmado pela mesa. */
 export function lossLimitGoldProjetado(a: Asset, indice: number): number {
+  if (a.mesaConfig) return a.mesaConfig.lossLimit;
   const avaliacao = diasAvaliacaoGold(a);
   if (indice <= avaliacao) return 2000;
   const metasAnteriores = a.days.slice(avaliacao, indice).reduce((soma, dia) => soma + (Number.isFinite(dia.meta) ? dia.meta : 0), 0);
@@ -264,6 +291,7 @@ export function lossLimitGoldProjetado(a: Asset, indice: number): number {
 }
 
 export function lossLimitGoldEfetivo(a: Asset, indice: number): number {
+  if (a.mesaConfig) return dayMll(a, a.days[indice] ?? {mnq:0, lotes:0, meta:0});
   if (indice <= diasAvaliacaoGold(a)) return 2000;
   const manual = a.days[indice]?.mll;
   return typeof manual === "number" && Number.isFinite(manual) && manual > 0 ? manual : lossLimitGoldProjetado(a, indice);
@@ -278,7 +306,7 @@ export function computeAssetCalcs(a: Asset, key: AssetKey): DayCalc[] {
     const pontos = exp > 0 ? d.meta / exp : 0;
     const custoSePassar = pontos * d.lotes * hfmPt;
     const indice = a.days.indexOf(d);
-    const limite = key === "ouro" ? lossLimitGoldEfetivo(a, indice) : dayMll(a, d);
+    const limite = key === "ouro" || a.mesaConfig ? lossLimitGoldEfetivo(a, indice) : dayMll(a, d);
     const pontosReprova = exp > 0 ? limite / exp : 0;
     const reprova = pontosReprova * d.lotes * hfmPt;
     const dividaReal = divida;
@@ -577,3 +605,4 @@ export function calcCaixaCiclo(a: Asset, key: AssetKey, bonusPct: number) {
   const totalPerda = dias.reduce((acc, d) => acc + d.perda, 0);
   return { dias, taxa, totalDepositado: depositado, totalPerda, perdaPropriaTotal, perdaBonusTotal, caixaMaximo, proprioRecuperavel: proprio, saque, recuperado, resultadoFinal: recuperado - caixaMaximo, bonusTotal };
 }
+
