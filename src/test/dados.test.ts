@@ -94,6 +94,26 @@ describe("validação do salvamento", () => {
     vi.unstubAllEnvs();
   });
 
+  it("salva um documento de várias bancas acima do antigo limite sem truncar o histórico", async () => {
+    const banks = Array.from({ length: 150 }, (_, i) => novaBanca(`Banca ${i + 1}`));
+    const doc = { bancasVersion: 1, activeId: banks[0]!.id, bancas: banks };
+    const value = JSON.stringify(doc);
+    expect(value.length).toBeGreaterThan(200_000);
+    const response = await save(doc);
+    expect(response.status).toBe(200);
+    expect(previous.data).toBe(value);
+  });
+
+  it("mantém limite finito e rejeita excesso sem sobrescrever os dados salvos", async () => {
+    previous.data = JSON.stringify(defaultState()); previous.version = 4;
+    const original = previous.data;
+    const response = await save({ ...defaultState(), observacao: "x".repeat(2_000_001) }, 4);
+    expect(response.status).toBe(413);
+    expect(await response.json()).toEqual({ error: "payload_too_large" });
+    expect(previous.data).toBe(original); expect(previous.version).toBe(4);
+    expect(update).not.toHaveBeenCalled();
+  });
+
   it("grava com a versão correta e incrementa a versão", async () => {
     const initial = defaultState(); previous.data = JSON.stringify(initial); previous.version = 4;
     const next = { ...initial, cfdBalance: 42 };

@@ -6,6 +6,7 @@ import { Download, LogOut, Menu, X } from "lucide-react";
 import { getMyAccess, signOut } from "@/lib/session";
 import { registrarAuditoria } from "@/lib/auditoria-registro";
 import { Bancas } from "@/components/platform/Bancas";
+import { mensagemErroSalvamento } from "@/lib/platform/save-errors";
 import { queueSaveUnlessConflicted, readVersionedAppData, recoverVersionConflict } from "@/lib/platform/versioned-save";
 
 export const Route = createFileRoute("/_authenticated/plataforma")({
@@ -84,6 +85,7 @@ function Plataforma() {
     await prompt.userChoice?.catch(() => undefined);
   };
 
+  const [saveError, setSaveError] = useState("");
   const versionRef = useRef<number | null>(null);
   const conflictRef = useRef(false);
 
@@ -115,7 +117,7 @@ function Plataforma() {
       try {
         const { data } = await supabase.auth.getSession();
         const token = data.session?.access_token;
-        if (!token) return false;
+        if (!token) { setSaveError(mensagemErroSalvamento(401)); return false; }
         const response = await fetch("/api/plataforma/dados", {
           method: "POST",
           headers: {
@@ -131,11 +133,13 @@ function Plataforma() {
           await recoverVersionConflict(() => window.location.reload());
           return false;
         }
-        if (!response.ok) return false;
-        const result = await response.json().catch(() => null) as { version?: unknown } | null;
+        const result = await response.json().catch(() => null) as { version?: unknown; error?: unknown } | null;
+        if (!response.ok) { setSaveError(mensagemErroSalvamento(response.status, result?.error)); return false; }
         if (typeof result?.version === "number") versionRef.current = result.version;
+        setSaveError("");
         return true;
       } catch {
+        setSaveError(mensagemErroSalvamento(0));
         return false;
       }
     },
@@ -204,6 +208,7 @@ function Plataforma() {
           <button type="button" onClick={() => setInstallHelp(false)} className="ml-3 underline">Fechar</button>
         </div>
       )}
+      {saveError && <p role="alert" className="border-b border-rose-800/50 bg-rose-950/40 px-4 py-3 text-sm text-rose-100">{saveError}</p>}
       {publishMessage && <p role="status" className="px-4 py-2 text-xs text-cyan-200">{publishMessage}</p>}
       {state === "loading" && <p className="m-auto text-muted-foreground">Carregando...</p>}
       {state === "pending" && (

@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { MAX_SAVED_DATA_LENGTH } from "@/lib/platform/save-errors";
 import { challengeAccountSchema } from "@/lib/prop-firms";
 
 function json(body: unknown, status = 200) {
@@ -129,7 +130,7 @@ export const Route = createFileRoute("/api/plataforma/dados")({
         }
         const value = (body as { data: string }).data;
         const expectedVersion = (body as { data: string; expectedVersion: number | null }).expectedVersion;
-        if (value.length > 200_000) return json({ error: "payload_too_large" }, 413);
+        if (value.length > MAX_SAVED_DATA_LENGTH) return json({ error: "payload_too_large" }, 413);
         let parsedState: Record<string, unknown>;
         try {
           const parsed = JSON.parse(value);
