@@ -1,6 +1,6 @@
 // O documento inclui todas as bancas, históricos e dados necessários para desfazer.
-// Manter um limite finito, com espaço para contas que operam várias mesas.
-export const MAX_SAVED_DATA_LENGTH = 2_000_000;
+// Limite da aplicação solicitado pelo proprietário; infraestrutura e navegador têm limites próprios.
+export const MAX_SAVED_DATA_LENGTH = 1_000_000_000;
 
 export function mensagemErroSalvamento(status: number, code?: unknown): string {
   if (status === 413 || code === 'payload_too_large') return 'O histórico ultrapassou o limite de salvamento. Suas alterações ainda não foram salvas. Entre em contato com o suporte.';

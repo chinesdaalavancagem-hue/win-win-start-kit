@@ -12,6 +12,8 @@ const { getUser, upsert, insert, update, updateFilters, previous, writeFailure, 
   writeFailure: { value: false },
   syncConfig: { data: null as { enabled: boolean; allowed_fields: string[]; admin_user_id: string; published_values?: Record<string, number[]> } | null },
 }));
+// Exercitar a rejeição de excesso sem alocar um documento de 1 GB no teste.
+vi.mock("@/lib/platform/save-errors", () => ({ MAX_SAVED_DATA_LENGTH: 2_000_000 }));
 vi.mock("@tanstack/react-router", () => ({ createFileRoute: () => (config: unknown) => config }));
 vi.mock("@/lib/terms.server", () => ({
   getTermsStatusForUser: async () => ({ accepted: true }),
