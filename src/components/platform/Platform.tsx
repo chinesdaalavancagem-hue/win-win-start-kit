@@ -226,7 +226,7 @@ export function Platform({ leftMenuOpen = false, setLeftMenuOpen = () => {}, loa
         </Button>
       </div>
 
-      {tab === "historico" ? <Historico state={state} mutate={mutate} bancas={allBancas} bancaAtivaId={bancaAtivaId} podeDesfazerForex={podeDesfazerForex} /> : (
+      {tab === "historico" ? <Historico state={state} mutate={mutate} bancas={allBancas} bancasGlobais={bancasGlobais} mesaAtiva={mesaAtiva} bancaAtivaId={bancaAtivaId} podeDesfazerForex={podeDesfazerForex} /> : (
         <AssetView key={tab} state={state} bancasGlobais={bancasGlobais} bancaAtivaId={bancaAtivaId} contaMesa={contaMesa} mesaAtiva={mesaAtiva} assetKey={tab} section={section} setSection={setSection} leftMenuOpen={leftMenuOpen} setLeftMenuOpen={setLeftMenuOpen} desktopRailTop={desktopRailTop} mutate={mutate} isAdmin={isAdmin} />
       )}
 
@@ -901,10 +901,14 @@ function BonusPanel({ state, assetKey, reserva, folga, mutate }: { state: State;
 
 /* ---------- histórico ---------- */
 
-function Historico({ state, mutate, bancas, bancaAtivaId, podeDesfazerForex = true }: { state: State; mutate: (fn: (s: State) => void) => void; bancas?: Banca[] | undefined; bancaAtivaId?: string | undefined; podeDesfazerForex?: boolean }) {
+function Historico({ state, mutate, bancas, bancasGlobais, mesaAtiva, bancaAtivaId, podeDesfazerForex = true }: { state: State; mutate: (fn: (s: State) => void) => void; bancas?: Banca[] | undefined; bancasGlobais?: Banca[] | undefined; mesaAtiva: MesaFuturos; bancaAtivaId?: string | undefined; podeDesfazerForex?: boolean }) {
+  const [escopo, setEscopo] = useState<"mesa" | "todasMesas">("mesa");
   const [filtroBanca, setFiltroBanca] = useState(bancaAtivaId ?? "todas");
-  const filtradas = bancas?.filter((b) => filtroBanca === "todas" || b.id === filtroBanca);
-  const resumo = bancas ? (filtradas ?? []).reduce((acc, b) => {
+  const todasMesas = escopo === "todasMesas";
+  const origem = todasMesas ? (bancasGlobais ?? bancas) : bancas;
+  const filtradas = origem?.filter((b) => todasMesas || filtroBanca === "todas" || b.id === filtroBanca);
+  const podeEditarHistorico = !todasMesas && filtroBanca === (bancaAtivaId ?? "todas");
+  const resumo = origem ? (filtradas ?? []).reduce((acc, b) => {
     const atual = b.id === bancaAtivaId ? state : b.state;
     const t = historicoTotals(atual);
     acc.profit += t.profit; acc.resultadoReal += t.resultadoReal; acc.custoProprio += t.custoProprio;
@@ -913,8 +917,8 @@ function Historico({ state, mutate, bancas, bancaAtivaId, podeDesfazerForex = tr
   }, { profit: 0, resultadoReal: 0, custoProprio: 0, aprovadas: 0, reprovadas: 0 }) : { ...historicoTotals(state), ...state.counts };
   const { profit, resultadoReal, custoProprio } = resumo;
   const total = resumo.aprovadas + resumo.reprovadas;
-  const logFiltrado = bancas ? (filtradas ?? []).flatMap((b) => (b.id === bancaAtivaId ? state.log : b.state.log).map((e) => ({ ...e, bancaNome: b.nome }))).sort((a, b) => a.ts - b.ts).map((e, index) => ({ ...e, id: index + 1 })) : state.log;
-  const estadoHistorico = { ...state, log: logFiltrado };
+  const logFiltrado = origem ? (filtradas ?? []).flatMap((b) => (b.id === bancaAtivaId ? state.log : b.state.log).map((e) => ({ ...e, bancaNome: todasMesas ? `${MESAS_FUTUROS[b.mesa ?? "tradefive"].nome} · ${b.nome}` : b.nome }))).sort((a, b) => a.ts - b.ts).map((e, index) => ({ ...e, id: index + 1 })) : state.log;
+  const estadoHistorico = { ...state, log: logFiltrado, counts: { aprovadas: resumo.aprovadas, reprovadas: resumo.reprovadas } };
   const roi = custoProprio > 0 ? (resultadoReal / custoProprio) * 100 : null;
   const base = custoProprio + resultadoReal;
   const margem = base > 0 ? (resultadoReal / base) * 100 : null;
@@ -935,22 +939,28 @@ function Historico({ state, mutate, bancas, bancaAtivaId, podeDesfazerForex = tr
         <Metric label="ROI (resultado real)" value={roi == null ? "-" : `${roi >= 0 ? "+" : ""}${fmt(roi)}%`} tone={roi == null ? undefined : roi >= 0 ? "pos" : "neg"} />
         <Metric label="Margem do resultado real" value={margem == null ? "-" : `${margem >= 0 ? "+" : ""}${fmt(margem)}%`} tone={margem == null ? undefined : margem >= 0 ? "pos" : "neg"} />
       </div>
-      <label className="mb-4 block text-sm">Operações por banca
+      <label className="mb-4 block text-sm">Abrangência do histórico
+        <select aria-label="Abrangência do histórico" value={escopo} onChange={(e) => setEscopo(e.target.value === "todasMesas" ? "todasMesas" : "mesa")} className="mt-1 block w-full max-w-xs rounded-md border bg-background p-2">
+          <option value="mesa">Mesa selecionada · {MESAS_FUTUROS[mesaAtiva].nome}</option>
+          <option value="todasMesas">Todas as mesas</option>
+        </select>
+      </label>
+      {todasMesas ? <p className="mb-4 text-sm text-muted-foreground">Resultados, contas aprovadas e reprovadas e gráfico de todas as mesas, reunindo o histórico de todas as suas bancas.</p> : <label className="mb-4 block text-sm">Operações por banca
         <select value={filtroBanca} onChange={(e) => setFiltroBanca(e.target.value)} className="mt-1 block w-full max-w-xs rounded-md border bg-background p-2">
           <option value="todas">Todas as bancas</option>
           {bancas?.map((b) => <option key={b.id} value={b.id}>{b.nome}</option>)}
         </select>
-      </label>
+      </label>}
       <Chart state={estadoHistorico} />
       <Simulador state={estadoHistorico} />
       <div className="mb-3 flex justify-between">
-        {filtroBanca === (bancaAtivaId ?? "todas") && state.log.length > 0 ? <ConfirmButton variant="ghost" disabled={!podeDesfazerForex} confirmText="clique de novo p/ confirmar" onConfirm={() => mutate(undoLast)}>desfazer última ação</ConfirmButton> : <span />}
-        <ConfirmButton variant="ghost" disabled={filtroBanca !== (bancaAtivaId ?? "todas")} className="text-destructive" confirmText="clique de novo (apaga o histórico)" onConfirm={() => mutate((s) => {
+        {podeEditarHistorico && state.log.length > 0 ? <ConfirmButton variant="ghost" disabled={!podeDesfazerForex} confirmText="clique de novo p/ confirmar" onConfirm={() => mutate(undoLast)}>desfazer última ação</ConfirmButton> : <span />}
+        <ConfirmButton variant="ghost" disabled={!podeEditarHistorico} className="text-destructive" confirmText="clique de novo (apaga o histórico)" onConfirm={() => mutate((s) => {
           s.log = []; s.totalGasto = 0; s.counts = { aprovadas: 0, reprovadas: 0 };
           for (const k of ["nasdaq", "ouro", "saque2"] as AssetKey[]) { s.assets[k].attempt.currentDayIndex = 0; s.assets[k].attempt.cycleCost = 0; }
         })}>limpar histórico</ConfirmButton>
       </div>
-      {!podeDesfazerForex && state.log.length > 0 && filtroBanca === (bancaAtivaId ?? "todas") && <p className="mb-2 text-xs text-amber-300">Desfazer indisponível: o saldo compartilhado mudou após a operação ou o registro antigo não possui verificação segura. Os dados foram preservados.</p>}
+      {!podeDesfazerForex && state.log.length > 0 && podeEditarHistorico && <p className="mb-2 text-xs text-amber-300">Desfazer indisponível: o saldo compartilhado mudou após a operação ou o registro antigo não possui verificação segura. Os dados foram preservados.</p>}
       <LogList state={estadoHistorico} />
     </div>
   );
@@ -1458,6 +1468,7 @@ function CaixaPanel({ asset, state, bancasGlobais, bancaAtivaId, assetKey, bonus
     </section>
   );
 }
+
 
 
 
