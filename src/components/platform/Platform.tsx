@@ -11,7 +11,7 @@ import { applyOfficialParams, buildOfficialParams, isOfficialParams } from "@/li
 import {
   type AssetKey, type State, type TabKey, type Asset, type MesaFuturos, MESAS_FUTUROS, nomeMesa, diasAvaliacaoAtivo, diasAvaliacaoGold, lossLimitGoldProjetado, lossLimitGoldEfetivo, adicionarDiaGold, removerDiaGold,
   aplicarDeposito, aplicarSaque, projetarAportesFuturos, conciliarCreditoForex, calcAporteFracionado, calcCaixaCiclo, clampDayIndex, computeAssetCalcs, defaultState, fmt, fmtSigned, handleProfit, handleStop,
-  historicoTotals, isValidState, normalizeState, parseNum, parseValorFinanceiro, parseResultadoCfd, podeDesfazerUltimaOperacao, projetarZeragemBonus, resetBonus, tipoLabel, undoLast,
+  historicoTotals, isValidState, normalizeState, parseNum, parseValorFinanceiro, parseResultadoCfd, podeDesfazerUltimaOperacao, projetarZeragemBonus, reiniciarCicloBonus, resetBonus, tipoLabel, undoLast,
 } from "@/lib/platform/engine";
 
 type Section = "operacoes" | "parametros" | "bonus" | "aporte" | "caixa" | "meta";
@@ -763,6 +763,7 @@ function BonusPanel({ state, assetKey, reserva, folga, mutate }: { state: State;
   let ultima = "nenhum depósito ou saque registrado ainda.";
   if (last?.tipo === "deposito") ultima = `última ação: depósito de $${fmt(last.valor)} (+$${fmt(last.bonusGanho || 0)} de bônus) em ${dateStr(last.ts)}`;
   else if (last?.tipo === "saque") ultima = `última ação: saque de $${fmt(last.valor)} (proporção ${fmt((last.proporcao || 0) * 100)}% · bônus reduzido em $${fmt(last.bonusReduzido || 0)}) em ${dateStr(last.ts)}`;
+  else if (last?.tipo === "reinicio_ciclo") ultima = `última ação: ciclo de bônus reiniciado em ${dateStr(last.ts)} (acumulado anterior $${fmt(last.valor)})`;
   else if (last?.tipo === "ajuste_credito") ultima = `última ação: crédito conciliado em ${dateStr(last.ts)} (variação ${fmt(last.valor)})`;
   else if (last) ultima = `última ação: bônus e depósito próprio zerados (bônus $${fmt(last.valor)}${last.depositoZerado ? ` + depósito $${fmt(last.depositoZerado)}` : ""}) em ${dateStr(last.ts)}`;
 
@@ -822,6 +823,10 @@ function BonusPanel({ state, assetKey, reserva, folga, mutate }: { state: State;
             <span>Conquistado: ${fmt(b.bonusGanhoTotal)}</span>
             <span>Disponível para ganhar: ${fmt(espacoBonus)} de ${fmt(b.bonusCap)}</span>
           </div>
+          <Button type="button" variant="outline" className="mt-3 rounded-xl border-cyan-800 text-cyan-100" disabled={!(b.bonusGanhoTotal > 0)} onClick={() => {
+            if (window.confirm("Reiniciar o ciclo de bônus deste plano para usar outra conta? O contador Conquistado voltará a zero. O saldo Forex, o bônus disponível e o histórico serão mantidos; ajuste os saldos da nova conta separadamente.")) mutate((s) => reiniciarCicloBonus(s, assetKey));
+          }}>Reiniciar ciclo de bônus</Button>
+          <p className="mt-2 text-xs text-slate-400">Zera somente a barrinha de bônus conquistado e libera novamente o teto deste plano. Ajuste o saldo e o crédito da nova conta nos campos abaixo.</p>
         </div>
 
         <div className="mb-4 rounded-xl border border-[#18324e] bg-[#081321]/80 p-3.5"><p className="mb-2 text-xs text-slate-300">Conferir saldo real com o MetaTrader (para conciliar registros antigos; não apaga histórico)</p><div className="flex gap-2"><input aria-label="Saldo real MetaTrader" inputMode="decimal" className="min-w-0 flex-1 rounded-lg border border-[#19334f] bg-[#071321] px-3 py-2 font-mono text-sm" placeholder="Saldo real atual ($)" value={saldoMt5} onChange={(e) => setSaldoMt5(e.target.value)} /><Button type="button" variant="outline" disabled={valorSaldoMt5 === null} onClick={() => { if (valorSaldoMt5 === null) return; mutate((s) => { s.forexSaldoReal = valorSaldoMt5; }); setSaldoMt5(""); }}>Conferir</Button></div><div className="mt-2 flex gap-2"><input aria-label="Crédito atual MetaTrader" inputMode="decimal" className="min-w-0 flex-1 rounded-lg border border-[#19334f] bg-[#071321] px-3 py-2 font-mono text-sm" placeholder="Crédito atual MT5 ($)" value={creditoMt5} onChange={(e) => setCreditoMt5(e.target.value)} /><Button type="button" variant="outline" disabled={valorCreditoMt5 === null} onClick={() => { if (valorCreditoMt5 === null) return; mutate((s) => conciliarCreditoForex(s, assetKey, valorCreditoMt5)); setCreditoMt5(""); }}>Conferir crédito</Button></div></div>

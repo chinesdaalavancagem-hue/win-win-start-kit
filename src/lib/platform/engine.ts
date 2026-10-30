@@ -13,7 +13,7 @@ export interface Params {
   marginPerLot: number; stopoutPct: number; saqueAprovada: number; folgaExtraPct: number; ativoReal?: "ouro" | "nasdaq";
 }
 export interface Attempt { currentDayIndex: number; cycleCost: number; custoProprioAcumulado: number }
-export interface BonusLog { ts: number; tipo: "deposito" | "saque" | "reset" | "ajuste_credito"; valor: number; dia?: number; bonusGanho?: number; proporcao?: number; bonusReduzido?: number; depositoZerado?: number }
+export interface BonusLog { ts: number; tipo: "deposito" | "saque" | "reset" | "ajuste_credito" | "reinicio_ciclo"; valor: number; dia?: number; bonusGanho?: number; proporcao?: number; bonusReduzido?: number; depositoZerado?: number }
 export interface Bonus { deposito: number; bonusAtual: number; bonusGanhoTotal: number; bonusCap: number; log: BonusLog[] }
 export type MesaFuturos = "tradefive" | "lucid" | "mff" | "topstep" | MesaPersonalizada["id"];
 export const MESAS_FUTUROS: Record<MesaFuturos, { nome: string; consistencia: number; avaliacao: number; payout: number }> = {
@@ -511,6 +511,14 @@ export function conciliarCreditoForex(s: State, key: AssetKey, creditoConfirmado
     }
   }
   s.assets[key].bonus.log.push({ ts: Date.now(), tipo: "ajuste_credito", valor: creditoConfirmado - anterior });
+}
+
+/** Reinicia apenas o acumulado promocional; saldos e lançamentos anteriores são preservados. */
+export function reiniciarCicloBonus(s: State, key: AssetKey) {
+  const b = s.assets[key].bonus;
+  if (!(b.bonusGanhoTotal > 0)) return;
+  b.log.push({ ts: Date.now(), tipo: "reinicio_ciclo", valor: b.bonusGanhoTotal });
+  b.bonusGanhoTotal = 0;
 }
 
 export function resetBonus(s: State, key: AssetKey) {
