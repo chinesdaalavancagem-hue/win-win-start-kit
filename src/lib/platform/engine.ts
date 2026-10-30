@@ -24,6 +24,7 @@ export const MESAS_FUTUROS: Record<MesaFuturos, { nome: string; consistencia: nu
 };
 export interface Asset { mesaConfig?: MesaPersonalizada; params: Params; days: Day[]; attempt: Attempt; bonus: Bonus; mesaFuturos?: MesaFuturos; diasPorMesa?: Partial<Record<MesaFuturos, Day[]>>; avaliacaoPorMesa?: Partial<Record<MesaFuturos, number>> }
 export interface LogEntry {
+  revisadoEm?: number;
   id: number; ts: number; asset: AssetKey; day: number; tipo: "profit" | "aprovada" | "reprovada"; delta: number; saldoApos: number;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   custoDia?: any;
@@ -69,6 +70,7 @@ export interface LogEntry {
   assinaturaForexApos?: string;
 }
 export interface State {
+  revisoesHistorico?: { ts: number; anteriores: LogEntry[] }[];
   activeTab: TabKey; assets: Record<AssetKey, Asset>; log: LogEntry[]; cfdBalance: number; totalGasto: number;
   forexSaldoReal?: number | undefined;
   counts: { aprovadas: number; reprovadas: number };
@@ -213,6 +215,7 @@ export function isValidState(p: any): boolean {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function normalizeState(p: any): State {
+  if (p.revisoesHistorico !== undefined && !Array.isArray(p.revisoesHistorico)) delete p.revisoesHistorico;
   if (!p.assets.saque2) p.assets.saque2 = clone(defaultAssetsBase.saque2);
   for (const k of ASSETS) {
     const a = p.assets[k];

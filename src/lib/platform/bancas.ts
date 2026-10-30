@@ -86,7 +86,7 @@ export function resumoBanca(b: Banca) {
   // Corrigimos a apresentação sem modificar lançamentos, saldos ou histórico.
   const precoCorrigido = b.taxaCompra;
   const comprasRegistradas = encerramentos.filter((evento) =>
-    typeof evento.taxaCobrada === "number" && Number.isFinite(evento.taxaCobrada) && evento.taxaCobrada > 0
+    !evento.revisadoEm && typeof evento.taxaCobrada === "number" && Number.isFinite(evento.taxaCobrada) && evento.taxaCobrada > 0
   );
   const ajusteCompra = typeof precoCorrigido === "number" && Number.isFinite(precoCorrigido)
     ? comprasRegistradas.reduce((ajuste, evento) => ajuste + evento.taxaCobrada! - precoCorrigido, 0)

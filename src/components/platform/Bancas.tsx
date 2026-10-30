@@ -1,3 +1,6 @@
+import { RevisarBanca } from "./RevisarBanca";
+import type { Banca } from "@/lib/platform/bancas";
+import type { State } from "@/lib/platform/engine";
 import { CadastrarMesa } from "./CadastrarMesa";
 import type { MesaPersonalizada } from "@/lib/platform/mesas-personalizadas";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -11,6 +14,8 @@ import { Plus, Building2, CheckCircle2, Pencil, Trash2, Download, ArrowUpRight, 
 
 export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectionsMenuChange = () => {} }: { sectionsMenuOpen?: boolean; onSectionsMenuChange?: (open: boolean) => void; load: () => Promise<string | null>; save: (v: string) => Promise<boolean>; isAdmin: boolean }) {
   const [doc, setDoc] = useState<BancasDoc | null>(null);
+  const [revisao, setRevisao] = useState<Banca | null>(null);
+  const [revisionKey, setRevisionKey] = useState(0);
   const [err, setErr] = useState(false);
   const [painel, setPainel] = useState(false);
   const [cadastroMesa, setCadastroMesa] = useState(false);
@@ -152,6 +157,20 @@ export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectio
     const ok = await persist(next).catch(() => false);
     if (!ok) { if (docRef.current === next) {docRef.current = current; setDoc(current);} return false; }
     setPainel(false); return true;
+  }
+
+  async function salvarRevisao(state: State): Promise<boolean> {
+    await pendingSave.current.catch(() => false);
+    const atual = docRef.current;
+    if (!atual || !revisao) return false;
+    const banca = atual.bancas.find(b => b.id === revisao.id);
+    // Não sobrescrever operações ou edições recebidas enquanto o formulário estava aberto.
+    if (!banca || JSON.stringify(banca.state) !== JSON.stringify(revisao.state)) return false;
+    const next = {...atual, bancas:atual.bancas.map(b => b.id === banca.id ? {...b,state} : b)};
+    const ok = await gravarEmOrdem(next).catch(() => false);
+    if (!ok || docRef.current !== atual) return false;
+    docRef.current = next; setDoc(next); setRevisionKey(k=>k+1);
+    return true;
   }
 
   function exportar() {
@@ -319,6 +338,7 @@ export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectio
                         });
                         persist({ ...doc, bancas });
                       }}><Pencil className="size-3.5" />Corrigir valor pago</Button>
+                      <Button size="sm" variant="ghost" className="h-7 rounded-lg px-1.5 text-[11px] text-cyan-200" disabled={!b.state.log.length} onClick={() => setRevisao(structuredClone(b))}><Pencil className="size-3.5" />Revisar operações</Button>
                       {doc.bancas.length > 1 && (
                         <Button size="sm" variant="ghost" className="h-7 rounded-lg px-1.5 text-[11px] text-rose-300 hover:bg-rose-950/40 hover:text-rose-200" onClick={() => {
                           if (!window.confirm(`Excluir a banca "${b.nome}" e todo o histórico dela?`)) return;
@@ -337,7 +357,8 @@ export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectio
         </section>
       )}
 
-      {ativa ? <Platform mesasDisponiveis={mesasDisponiveis} key={ativa.id} leftMenuOpen={sectionsMenuOpen} setLeftMenuOpen={onSectionsMenuChange} load={loadActive} save={saveActive} isAdmin={isAdmin} officialAcceptedAt={ativa.officialAcceptedAt ?? null} allBancas={bancasDaMesa} bancasGlobais={doc.bancas} bancaAtivaId={ativa.id} contaMesa={ativa.contaMesa ?? ativa.challengeAccount?.account_external_id} podeDesfazerForex={podeDesfazerForex} mesaAtiva={mesa} onMesaChange={escolherMesa} /> : <section className="mx-auto my-10 max-w-lg rounded-xl border border-amber-800/60 bg-[#081321] p-5 text-center text-slate-200"><h3 className="font-bold">Nenhuma banca cadastrada na {(mesasDisponiveis[mesa]?.nome ?? "Mesa personalizada")}</h3><p className="mt-2 text-sm text-slate-400">As bancas das outras mesas permanecem preservadas. Crie uma banca nesta mesa para começar.</p><Button type="button" className="mt-3" onClick={() => setPainel(true)}>Cadastrar banca</Button></section>}
+      {revisao && <RevisarBanca banca={revisao} onClose={() => setRevisao(null)} onSave={salvarRevisao} />}
+      {ativa ? <Platform mesasDisponiveis={mesasDisponiveis} key={`${ativa.id}-${revisionKey}`} leftMenuOpen={sectionsMenuOpen} setLeftMenuOpen={onSectionsMenuChange} load={loadActive} save={saveActive} isAdmin={isAdmin} officialAcceptedAt={ativa.officialAcceptedAt ?? null} allBancas={bancasDaMesa} bancasGlobais={doc.bancas} bancaAtivaId={ativa.id} contaMesa={ativa.contaMesa ?? ativa.challengeAccount?.account_external_id} podeDesfazerForex={podeDesfazerForex} mesaAtiva={mesa} onMesaChange={escolherMesa} /> : <section className="mx-auto my-10 max-w-lg rounded-xl border border-amber-800/60 bg-[#081321] p-5 text-center text-slate-200"><h3 className="font-bold">Nenhuma banca cadastrada na {(mesasDisponiveis[mesa]?.nome ?? "Mesa personalizada")}</h3><p className="mt-2 text-sm text-slate-400">As bancas das outras mesas permanecem preservadas. Crie uma banca nesta mesa para começar.</p><Button type="button" className="mt-3" onClick={() => setPainel(true)}>Cadastrar banca</Button></section>}
     </div>
   );
 }
