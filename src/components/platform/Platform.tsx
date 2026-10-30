@@ -154,6 +154,16 @@ export function Platform({ mesasDisponiveis = MESAS_FUTUROS, leftMenuOpen = fals
   if (!state) return <p className="m-auto text-muted-foreground">Carregando plataforma…</p>;
   const tab = state.activeTab;
   const lastOperation = state.log.at(-1);
+  const sections: [Section, string][] = [
+    ["operacoes", "Operações"],
+    ["parametros", "Parâmetros"],
+    ["bonus", "Bônus e saques"],
+    ["aporte", "Aporte fracionado"],
+    ["caixa", "Caixa do ciclo"],
+    ["meta", "Meta geral"],
+  ];
+
+
 
   return (
     <div className="mx-auto w-full max-w-6xl px-12 py-3 sm:px-14 lg:py-3" style={{ "--rail-max-height": `max(56px, calc(100dvh - ${headerHeight + 92}px))` } as CSSProperties}>
@@ -178,6 +188,21 @@ export function Platform({ mesasDisponiveis = MESAS_FUTUROS, leftMenuOpen = fals
         </div>
       </section>
 
+
+      <aside className="pointer-events-none fixed left-1 top-[calc(50%-48px)] z-40 flex lg:left-2" aria-label="Menu de operações" style={{ top: typeof window !== "undefined" && window.innerWidth >= 1024 ? desktopRailTop : undefined }}>
+        <div className="flex items-start gap-3">
+          <button type="button" aria-label={leftMenuOpen ? "Recolher menu" : "Expandir menu"} aria-expanded={leftMenuOpen} onClick={() => setLeftMenuOpen(!leftMenuOpen)}
+            className="pointer-events-auto flex size-9 items-center justify-center rounded-xl border border-cyan-700/70 bg-[#061322] sm:size-11 lg:size-12 text-cyan-300 shadow-xl hover:bg-blue-950">
+            {leftMenuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
+          </button>
+          {leftMenuOpen && <nav className="pointer-events-auto lg:max-h-[var(--rail-max-height)] lg:overflow-y-auto flex w-48 flex-col gap-1 rounded-xl border border-cyan-800/70 bg-[#061322] p-2 shadow-2xl" aria-label="Seções da plataforma">
+            {sections.map(([k, l]) => (
+              <button key={k} type="button" aria-pressed={tab !== "historico" && section === k} onClick={() => { setSection(k); if (tab === "historico") { mutate((s) => { s.activeTab = "ouro"; }); setActiveTabLabel("ouro"); } setLeftMenuOpen(false); }}
+                className={cn("rounded-lg px-3 py-2 text-left text-xs font-semibold transition-colors", tab !== "historico" && section === k ? "bg-emerald-500/20 text-emerald-300" : "text-blue-100 hover:bg-blue-950")}>{l}</button>
+            ))}
+          </nav>}
+        </div>
+      </aside>
 
       <nav ref={rightRailRef} className="lg:max-h-[var(--rail-max-height)] lg:overflow-y-auto fixed right-1 top-[calc(65%-54px)] z-30 flex -translate-y-1/2 flex-col gap-2 lg:right-2 lg:top-auto lg:translate-y-0" aria-label="Ativos e histórico" style={{ top: typeof window !== "undefined" && window.innerWidth >= 1024 ? desktopRailTop : undefined }}>
         <button type="button" title="Escolher mesa de futuros" aria-label="Escolher mesa de futuros" aria-expanded={mostrarMesas} onClick={() => setMostrarMesas((v) => !v)} className={cn("relative flex size-9 items-center justify-center rounded-xl border border-cyan-700/70 bg-[#061322] shadow-xl transition-colors lg:size-14", mostrarMesas ? "border-amber-400/70 bg-amber-950/60 text-amber-200" : "border-transparent text-amber-300 hover:bg-amber-950/50")}><Building2 className="size-4 lg:size-5" /></button>
@@ -229,7 +254,7 @@ export function Platform({ mesasDisponiveis = MESAS_FUTUROS, leftMenuOpen = fals
       </div>
 
       {tab === "historico" ? <Historico state={state} mutate={mutate} bancas={allBancas} bancasGlobais={bancasGlobais} mesaAtiva={mesaAtiva} bancaAtivaId={bancaAtivaId} podeDesfazerForex={podeDesfazerForex} /> : (
-        <AssetView key={tab} state={state} bancasGlobais={bancasGlobais} bancaAtivaId={bancaAtivaId} contaMesa={contaMesa} mesaAtiva={mesaAtiva} assetKey={tab} section={section} setSection={setSection} leftMenuOpen={leftMenuOpen} setLeftMenuOpen={setLeftMenuOpen} desktopRailTop={desktopRailTop} mutate={mutate} isAdmin={isAdmin} />
+        <AssetView key={tab} state={state} bancasGlobais={bancasGlobais} bancaAtivaId={bancaAtivaId} contaMesa={contaMesa} mesaAtiva={mesaAtiva} assetKey={tab} section={section} mutate={mutate} isAdmin={isAdmin} />
       )}
 
       <BackupMenu state={state} mutate={mutate} save={save} onApplied={setState} isAdmin={isAdmin} officialAcceptedAt={officialAcceptedAt} mesaAtiva={mesaAtiva} />
@@ -328,7 +353,7 @@ const Note = ({ children }: { children: ReactNode }) => <p className="mt-3 font-
 
 /* ---------- aba de ativo ---------- */
 
-function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, assetKey, section, setSection, leftMenuOpen, setLeftMenuOpen, desktopRailTop, mutate, isAdmin }: { state: State; bancasGlobais?: Banca[] | undefined; bancaAtivaId?: string | undefined; contaMesa?: string | undefined; mesaAtiva: MesaFuturos; assetKey: AssetKey; section: Section; setSection: (s: Section) => void; leftMenuOpen: boolean; setLeftMenuOpen: (v: boolean) => void; desktopRailTop: number; mutate: (fn: (s: State) => void) => void; isAdmin: boolean }) {
+function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, assetKey, section, mutate, isAdmin }: { state: State; bancasGlobais?: Banca[] | undefined; bancaAtivaId?: string | undefined; contaMesa?: string | undefined; mesaAtiva: MesaFuturos; assetKey: AssetKey; section: Section; mutate: (fn: (s: State) => void) => void; isAdmin: boolean }) {
   const asset = state.assets[assetKey];
   const avaliacaoDias = diasAvaliacaoAtivo(asset, assetKey);
   const calcs = useMemo(() => computeAssetCalcs(asset, assetKey), [asset, assetKey]);
@@ -429,31 +454,9 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
   const excedenteAtualSacavel = proprioAtual > 0
     ? Math.min(proprioAtual, Math.max(0, proprioAtual + bonusAtual - reservaComFolga) / (1 + bonusAtual / proprioAtual))
     : 0;
-  const sections: [Section, string][] = [
-    ["operacoes", "Operações"],
-    ["parametros", "Parâmetros"],
-    ["bonus", "Bônus e saques"],
-    ["aporte", "Aporte fracionado"],
-    ["caixa", "Caixa do ciclo"],
-    ["meta", "Meta geral"],
-  ];
-
   return (
     <div>
-      <aside className="pointer-events-none fixed left-1 top-[calc(50%-48px)] z-40 flex lg:left-2" aria-label="Menu de operações" style={{ top: typeof window !== "undefined" && window.innerWidth >= 1024 ? desktopRailTop : undefined }}>
-        <div className="flex items-start gap-3">
-          <button type="button" aria-label={leftMenuOpen ? "Recolher menu" : "Expandir menu"} aria-expanded={leftMenuOpen} onClick={() => setLeftMenuOpen(!leftMenuOpen)}
-            className="pointer-events-auto flex size-9 items-center justify-center rounded-xl border border-cyan-700/70 bg-[#061322] sm:size-11 lg:size-12 text-cyan-300 shadow-xl hover:bg-blue-950">
-            {leftMenuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
-          </button>
-          {leftMenuOpen && <nav className="pointer-events-auto lg:max-h-[var(--rail-max-height)] lg:overflow-y-auto flex w-48 flex-col gap-1 rounded-xl border border-cyan-800/70 bg-[#061322] p-2 shadow-2xl" aria-label="Seções da plataforma">
-            {sections.map(([k, l]) => (
-              <button key={k} type="button" aria-pressed={section === k} onClick={() => { setSection(k); setLeftMenuOpen(false); }}
-                className={cn("rounded-lg px-3 py-2 text-left text-xs font-semibold transition-colors", section === k ? "bg-emerald-500/20 text-emerald-300" : "text-blue-100 hover:bg-blue-950")}>{l}</button>
-            ))}
-          </nav>}
-        </div>
-      </aside>
+
       {section === "parametros" && (
         <div className="space-y-4 lg:space-y-3">
           <section className="relative overflow-hidden rounded-2xl border border-cyan-700/50 bg-[radial-gradient(ellipse_at_top_right,rgba(0,190,255,0.13),transparent_45%),linear-gradient(135deg,#0a192b,#050c17_72%)] p-4 shadow-[0_18px_48px_rgba(0,0,0,0.22)] sm:p-6">
