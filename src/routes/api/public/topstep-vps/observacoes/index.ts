@@ -54,7 +54,10 @@ export const Route = createFileRoute("/api/public/topstep-vps/observacoes/")({
         if (age < -5000 || age > 15000)
           return json({ error: "stale_observation" }, 409);
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const { data, error } = await supabaseAdmin
+        // Esta tabela sera incluida no tipo gerado apos a migracao. Ate la,
+        // tipar a API da tabela dinamicamente evita alterar arquivo gerado.
+        const relayDb = supabaseAdmin as unknown as { from: (name: string) => any };
+        const { data, error } = await relayDb
           .from("topstep_vps_observations")
           .upsert({
             user_id: authenticated.userId, event_id: o.event_id,
@@ -78,9 +81,12 @@ export const Route = createFileRoute("/api/public/topstep-vps/observacoes/")({
         const after = Number(rawAfter);
         if (!Number.isSafeInteger(after)) return json({ error: "invalid_cursor" }, 400);
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        // Esta tabela sera incluida no tipo gerado apos a migracao. Ate la,
+        // tipar a API da tabela dinamicamente evita alterar arquivo gerado.
+        const relayDb = supabaseAdmin as unknown as { from: (name: string) => any };
         // A primeira consulta carrega apenas as ultimas 30 observacoes,
         // para nao percorrer um historico antigo antes das novas.
-        let query = supabaseAdmin.from("topstep_vps_observations")
+        let query = relayDb.from("topstep_vps_observations")
           .select("id,event_id,session_id,client_seq,kind,observed_at_ms,payload,received_at")
           .eq("user_id", authenticated.userId)
           .gte("received_at", new Date(Date.now() - 120000).toISOString());
