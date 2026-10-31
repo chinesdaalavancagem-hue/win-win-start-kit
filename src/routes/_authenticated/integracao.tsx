@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { VpsObservationKeyPanel } from "@/components/platform/VpsObservationKeyPanel";
 import { gerarChave } from "@/lib/integracao.functions";
 import { salvarChatId } from "@/lib/telegram.functions";
 import { registrarAuditoria } from "@/lib/auditoria-registro";
@@ -248,6 +249,8 @@ function Integracao() {
         {chave && <code className="block break-all rounded bg-muted p-2 text-sm">{chave}</code>}
         <Button size="sm" onClick={novaChave}>{temChave ? "Gerar nova chave" : "Gerar chave"}</Button>
       </section>
+
+      <VpsObservationKeyPanel />
 
       <section className="space-y-4 rounded-2xl border border-border/80 bg-card p-5 text-sm shadow-sm transition-colors hover:border-cyan-900/50 md:p-6">
         <div className="flex items-start gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cyan-500/10 text-lg font-bold text-cyan-300">02</span><div><h2 className="font-semibold text-base">Arquivos e downloads</h2><p className="mt-1 text-xs text-muted-foreground">Baixe os componentes necessários para configurar a integração.</p></div></div>
