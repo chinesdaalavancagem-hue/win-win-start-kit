@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
-import { autenticarToken, json } from "@/lib/integracao.server";
+import { json } from "@/lib/integracao.server";
+import { autenticarChaveVpsObservacao } from "@/lib/vps-relay-auth.server";
 
 // TopstepX VPS: somente eventos visuais; esta rota NUNCA grava em order_queue,
 // NUNCA chama MT5 e NUNCA reconhece eventos como fills oficiais.
@@ -24,7 +25,7 @@ const observationSchema = z.discriminatedUnion("kind", [
 ]);
 
 async function auth(request: Request) {
-  return autenticarToken(request);
+  return autenticarChaveVpsObservacao(request);
 }
 
 export const Route = createFileRoute("/api/public/topstep-vps/observacoes/")({
