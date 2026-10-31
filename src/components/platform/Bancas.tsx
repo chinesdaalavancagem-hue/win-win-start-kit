@@ -2,13 +2,14 @@ import { RevisarBanca } from "./RevisarBanca";
 import type { Banca } from "@/lib/platform/bancas";
 import type { State } from "@/lib/platform/engine";
 import { CadastrarMesa } from "./CadastrarMesa";
+import { idMesaPersonalizada } from "@/lib/platform/mesas-personalizadas";
 import type { MesaPersonalizada } from "@/lib/platform/mesas-personalizadas";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Platform } from "./Platform";
 import { fmt, fmtSigned, MESAS_FUTUROS, prepararMesaPersonalizada, selecionarMesaGold, type MesaFuturos } from "@/lib/platform/engine";
-import { type BancasDoc, aplicarForex, extrairForex, forexDoDocumento, novaBanca, parseBancas, podeDesfazerBanca, relatorioCsv, resumoBanca } from "@/lib/platform/bancas";
+import { type BancasDoc, aplicarForex, extrairForex, forexDoDocumento, novaBanca, parseBancas, excluirMesaPersonalizada, podeDesfazerBanca, relatorioCsv, resumoBanca } from "@/lib/platform/bancas";
 import { validarCatalogoTopstep, type CatalogoTopstep } from "@/lib/platform/topstep-vinculo";
 import { Plus, Building2, CheckCircle2, Pencil, Trash2, Download, ArrowUpRight, WalletCards, Activity } from "lucide-react";
 
@@ -18,6 +19,8 @@ export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectio
   const [revisionKey, setRevisionKey] = useState(0);
   const [err, setErr] = useState(false);
   const [painel, setPainel] = useState(false);
+  const [excluindoMesa, setExcluindoMesa] = useState(false);
+  const [erroExcluirMesa, setErroExcluirMesa] = useState("");
   const [cadastroMesa, setCadastroMesa] = useState(false);
   const [nome, setNome] = useState("");
   const [taxaAvaliacao, setTaxaAvaliacao] = useState("");
@@ -143,6 +146,21 @@ export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectio
   // Desfazer só é permitido se nenhuma outra banca movimentou o Forex compartilhado.
   const podeDesfazerForex = !!ativa && podeDesfazerBanca(doc, ativa);
 
+  async function excluirMesa() {
+    const current = docRef.current;
+    if (!current || !idMesaPersonalizada(mesa) || excluindoMesa) return;
+    const quantidade = current.bancas.filter(b => b.mesa === mesa).length;
+    if (!window.confirm(`Excluir a mesa "${mesasDisponiveis[mesa]?.nome ?? "personalizada"}"?\n\nSerão excluídas ${quantidade} banca(s) desta mesa e seus históricos de operações. Esses resultados sairão dos totais e gráficos. O saldo Forex e o bônus compartilhados serão mantidos. Esta exclusão não pode ser desfeita. Confirma?`)) return;
+    setExcluindoMesa(true); setErroExcluirMesa("");
+    const next = excluirMesaPersonalizada(current, mesa);
+    const ok = await persist(next).catch(() => false);
+    if (!ok) {
+      if (docRef.current === next) {docRef.current = current; setDoc(current);}
+      setErroExcluirMesa("Não foi possível salvar a exclusão. Tente novamente.");
+    } else {setCadastroMesa(false); setRevisao(null); setPainel(false);}
+    setExcluindoMesa(false);
+  }
+
   async function criarMesa(regra: MesaPersonalizada, taxa: number): Promise<boolean> {
     const current = docRef.current;
     if (!current) return false;
@@ -207,7 +225,7 @@ export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectio
           </div>
         </div>
       </header>
-      <div className="mx-auto w-full max-w-[1600px] px-4 pt-3 sm:px-6 lg:px-20"><Button type="button" variant="outline" onClick={() => setCadastroMesa(v => !v)}><Plus className="size-4" />Cadastrar mesa</Button></div>
+      <div className="mx-auto w-full max-w-[1600px] px-4 pt-3 sm:px-6 lg:px-20"><Button type="button" variant="outline" onClick={() => setCadastroMesa(v => !v)}><Plus className="size-4" />Cadastrar mesa</Button>{idMesaPersonalizada(mesa) && <Button type="button" variant="outline" disabled={excluindoMesa} className="ml-2 border-rose-800 text-rose-300" onClick={() => void excluirMesa()}><Trash2 className="size-4" />{excluindoMesa ? "Excluindo…" : "Excluir mesa"}</Button>}{erroExcluirMesa && <p role="alert" className="mt-2 text-sm text-rose-300">{erroExcluirMesa}</p>}</div>
       {cadastroMesa && <CadastrarMesa nomes={Object.values(mesasDisponiveis).map(m => m.nome)} onSave={criarMesa} onClose={() => setCadastroMesa(false)} />}
       {painel && (
         <section className="border-b border-cyan-950/70 bg-[#06101f]/80 px-4 py-5 sm:px-6 lg:px-20">

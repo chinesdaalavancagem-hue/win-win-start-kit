@@ -111,3 +111,22 @@ export function relatorioCsv(bancas: Banca[]): string {
   return "\uFEFF" + rows.map((r) => r.map(csvCell).join(";")).join("\n");
 }
 
+
+/** Remove apenas mesas cadastradas pelo usuário e seus dados locais; mantém o Forex compartilhado. */
+export function excluirMesaPersonalizada(doc: BancasDoc, mesa: MesaFuturos): BancasDoc {
+  if (!idMesaPersonalizada(mesa)) throw new Error('Somente mesas personalizadas podem ser excluídas.');
+  const forex = structuredClone(forexDoDocumento(doc));
+  let bancas = doc.bancas.filter(b => b.mesa !== mesa);
+  // O documento precisa manter uma banca válida para o endpoint de salvamento.
+  if (!bancas.length) bancas = [{...novaBanca('Banca principal'), mesa:'tradefive'}];
+  const activeIdsMesa = {...doc.activeIdsMesa};
+  delete activeIdsMesa[mesa];
+  const mesaAtiva = doc.mesaAtiva === mesa ? (bancas[0]!.mesa ?? 'tradefive') : (doc.mesaAtiva ?? 'tradefive');
+  const candidata = bancas.find(b => b.id === doc.activeId && (b.mesa ?? 'tradefive') === mesaAtiva)
+    ?? bancas.find(b => b.id === activeIdsMesa[mesaAtiva] && (b.mesa ?? 'tradefive') === mesaAtiva)
+    ?? bancas.find(b => (b.mesa ?? 'tradefive') === mesaAtiva);
+  const activeId = candidata?.id ?? '';
+  activeIdsMesa[mesaAtiva] = activeId;
+  return {...doc, bancas, forex, mesaAtiva, activeId, activeIdsMesa,
+    mesasPersonalizadas:(doc.mesasPersonalizadas ?? []).filter(m => m.id !== mesa)};
+}
