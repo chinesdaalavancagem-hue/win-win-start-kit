@@ -696,7 +696,7 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
        <div className={cn("mt-3 flex items-center justify-between gap-3 rounded-xl border p-3.5 lg:p-3", c.liquidoSeReprovar >= 0 ? "border-emerald-500/80 bg-gradient-to-r from-emerald-950/80 via-[#052b2a] to-[#071b20] shadow-[0_0_22px_rgba(0,220,160,0.10)]" : "border-rose-800/80 bg-gradient-to-r from-rose-950/60 to-[#10131f]")}>
         <div className="min-w-0">
           <p className="text-xs font-bold text-slate-100 sm:text-sm">Líquido se reprovar hoje</p>
-          <p className="mt-1 font-mono text-[10px] text-slate-400 sm:text-xs">Dívida: ${fmt(c.dividaHoje)} · Alvo bruto: ${fmt(c.alvoBruto)}</p>
+          <p className="mt-1 font-mono text-[10px] text-slate-400 sm:text-xs">Dívida a recuperar: ${fmt(c.reprova - c.liquidoSeReprovar)} · Bruto projetado no Forex: ${fmt(c.reprova)}</p>
         </div>
         <p className={cn("shrink-0 font-mono text-2xl font-extrabold tracking-tight sm:text-3xl lg:!text-[36px] xl:!text-[40px]", c.liquidoSeReprovar >= 0 ? "text-emerald-300 drop-shadow-[0_0_18px_rgba(16,185,129,0.8)]" : "text-rose-400")}>{c.liquidoSeReprovar >= 0 ? "+" : "-"}${fmt(Math.abs(c.liquidoSeReprovar))}</p>
       </div>
