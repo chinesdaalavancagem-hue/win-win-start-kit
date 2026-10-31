@@ -19,3 +19,14 @@ alter table public.topstep_vps_observations enable row level security;
 -- Nenhuma policy libera a tabela a clientes. Somente o backend com service role
 -- valida a chave e consulta/grava registros do proprio usuario.
 -- Retencao: configurar tarefa administrativa para excluir received_at < now() - interval '1 day'.
+
+-- Chaves independentes das integration_tokens (que possuem outras permissoes).
+create table if not exists public.topstep_vps_tokens (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  token_hash text not null unique,
+  created_at timestamptz not null default now(),
+  expires_at timestamptz not null,
+  revoked_at timestamptz
+);
+alter table public.topstep_vps_tokens enable row level security;
+-- Sem policies de cliente: somente funcoes autenticadas pelo servidor.
