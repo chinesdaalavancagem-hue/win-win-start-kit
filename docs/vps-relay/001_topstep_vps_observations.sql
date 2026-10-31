@@ -18,7 +18,7 @@ create index if not exists topstep_vps_observations_user_id_idx
 alter table public.topstep_vps_observations enable row level security;
 -- Nenhuma policy libera a tabela a clientes. Somente o backend com service role
 -- valida a chave e consulta/grava registros do proprio usuario.
--- Retencao: configurar tarefa administrativa para excluir received_at < now() - interval '1 day'.
+create index if not exists topstep_vps_observations_received_idx\n  on public.topstep_vps_observations (user_id, received_at desc);\n-- Retencao: configurar tarefa administrativa para excluir received_at < now() - interval '1 day'.
 
 -- Chaves independentes das integration_tokens (que possuem outras permissoes).
 create table if not exists public.topstep_vps_tokens (
@@ -30,3 +30,12 @@ create table if not exists public.topstep_vps_tokens (
 );
 alter table public.topstep_vps_tokens enable row level security;
 -- Sem policies de cliente: somente funcoes autenticadas pelo servidor.
+
+-- Protecao explicita: nenhum usuario, nem cliente anonimo, tem acesso direto.
+revoke all on table public.topstep_vps_tokens, public.topstep_vps_observations
+  from public, anon, authenticated;
+grant select, insert, update, delete on table
+  public.topstep_vps_tokens, public.topstep_vps_observations to service_role;
+revoke all on sequence public.topstep_vps_observations_id_seq
+  from public, anon, authenticated;
+grant usage, select on sequence public.topstep_vps_observations_id_seq to service_role;
