@@ -1,29 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { z } from "zod";
+import { observationSchema } from "@/lib/topstep-vps-observation";
 import { json } from "@/lib/integracao.server";
 import { autenticarChaveVpsObservacao } from "@/lib/vps-relay-auth.server";
 
 // TopstepX VPS: somente eventos visuais; esta rota NUNCA grava em order_queue,
 // NUNCA chama MT5 e NUNCA reconhece eventos como fills oficiais.
-const base = {
-  event_id: z.string().uuid(),
-  session_id: z.string().regex(/^[A-Za-z0-9_-]{8,80}$/),
-  client_seq: z.number().int().min(0).max(2_000_000_000),
-  observed_at_ms: z.number().int().nonnegative(),
-  symbol: z.enum(["MGC", "MNQ"]),
-};
-const observationSchema = z.discriminatedUnion("kind", [
-  z.object({ ...base, kind: z.literal("position"),
-    net_contracts: z.number().int().min(-100).max(100),
-    practice_visible: z.literal(true) }).strict(),
-  z.object({ ...base, kind: z.literal("card"),
-    day: z.number().int().min(1).max(365),
-    phase: z.enum(["AVALIACAO", "FINANCIADA"]),
-    planned_contracts: z.number().int().min(1).max(100),
-    card_lot: z.number().finite().positive().max(100),
-    card_confirmed: z.literal(true) }).strict(),
-]);
-
 async function auth(request: Request) {
   return autenticarChaveVpsObservacao(request);
 }
