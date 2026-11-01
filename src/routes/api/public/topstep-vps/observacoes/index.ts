@@ -77,7 +77,7 @@ export const Route = createFileRoute("/api/public/topstep-vps/observacoes/")({
         if (error) return json({ error: "relay_unavailable" }, 503);
         const events = after === 0 ? (data ?? []).reverse() : (data ?? []);
         const last = events.length ? Number(events[events.length - 1].id) : after;
-        return json({ ok: true, relay_version: 2, mode: "OBSERVACAO_SEM_ORDENS",
+        return json({ ok: true, relay_version: 4, mode: "OBSERVACAO_SEM_ORDENS",
           events, next_cursor: last, orders_enabled: false });
       },
     },
