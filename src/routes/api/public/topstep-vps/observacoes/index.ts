@@ -4,7 +4,8 @@ import { json } from "@/lib/integracao.server";
 import { autenticarChaveVpsObservacao } from "@/lib/vps-relay-auth.server";
 
 // TopstepX VPS: somente eventos visuais; esta rota NUNCA grava em order_queue,
-// NUNCA chama MT5 e NUNasync function auth(request: Request) {
+// NUNCA chama MT5 e NUNCA reconhece eventos como fills oficiais.
+async function auth(request: Request) {
   return autenticarChaveVpsObservacao(request);
 }
 
