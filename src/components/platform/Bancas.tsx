@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Platform } from "./Platform";
 import { fmt, fmtSigned, MESAS_FUTUROS, prepararMesaPersonalizada, selecionarMesaGold, type MesaFuturos } from "@/lib/platform/engine";
-import { type BancasDoc, aplicarForex, extrairForex, forexDoDocumento, novaBanca, parseBancas, excluirMesaPersonalizada, podeDesfazerBanca, relatorioCsv, resumoBanca } from "@/lib/platform/bancas";
+import { type BancasDoc, aplicarForex, extrairForex, forexDoDocumento, novaBanca, parseBancas, referenciaDaMesa, excluirMesaPersonalizada, podeDesfazerBanca, relatorioCsv, resumoBanca } from "@/lib/platform/bancas";
 import { validarCatalogoTopstep, type CatalogoTopstep } from "@/lib/platform/topstep-vinculo";
 import { Plus, Building2, CheckCircle2, Pencil, Trash2, Download, ArrowUpRight, WalletCards, Activity } from "lucide-react";
 
@@ -161,12 +161,12 @@ export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectio
     setExcluindoMesa(false);
   }
 
-  async function criarMesa(regra: MesaPersonalizada, taxa: number): Promise<boolean> {
+  async function criarMesa(regra: MesaPersonalizada, taxa: number, mesaReferencia?: MesaFuturos): Promise<boolean> {
     const current = docRef.current;
     if (!current) return false;
     const banca = novaBanca(`${regra.nome} · Banca 1`);
     banca.mesa = regra.id; banca.taxaCompra = taxa;
-    prepararMesaPersonalizada(banca.state, regra);
+    prepararMesaPersonalizada(banca.state, regra, mesaReferencia ? referenciaDaMesa(current, mesaReferencia) : undefined);
     banca.state = aplicarForex(banca.state, forexDoDocumento(current));
     banca.state.assets.nasdaq.params.taxa = taxa;
     banca.state.assets.ouro.params.taxa = taxa;
@@ -226,7 +226,7 @@ export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectio
         </div>
       </header>
       <div className="mx-auto w-full max-w-[1600px] px-4 pt-3 sm:px-6 lg:px-20"><Button type="button" variant="outline" onClick={() => setCadastroMesa(v => !v)}><Plus className="size-4" />Cadastrar mesa</Button>{idMesaPersonalizada(mesa) && <Button type="button" variant="outline" disabled={excluindoMesa} className="ml-2 border-rose-800 text-rose-300" onClick={() => void excluirMesa()}><Trash2 className="size-4" />{excluindoMesa ? "Excluindo…" : "Excluir mesa"}</Button>}{erroExcluirMesa && <p role="alert" className="mt-2 text-sm text-rose-300">{erroExcluirMesa}</p>}</div>
-      {cadastroMesa && <CadastrarMesa nomes={Object.values(mesasDisponiveis).map(m => m.nome)} onSave={criarMesa} onClose={() => setCadastroMesa(false)} />}
+      {cadastroMesa && <CadastrarMesa mesas={mesasDisponiveis} referencias={Object.fromEntries(Object.keys(mesasDisponiveis).map(id => [id, referenciaDaMesa(doc, id as MesaFuturos)]))} nomes={Object.values(mesasDisponiveis).map(m => m.nome)} onSave={criarMesa} onClose={() => setCadastroMesa(false)} />}
       {painel && (
         <section className="border-b border-cyan-950/70 bg-[#06101f]/80 px-4 py-5 sm:px-6 lg:px-20">
           <div className="mx-auto max-w-[1600px] space-y-5">

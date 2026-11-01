@@ -1,5 +1,5 @@
 import { type MesaPersonalizada, idMesaPersonalizada, normalizarMesasPersonalizadas } from "./mesas-personalizadas";
-import { type State, type AssetKey, type Bonus, type MesaFuturos, defaultState, historicoTotals, isValidState, normalizeState, podeDesfazerUltimaOperacao, tipoLabel } from "./engine";
+import { type State, type AssetKey, type Bonus, type MesaFuturos, defaultState, selecionarMesaGold, prepararMesaPersonalizada, historicoTotals, isValidState, normalizeState, podeDesfazerUltimaOperacao, tipoLabel } from "./engine";
 import { challengeAccountSchema, type ChallengeAccount } from "../prop-firms";
 
 export type BancaAtivo = "nasdaq" | "ouro";
@@ -129,4 +129,16 @@ export function excluirMesaPersonalizada(doc: BancasDoc, mesa: MesaFuturos): Ban
   activeIdsMesa[mesaAtiva] = activeId;
   return {...doc, bancas, forex, mesaAtiva, activeId, activeIdsMesa,
     mesasPersonalizadas:(doc.mesasPersonalizadas ?? []).filter(m => m.id !== mesa)};
+}
+
+/** Usa a banca selecionada da mesa, ou seu plano inicial quando ainda não há banca. */
+export function referenciaDaMesa(doc: BancasDoc, mesa: MesaFuturos): State {
+  const bancas = doc.bancas.filter(b => (b.mesa ?? "tradefive") === mesa);
+  const banca = bancas.find(b => b.id === doc.activeIdsMesa?.[mesa])
+    ?? bancas.find(b => b.id === doc.activeId) ?? bancas[0];
+  const state = structuredClone(banca?.state ?? defaultState());
+  const regra = doc.mesasPersonalizadas?.find(m => m.id === mesa);
+  if (!banca && regra) prepararMesaPersonalizada(state, regra);
+  selecionarMesaGold(state.assets.ouro, mesa);
+  return state;
 }

@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { MESAS_FUTUROS, fmt } from "@/lib/platform/engine";
+import { MESAS_FUTUROS, fmt, type MesaFuturos, type State } from "@/lib/platform/engine";
 import { type MesaPersonalizada, validarMesaPersonalizada, metasAvaliacao } from "@/lib/platform/mesas-personalizadas";
 
-export function CadastrarMesa({ nomes, onSave, onClose }: {
-  nomes: string[]; onSave: (mesa: MesaPersonalizada, taxa: number) => Promise<boolean>; onClose: () => void;
+export function CadastrarMesa({ nomes, mesas = MESAS_FUTUROS, referencias = {}, onSave, onClose }: {
+  mesas?: typeof MESAS_FUTUROS; referencias?: Partial<Record<MesaFuturos, State>>;
+  nomes: string[]; onSave: (mesa: MesaPersonalizada, taxa: number, referencia?: MesaFuturos) => Promise<boolean>; onClose: () => void;
 }) {
+  const [referencia, setReferencia] = useState<MesaFuturos | "">("");
   const [nome, setNome] = useState("");
   const [valores, setValores] = useState({avaliacao:"3", payout:"5", consistencia:"40", consistenciaFinanciada:"0", target:"3000", lossLimit:"2000", metaFinanciada:"200", saque:"0", taxa:"0"});
   const [busy, setBusy] = useState(false);
@@ -37,7 +39,9 @@ export function CadastrarMesa({ nomes, onSave, onClose }: {
       if (!Number.isFinite(taxa) || taxa < 0 || taxa > 1000000) {setErro("Informe um custo válido para a banca."); return;}
       setBusy(true); setErro("");
       try {
-        if (await onSave({...regra, id:`custom_${crypto.randomUUID()}`}, taxa)) onClose();
+        const novaMesa = {...regra, id:`custom_${crypto.randomUUID()}`} as MesaPersonalizada;
+        const salvo = referencia ? await onSave(novaMesa, taxa, referencia) : await onSave(novaMesa, taxa);
+        if (salvo) onClose();
         else setErro("Não foi possível salvar. Confira sua conexão e tente novamente.");
       } catch {setErro("Não foi possível salvar. Tente novamente.");}
       finally {setBusy(false);}
@@ -45,15 +49,21 @@ export function CadastrarMesa({ nomes, onSave, onClose }: {
       <fieldset disabled={busy} className="grid gap-4 sm:grid-cols-2">
         <label className="text-sm text-slate-200">Nome da mesa<Input value={nome} onChange={setNome} maxLength={60} /></label>
         <label className="text-sm text-slate-200">Usar regras iniciais de
-          <select defaultValue="tradefive" className="mt-1 block w-full rounded-lg border border-cyan-900 bg-[#030b15] p-2" onChange={e => {
-            const m = MESAS_FUTUROS[e.target.value as keyof typeof MESAS_FUTUROS];
-            if (m) setValores(v => ({...v, avaliacao:String(m.avaliacao), payout:String(m.payout), consistencia:String(m.consistencia), consistenciaFinanciada:"0", target:"3000", lossLimit:"2000", metaFinanciada:e.target.value === "topstep" ? "150" : "200"}));
-          }}>{Object.entries(MESAS_FUTUROS).map(([id,m]) => <option key={id} value={id}>{m.nome}</option>)}</select>
+          <select value={referencia} className="mt-1 block w-full rounded-lg border border-cyan-900 bg-[#030b15] p-2" onChange={e => {
+            const id = e.target.value as MesaFuturos | "";
+            setReferencia(id);
+            const m = id ? mesas[id] : undefined;
+            const config = id ? referencias[id]?.assets.ouro.mesaConfig : undefined;
+            setValores(v => ({...v, avaliacao:String(m?.avaliacao ?? 3), payout:String(m?.payout ?? 5),
+              consistencia:String(m?.consistencia ?? 0), consistenciaFinanciada:String(config?.consistenciaFinanciada ?? 0),
+              target:String(config?.target ?? 3000), lossLimit:String(config?.lossLimit ?? 2000),
+              metaFinanciada:String(config?.metaFinanciada ?? (id === "topstep" ? 150 : 200)), saque:String(config?.saque ?? 0)}));
+          }}><option value="">Nenhuma mesa — preencher manualmente</option>{Object.entries(mesas).map(([id,m]) => <option key={id} value={id}>{m.nome}</option>)}</select>
         </label>
         {fields.map(([key,label,min,max,step]) => <label key={key} className="text-sm text-slate-200">{label}<input required type="number" min={min} max={max} step={step} value={valores[key]} onChange={e => setValores(v => ({...v,[key]:e.target.value}))} className="mt-1 block w-full rounded-lg border border-cyan-900 bg-[#030b15] p-2" /></label>)}
       </fieldset>
       <div className="mt-4 rounded-xl border border-cyan-950 bg-[#030b15] p-3 text-sm text-slate-300" aria-live="polite">
-        {erroRegras ? erroRegras : <><strong>{regra.avaliacao + regra.payout} cards por ativo: {regra.avaliacao} de avaliação + {regra.payout} de financiada.</strong><p className="mt-1">Metas da avaliação: {metasAvaliacao(regra).map(v => `$${fmt(v)}`).join(" · ")}. Financiada: ${fmt(regra.metaFinanciada)} por dia.</p><p className="mt-1">O loss limit informado será fixo por padrão e poderá ser ajustado nos cards. Contratos e lotes começam em zero para você preencher. Saque 2 recebe somente os dias financiados.</p></>}
+        {erroRegras ? erroRegras : <><strong>{regra.avaliacao + regra.payout} cards por ativo: {regra.avaliacao} de avaliação + {regra.payout} de financiada.</strong><p className="mt-1">Metas da avaliação: {metasAvaliacao(regra).map(v => `$${fmt(v)}`).join(" · ")}. Financiada: ${fmt(regra.metaFinanciada)} por dia.</p><p className="mt-1">O loss limit informado será fixo por padrão e poderá ser ajustado nos cards. {referencia ? "Contratos e lotes serão copiados da banca selecionada na mesa de referência, por ativo, fase e dia. Dias extras começam em zero." : "Contratos e lotes começam em zero para você preencher."} Saque 2 recebe somente os dias financiados.</p></>}
       </div>
       {erro && <p role="alert" className="mt-3 text-sm text-rose-300">{erro}</p>}
       <div className="mt-4 flex gap-3"><Button type="submit" disabled={busy || !!erroRegras}>{busy ? "Salvando…" : "Criar mesa e primeira banca"}</Button><Button type="button" variant="outline" disabled={busy} onClick={onClose}>Cancelar</Button></div>

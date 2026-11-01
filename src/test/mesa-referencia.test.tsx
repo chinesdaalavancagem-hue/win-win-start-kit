@@ -1,0 +1,52 @@
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { CadastrarMesa } from '../components/platform/CadastrarMesa';
+import { defaultState, prepararMesaPersonalizada, selecionarMesaGold, MESAS_FUTUROS } from '../lib/platform/engine';
+import { novaBanca, referenciaDaMesa, type BancasDoc } from '../lib/platform/bancas';
+import type { MesaPersonalizada } from '../lib/platform/mesas-personalizadas';
+const regra: MesaPersonalizada = {id:'custom_referencia1',nome:'Minha mesa',avaliacao:3,payout:6,consistencia:40,consistenciaFinanciada:0,target:3000,lossLimit:2000,metaFinanciada:200,saque:0};
+describe('mesa com referência', () => {
+  it('copia contratos e lotes por fase sem deslocar financiada ao adicionar avaliação', () => {
+    const origem = defaultState(); selecionarMesaGold(origem.assets.ouro, 'topstep');
+    origem.assets.ouro.days[0]!.mnq = 17;
+    origem.assets.ouro.days[0]!.lotes = .37;
+    origem.assets.ouro.days[2]!.mnq = 4;
+    origem.assets.ouro.days[2]!.lotes = .83;
+    origem.assets.nasdaq.days[0]!.lotes = .91;
+    origem.assets.saque2.days[0]!.lotes = .49;
+    const antes = JSON.stringify(origem);
+    const destino = defaultState(); prepararMesaPersonalizada(destino, regra, origem);
+    expect(destino.assets.ouro.days[0]).toMatchObject({mnq:17,lotes:.37});
+    expect(destino.assets.ouro.days[2]).toMatchObject({mnq:0,lotes:0});
+    expect(destino.assets.ouro.days[3]).toMatchObject({mnq:4,lotes:.83});
+    expect(destino.assets.ouro.days[8]).toMatchObject({mnq:0,lotes:0});
+    expect(destino.assets.nasdaq.days[0]!.lotes).toBe(.91);
+    expect(destino.assets.saque2.days[0]!.lotes).toBe(.49);
+    expect(JSON.stringify(origem)).toBe(antes);
+    expect(destino.log).toEqual([]);
+  });
+  it('usa a banca selecionada na mesa e gera plano padrão quando não há banca', () => {
+    const a=novaBanca('A'), b=novaBanca('B'); a.mesa=b.mesa='topstep';
+    selecionarMesaGold(a.state.assets.ouro,'topstep'); selecionarMesaGold(b.state.assets.ouro,'topstep');
+    b.state.assets.ouro.days[0]!.lotes=.88;
+    const doc:BancasDoc={bancasVersion:1,activeId:a.id,activeIdsMesa:{topstep:b.id},bancas:[a,b]};
+    expect(referenciaDaMesa(doc,'topstep').assets.ouro.days[0]!.lotes).toBe(.88);
+    expect(referenciaDaMesa({...doc,bancas:[]},'topstep').assets.ouro.days).toHaveLength(7);
+  });
+  it('lista mesas personalizadas e permite abandonar a referência', async () => {
+    const onSave=vi.fn(async()=>true);
+    const origem=defaultState(); prepararMesaPersonalizada(origem,regra);
+    render(<CadastrarMesa nomes={[]} mesas={{...MESAS_FUTUROS,[regra.id]:regra}} referencias={{[regra.id]:origem}} onSave={onSave} onClose={()=>{}}/>);
+    fireEvent.change(screen.getByLabelText('Nome da mesa'),{target:{value:'Nova'}});
+    const select=screen.getByLabelText('Usar regras iniciais de');
+    fireEvent.change(select,{target:{value:regra.id}});
+    expect(screen.getByLabelText('Dias de conta financiada')).toHaveValue(6);
+    fireEvent.click(screen.getByRole('button',{name:'Criar mesa e primeira banca'}));
+    await waitFor(()=>expect(onSave).toHaveBeenCalledWith(expect.objectContaining({nome:'Nova',payout:6}),0,regra.id));
+    await waitFor(()=>expect(select).not.toBeDisabled());
+    onSave.mockClear();
+    fireEvent.change(select,{target:{value:''}});
+    fireEvent.click(screen.getByRole('button',{name:'Criar mesa e primeira banca'}));
+    await waitFor(()=>expect(onSave).toHaveBeenCalledWith(expect.objectContaining({nome:'Nova'}),0));
+  });
+});

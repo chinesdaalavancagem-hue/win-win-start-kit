@@ -176,7 +176,7 @@ export function selecionarMesaGold(asset: Asset, mesa: MesaFuturos): void {
 }
 
 /** Aplica regras apenas ao criar uma banca nova. Não reescreve planos existentes. */
-export function prepararMesaPersonalizada(state: State, mesa: MesaPersonalizada): void {
+export function prepararMesaPersonalizada(state: State, mesa: MesaPersonalizada, referencia?: State): void {
   const erro = validarMesaPersonalizada(mesa);
   if (erro) throw new Error(erro);
   for (const key of ASSETS) {
@@ -185,8 +185,16 @@ export function prepararMesaPersonalizada(state: State, mesa: MesaPersonalizada)
     asset.mesaFuturos = mesa.id;
     const avaliacao = key === "saque2" ? [] : metasAvaliacao(mesa);
     asset.avaliacaoPorMesa = {[mesa.id]: avaliacao.length};
+    const origem = referencia?.assets[key];
+    const diasAvaliacaoOrigem = origem ? diasAvaliacaoAtivo(origem, key) : 0;
     asset.days = [...avaliacao, ...Array.from({length: mesa.payout}, () => mesa.metaFinanciada)]
-      .map(meta => ({mnq: 0, lotes: 0, meta, mll: mesa.lossLimit}));
+      .map((meta, i) => {
+        // Associa D1 avaliação a D1 avaliação e D1 financiada a D1 financiada.
+        const fase = origem?.days.slice(i < avaliacao.length ? 0 : diasAvaliacaoOrigem,
+          i < avaliacao.length ? diasAvaliacaoOrigem : undefined);
+        const dia = fase?.[i < avaliacao.length ? i : i - avaliacao.length];
+        return {mnq: dia?.mnq ?? 0, lotes: dia?.lotes ?? 0, meta, mll: mesa.lossLimit};
+      });
     asset.params.mll = mesa.lossLimit;
     asset.params.saqueAprovada = mesa.saque;
     asset.attempt = freshAttempt();
