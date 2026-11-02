@@ -458,5 +458,64 @@ class TestRelayHTTP(unittest.TestCase):
             RelayClient("http://x/", TOKEN)
 
 
+class TestDiagnosticoConsole(Base):
+    def _exec(self, destino):
+        import contextlib
+        import diagnostico_v4 as d
+        buf, prog = io.StringIO(), []
+        with contextlib.redirect_stdout(buf):
+            rc = d.executar(self.cfg, self.relay, self.mt5, destino=destino, agora_ms=self.rel,
+                            progresso=prog.append, espera_s=0, dormir=lambda s: None)
+        return rc, buf.getvalue(), prog
+
+    def test_progresso_e_aprovacao(self):
+        self.f.par(0)
+        destino = Path(self.tmp) / "dados" / "diag.txt"
+        rc, out, prog = self._exec(destino)
+        self.assertEqual(rc, 0)
+        self.assertTrue(prog and "tentativa 1" in prog[0] and "HTTP 200" in prog[0] and "eventos=2" in prog[0])
+        txt = destino.read_text(encoding="utf-8")
+        self.assertIn("RESULTADO: APROVADO", txt)
+        self.assertIn("RESULTADO: APROVADO", out)
+        self.assertNotIn(TOKEN, txt + out + "".join(prog))
+
+    def test_reprovacao_codigo_1(self):
+        destino = Path(self.tmp) / "d.txt"
+        rc, out, _ = self._exec(destino)
+        self.assertEqual(rc, 1)
+        self.assertIn("ZERO_EVENTOS", destino.read_text(encoding="utf-8"))
+
+    def test_progresso_varias_tentativas(self):
+        prog = []
+        diagnosticar(self.cfg, self.relay, self.mt5, self.rel, espera_s=1, dormir=lambda s: __import__("time").sleep(0.6),
+                     progresso=prog.append)
+        self.assertGreaterEqual(len(prog), 2)
+        self.assertIn("aguardando", prog[0])
+
+    def test_erro_interno_controlado(self):
+        class Quebra:
+            url = "https://x/"
+            def buscar(self, after=0):
+                raise RuntimeError("falhou " + TOKEN)
+        import contextlib
+        import diagnostico_v4 as d
+        destino = Path(self.tmp) / "e.txt"
+        with contextlib.redirect_stdout(io.StringIO()) as buf:
+            rc = d.executar(self.cfg, Quebra(), self.mt5, destino=destino, agora_ms=self.rel,
+                            progresso=None, espera_s=0, dormir=lambda s: None)
+        txt = destino.read_text(encoding="utf-8")
+        self.assertEqual(rc, 1)
+        self.assertIn("ERRO_INTERNO", txt)
+        self.assertNotIn(TOKEN, txt + buf.getvalue())
+
+    def test_cmd_sem_redirecionamento(self):
+        cmd = (Path(__file__).resolve().parent.parent / "DIAGNOSTICO_DEMO.cmd").read_text(encoding="utf-8")
+        self.assertNotIn(">", cmd.split("diagnostico_v4.py")[1].splitlines()[0])
+        self.assertNotIn("type dados", cmd)
+        self.assertIn('".venv\\Scripts\\python.exe" diagnostico_v4.py', cmd)
+        self.assertIn("pip install -r requirements.txt", cmd)
+        self.assertIn("pause", cmd)
+
+
 if __name__ == "__main__":
     unittest.main()

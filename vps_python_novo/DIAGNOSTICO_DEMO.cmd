@@ -7,8 +7,10 @@ if not exist ".venv\Scripts\python.exe" (
   ".venv\Scripts\python.exe" -m pip install -r requirements.txt
 )
 if not exist dados mkdir dados
-".venv\Scripts\python.exe" diagnostico_v4.py > dados\diagnostico_ultimo.txt 2>&1
-type dados\diagnostico_ultimo.txt
+".venv\Scripts\python.exe" diagnostico_v4.py
+set RC=%ERRORLEVEL%
 echo.
-echo Resultado salvo em dados\diagnostico_ultimo.txt (sem a chave).
+if "%RC%"=="0" (echo DIAGNOSTICO APROVADO.) else (echo DIAGNOSTICO REPROVADO - codigo %RC%.)
+echo Relatorio salvo em dados\diagnostico_ultimo.txt (sem a chave).
 pause
+exit /b %RC%

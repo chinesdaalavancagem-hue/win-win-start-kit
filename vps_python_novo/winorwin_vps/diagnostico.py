@@ -115,7 +115,9 @@ def analisar_relay(r: RespostaRelay, cfg: Config, agora_ms: int, rel: Relatorio)
 
 
 def diagnosticar(cfg: Config, relay: RelayClient, mt5, agora_ms: Callable[[], int],
-                 espera_s: int = 40, dormir: Callable[[float], None] = time.sleep) -> Relatorio:
+                 espera_s: int = 40, dormir: Callable[[float], None] = time.sleep,
+                 progresso: Callable[[str], None] | None = None) -> Relatorio:
+    """progresso (opcional) recebe linhas curtas de andamento; nunca contem a chave."""
     rel = Relatorio()
     rel.linhas.append("== Chave VPS ==")
     if not cfg.token.startswith("wowvps_"):
@@ -131,7 +133,17 @@ def diagnosticar(cfg: Config, relay: RelayClient, mt5, agora_ms: Callable[[], in
         tmp = Relatorio()
         r = relay.buscar(0)
         ok = analisar_relay(r, cfg, agora_ms(), tmp)
-        if ok or r.http in (None, 401) or time.time() >= fim:
+        final = ok or r.http in (None, 401) or time.time() >= fim
+        if progresso is not None:
+            restante = max(0, int(fim - time.time()))
+            msg = (f"tentativa {tentativa}: HTTP {r.http} ({r.motivo}) eventos={len(r.eventos or [])} "
+                   f"par={'SIM' if ok else 'NAO'}")
+            msg += "" if final else f" - aguardando 2 s (restam ~{restante} s)"
+            try:
+                progresso(msg)
+            except Exception:  # progresso nunca interrompe o diagnostico
+                pass
+        if final:
             rel.info(f"tentativa {tentativa}")
             rel.linhas += tmp.linhas
             rel.falhas += tmp.falhas
