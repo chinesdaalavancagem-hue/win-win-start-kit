@@ -32,6 +32,7 @@ import { Route as ApiTermosStatusRouteImport } from './routes/api/termos/status'
 import { Route as ApiPublicOrdensIndexRouteImport } from './routes/api/public/ordens/index'
 import { Route as ApiPublicOrdensConfirmarRouteImport } from './routes/api/public/ordens/confirmar'
 import { Route as ApiPublicOrdensPendentesRouteImport } from './routes/api/public/ordens/pendentes'
+import { Route as ApiPublicTopstepVpsObservacoesIndexRouteImport } from './routes/api/public/topstep-vps/observacoes/index'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -151,6 +152,12 @@ const ApiPublicOrdensPendentesRoute =
     path: '/api/public/ordens/pendentes',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicTopstepVpsObservacoesIndexRoute =
+  ApiPublicTopstepVpsObservacoesIndexRouteImport.update({
+    id: '/api/public/topstep-vps/observacoes/',
+    path: '/api/public/topstep-vps/observacoes/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -175,6 +182,7 @@ export interface FileRoutesByFullPath {
   '/api/public/ordens/confirmar': typeof ApiPublicOrdensConfirmarRoute
   '/api/public/ordens/pendentes': typeof ApiPublicOrdensPendentesRoute
   '/api/public/ordens/': typeof ApiPublicOrdensIndexRoute
+  '/api/public/topstep-vps/observacoes/': typeof ApiPublicTopstepVpsObservacoesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -199,6 +207,7 @@ export interface FileRoutesByTo {
   '/api/public/ordens/confirmar': typeof ApiPublicOrdensConfirmarRoute
   '/api/public/ordens/pendentes': typeof ApiPublicOrdensPendentesRoute
   '/api/public/ordens': typeof ApiPublicOrdensIndexRoute
+  '/api/public/topstep-vps/observacoes': typeof ApiPublicTopstepVpsObservacoesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -225,6 +234,7 @@ export interface FileRoutesById {
   '/api/public/ordens/confirmar': typeof ApiPublicOrdensConfirmarRoute
   '/api/public/ordens/pendentes': typeof ApiPublicOrdensPendentesRoute
   '/api/public/ordens/': typeof ApiPublicOrdensIndexRoute
+  '/api/public/topstep-vps/observacoes/': typeof ApiPublicTopstepVpsObservacoesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -251,6 +261,7 @@ export interface FileRouteTypes {
     | '/api/public/ordens/confirmar'
     | '/api/public/ordens/pendentes'
     | '/api/public/ordens/'
+    | '/api/public/topstep-vps/observacoes/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -275,6 +286,7 @@ export interface FileRouteTypes {
     | '/api/public/ordens/confirmar'
     | '/api/public/ordens/pendentes'
     | '/api/public/ordens'
+    | '/api/public/topstep-vps/observacoes'
   id:
     | '__root__'
     | '/'
@@ -300,6 +312,7 @@ export interface FileRouteTypes {
     | '/api/public/ordens/confirmar'
     | '/api/public/ordens/pendentes'
     | '/api/public/ordens/'
+    | '/api/public/topstep-vps/observacoes/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -321,6 +334,7 @@ export interface RootRouteChildren {
   ApiPublicOrdensConfirmarRoute: typeof ApiPublicOrdensConfirmarRoute
   ApiPublicOrdensPendentesRoute: typeof ApiPublicOrdensPendentesRoute
   ApiPublicOrdensIndexRoute: typeof ApiPublicOrdensIndexRoute
+  ApiPublicTopstepVpsObservacoesIndexRoute: typeof ApiPublicTopstepVpsObservacoesIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -486,6 +500,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicOrdensPendentesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/topstep-vps/observacoes/': {
+      id: '/api/public/topstep-vps/observacoes/'
+      path: '/api/public/topstep-vps/observacoes'
+      fullPath: '/api/public/topstep-vps/observacoes/'
+      preLoaderRoute: typeof ApiPublicTopstepVpsObservacoesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -527,6 +548,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicOrdensConfirmarRoute: ApiPublicOrdensConfirmarRoute,
   ApiPublicOrdensPendentesRoute: ApiPublicOrdensPendentesRoute,
   ApiPublicOrdensIndexRoute: ApiPublicOrdensIndexRoute,
+  ApiPublicTopstepVpsObservacoesIndexRoute:
+    ApiPublicTopstepVpsObservacoesIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
