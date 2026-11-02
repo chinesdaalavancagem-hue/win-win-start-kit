@@ -341,6 +341,66 @@ export type Database = {
           },
         ]
       }
+      topstep_vps_observations: {
+        Row: {
+          client_seq: number
+          event_id: string
+          id: number
+          kind: string
+          observed_at_ms: number
+          payload: Json
+          received_at: string
+          session_id: string
+          user_id: string
+        }
+        Insert: {
+          client_seq: number
+          event_id: string
+          id?: never
+          kind: string
+          observed_at_ms: number
+          payload: Json
+          received_at?: string
+          session_id: string
+          user_id: string
+        }
+        Update: {
+          client_seq?: number
+          event_id?: string
+          id?: never
+          kind?: string
+          observed_at_ms?: number
+          payload?: Json
+          received_at?: string
+          session_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      topstep_vps_tokens: {
+        Row: {
+          created_at: string
+          expires_at: string
+          revoked_at: string | null
+          token_hash: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          revoked_at?: string | null
+          token_hash: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          revoked_at?: string | null
+          token_hash?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       trusted_device_settings: {
         Row: {
           max_trusted_devices: number
