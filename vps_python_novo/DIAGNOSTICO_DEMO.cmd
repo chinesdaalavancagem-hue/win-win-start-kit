@@ -6,6 +6,7 @@ if not exist ".venv\Scripts\python.exe" (
   py -3 -m venv .venv || python -m venv .venv
   ".venv\Scripts\python.exe" -m pip install -r requirements.txt
 )
+if not exist dados mkdir dados
 ".venv\Scripts\python.exe" diagnostico_v4.py > dados\diagnostico_ultimo.txt 2>&1
 type dados\diagnostico_ultimo.txt
 echo.
