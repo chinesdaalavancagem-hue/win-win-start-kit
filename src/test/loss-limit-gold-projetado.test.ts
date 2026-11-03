@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { defaultState, selecionarMesaGold, lossLimitGoldProjetado, computeAssetCalcs } from "@/lib/platform/engine";
+import { defaultState, limitesTradeify, selecionarMesaGold, lossLimitGoldProjetado, computeAssetCalcs } from "@/lib/platform/engine";
 
 describe("Loss Limit EOD Gold projetado pelas metas", () => {
+  it("Tradeify 50K usa o maior fechamento e trava a financiada em 50.100", () => {
+    const a = defaultState().assets.ouro;
+    selecionarMesaGold(a, "tradefive");
+    a.attempt.resultadosMesaEod = {3:1092.96,4:-400,5:1600};
+    expect(limitesTradeify(a,"ouro",4)).toEqual({saldo:51092.96,piso:49092.96,distancia:2000});
+    expect(limitesTradeify(a,"ouro",5).distancia).toBe(1600);
+    expect(limitesTradeify(a,"ouro",6).piso).toBe(50100);
+  });
   it.each(["tradefive", "lucid", "mff"] as const)("respeita os dias de avaliação e D1 financiada da mesa %s", (mesa) => {
     const a = defaultState().assets.ouro;
     selecionarMesaGold(a, mesa);
@@ -9,11 +17,11 @@ describe("Loss Limit EOD Gold projetado pelas metas", () => {
     expect(lossLimitGoldProjetado(a, 0)).toBe(2000);
     expect(lossLimitGoldProjetado(a, aval)).toBe(2000);
     a.days[aval]!.meta = 3000;
-    expect(lossLimitGoldProjetado(a, aval + 1)).toBe(2120);
+    expect(lossLimitGoldProjetado(a, aval + 1)).toBe(mesa === "tradefive" ? 2900 : 2120);
     a.days[aval + 1]!.meta = 1000;
-    expect(lossLimitGoldProjetado(a, aval + 2)).toBe(2160);
+    expect(lossLimitGoldProjetado(a, aval + 2)).toBe(mesa === "tradefive" ? 3900 : 2160);
     a.days[aval]!.meta = 13000;
-    expect(lossLimitGoldProjetado(a, aval + 1)).toBe(2520);
+    expect(lossLimitGoldProjetado(a, aval + 1)).toBe(mesa === "tradefive" ? 12900 : 2520);
   });
   it("usa ajuste manual nos cálculos e retorna à projeção quando removido", () => {
     const a = defaultState().assets.ouro;

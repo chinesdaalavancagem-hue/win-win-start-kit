@@ -10,14 +10,14 @@ describe("parâmetros padrão oficiais da Master", () => {
       saqueAprovada: 1700, folgaExtraPct: 20,
     });
     expect(days).toEqual([
-      { mnq: 20, lotes: 0.21, meta: 1080, mll: 2000 },
-      { mnq: 20, lotes: 0.33, meta: 1080, mll: 2000 },
-      { mnq: 20, lotes: 0.51, meta: 1080, mll: 2000 },
-      { mnq: 20, lotes: 0.8, meta: 3000, mll: 2000 },
-      { mnq: 2, lotes: 0.19, meta: 200, mll: 2120 },
-      { mnq: 2, lotes: 0.21, meta: 200, mll: 2130 },
-      { mnq: 2, lotes: 0.23, meta: 200, mll: 2140 },
-      { mnq: 2, lotes: 0.25, meta: 200, mll: 2150 },
+      { mnq: 20, lotes: 0.21, meta: 1080 },
+      { mnq: 20, lotes: 0.33, meta: 1080 },
+      { mnq: 20, lotes: 0.51, meta: 1080 },
+      { mnq: 20, lotes: 0.8, meta: 3000 },
+      { mnq: 2, lotes: 0.19, meta: 200 },
+      { mnq: 2, lotes: 0.21, meta: 200 },
+      { mnq: 2, lotes: 0.23, meta: 200 },
+      { mnq: 2, lotes: 0.25, meta: 200 },
     ]);
   });
 
@@ -47,11 +47,11 @@ describe("parâmetros padrão oficiais da Master", () => {
       saqueAprovada: 1300, folgaExtraPct: 20, ativoReal: "ouro",
     });
     expect(days).toEqual([
-      { mnq: 5, lotes: 0.03, meta: 200, mll: 2080 },
-      { mnq: 5, lotes: 0.03, meta: 200, mll: 2090 },
-      { mnq: 5, lotes: 0.03, meta: 200, mll: 2090 },
-      { mnq: 5, lotes: 0.04, meta: 200, mll: 2100 },
-      { mnq: 5, lotes: 0.04, meta: 200, mll: 2110 },
+      { mnq: 5, lotes: 0.03, meta: 200 },
+      { mnq: 5, lotes: 0.03, meta: 200 },
+      { mnq: 5, lotes: 0.03, meta: 200 },
+      { mnq: 5, lotes: 0.04, meta: 200 },
+      { mnq: 5, lotes: 0.04, meta: 200 },
     ]);
   });
 });

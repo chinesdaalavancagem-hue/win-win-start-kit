@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { registrarAuditoria } from "@/lib/auditoria-registro";
 import { applyOfficialParams, buildOfficialParams, isOfficialParams } from "@/lib/platform/official-params";
 import {
-  type AssetKey, type State, type TabKey, type Asset, type MesaFuturos, MESAS_FUTUROS, nomeMesa, diasAvaliacaoAtivo, diasAvaliacaoGold, lossLimitGoldProjetado, limitesTopstep, adicionarDiaGold, removerDiaGold,
+  type AssetKey, type State, type TabKey, type Asset, type MesaFuturos, MESAS_FUTUROS, nomeMesa, diasAvaliacaoAtivo, diasAvaliacaoGold, limitesTradeify, limitesTopstep, adicionarDiaGold, removerDiaGold,
   aplicarDeposito, aplicarSaque, projetarAportesFuturos, conciliarCreditoForex, calcAporteFracionado, calcCaixaCiclo, clampDayIndex, computeAssetCalcs, defaultState, fmt, fmtSigned, handleProfit, handleStop,
   historicoTotals, isValidState, normalizeState, parseNum, parseValorFinanceiro, parseResultadoCfd, podeDesfazerUltimaOperacao, projetarZeragemBonus, reiniciarCicloBonus, resetBonus, tipoLabel, undoLast,
 } from "@/lib/platform/engine";
@@ -549,34 +549,11 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
                 <span className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-amber-400/20 bg-amber-400/10 text-amber-300"><ShieldCheck className="size-4" /></span>
                 <div>
                   <h3 className="font-bold text-slate-100">Limite de perda da mesa · EOD</h3>
-                  <p className="mt-1 text-xs leading-relaxed text-blue-100/60">Configure o limite geral e, se necessário, uma exceção para cada dia do ciclo.</p>
+                  <p className="mt-1 text-xs leading-relaxed text-blue-100/60">Este valor serve de base para as projeções. Ajuste o limite de um dia diretamente no card de operações.</p>
                 </div>
               </div>
               <div className="mt-4 max-w-sm rounded-xl border border-amber-400/20 bg-[#080f18] p-3">
                 <NumField label="Limite geral EOD da mesa (reprovação $)" value={asset.params.mll} onChange={setP("mll")} helper="Limite móvel calculado no fechamento do dia — não é limite diário." />
-              </div>
-            </div>
-            <div className="p-4 sm:p-5">
-              <div className="mb-3">
-                <h4 className="text-sm font-semibold text-slate-100">Limite geral EOD por dia do ciclo</h4>
-                <p className="mt-1 text-xs leading-relaxed text-blue-100/60">Use 0 para herdar o limite geral de ${fmt(asset.params.mll)}. Preencha um valor personalizado quando o limite mudar após um dia lucrativo.</p>
-              </div>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-                {asset.days.map((d, i) => (
-                  <div key={i} className="rounded-xl border border-[#273342] bg-[#07101a] p-3">
-                    <div className="mb-2 flex items-center justify-between gap-1">
-                      <span className="font-mono text-xs font-bold text-amber-300">{rotuloDia(asset, assetKey, i)}</span>
-                      <span className={cn("rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide", d.mll && d.mll > 0 ? "bg-amber-400/10 text-amber-300" : "bg-slate-700/50 text-slate-400")}>{d.mll && d.mll > 0 ? "Personalizado" : "Geral"}</span>
-                    </div>
-                    <NumField label="Limite ($)" value={d.mll ?? 0}
-                      onChange={(v) => mutate((s) => { const day = s.assets[assetKey].days[i]!; if (v > 0) day.mll = v; else delete day.mll; })}
-                      helper={d.mll && d.mll > 0 ? "Exceção ativa" : `herda ${fmt(asset.params.mll)}`} />
-                  </div>
-                ))}
-              </div>
-              <div className="mt-4 rounded-xl border border-amber-400/15 bg-amber-400/5 p-3 text-xs leading-relaxed text-amber-100/75">
-                <p className="font-semibold text-amber-200">Importante</p>
-                <p className="mt-1">A estratégia exige limite geral do tipo EOD, atualizado no fechamento do dia. Mesas com limite de perda diário não servem para esta estratégia. Os pontos até a reprovação são calculados por dia e exibidos nos cards de operações.</p>
               </div>
             </div>
           </section>
@@ -648,13 +625,14 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
     wasCurrent.current = isCurrent;
   }, [isCurrent]);
   const setD = (k: "mnq" | "lotes" | "meta") => (v: number) => mutate((s) => { s.assets[assetKey].days[i]![k] = v; });
-  const limiteFixo = !asset.mesaConfig && assetKey === "ouro" && i <= avaliacaoDias;
-  const topstep = mesa === "topstep" ? limitesTopstep(asset, assetKey, i) : null;
+  const projecao = mesa === "topstep" ? limitesTopstep(asset, assetKey, i)
+    : mesa === "tradefive" ? limitesTradeify(asset, assetKey, i) : null;
+  const campoStop = mesa === "topstep" ? "stopPlanejadoTopstep" : "mll";
   const ajustarStop = (valor: number) => mutate(st => {
     const dia = st.assets[assetKey].days[i];
     if (!dia) return;
-    if (Number.isFinite(valor) && valor > 0) dia.stopPlanejadoTopstep = valor;
-    else delete dia.stopPlanejadoTopstep;
+    if (Number.isFinite(valor) && valor > 0) dia[campoStop] = valor;
+    else delete dia[campoStop];
   });
   const campoEod = (chave: string, label: string) => <label className="block text-xs text-slate-300">{label}
     <input key={String(asset.attempt.resultadosMesaEod?.[chave] ?? "")} type="number" step="0.01" defaultValue={asset.attempt.resultadosMesaEod?.[chave] ?? ""}
@@ -671,8 +649,6 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
           tentativa.resultadosMesaEod = valores;
         });
       }} /></label>;
-  const limiteProjetado = assetKey === "ouro" || asset.mesaConfig ? lossLimitGoldProjetado(asset, i) : 0;
-  const limiteManual = (assetKey === "ouro" || !!asset.mesaConfig) && !limiteFixo && typeof d.mll === "number" && d.mll > 0;
   return (
     <div ref={ref}
       data-wow-card={isCurrent && assetKey !== "saque2" ? "active" : undefined}
@@ -709,14 +685,10 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
           <p className="mt-2 font-mono text-[11px] text-muted-foreground">{fmt(row.ticks)} ticks</p>
         </div>
         <div className="min-w-0 rounded-xl border border-[#18324e] bg-gradient-to-br from-[#0d1b2b] to-[#080f1a] p-3 sm:p-4">
-          {topstep ? <>
-            <NumField cockpit label="Loss limit do cenário ($)" value={d.stopPlanejadoTopstep ?? topstep.distancia} onChange={ajustarStop} />
-            {c.ticksReprova !== undefined && c.valorTickMesa ? <NumField label="Stop em ticks" value={c.ticksReprova}
-              onChange={ticks => ajustarStop(Math.ceil(ticks) * c.valorTickMesa!)} /> : <p>Informe os contratos para calcular os ticks.</p>}
-            {d.stopPlanejadoTopstep !== undefined ? <button type="button" className="mt-1 text-xs text-cyan-300 underline" onClick={() => ajustarStop(0)}>Voltar ao limite oficial</button>
-              : <p className="mt-1 text-xs text-muted-foreground">Usando a distância até o piso oficial.</p>}
-          </> : <><p className="flex items-center gap-1.5 text-xs text-blue-100/90"><TrendingUp className="h-3.5 w-3.5 text-emerald-400" />Alvo Reprova</p>
-          <p className="mt-2 font-mono text-2xl font-bold sm:text-[28px]">{fmt(c.pontosReprova * 10)} <span className="text-sm text-muted-foreground">pts</span></p></>}
+          <NumField cockpit label="Loss limit do cenário ($)" value={c.limiteDoCard ?? asset.params.mll} onChange={ajustarStop} />
+          {c.ticksReprova !== undefined && c.valorTickMesa ? <NumField label="Stop em ticks" value={c.ticksReprova}
+            onChange={ticks => ajustarStop(Math.ceil(ticks) * c.valorTickMesa!)} /> : <p>Informe os contratos para calcular os ticks.</p>}
+          {d[campoStop] !== undefined && <button type="button" className="mt-1 text-xs text-cyan-300 underline" onClick={() => ajustarStop(0)}>Usar limite automático</button>}
         </div>
       </div>
 
@@ -752,23 +724,16 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
               <span className="font-mono text-base font-bold text-sky-400 sm:text-xl">${fmt(cx.deposito)}</span>
             </div>}
             <div className="mt-3 flex items-center justify-between gap-2 rounded-lg border border-[#142b43] bg-[#0b1726] px-3 py-2.5 font-mono text-xs"><span className="flex items-center gap-1.5 text-muted-foreground"><Calculator className="h-3.5 w-3.5" />Necessário no CFD</span><span className="font-semibold">${fmt(cx.necessario)}</span></div>
-            {topstep && <div className="mt-2 space-y-2 rounded-xl border border-amber-800/50 bg-[#161924] p-3 text-xs text-slate-200">
-              <strong>Topstep 50K · abertura do dia</strong>
-              <p>Saldo projetado na mesa: ${fmt(topstep.saldo)}</p>
-              <p>Piso de reprovação: <strong>${fmt(topstep.piso)}</strong></p>
-              <p>Distância até reprovar: <strong>${fmt(topstep.distancia)}</strong></p>
+            {projecao && <div className="mt-2 space-y-2 rounded-xl border border-amber-800/50 bg-[#161924] p-3 text-xs text-slate-200">
+              <strong>{mesa === "topstep" ? "Topstep" : "Tradeify"} 50K · abertura do dia</strong>
+              <p>Saldo projetado na mesa: ${fmt(projecao.saldo)}</p>
+              <p>Piso de reprovação: <strong>${fmt(projecao.piso)}</strong></p>
+              <p>Distância até reprovar: <strong>${fmt(projecao.distancia)}</strong></p>
               {assetKey === "saque2" && i === 0 && campoEod("posSaque", "Saldo da mesa após o primeiro saque ($)")}
               {campoEod(String(i), "Resultado líquido deste dia na mesa ($)")}
               <p>O fechamento informado entra no cálculo do dia seguinte. Enquanto estiver em branco, usamos a meta do card.</p>
             </div>}
-            {!topstep && (assetKey === "ouro" || asset.mesaConfig) && <div className="mt-1 flex items-center justify-between gap-3 rounded-xl border border-amber-800/50 bg-[#161924] px-3 py-2.5">
-              <label className="min-w-0 text-xs font-semibold text-amber-200">{asset.mesaConfig ? "Loss limit na mesa ($)" : "Loss Limit EOD na mesa ($)"}</label>
-              {limiteFixo ? <span className="font-mono text-base font-bold text-white">${"2.000"}</span> :
-                <div className="flex items-center gap-1.5">
-                  <input aria-label="Loss Limit EOD na mesa" type="number" min="0.01" step="0.01" inputMode="decimal" value={limiteManual ? d.mll : limiteProjetado} title={limiteManual ? "Valor ajustado manualmente" : "Projeção calculada pelas metas anteriores"} className="w-28 max-w-[43vw] rounded-lg border border-amber-800/70 bg-[#081321] px-2 py-1.5 text-right font-mono text-sm font-bold text-white focus:border-amber-400 focus:outline-none" onChange={(e) => { const raw = e.target.value; const valor = Number(raw); mutate((st) => { const dia = st.assets[assetKey].days[i]; if (!dia) return; if (raw.trim() && Number.isFinite(valor) && valor > 0) dia.mll = valor; else delete dia.mll; }); }} />
-                  {limiteManual && <button type="button" className="rounded border border-amber-900/60 px-1.5 py-1 text-[10px] text-amber-200" title="Voltar à projeção automática" onClick={() => mutate((st) => { delete st.assets[assetKey].days[i]!.mll; })}>Auto</button>}
-                </div>}
-            </div>}
+
 
           </div>
         );

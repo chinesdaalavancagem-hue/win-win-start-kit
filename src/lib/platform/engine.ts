@@ -91,24 +91,24 @@ const defaultAssetsBase = {
   ouro: {
     params: { mnq: 10, hfm: 100, mll: 2000, saldoInicial: 416, taxa: 100, lucroDesejado: 100, marginPerLot: 873, stopoutPct: 50, saqueAprovada: 1700, folgaExtraPct: 20 },
     days: [
-      { mnq: 20, lotes: 0.21, meta: 1080, mll: 2000 },
-      { mnq: 20, lotes: 0.33, meta: 1080, mll: 2000 },
-      { mnq: 20, lotes: 0.51, meta: 1080, mll: 2000 },
-      { mnq: 20, lotes: 0.80, meta: 3000, mll: 2000 },
-      { mnq: 2, lotes: 0.19, meta: 200, mll: 2120 },
-      { mnq: 2, lotes: 0.21, meta: 200, mll: 2130 },
-      { mnq: 2, lotes: 0.23, meta: 200, mll: 2140 },
-      { mnq: 2, lotes: 0.25, meta: 200, mll: 2150 },
+      { mnq: 20, lotes: 0.21, meta: 1080 },
+      { mnq: 20, lotes: 0.33, meta: 1080 },
+      { mnq: 20, lotes: 0.51, meta: 1080 },
+      { mnq: 20, lotes: 0.80, meta: 3000 },
+      { mnq: 2, lotes: 0.19, meta: 200 },
+      { mnq: 2, lotes: 0.21, meta: 200 },
+      { mnq: 2, lotes: 0.23, meta: 200 },
+      { mnq: 2, lotes: 0.25, meta: 200 },
     ],
   },
   saque2: {
     params: { mnq: 10, hfm: 100, mll: 2000, saldoInicial: 732, taxa: 0, lucroDesejado: 0, marginPerLot: 873, stopoutPct: 50, saqueAprovada: 1300, folgaExtraPct: 20, ativoReal: "ouro" },
     days: [
-      { mnq: 5, lotes: 0.03, meta: 200, mll: 2080 },
-      { mnq: 5, lotes: 0.03, meta: 200, mll: 2090 },
-      { mnq: 5, lotes: 0.03, meta: 200, mll: 2090 },
-      { mnq: 5, lotes: 0.04, meta: 200, mll: 2100 },
-      { mnq: 5, lotes: 0.04, meta: 200, mll: 2110 },
+      { mnq: 5, lotes: 0.03, meta: 200 },
+      { mnq: 5, lotes: 0.03, meta: 200 },
+      { mnq: 5, lotes: 0.03, meta: 200 },
+      { mnq: 5, lotes: 0.04, meta: 200 },
+      { mnq: 5, lotes: 0.04, meta: 200 },
     ],
   },
 };
@@ -294,6 +294,7 @@ export function clampDayIndex(a: Asset): number {
 }
 
 export interface DayCalc {
+  limiteDoCard?: number;
   ticksReprova?: number | undefined;
   valorTickMesa?: number;
   pontos: number; custoSePassar: number; passa: number; pontosReprova: number; reprova: number;
@@ -307,11 +308,27 @@ export function limitesTopstep(a: Asset, key: AssetKey, indice: number) {
   const resultados = a.attempt.resultadosMesaEod ?? {};
   const posSaque = key === "saque2";
   let saldo = posSaque ? resultados.posSaque ?? 0 : inicial;
-  let piso = posSaque ? 0 : inicial - 2000;
+  let piso = posSaque ? 0 : inicial - a.params.mll;
   for (let i = indice < avaliacao ? 0 : avaliacao; i < indice; i++) {
     const resultado = resultados[i] ?? a.days[i]!.meta;
     saldo = Math.round((saldo + resultado) * 100) / 100;
-    piso = Math.max(piso, Math.min(inicial, Math.round((saldo - 2000) * 100) / 100));
+    piso = Math.max(piso, Math.min(inicial, Math.round((saldo - a.params.mll) * 100) / 100));
+  }
+  return { saldo, piso, distancia: Math.max(0, Math.round((saldo - piso) * 100) / 100) };
+}
+
+/** Tradeify 50K: avaliação móvel sem trava; Sim Funded trava em 50.100. */
+export function limitesTradeify(a: Asset, key: AssetKey, indice: number) {
+  const avaliacao = diasAvaliacaoAtivo(a, key);
+  const financiada = indice >= avaliacao;
+  const resultados = a.attempt.resultadosMesaEod ?? {};
+  const posSaque = key === "saque2";
+  let piso = posSaque ? 50100 : 50000 - a.params.mll;
+  let saldo = posSaque ? resultados.posSaque ?? piso : 50000;
+  for (let i = financiada ? avaliacao : 0; i < indice; i++) {
+    saldo = Math.round((saldo + (resultados[i] ?? a.days[i]!.meta)) * 100) / 100;
+    const novoPiso = Math.round((saldo - a.params.mll) * 100) / 100;
+    piso = Math.max(piso, financiada ? Math.min(50100, novoPiso) : novoPiso);
   }
   return { saldo, piso, distancia: Math.max(0, Math.round((saldo - piso) * 100) / 100) };
 }
@@ -319,17 +336,17 @@ export function limitesTopstep(a: Asset, key: AssetKey, indice: number) {
 /** Projeção sobre metas planejadas, não um limite efetivo confirmado pela mesa. */
 export function lossLimitGoldProjetado(a: Asset, indice: number): number {
   if (a.mesaFuturos === "topstep") return limitesTopstep(a, "ouro", indice).distancia;
-  if (a.mesaConfig) return a.mesaConfig.lossLimit;
+  if (a.mesaConfig) return a.params.mll;
+  if ((a.mesaFuturos ?? "tradefive") === "tradefive") return limitesTradeify(a, "ouro", indice).distancia;
   const avaliacao = diasAvaliacaoGold(a);
-  if (indice <= avaliacao) return 2000;
+  if (indice <= avaliacao) return a.params.mll;
   const metasAnteriores = a.days.slice(avaliacao, indice).reduce((soma, dia) => soma + (Number.isFinite(dia.meta) ? dia.meta : 0), 0);
-  return Math.max(0, (50000 + metasAnteriores) * 0.04);
+  return Math.max(0, a.params.mll * (1 + metasAnteriores / 50000));
 }
 
 export function lossLimitGoldEfetivo(a: Asset, indice: number): number {
   if (a.mesaFuturos === "topstep") return limitesTopstep(a, "ouro", indice).distancia;
   if (a.mesaConfig) return dayMll(a, a.days[indice] ?? {mnq:0, lotes:0, meta:0});
-  if (indice <= diasAvaliacaoGold(a)) return 2000;
   const manual = a.days[indice]?.mll;
   return typeof manual === "number" && Number.isFinite(manual) && manual > 0 ? manual : lossLimitGoldProjetado(a, indice);
 }
@@ -345,12 +362,13 @@ export function computeAssetCalcs(a: Asset, key: AssetKey): DayCalc[] {
     const indice = a.days.indexOf(d);
     const stopManual = d.stopPlanejadoTopstep;
     const limite = a.mesaFuturos === "topstep" ? (typeof stopManual === "number" && Number.isFinite(stopManual) && stopManual > 0
-      ? stopManual : limitesTopstep(a, key, indice).distancia) : key === "ouro" || a.mesaConfig ? lossLimitGoldEfetivo(a, indice) : dayMll(a, d);
+      ? stopManual : limitesTopstep(a, key, indice).distancia) : a.mesaFuturos === "tradefive" && !d.mll ? limitesTradeify(a, key, indice).distancia
+      : key === "ouro" || a.mesaConfig ? lossLimitGoldEfetivo(a, indice) : dayMll(a, d);
     const pontosAtePiso = exp > 0 ? limite / exp : 0;
     const ativo = key === "saque2" ? (a.params.ativoReal ?? "ouro") : key;
     const ticksPorPonto = ativo === "ouro" ? 10 : 4;
     // Primeiro tick negociável que toca ou atravessa o piso da mesa.
-    const ticksReprova = a.mesaFuturos === "topstep" && exp > 0
+    const ticksReprova = exp > 0
       ? Math.ceil(Number((pontosAtePiso * ticksPorPonto).toFixed(10))) : undefined;
     const pontosReprova = ticksReprova === undefined ? pontosAtePiso : ticksReprova / ticksPorPonto;
     const reprova = pontosReprova * d.lotes * hfmPt;
@@ -359,7 +377,7 @@ export function computeAssetCalcs(a: Asset, key: AssetKey): DayCalc[] {
     const alvoBruto = incluiPretensao ? dividaHoje : dividaReal + lucroDesejado;
     const liquidoSeReprovar = reprova - dividaReal;
     divida += custoSePassar;
-    return { pontos, ticksReprova, valorTickMesa: exp / ticksPorPonto, custoSePassar, passa: -custoSePassar, pontosReprova, reprova, dividaHoje, alvoBruto, liquidoSeReprovar, bateuAlvo: liquidoSeReprovar >= lucroDesejado * 0.98 };
+    return { pontos, limiteDoCard: limite, ticksReprova, valorTickMesa: exp / ticksPorPonto, custoSePassar, passa: -custoSePassar, pontosReprova, reprova, dividaHoje, alvoBruto, liquidoSeReprovar, bateuAlvo: liquidoSeReprovar >= lucroDesejado * 0.98 };
   });
 }
 

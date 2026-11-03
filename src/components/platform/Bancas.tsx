@@ -124,7 +124,7 @@ export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectio
   };
   const loadActive = useCallback(async () => {
     const d = docRef.current; const b = d?.bancas.find((x) => x.id === activeId);
-    return b ? JSON.stringify((() => { const state = aplicarForex(b.state, forexDoDocumento(d!)); if (typeof b.taxaCompra === "number") { state.assets.nasdaq.params.taxa = b.taxaCompra; state.assets.ouro.params.taxa = b.taxaCompra; } selecionarMesaGold(state.assets.ouro, b.mesa ?? "tradefive"); if (b.mesa === "topstep") { state.assets.nasdaq.mesaFuturos = b.mesa; state.assets.saque2.mesaFuturos = b.mesa; } return state; })()) : null;
+    return b ? JSON.stringify((() => { const state = aplicarForex(b.state, forexDoDocumento(d!)); if (typeof b.taxaCompra === "number") { state.assets.nasdaq.params.taxa = b.taxaCompra; state.assets.ouro.params.taxa = b.taxaCompra; } selecionarMesaGold(state.assets.ouro, b.mesa ?? "tradefive"); state.assets.nasdaq.mesaFuturos = b.mesa ?? "tradefive"; state.assets.saque2.mesaFuturos = b.mesa ?? "tradefive"; return state; })()) : null;
   }, [activeId]); // eslint-disable-line react-hooks/exhaustive-deps
   const saveActive = useCallback(async (v: string, acceptedAt?: string) => {
     const d = docRef.current; if (!d) return false;
