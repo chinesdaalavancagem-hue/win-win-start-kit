@@ -12,7 +12,7 @@ export interface Params {
   mnq: number; hfm: number; mll: number; saldoInicial: number; taxa: number; lucroDesejado: number;
   marginPerLot: number; stopoutPct: number; saqueAprovada: number; folgaExtraPct: number; ativoReal?: "ouro" | "nasdaq";
 }
-export interface Attempt { currentDayIndex: number; cycleCost: number; custoProprioAcumulado: number }
+export interface Attempt { resultadosMesaEod?: Record<string, number>; currentDayIndex: number; cycleCost: number; custoProprioAcumulado: number }
 export interface BonusLog { ts: number; tipo: "deposito" | "saque" | "reset" | "ajuste_credito" | "reinicio_ciclo"; valor: number; dia?: number; bonusGanho?: number; proporcao?: number; bonusReduzido?: number; depositoZerado?: number }
 export interface Bonus { deposito: number; bonusAtual: number; bonusGanhoTotal: number; bonusCap: number; log: BonusLog[] }
 export type MesaFuturos = "tradefive" | "lucid" | "mff" | "topstep" | MesaPersonalizada["id"];
@@ -24,6 +24,7 @@ export const MESAS_FUTUROS: Record<MesaFuturos, { nome: string; consistencia: nu
 };
 export interface Asset { mesaConfig?: MesaPersonalizada; params: Params; days: Day[]; attempt: Attempt; bonus: Bonus; mesaFuturos?: MesaFuturos; diasPorMesa?: Partial<Record<MesaFuturos, Day[]>>; avaliacaoPorMesa?: Partial<Record<MesaFuturos, number>> }
 export interface LogEntry {
+  prevResultadosMesaEod?: Record<string, number>;
   revisadoEm?: number;
   id: number; ts: number; asset: AssetKey; day: number; tipo: "profit" | "aprovada" | "reprovada"; delta: number; saldoApos: number;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -229,6 +230,11 @@ export function normalizeState(p: any): State {
     const a = p.assets[k];
     if (a.mesaConfig && validarMesaPersonalizada(a.mesaConfig)) delete a.mesaConfig;
     if (!a.attempt) a.attempt = freshAttempt();
+    if (a.attempt.resultadosMesaEod !== undefined) {
+      const valores = a.attempt.resultadosMesaEod;
+      a.attempt.resultadosMesaEod = Object.fromEntries(Object.entries(valores && typeof valores === "object" ? valores : {})
+        .filter(([k,v]) => (k === "posSaque" || /^\d+$/.test(k)) && typeof v === "number" && Number.isFinite(v)));
+    }
     if (typeof a.attempt.cycleCost !== "number") a.attempt.cycleCost = 0;
     if (typeof a.attempt.custoProprioAcumulado !== "number") a.attempt.custoProprioAcumulado = 0;
     if (!a.bonus) a.bonus = freshBonus();
@@ -292,8 +298,25 @@ export interface DayCalc {
   dividaHoje: number; alvoBruto: number; liquidoSeReprovar: number; bateuAlvo: boolean;
 }
 
+/** Topstep 50K. Valores de abertura de cada sessão, após o ajuste EOD anterior. */
+export function limitesTopstep(a: Asset, key: AssetKey, indice: number) {
+  const avaliacao = diasAvaliacaoAtivo(a, key);
+  const inicial = indice < avaliacao ? 50000 : 0;
+  const resultados = a.attempt.resultadosMesaEod ?? {};
+  const posSaque = key === "saque2";
+  let saldo = posSaque ? resultados.posSaque ?? 0 : inicial;
+  let piso = posSaque ? 0 : inicial - 2000;
+  for (let i = indice < avaliacao ? 0 : avaliacao; i < indice; i++) {
+    const resultado = resultados[i] ?? a.days[i]!.meta;
+    saldo = Math.round((saldo + resultado) * 100) / 100;
+    piso = Math.max(piso, Math.min(inicial, Math.round((saldo - 2000) * 100) / 100));
+  }
+  return { saldo, piso, distancia: Math.max(0, Math.round((saldo - piso) * 100) / 100) };
+}
+
 /** Projeção sobre metas planejadas, não um limite efetivo confirmado pela mesa. */
 export function lossLimitGoldProjetado(a: Asset, indice: number): number {
+  if (a.mesaFuturos === "topstep") return limitesTopstep(a, "ouro", indice).distancia;
   if (a.mesaConfig) return a.mesaConfig.lossLimit;
   const avaliacao = diasAvaliacaoGold(a);
   if (indice <= avaliacao) return 2000;
@@ -302,6 +325,7 @@ export function lossLimitGoldProjetado(a: Asset, indice: number): number {
 }
 
 export function lossLimitGoldEfetivo(a: Asset, indice: number): number {
+  if (a.mesaFuturos === "topstep") return limitesTopstep(a, "ouro", indice).distancia;
   if (a.mesaConfig) return dayMll(a, a.days[indice] ?? {mnq:0, lotes:0, meta:0});
   if (indice <= diasAvaliacaoGold(a)) return 2000;
   const manual = a.days[indice]?.mll;
@@ -317,7 +341,7 @@ export function computeAssetCalcs(a: Asset, key: AssetKey): DayCalc[] {
     const pontos = exp > 0 ? d.meta / exp : 0;
     const custoSePassar = pontos * d.lotes * hfmPt;
     const indice = a.days.indexOf(d);
-    const limite = key === "ouro" || a.mesaConfig ? lossLimitGoldEfetivo(a, indice) : dayMll(a, d);
+    const limite = a.mesaFuturos === "topstep" ? limitesTopstep(a, key, indice).distancia : key === "ouro" || a.mesaConfig ? lossLimitGoldEfetivo(a, indice) : dayMll(a, d);
     const pontosReprova = exp > 0 ? limite / exp : 0;
     const reprova = pontosReprova * d.lotes * hfmPt;
     const dividaReal = divida;
@@ -374,7 +398,7 @@ export function handleProfit(s: State, key: AssetKey, realCfd?: number) {
   const teorico = -calc.custoSePassar;
   if (typeof realCfd === "number" && Number.isFinite(realCfd)) calc.custoSePassar = -realCfd;
   const isLast = idx === a.days.length - 1;
-  const prev = { prevBonusTodos: Object.fromEntries(ASSETS.map((k) => [k, structuredClone(s.assets[k].bonus)])) as Record<AssetKey, Bonus>, prevForexSaldoReal: s.forexSaldoReal, prevCfdBalance: s.cfdBalance, prevCounts: { ...s.counts }, prevDayIndex: a.attempt.currentDayIndex, prevCycleCost: a.attempt.cycleCost || 0, prevCustoProprioAcumulado: a.attempt.custoProprioAcumulado || 0, prevTotalGasto: s.totalGasto, prevBonusDeposito: a.bonus.deposito || 0, prevBonusAtual: a.bonus.bonusAtual || 0 };
+  const prev = { ...(a.attempt.resultadosMesaEod ? { prevResultadosMesaEod: {...a.attempt.resultadosMesaEod} } : {}), prevBonusTodos: Object.fromEntries(ASSETS.map((k) => [k, structuredClone(s.assets[k].bonus)])) as Record<AssetKey, Bonus>, prevForexSaldoReal: s.forexSaldoReal, prevCfdBalance: s.cfdBalance, prevCounts: { ...s.counts }, prevDayIndex: a.attempt.currentDayIndex, prevCycleCost: a.attempt.cycleCost || 0, prevCustoProprioAcumulado: a.attempt.custoProprioAcumulado || 0, prevTotalGasto: s.totalGasto, prevBonusDeposito: a.bonus.deposito || 0, prevBonusAtual: a.bonus.bonusAtual || 0 };
   const taxaCobrada = idx === 0 ? a.params.taxa : 0;
   const custoDoDia = calc.custoSePassar + taxaCobrada;
   const saque = isLast ? a.params.saqueAprovada || 0 : 0;
@@ -402,7 +426,7 @@ export function handleStop(s: State, key: AssetKey, realCfd?: number) {
   if (typeof realCfd === "number" && Number.isFinite(realCfd)) calc.reprova = realCfd;
   const taxaCobrada = idx === 0 ? a.params.taxa : 0;
   const delta = calc.reprova - taxaCobrada;
-  const prev = { prevBonusTodos: Object.fromEntries(ASSETS.map((k) => [k, structuredClone(s.assets[k].bonus)])) as Record<AssetKey, Bonus>, prevForexSaldoReal: s.forexSaldoReal, prevCfdBalance: s.cfdBalance, prevCounts: { ...s.counts }, prevDayIndex: a.attempt.currentDayIndex, prevCycleCost: a.attempt.cycleCost || 0, prevCustoProprioAcumulado: a.attempt.custoProprioAcumulado || 0, prevTotalGasto: s.totalGasto, prevBonusDeposito: a.bonus.deposito || 0, prevBonusAtual: a.bonus.bonusAtual || 0 };
+  const prev = { ...(a.attempt.resultadosMesaEod ? { prevResultadosMesaEod: {...a.attempt.resultadosMesaEod} } : {}), prevBonusTodos: Object.fromEntries(ASSETS.map((k) => [k, structuredClone(s.assets[k].bonus)])) as Record<AssetKey, Bonus>, prevForexSaldoReal: s.forexSaldoReal, prevCfdBalance: s.cfdBalance, prevCounts: { ...s.counts }, prevDayIndex: a.attempt.currentDayIndex, prevCycleCost: a.attempt.cycleCost || 0, prevCustoProprioAcumulado: a.attempt.custoProprioAcumulado || 0, prevTotalGasto: s.totalGasto, prevBonusDeposito: a.bonus.deposito || 0, prevBonusAtual: a.bonus.bonusAtual || 0 };
   const custoTotalCiclo = prev.prevCycleCost + taxaCobrada;
   if (calc.reprova >= 0) a.bonus.deposito = (a.bonus.deposito || 0) + calc.reprova;
   else debitarCustoDoBonus(s, key, -calc.reprova);
@@ -425,6 +449,7 @@ export function undoLast(s: State) {
   if (last.prevCounts) s.counts = last.prevCounts;
   if (typeof last.prevTotalGasto === "number") s.totalGasto = last.prevTotalGasto;
   const a = s.assets[last.asset];
+  if (last.prevResultadosMesaEod) a.attempt.resultadosMesaEod = {...last.prevResultadosMesaEod};
   if (typeof last.prevDayIndex === "number") a.attempt.currentDayIndex = last.prevDayIndex;
   if (typeof last.prevCycleCost === "number") a.attempt.cycleCost = last.prevCycleCost;
   if (typeof last.prevCustoProprioAcumulado === "number") a.attempt.custoProprioAcumulado = last.prevCustoProprioAcumulado;
@@ -624,4 +649,3 @@ export function calcCaixaCiclo(a: Asset, key: AssetKey, bonusPct: number) {
   const totalPerda = dias.reduce((acc, d) => acc + d.perda, 0);
   return { dias, taxa, totalDepositado: depositado, totalPerda, perdaPropriaTotal, perdaBonusTotal, caixaMaximo, proprioRecuperavel: proprio, saque, recuperado, resultadoFinal: recuperado - caixaMaximo, bonusTotal };
 }
-

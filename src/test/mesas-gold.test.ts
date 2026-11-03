@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defaultState, MESAS_FUTUROS, selecionarMesaGold, diasAvaliacaoGold, removerDiaGold, adicionarDiaGold, lossLimitGoldEfetivo } from "../lib/platform/engine";
+import { defaultState, MESAS_FUTUROS, selecionarMesaGold, diasAvaliacaoGold, removerDiaGold, adicionarDiaGold, limitesTopstep, lossLimitGoldEfetivo } from "../lib/platform/engine";
 
 describe("perfis Gold por mesa de futuros", () => {
   it("restaura Topstep com avaliação 3k em 2 dias, consistência 55% e 5 dias financiados de 150", () => {
@@ -11,9 +11,13 @@ describe("perfis Gold por mesa de futuros", () => {
     expect(gold.days.slice(0, 2).map((day) => day.meta)).toEqual([1500, 1500]);
     expect(gold.days.slice(2).map((day) => day.meta)).toEqual([150, 150, 150, 150, 150]);
     expect(gold.days.slice(0, 3).every((_, i) => lossLimitGoldEfetivo(gold, i) === 2000)).toBe(true);
-    expect(gold.days.slice(3).map((_, i) => lossLimitGoldEfetivo(gold, i + 3))).toEqual([2006, 2012, 2018, 2024]);
+    expect(gold.days.slice(3).map((_, i) => lossLimitGoldEfetivo(gold, i + 3))).toEqual([2000, 2000, 2000, 2000]);
     gold.days[3]!.mll = 2075;
-    expect(lossLimitGoldEfetivo(gold, 3)).toBe(2075);
+    expect(lossLimitGoldEfetivo(gold, 3)).toBe(2000);
+    gold.attempt.resultadosMesaEod = {2:1092.96, 3:-500, 4:1600};
+    expect(limitesTopstep(gold,"ouro",3)).toEqual({saldo:1092.96,piso:-907.04,distancia:2000});
+    expect(limitesTopstep(gold,"ouro",4)).toEqual({saldo:592.96,piso:-907.04,distancia:1500});
+    expect(limitesTopstep(gold,"ouro",5)).toEqual({saldo:2192.96,piso:0,distancia:2192.96});
   });
   it("usa 2+5 dias na Lucid e 4+5 na MFF", () => {
     const gold = defaultState().assets.ouro;

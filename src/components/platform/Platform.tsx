@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { registrarAuditoria } from "@/lib/auditoria-registro";
 import { applyOfficialParams, buildOfficialParams, isOfficialParams } from "@/lib/platform/official-params";
 import {
-  type AssetKey, type State, type TabKey, type Asset, type MesaFuturos, MESAS_FUTUROS, nomeMesa, diasAvaliacaoAtivo, diasAvaliacaoGold, lossLimitGoldProjetado, lossLimitGoldEfetivo, adicionarDiaGold, removerDiaGold,
+  type AssetKey, type State, type TabKey, type Asset, type MesaFuturos, MESAS_FUTUROS, nomeMesa, diasAvaliacaoAtivo, diasAvaliacaoGold, lossLimitGoldProjetado, limitesTopstep, adicionarDiaGold, removerDiaGold,
   aplicarDeposito, aplicarSaque, projetarAportesFuturos, conciliarCreditoForex, calcAporteFracionado, calcCaixaCiclo, clampDayIndex, computeAssetCalcs, defaultState, fmt, fmtSigned, handleProfit, handleStop,
   historicoTotals, isValidState, normalizeState, parseNum, parseValorFinanceiro, parseResultadoCfd, podeDesfazerUltimaOperacao, projetarZeragemBonus, reiniciarCicloBonus, resetBonus, tipoLabel, undoLast,
 } from "@/lib/platform/engine";
@@ -649,7 +649,22 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
   }, [isCurrent]);
   const setD = (k: "mnq" | "lotes" | "meta") => (v: number) => mutate((s) => { s.assets[assetKey].days[i]![k] = v; });
   const limiteFixo = !asset.mesaConfig && assetKey === "ouro" && i <= avaliacaoDias;
-  const limiteHoje = assetKey === "ouro" || asset.mesaConfig ? lossLimitGoldEfetivo(asset, i) : 0;
+  const topstep = mesa === "topstep" ? limitesTopstep(asset, assetKey, i) : null;
+  const campoEod = (chave: string, label: string) => <label className="block text-xs text-slate-300">{label}
+    <input key={String(asset.attempt.resultadosMesaEod?.[chave] ?? "")} type="number" step="0.01" defaultValue={asset.attempt.resultadosMesaEod?.[chave] ?? ""}
+      placeholder={chave === "posSaque" ? "Informe o saldo" : "Usar meta do card"}
+      className="mt-1 block w-full rounded border border-slate-600 bg-[#081321] p-2 text-white"
+      onBlur={e => {
+        const raw = e.currentTarget.value;
+        if (e.currentTarget.validity.badInput || (raw && !Number.isFinite(Number(raw)))) return;
+        if ((raw ? Number(raw) : undefined) === asset.attempt.resultadosMesaEod?.[chave]) return;
+        mutate(st => {
+          const tentativa = st.assets[assetKey].attempt;
+          const valores = {...tentativa.resultadosMesaEod};
+          if (raw) valores[chave] = Number(raw); else delete valores[chave];
+          tentativa.resultadosMesaEod = valores;
+        });
+      }} /></label>;
   const limiteProjetado = assetKey === "ouro" || asset.mesaConfig ? lossLimitGoldProjetado(asset, i) : 0;
   const limiteManual = (assetKey === "ouro" || !!asset.mesaConfig) && !limiteFixo && typeof d.mll === "number" && d.mll > 0;
   return (
@@ -725,7 +740,16 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
               <span className="font-mono text-base font-bold text-sky-400 sm:text-xl">${fmt(cx.deposito)}</span>
             </div>}
             <div className="mt-3 flex items-center justify-between gap-2 rounded-lg border border-[#142b43] bg-[#0b1726] px-3 py-2.5 font-mono text-xs"><span className="flex items-center gap-1.5 text-muted-foreground"><Calculator className="h-3.5 w-3.5" />Necessário no CFD</span><span className="font-semibold">${fmt(cx.necessario)}</span></div>
-            {(assetKey === "ouro" || asset.mesaConfig) && <div className="mt-1 flex items-center justify-between gap-3 rounded-xl border border-amber-800/50 bg-[#161924] px-3 py-2.5">
+            {topstep && <div className="mt-2 space-y-2 rounded-xl border border-amber-800/50 bg-[#161924] p-3 text-xs text-slate-200">
+              <strong>Topstep 50K · abertura do dia</strong>
+              <p>Saldo projetado na mesa: ${fmt(topstep.saldo)}</p>
+              <p>Piso de reprovação: <strong>${fmt(topstep.piso)}</strong></p>
+              <p>Distância até reprovar: <strong>${fmt(topstep.distancia)}</strong></p>
+              {assetKey === "saque2" && i === 0 && campoEod("posSaque", "Saldo da mesa após o primeiro saque ($)")}
+              {campoEod(String(i), "Resultado líquido deste dia na mesa ($)")}
+              <p>O fechamento informado entra no cálculo do dia seguinte. Enquanto estiver em branco, usamos a meta do card.</p>
+            </div>}
+            {!topstep && (assetKey === "ouro" || asset.mesaConfig) && <div className="mt-1 flex items-center justify-between gap-3 rounded-xl border border-amber-800/50 bg-[#161924] px-3 py-2.5">
               <label className="min-w-0 text-xs font-semibold text-amber-200">{asset.mesaConfig ? "Loss limit na mesa ($)" : "Loss Limit EOD na mesa ($)"}</label>
               {limiteFixo ? <span className="font-mono text-base font-bold text-white">${"2.000"}</span> :
                 <div className="flex items-center gap-1.5">
@@ -1480,8 +1504,3 @@ function CaixaPanel({ asset, state, bancasGlobais, bancaAtivaId, assetKey, bonus
     </section>
   );
 }
-
-
-
-
-
