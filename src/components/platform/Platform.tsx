@@ -703,8 +703,11 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
           <p className="mt-2 font-mono text-[11px] text-muted-foreground">{fmt(row.ticks)} ticks</p>
         </div>
         <div className="min-w-0 rounded-xl border border-[#18324e] bg-gradient-to-br from-[#0d1b2b] to-[#080f1a] p-3 sm:p-4">
-          <p className="flex items-center gap-1.5 text-xs text-blue-100/90"><TrendingUp className="h-3.5 w-3.5 text-emerald-400" />Alvo Reprova</p>
-          <p className="mt-2 font-mono text-2xl font-bold sm:text-[28px]">{fmt(c.pontosReprova * 10)} <span className="text-sm text-muted-foreground">pts</span></p>
+          <p className="flex items-center gap-1.5 text-xs text-blue-100/90"><TrendingUp className="h-3.5 w-3.5 text-emerald-400" />{topstep ? "Ticks até reprovar" : "Alvo Reprova"}</p>
+          {topstep ? <>
+            <p className="mt-2 font-mono text-2xl font-bold sm:text-[28px]">{c.ticksReprova === undefined ? "—" : fmt(c.ticksReprova)} <span className="text-sm text-muted-foreground">ticks</span></p>
+            <p className="mt-1 text-[11px] text-muted-foreground">{c.ticksReprova === undefined ? "Confira os contratos e o valor por ponto." : `${fmt(c.pontosReprova)} pontos contra a posição da mesa · desde a abertura do dia`}</p>
+          </> : <p className="mt-2 font-mono text-2xl font-bold sm:text-[28px]">{fmt(c.pontosReprova * 10)} <span className="text-sm text-muted-foreground">pts</span></p>}
         </div>
       </div>
 

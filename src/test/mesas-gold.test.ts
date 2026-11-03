@@ -1,7 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { defaultState, MESAS_FUTUROS, selecionarMesaGold, diasAvaliacaoGold, removerDiaGold, adicionarDiaGold, limitesTopstep, lossLimitGoldEfetivo } from "../lib/platform/engine";
+import { computeAssetCalcs, defaultState, MESAS_FUTUROS, selecionarMesaGold, diasAvaliacaoGold, removerDiaGold, adicionarDiaGold, limitesTopstep, lossLimitGoldEfetivo } from "../lib/platform/engine";
 
 describe("perfis Gold por mesa de futuros", () => {
+  it("ajusta o red ao primeiro tick que toca o piso e projeta o hedge com os mesmos pontos", () => {
+    const a = defaultState().assets.ouro;
+    selecionarMesaGold(a, "topstep");
+    a.days[2]!.mnq = 20;
+    a.days[2]!.lotes = 0.21;
+    expect(computeAssetCalcs(a,"ouro")[2]).toMatchObject({ticksReprova:100,pontosReprova:10,reprova:210});
+    a.days[2]!.mnq = 3;
+    expect(computeAssetCalcs(a,"ouro")[2]).toMatchObject({ticksReprova:667,pontosReprova:66.7});
+    expect(computeAssetCalcs(a,"ouro")[2]!.reprova).toBeCloseTo(1400.7);
+    a.days[2]!.mnq = 0;
+    expect(computeAssetCalcs(a,"ouro")[2]!.ticksReprova).toBeUndefined();
+    const n = defaultState().assets.nasdaq;
+    n.mesaFuturos = "topstep";
+    expect(computeAssetCalcs(n,"nasdaq")[0]).toMatchObject({ticksReprova:200,pontosReprova:50});
+  });
   it("restaura Topstep com avaliação 3k em 2 dias, consistência 55% e 5 dias financiados de 150", () => {
     const gold = defaultState().assets.ouro;
     selecionarMesaGold(gold, "topstep");

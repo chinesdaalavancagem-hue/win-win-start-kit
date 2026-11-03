@@ -294,6 +294,7 @@ export function clampDayIndex(a: Asset): number {
 }
 
 export interface DayCalc {
+  ticksReprova?: number | undefined;
   pontos: number; custoSePassar: number; passa: number; pontosReprova: number; reprova: number;
   dividaHoje: number; alvoBruto: number; liquidoSeReprovar: number; bateuAlvo: boolean;
 }
@@ -342,14 +343,20 @@ export function computeAssetCalcs(a: Asset, key: AssetKey): DayCalc[] {
     const custoSePassar = pontos * d.lotes * hfmPt;
     const indice = a.days.indexOf(d);
     const limite = a.mesaFuturos === "topstep" ? limitesTopstep(a, key, indice).distancia : key === "ouro" || a.mesaConfig ? lossLimitGoldEfetivo(a, indice) : dayMll(a, d);
-    const pontosReprova = exp > 0 ? limite / exp : 0;
+    const pontosAtePiso = exp > 0 ? limite / exp : 0;
+    const ativo = key === "saque2" ? (a.params.ativoReal ?? "ouro") : key;
+    const ticksPorPonto = ativo === "ouro" ? 10 : 4;
+    // Primeiro tick negociável que toca ou atravessa o piso da mesa.
+    const ticksReprova = a.mesaFuturos === "topstep" && exp > 0
+      ? Math.ceil(Number((pontosAtePiso * ticksPorPonto).toFixed(10))) : undefined;
+    const pontosReprova = ticksReprova === undefined ? pontosAtePiso : ticksReprova / ticksPorPonto;
     const reprova = pontosReprova * d.lotes * hfmPt;
     const dividaReal = divida;
     const dividaHoje = incluiPretensao ? dividaReal + lucroDesejado : dividaReal;
     const alvoBruto = incluiPretensao ? dividaHoje : dividaReal + lucroDesejado;
     const liquidoSeReprovar = reprova - dividaReal;
     divida += custoSePassar;
-    return { pontos, custoSePassar, passa: -custoSePassar, pontosReprova, reprova, dividaHoje, alvoBruto, liquidoSeReprovar, bateuAlvo: liquidoSeReprovar >= lucroDesejado * 0.98 };
+    return { pontos, ticksReprova, custoSePassar, passa: -custoSePassar, pontosReprova, reprova, dividaHoje, alvoBruto, liquidoSeReprovar, bateuAlvo: liquidoSeReprovar >= lucroDesejado * 0.98 };
   });
 }
 
