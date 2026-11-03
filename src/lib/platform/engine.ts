@@ -6,7 +6,7 @@ export type AssetKey = "nasdaq" | "ouro" | "saque2";
 export type TabKey = AssetKey | "historico";
 
 /** mll opcional: limite geral EOD de reprovação só deste dia; sem ele usa params.mll. */
-export interface Day { mnq: number; lotes: number; meta: number; mll?: number }
+export interface Day { stopPlanejadoTopstep?: number; mnq: number; lotes: number; meta: number; mll?: number }
 export const dayMll = (a: Asset, d: Day) => (typeof d.mll === "number" && d.mll > 0 ? d.mll : a.params.mll);
 export interface Params {
   mnq: number; hfm: number; mll: number; saldoInicial: number; taxa: number; lucroDesejado: number;
@@ -295,6 +295,7 @@ export function clampDayIndex(a: Asset): number {
 
 export interface DayCalc {
   ticksReprova?: number | undefined;
+  valorTickMesa?: number;
   pontos: number; custoSePassar: number; passa: number; pontosReprova: number; reprova: number;
   dividaHoje: number; alvoBruto: number; liquidoSeReprovar: number; bateuAlvo: boolean;
 }
@@ -342,7 +343,9 @@ export function computeAssetCalcs(a: Asset, key: AssetKey): DayCalc[] {
     const pontos = exp > 0 ? d.meta / exp : 0;
     const custoSePassar = pontos * d.lotes * hfmPt;
     const indice = a.days.indexOf(d);
-    const limite = a.mesaFuturos === "topstep" ? limitesTopstep(a, key, indice).distancia : key === "ouro" || a.mesaConfig ? lossLimitGoldEfetivo(a, indice) : dayMll(a, d);
+    const stopManual = d.stopPlanejadoTopstep;
+    const limite = a.mesaFuturos === "topstep" ? (typeof stopManual === "number" && Number.isFinite(stopManual) && stopManual > 0
+      ? stopManual : limitesTopstep(a, key, indice).distancia) : key === "ouro" || a.mesaConfig ? lossLimitGoldEfetivo(a, indice) : dayMll(a, d);
     const pontosAtePiso = exp > 0 ? limite / exp : 0;
     const ativo = key === "saque2" ? (a.params.ativoReal ?? "ouro") : key;
     const ticksPorPonto = ativo === "ouro" ? 10 : 4;
@@ -356,7 +359,7 @@ export function computeAssetCalcs(a: Asset, key: AssetKey): DayCalc[] {
     const alvoBruto = incluiPretensao ? dividaHoje : dividaReal + lucroDesejado;
     const liquidoSeReprovar = reprova - dividaReal;
     divida += custoSePassar;
-    return { pontos, ticksReprova, custoSePassar, passa: -custoSePassar, pontosReprova, reprova, dividaHoje, alvoBruto, liquidoSeReprovar, bateuAlvo: liquidoSeReprovar >= lucroDesejado * 0.98 };
+    return { pontos, ticksReprova, valorTickMesa: exp / ticksPorPonto, custoSePassar, passa: -custoSePassar, pontosReprova, reprova, dividaHoje, alvoBruto, liquidoSeReprovar, bateuAlvo: liquidoSeReprovar >= lucroDesejado * 0.98 };
   });
 }
 

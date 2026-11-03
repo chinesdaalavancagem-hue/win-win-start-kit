@@ -2,6 +2,19 @@ import { describe, expect, it } from "vitest";
 import { computeAssetCalcs, defaultState, MESAS_FUTUROS, selecionarMesaGold, diasAvaliacaoGold, removerDiaGold, adicionarDiaGold, limitesTopstep, lossLimitGoldEfetivo } from "../lib/platform/engine";
 
 describe("perfis Gold por mesa de futuros", () => {
+  it("editar o stop do card recalcula ticks, bruto e líquido do red independentemente da meta", () => {
+    const a = defaultState().assets.ouro;
+    selecionarMesaGold(a, "topstep");
+    const anterior = computeAssetCalcs(a, "ouro")[0]!;
+    a.days[0]!.stopPlanejadoTopstep = 1000;
+    const novo = computeAssetCalcs(a,"ouro")[0]!;
+    expect(novo.ticksReprova).toBe(50);
+    expect(novo.reprova).toBe(105);
+    expect(novo.liquidoSeReprovar).toBe(105 - a.params.taxa);
+    expect(novo.custoSePassar).toBe(anterior.custoSePassar);
+    delete a.days[0]!.stopPlanejadoTopstep;
+    expect(computeAssetCalcs(a,"ouro")[0]).toEqual(anterior);
+  });
   it("ajusta o red ao primeiro tick que toca o piso e projeta o hedge com os mesmos pontos", () => {
     const a = defaultState().assets.ouro;
     selecionarMesaGold(a, "topstep");

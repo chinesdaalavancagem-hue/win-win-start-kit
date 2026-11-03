@@ -650,6 +650,12 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
   const setD = (k: "mnq" | "lotes" | "meta") => (v: number) => mutate((s) => { s.assets[assetKey].days[i]![k] = v; });
   const limiteFixo = !asset.mesaConfig && assetKey === "ouro" && i <= avaliacaoDias;
   const topstep = mesa === "topstep" ? limitesTopstep(asset, assetKey, i) : null;
+  const ajustarStop = (valor: number) => mutate(st => {
+    const dia = st.assets[assetKey].days[i];
+    if (!dia) return;
+    if (Number.isFinite(valor) && valor > 0) dia.stopPlanejadoTopstep = valor;
+    else delete dia.stopPlanejadoTopstep;
+  });
   const campoEod = (chave: string, label: string) => <label className="block text-xs text-slate-300">{label}
     <input key={String(asset.attempt.resultadosMesaEod?.[chave] ?? "")} type="number" step="0.01" defaultValue={asset.attempt.resultadosMesaEod?.[chave] ?? ""}
       placeholder={chave === "posSaque" ? "Informe o saldo" : "Usar meta do card"}
@@ -703,11 +709,14 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
           <p className="mt-2 font-mono text-[11px] text-muted-foreground">{fmt(row.ticks)} ticks</p>
         </div>
         <div className="min-w-0 rounded-xl border border-[#18324e] bg-gradient-to-br from-[#0d1b2b] to-[#080f1a] p-3 sm:p-4">
-          <p className="flex items-center gap-1.5 text-xs text-blue-100/90"><TrendingUp className="h-3.5 w-3.5 text-emerald-400" />{topstep ? "Ticks até reprovar" : "Alvo Reprova"}</p>
           {topstep ? <>
-            <p className="mt-2 font-mono text-2xl font-bold sm:text-[28px]">{c.ticksReprova === undefined ? "—" : fmt(c.ticksReprova)} <span className="text-sm text-muted-foreground">ticks</span></p>
-            <p className="mt-1 text-[11px] text-muted-foreground">{c.ticksReprova === undefined ? "Confira os contratos e o valor por ponto." : `${fmt(c.pontosReprova)} pontos contra a posição da mesa · desde a abertura do dia`}</p>
-          </> : <p className="mt-2 font-mono text-2xl font-bold sm:text-[28px]">{fmt(c.pontosReprova * 10)} <span className="text-sm text-muted-foreground">pts</span></p>}
+            <NumField cockpit label="Loss limit do cenário ($)" value={d.stopPlanejadoTopstep ?? topstep.distancia} onChange={ajustarStop} />
+            {c.ticksReprova !== undefined && c.valorTickMesa ? <NumField label="Stop em ticks" value={c.ticksReprova}
+              onChange={ticks => ajustarStop(Math.ceil(ticks) * c.valorTickMesa!)} /> : <p>Informe os contratos para calcular os ticks.</p>}
+            {d.stopPlanejadoTopstep !== undefined ? <button type="button" className="mt-1 text-xs text-cyan-300 underline" onClick={() => ajustarStop(0)}>Voltar ao limite oficial</button>
+              : <p className="mt-1 text-xs text-muted-foreground">Usando a distância até o piso oficial.</p>}
+          </> : <><p className="flex items-center gap-1.5 text-xs text-blue-100/90"><TrendingUp className="h-3.5 w-3.5 text-emerald-400" />Alvo Reprova</p>
+          <p className="mt-2 font-mono text-2xl font-bold sm:text-[28px]">{fmt(c.pontosReprova * 10)} <span className="text-sm text-muted-foreground">pts</span></p></>}
         </div>
       </div>
 
