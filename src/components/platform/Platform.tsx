@@ -37,6 +37,7 @@ export function Platform({ mesasDisponiveis = MESAS_FUTUROS, leftMenuOpen = fals
     return () => window.clearTimeout(timer);
   }, [activeTabLabel]);
   const [sync, setSync] = useState<Sync>({ mode: "busy", text: "carregando…" });
+  const [tentativaSalvar, repetirSalvamento] = useState(0);
   const [syncTarget, setSyncTarget] = useState<HTMLElement | null>(null);
   const heroRef = useRef<HTMLElement>(null);
   const rightRailRef = useRef<HTMLElement>(null);
@@ -129,12 +130,13 @@ export function Platform({ mesasDisponiveis = MESAS_FUTUROS, leftMenuOpen = fals
   useEffect(() => {
     if (!state || !dirty.current) return;
     setSync({ mode: "busy", text: "salvando…" });
+    let atual = true;
     const t = setTimeout(async () => {
       const ok = await save(JSON.stringify(state)).catch(() => false);
-      setSync(ok ? { mode: "ok", text: "salvo (nuvem)" } : { mode: "err", text: "falha ao salvar" });
+      if (atual) setSync(ok ? { mode: "ok", text: "salvo (nuvem)" } : { mode: "err", text: "falha ao salvar" });
     }, 500);
-    return () => clearTimeout(t);
-  }, [state, save]);
+    return () => { atual = false; clearTimeout(t); };
+  }, [state, save, tentativaSalvar]);
 
   const mutate = useCallback((fn: (s: State) => void) => {
     dirty.current = true;
@@ -171,6 +173,7 @@ export function Platform({ mesasDisponiveis = MESAS_FUTUROS, leftMenuOpen = fals
         <span role="status" className="inline-flex items-center gap-1.5 whitespace-nowrap text-[11px] text-blue-100/75">
           <span className={cn("size-2 rounded-full", sync.mode === "ok" && "bg-emerald-400", sync.mode === "busy" && "bg-amber-400", sync.mode === "err" && "bg-rose-400")} />
           {sync.text}
+          {sync.text === "falha ao salvar" && <button type="button" className="underline" onClick={() => repetirSalvamento(n => n + 1)}>Tentar salvar</button>}
         </span>, syncTarget)}
       <section ref={heroRef} className="relative mb-3 overflow-hidden rounded-2xl border border-cyan-700/60 bg-[radial-gradient(ellipse_at_90%_30%,rgba(0,190,255,0.14),transparent_45%),linear-gradient(135deg,#07152a_0%,#030b17_65%,#041321_100%)] p-4 shadow-[0_20px_55px_rgba(0,0,0,0.25)] sm:p-6">
         <div className="pointer-events-none absolute -right-12 top-8 h-40 w-64 rounded-full border border-cyan-400/10 blur-sm" />
@@ -635,17 +638,22 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
     else delete dia[campoStop];
   });
   const campoEod = (chave: string, label: string) => <label className="block text-xs text-slate-300">{label}
-    <input key={String(asset.attempt.resultadosMesaEod?.[chave] ?? "")} type="number" step="0.01" defaultValue={asset.attempt.resultadosMesaEod?.[chave] ?? ""}
+    <input key={String(asset.attempt.resultadosMesaEod?.[chave] ?? "")} type="text" inputMode="decimal" enterKeyHint="done" onKeyDown={e => { if (e.key === "Enter") e.currentTarget.blur(); }} onChange={e => e.currentTarget.setCustomValidity("")} defaultValue={asset.attempt.resultadosMesaEod?.[chave] ?? ""}
       placeholder={chave === "posSaque" ? "Informe o saldo" : "Usar meta do card"}
       className="mt-1 block w-full rounded border border-slate-600 bg-[#081321] p-2 text-white"
       onBlur={e => {
-        const raw = e.currentTarget.value;
-        if (e.currentTarget.validity.badInput || (raw && !Number.isFinite(Number(raw)))) return;
-        if ((raw ? Number(raw) : undefined) === asset.attempt.resultadosMesaEod?.[chave]) return;
+        const raw = e.currentTarget.value.trim();
+        const valor = raw ? parseResultadoCfd(raw) : null;
+        if (raw && valor === null) {
+          e.currentTarget.setCustomValidity("Informe um resultado válido, por exemplo 1.092,96 ou -50,00.");
+          e.currentTarget.reportValidity();
+          return;
+        }
+        if ((valor ?? undefined) === asset.attempt.resultadosMesaEod?.[chave]) return;
         mutate(st => {
           const tentativa = st.assets[assetKey].attempt;
           const valores = {...tentativa.resultadosMesaEod};
-          if (raw) valores[chave] = Number(raw); else delete valores[chave];
+          if (valor !== null) valores[chave] = valor; else delete valores[chave];
           tentativa.resultadosMesaEod = valores;
         });
       }} /></label>;

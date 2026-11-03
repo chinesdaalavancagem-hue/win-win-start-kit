@@ -134,8 +134,16 @@ function Plataforma() {
           return false;
         }
         const result = await response.json().catch(() => null) as { version?: unknown; error?: unknown } | null;
-        if (!response.ok) { setSaveError(mensagemErroSalvamento(response.status, result?.error)); return false; }
-        if (typeof result?.version === "number") versionRef.current = result.version;
+        if (!response.ok) {
+          const codigo = typeof result?.error === "string" && /^[a-z_]{1,48}$/.test(result.error) ? result.error : "";
+          setSaveError(mensagemErroSalvamento(response.status, codigo) + " (" + [response.status, codigo].filter(Boolean).join(" · ") + ")");
+          return false;
+        }
+        if (typeof result?.version !== "number") {
+          setSaveError("O servidor não confirmou a gravação. Tente salvar novamente.");
+          return false;
+        }
+        versionRef.current = result.version;
         setSaveError("");
         return true;
       } catch {
@@ -180,6 +188,7 @@ function Plataforma() {
           {isAdmin === true && <Button asChild size="sm" variant="outline" className="shrink-0 rounded-xl border-cyan-950 bg-[#07101f] text-blue-100 hover:border-cyan-500 hover:bg-blue-950/70"><Link to="/auditoria">⛨ Auditoria</Link></Button>}
           <Button size="sm" variant="outline" className="shrink-0 rounded-xl border-red-500/70 bg-red-950/50 font-bold text-red-200 shadow-[0_0_18px_rgba(220,38,38,0.16)] transition-colors hover:border-red-400 hover:bg-red-900/70 hover:text-white focus-visible:ring-red-400" onClick={() => signOut(navigate)}><LogOut className="mr-1.5 size-4 shrink-0" aria-hidden="true" />Sair da plataforma</Button>
         </div>
+        {saveError && <p role="alert" className="absolute inset-x-0 top-full border-b border-rose-800/50 bg-rose-950/40 px-4 py-3 text-sm text-rose-100">{saveError}</p>}
       </header>
       {mobileMenuOpen && (
         <nav aria-label="Menu da plataforma" className="fixed left-14 top-[calc(50%-2px)] z-50 flex w-52 max-w-[calc(100vw-5rem)] flex-col gap-2 rounded-xl border border-cyan-800 bg-[#050d1b] p-3 shadow-2xl lg:hidden" onClick={() => setMobileMenuOpen(false)}>
@@ -208,7 +217,7 @@ function Plataforma() {
           <button type="button" onClick={() => setInstallHelp(false)} className="ml-3 underline">Fechar</button>
         </div>
       )}
-      {saveError && <p role="alert" className="border-b border-rose-800/50 bg-rose-950/40 px-4 py-3 text-sm text-rose-100">{saveError}</p>}
+
       {publishMessage && <p role="status" className="px-4 py-2 text-xs text-cyan-200">{publishMessage}</p>}
       {state === "loading" && <p className="m-auto text-muted-foreground">Carregando...</p>}
       {state === "pending" && (
