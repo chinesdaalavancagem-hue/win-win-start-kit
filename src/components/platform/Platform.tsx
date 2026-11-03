@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { registrarAuditoria } from "@/lib/auditoria-registro";
 import { applyOfficialParams, buildOfficialParams, isOfficialParams } from "@/lib/platform/official-params";
 import {
-  type AssetKey, type State, type TabKey, type Asset, type MesaFuturos, MESAS_FUTUROS, nomeMesa, diasAvaliacaoAtivo, diasAvaliacaoGold, limitesTradeify, adicionarDiaGold, removerDiaGold,
+  type AssetKey, type State, type TabKey, type Asset, type MesaFuturos, MESAS_FUTUROS, nomeMesa, diasAvaliacaoAtivo, diasAvaliacaoGold, limitesTradeify, limitesTopstep, adicionarDiaGold, removerDiaGold,
   aplicarDeposito, aplicarSaque, projetarAportesFuturos, conciliarCreditoForex, calcAporteFracionado, calcCaixaCiclo, clampDayIndex, computeAssetCalcs, defaultState, fmt, fmtSigned, handleProfit, handleStop,
   historicoTotals, isValidState, normalizeState, parseNum, parseValorFinanceiro, parseResultadoCfd, podeDesfazerUltimaOperacao, projetarZeragemBonus, reiniciarCicloBonus, resetBonus, tipoLabel, undoLast,
 } from "@/lib/platform/engine";
@@ -625,7 +625,8 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
     wasCurrent.current = isCurrent;
   }, [isCurrent]);
   const setD = (k: "mnq" | "lotes" | "meta") => (v: number) => mutate((s) => { s.assets[assetKey].days[i]![k] = v; });
-  const projecao = mesa === "tradefive" ? limitesTradeify(asset, assetKey, i) : null;
+  const projecao = mesa === "tradefive" ? limitesTradeify(asset, assetKey, i)
+    : mesa === "topstep" ? limitesTopstep(asset, assetKey, i) : null;
   const campoStop = mesa === "topstep" ? "stopPlanejadoTopstep" : "mll";
   const ajustarStop = (valor: number) => mutate(st => {
     const dia = st.assets[assetKey].days[i];
@@ -682,12 +683,15 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
         <div className="min-w-0 rounded-xl border border-[#18324e] bg-gradient-to-br from-[#0d1b2b] to-[#080f1a] p-3 sm:p-4">
           <NumField cockpit label={<><Target className="h-3.5 w-3.5 text-blue-400" />Meta $</>} value={d.meta} onChange={setD("meta")} />
           <p className="mt-2 font-mono text-[11px] text-muted-foreground">{fmt(row.ticks)} ticks</p>
-          {mesa === "topstep" && <div className="mt-1.5 space-y-1">
-            {campoEod(String(i), "Resultado do dia ($)")}
+          {projecao && <div className="mt-1.5 space-y-1">
+            {campoEod(String(i), "Resultado líquido do dia ($)")}
             {assetKey === "saque2" && i === 0 && campoEod("posSaque", "Saldo após o 1º saque ($)")}
           </div>}
         </div>
         <div className="min-w-0 rounded-xl border border-[#18324e] bg-gradient-to-br from-[#0d1b2b] to-[#080f1a] p-3 sm:p-4">
+          {projecao && <p className="mb-1 text-[11px] leading-snug text-slate-300" title="Na abertura deste dia. Usa o resultado líquido informado nos dias anteriores ou a meta do card quando o campo está vazio. Tocar o piso reprova a conta.">
+            Piso projetado: <strong>${fmt(projecao.piso)}</strong> · Folga: <strong>${fmt(projecao.distancia)}</strong>
+          </p>}
           <NumField cockpit label="Loss limit do cenário ($)" value={c.limiteDoCard ?? asset.params.mll} onChange={ajustarStop} />
           {c.ticksReprova !== undefined && c.valorTickMesa ? <NumField label="Stop em ticks" value={c.ticksReprova}
             onChange={ticks => ajustarStop(Math.ceil(ticks) * c.valorTickMesa!)} /> : <p>Informe os contratos para calcular os ticks.</p>}
@@ -727,15 +731,7 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
               <span className="font-mono text-base font-bold text-sky-400 sm:text-xl">${fmt(cx.deposito)}</span>
             </div>}
             <div className="mt-3 flex items-center justify-between gap-2 rounded-lg border border-[#142b43] bg-[#0b1726] px-3 py-2.5 font-mono text-xs"><span className="flex items-center gap-1.5 text-muted-foreground"><Calculator className="h-3.5 w-3.5" />Necessário no CFD</span><span className="font-semibold">${fmt(cx.necessario)}</span></div>
-            {projecao && <div className="mt-2 space-y-2 rounded-xl border border-amber-800/50 bg-[#161924] p-3 text-xs text-slate-200">
-              <strong>Tradeify 50K · abertura do dia</strong>
-              <p>Saldo projetado na mesa: ${fmt(projecao.saldo)}</p>
-              <p>Piso de reprovação: <strong>${fmt(projecao.piso)}</strong></p>
-              <p>Distância até reprovar: <strong>${fmt(projecao.distancia)}</strong></p>
-              {assetKey === "saque2" && i === 0 && campoEod("posSaque", "Saldo da mesa após o primeiro saque ($)")}
-              {campoEod(String(i), "Resultado líquido deste dia na mesa ($)")}
-              <p>O fechamento informado entra no cálculo do dia seguinte. Enquanto estiver em branco, usamos a meta do card.</p>
-            </div>}
+
 
 
           </div>
