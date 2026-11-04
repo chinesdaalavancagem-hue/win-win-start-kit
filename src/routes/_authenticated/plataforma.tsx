@@ -170,11 +170,11 @@ function Plataforma() {
     <div className="flex min-h-screen flex-col bg-[#030914] text-slate-100">
       <header className="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-3 border-b border-cyan-950/80 bg-[#050d1b]/95 px-3 py-3 text-sm shadow-[0_8px_28px_rgba(0,0,0,0.28)] backdrop-blur-md sm:px-5">
         <span className="flex min-w-0 items-center gap-2 text-blue-100/75">
-          <span className="truncate">Olá, {name.split(" ")[0] || user.email}</span>
-          <span className="flex shrink-0 flex-col items-start gap-0.5">
-            {isAdmin && <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-primary-foreground">Master</span>}
-            <span id="wow-header-sync" className="leading-none [&>span]:text-[10px] [&>span]:text-blue-100/55 [&>span>span]:size-1.5" />
+          <span className="flex min-w-0 flex-col items-start gap-0.5">
+            <span className="truncate">Olá, {name.split(" ")[0] || user.email}</span>
+            <span id="wow-header-sync" className="shrink-0 leading-none" />
           </span>
+          {isAdmin && <span className="shrink-0 self-start rounded-full bg-primary px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-primary-foreground">Master</span>}
           {state === "ok" && showInstall && (
             <Button size="sm" type="button" onClick={() => void installApp()}
               className="h-7 shrink-0 gap-1 rounded-lg border border-amber-300/80 bg-amber-400 px-2 text-[10px] font-bold text-slate-950 hover:bg-amber-300 sm:text-xs">
