@@ -1,5 +1,6 @@
 import { type MesaPersonalizada, validarMesaPersonalizada, metasAvaliacao } from "./mesas-personalizadas";
 import { type VestDraft, normalizeVestDraft } from "./vest";
+import { type VestCapital, type VestDailyLimit, vestPlan } from "./vest-oficial";
 // Lógica da plataforma Win or Win (portada 1:1 do HTML original).
 // O formato do estado salvo em app_data NÃO deve mudar — mantém os dados dos usuários.
 
@@ -16,12 +17,13 @@ export interface Params {
 export interface Attempt { resultadosMesaEod?: Record<string, number>; currentDayIndex: number; cycleCost: number; custoProprioAcumulado: number }
 export interface BonusLog { ts: number; tipo: "deposito" | "saque" | "reset" | "ajuste_credito" | "reinicio_ciclo"; valor: number; dia?: number; bonusGanho?: number; proporcao?: number; bonusReduzido?: number; depositoZerado?: number }
 export interface Bonus { deposito: number; bonusAtual: number; bonusGanhoTotal: number; bonusCap: number; log: BonusLog[] }
-export type MesaFuturos = "tradefive" | "lucid" | "mff" | "topstep" | MesaPersonalizada["id"];
+export type MesaFuturos = "tradefive" | "lucid" | "mff" | "topstep" | "vest" | MesaPersonalizada["id"];
 export const MESAS_FUTUROS: Record<MesaFuturos, { nome: string; consistencia: number; avaliacao: number; payout: number }> = {
   tradefive: { nome: "Tradeify", consistencia: 40, avaliacao: 3, payout: 5 },
   lucid: { nome: "Lucid Trading", consistencia: 50, avaliacao: 2, payout: 5 },
   mff: { nome: "My Funded Futures (MFF)", consistencia: 30, avaliacao: 4, payout: 5 },
   topstep: { nome: "Topstep", consistencia: 55, avaliacao: 2, payout: 5 },
+  vest: { nome: "Vest Capital · GC-PERP", consistencia: 0, avaliacao: 1, payout: 1 },
 };
 export interface Asset { mesaConfig?: MesaPersonalizada; params: Params; days: Day[]; attempt: Attempt; bonus: Bonus; mesaFuturos?: MesaFuturos; diasPorMesa?: Partial<Record<MesaFuturos, Day[]>>; avaliacaoPorMesa?: Partial<Record<MesaFuturos, number>> }
 export interface LogEntry {
@@ -74,6 +76,7 @@ export interface LogEntry {
 export interface State {
   /** Estudo manual independente; não representa posição nem altera o histórico. */
   vestStudy?: VestDraft;
+  vestAccount?: { capital: VestCapital; dailyLimitPercent: VestDailyLimit };
   revisoesHistorico?: { ts: number; anteriores: LogEntry[] }[];
   activeTab: TabKey; assets: Record<AssetKey, Asset>; log: LogEntry[]; cfdBalance: number; totalGasto: number;
   forexSaldoReal?: number | undefined;
@@ -177,6 +180,26 @@ export function selecionarMesaGold(asset: Asset, mesa: MesaFuturos): void {
   asset.days = structuredClone(versoes[mesa]!);
   asset.mesaFuturos = mesa;
   asset.attempt.currentDayIndex = Math.min(asset.attempt.currentDayIndex, asset.days.length - 1);
+}
+
+/** Plano de avaliação Vest, exclusivo da banca, sem integração automática de ordens. */
+export function prepararBancaVest(s: State, capital: VestCapital = 50000, dll: VestDailyLimit = 0): void {
+  const plano = vestPlan(capital,dll);
+  s.vestAccount = {capital, dailyLimitPercent:dll};
+  const ouro = s.assets.ouro;
+  ouro.mesaFuturos = "vest";
+  ouro.avaliacaoPorMesa = {...ouro.avaliacaoPorMesa, vest:1};
+  ouro.days = [{mnq:10,lotes:0.01,meta:plano.target,mll:plano.staticDrawdown},
+               {mnq:10,lotes:0.01,meta:100,mll:plano.staticDrawdown}];
+  ouro.diasPorMesa = {...ouro.diasPorMesa, vest:structuredClone(ouro.days)};
+  ouro.params.mnq = 1;
+  ouro.params.mll = plano.staticDrawdown;
+  ouro.params.taxa = plano.fee;
+  ouro.params.saqueAprovada = 0;
+  ouro.attempt = freshAttempt();
+  s.assets.nasdaq.mesaFuturos = "vest";
+  s.assets.nasdaq.days = [{mnq:0,lotes:0,meta:0}];
+  s.assets.saque2.mesaFuturos = "vest";
 }
 
 /** Aplica regras apenas ao criar uma banca nova. Não reescreve planos existentes. */
@@ -340,6 +363,7 @@ export function limitesTradeify(a: Asset, key: AssetKey, indice: number) {
 /** Projeção sobre metas planejadas, não um limite efetivo confirmado pela mesa. */
 export function lossLimitGoldProjetado(a: Asset, indice: number): number {
   if (a.mesaFuturos === "topstep") return limitesTopstep(a, "ouro", indice).distancia;
+  if (a.mesaFuturos === "vest") return a.params.mll;
   if (a.mesaConfig) return a.params.mll;
   if ((a.mesaFuturos ?? "tradefive") === "tradefive") return limitesTradeify(a, "ouro", indice).distancia;
   const avaliacao = diasAvaliacaoGold(a);
@@ -350,6 +374,7 @@ export function lossLimitGoldProjetado(a: Asset, indice: number): number {
 
 export function lossLimitGoldEfetivo(a: Asset, indice: number): number {
   if (a.mesaFuturos === "topstep") return limitesTopstep(a, "ouro", indice).distancia;
+  if (a.mesaFuturos === "vest") return a.params.mll;
   if (a.mesaConfig) return dayMll(a, a.days[indice] ?? {mnq:0, lotes:0, meta:0});
   const manual = a.days[indice]?.mll;
   return typeof manual === "number" && Number.isFinite(manual) && manual > 0 ? manual : lossLimitGoldProjetado(a, indice);
