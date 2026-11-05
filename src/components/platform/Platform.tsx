@@ -1,5 +1,6 @@
 import type { Banca } from "@/lib/platform/bancas";
 import { VestSimulator } from "./VestSimulator";
+import { vestMgcEquivalent, vestPlan, vestUsdPerPoint } from "@/lib/platform/vest-oficial";
 import { calcularCoberturaSimultanea } from "@/lib/platform/caixa-consolidado";
 import { createPortal } from "react-dom";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type CSSProperties } from "react";
@@ -235,6 +236,13 @@ export function Platform({ mesasDisponiveis = MESAS_FUTUROS, leftMenuOpen = fals
               const percentualMaiorDia = totalMetas > 0 ? Math.max(...dias.map((dia) => Math.max(0, dia.meta))) / totalMetas * 100 : 0;
               const custom = state.assets.ouro.mesaConfig;
               if (custom) return <><p>Avaliação: target <strong>${fmt(custom.target)}</strong> · loss limit geral <strong>${fmt(custom.lossLimit)}</strong> · consistência <strong>{custom.consistencia ? `${custom.consistencia}%` : "sem regra"}</strong>.</p><p className="mt-1">Maior meta diária: {fmt(percentualMaiorDia)}% do total{custom.consistencia > 0 && percentualMaiorDia > custom.consistencia ? " — atenção: acima da consistência." : "."}</p><p className="mt-1">Financiada: {custom.payout} dias · meta diária ${fmt(custom.metaFinanciada)} · consistência {custom.consistenciaFinanciada ? `${custom.consistenciaFinanciada}%` : "sem regra"}.</p></>;
+              if (mesaAtiva === "vest") {
+                const p = vestPlan(state.vestAccount?.capital ?? 50000, state.vestAccount?.dailyLimitPercent ?? 0);
+                return <><p><strong>Vest Capital · Avaliação 1 etapa</strong>: capital US$ {fmt(p.capital)} · alvo US$ {fmt(p.target)} (10%) · drawdown estático por equity US$ {fmt(p.staticDrawdown)} (piso inicial US$ {fmt(p.equityFloor)}).</p>
+                <p className="mt-1">DLL: {p.dailyLimitPercent ? p.dailyLimitPercent + "%" : "sem limite diário"} · sem consistência, sem número mínimo de dias e sem prazo máximo. Os dias nos cards são apenas planejamento.</p>
+                <p className="mt-1">Taxa de referência US$ {fmt(p.fee)} (pagamento único; confirme no checkout). Split padrão na conta financiada 80%, solicitações de lucro sob demanda e crédito em até 24h à conta principal em USDC.</p>
+                <p className="mt-1">Instant é uma modalidade distinta (95% de split, sem avaliação). Os termos descrevem contas virtuais e compensação condicional. <a href="https://www.vestmarkets.com/" target="_blank" rel="noopener noreferrer" className="text-cyan-300 underline">Preços e regras oficiais</a> · <a href="https://paper.vestmarkets.com/prop-terms" target="_blank" rel="noopener noreferrer" className="text-cyan-300 underline">Termos</a>.</p></>;
+              }
               if (mesaAtiva === "topstep") return <><p>Avaliação: meta de <strong>US$ 3.000</strong>, loss limit de <strong>US$ 2.000</strong> e consistência máxima de <strong>55%</strong> (possível concluir em 2 dias).</p><p className="mt-1">Maior meta diária / soma das metas: <strong>{fmt(percentualMaiorDia)}%</strong> · {percentualMaiorDia > 55 ? "Atenção: acima da consistência." : "Dentro da consistência planejada."}</p><p className="mt-1">Financiada: <strong>sem consistência</strong>. Para pedir saque: <strong>5 dias operados com lucro mínimo de US$ 150 em cada dia</strong>.</p></>;
               if (mesa.consistencia === 0) return <p>Sem regra de consistência. Saque: 7 dias úteis com lucro mínimo de US$ 50 por dia (condição separada da avaliação).</p>;
               return <><p>Consistência máxima: <strong className="text-amber-200">{mesa.consistencia}%</strong></p><p className="mt-1">Maior meta diária / soma das metas: <strong>{fmt(percentualMaiorDia)}%</strong></p><p className={cn("mt-1", percentualMaiorDia > mesa.consistencia ? "text-rose-300" : "text-emerald-300")}>{totalMetas <= 0 ? "Configure as metas da avaliação." : percentualMaiorDia > mesa.consistencia ? "Atenção: metas ultrapassam o limite de consistência." : "Metas compatíveis com o limite informado."}</p></>;
@@ -661,17 +669,17 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
       }} /></label>;
   return (
     <div ref={ref}
-      data-wow-card={isCurrent && assetKey !== "saque2" ? "active" : undefined}
-      data-wow-schema={isCurrent && assetKey !== "saque2" ? "1" : undefined}
-      data-wow-banca-id={isCurrent ? bancaId : undefined}
-      data-wow-mesa={isCurrent ? mesa : undefined}
-      data-wow-conta-mesa={isCurrent ? contaMesa : undefined}
-      data-wow-ativo={isCurrent && assetKey !== "saque2" ? assetKey : undefined}
-      data-wow-fase={isCurrent ? (i < avaliacaoDias ? "avaliacao" : "financiada") : undefined}
-      data-wow-dia={isCurrent ? `D${i < avaliacaoDias ? i + 1 : i - avaliacaoDias + 1}` : undefined}
-      data-wow-contratos-planejados={isCurrent ? d.mnq : undefined}
-      data-wow-lote-cfd={isCurrent ? d.lotes : undefined}
-      data-wow-ready={isCurrent && !!bancaId && !!contaMesa && assetKey !== "saque2" && Number.isFinite(d.mnq) && d.mnq > 0 && Number.isFinite(d.lotes) && d.lotes > 0 ? "true" : "false"}
+      data-wow-card={isCurrent && assetKey !== "saque2" && mesa !== "vest" ? "active" : undefined}
+      data-wow-schema={isCurrent && assetKey !== "saque2" && mesa !== "vest" ? "1" : undefined}
+      data-wow-banca-id={isCurrent && mesa !== "vest" ? bancaId : undefined}
+      data-wow-mesa={isCurrent && mesa !== "vest" ? mesa : undefined}
+      data-wow-conta-mesa={isCurrent && mesa !== "vest" ? contaMesa : undefined}
+      data-wow-ativo={isCurrent && assetKey !== "saque2" && mesa !== "vest" ? assetKey : undefined}
+      data-wow-fase={isCurrent && mesa !== "vest" ? (i < avaliacaoDias ? "avaliacao" : "financiada") : undefined}
+      data-wow-dia={isCurrent && mesa !== "vest" ? `D${i < avaliacaoDias ? i + 1 : i - avaliacaoDias + 1}` : undefined}
+      data-wow-contratos-planejados={isCurrent && mesa !== "vest" ? d.mnq : undefined}
+      data-wow-lote-cfd={isCurrent && mesa !== "vest" ? d.lotes : undefined}
+      data-wow-ready={mesa !== "vest" && isCurrent && !!bancaId && !!contaMesa && assetKey !== "saque2" && Number.isFinite(d.mnq) && d.mnq > 0 && Number.isFinite(d.lotes) && d.lotes > 0 ? "true" : "false"}
       className={cn("platform-day-card overflow-hidden rounded-2xl border border-[#142b43] bg-[#0b0f19] p-3 text-slate-100 shadow-[0_12px_40px_rgba(0,0,0,0.22)] sm:p-5 lg:p-3", isCurrent && "border-[#087cff]/70 ring-1 ring-[#087cff]/25")}>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-[#142b43] pb-3">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -683,7 +691,8 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
       </div>
       <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
         <div className="min-w-0 rounded-xl border border-[#18324e] bg-gradient-to-br from-[#0d1b2b] to-[#080f1a] p-3 lg:p-2.5">
-          <NumField cockpit label={<><FileText className="h-3.5 w-3.5 text-blue-400" />Contratos</>} value={d.mnq} onChange={setD("mnq")} />
+          <NumField cockpit label={<><FileText className="h-3.5 w-3.5 text-blue-400" />{mesa === "vest" && assetKey === "ouro" ? "Unidades Vest (GC)" : "Contratos"}</>} value={d.mnq} onChange={setD("mnq")} />
+           {mesa === "vest" && assetKey === "ouro" && <p className="mt-2 text-[11px] font-semibold text-cyan-200">≈ {fmt(vestMgcEquivalent(d.mnq))} MGC CME · {fmt(vestUsdPerPoint(d.mnq))} USDC/ponto. Equivalência de exposição, não contrato CME.</p>}
           <span className="mt-2 inline-block rounded-full border border-market-down/40 bg-rose-950/40 px-2 py-0.5 font-mono text-[11px] text-market-down">-${fmt(Math.abs(c.passa))} se passar</span>
         </div>
         <div className="min-w-0 rounded-xl border border-[#183b43] bg-gradient-to-br from-[#092126] to-[#080f1a] p-3 lg:p-2.5">
@@ -747,6 +756,7 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
           </div>
         );
       })() : <p className="mt-2 font-mono text-[11px] text-muted-foreground">{row.statusText}</p>}
+       {mesa === "vest" && assetKey === "ouro" && <p className="mt-2 text-[11px] text-amber-200">Vest GC-PERP: taker 0,0025% por execução, além de spread/funding. Alavancagem 25x normal e 3x temporária. Veja Simulador Vest. Não envia ordens pelo robô TopstepX.</p>}
        {isCurrent && asset.mesaConfig && (d.mnq <= 0 || d.lotes <= 0) && <p className="mt-3 text-sm text-amber-200">Preencha os contratos e os lotes CFD para calcular e registrar a operação.</p>}
        {isCurrent && (!asset.mesaConfig || (d.mnq > 0 && d.lotes > 0)) && <Settle risco={row.status === "risco"} custo={c.custoSePassar} reprova={c.reprova}
         onProfit={(real) => mutate((s) => handleProfit(s, assetKey, real))} onStop={(real) => mutate((s) => handleStop(s, assetKey, real))} />}
