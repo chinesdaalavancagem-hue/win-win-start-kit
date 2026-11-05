@@ -385,7 +385,9 @@ export function computeAssetCalcs(a: Asset, key: AssetKey): DayCalc[] {
   const incluiPretensao = key === "saque2";
   let divida = taxa;
   return a.days.map((d) => {
-    const exp = d.mnq * mnqPt;
+    // Vest GC-PERP: d.mnq armazena unidades Vest (USDC 1 por ponto por unidade).
+    // Nunca reutilizar o multiplicador de contratos CME, que pode ter sido editado.
+    const exp = a.mesaFuturos === "vest" && key === "ouro" ? d.mnq : d.mnq * mnqPt;
     const pontos = exp > 0 ? d.meta / exp : 0;
     const custoSePassar = pontos * d.lotes * hfmPt;
     const indice = a.days.indexOf(d);
