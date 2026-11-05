@@ -532,7 +532,11 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
               </div>
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <div className="rounded-xl border border-[#18324e] bg-[#091827] p-3"><NumField label="$/ponto do contrato futuro" value={asset.params.mnq} onChange={setP("mnq")} /></div>
+              <div className="rounded-xl border border-[#18324e] bg-[#091827] p-3">
+                 {mesaAtiva === "vest" && assetKey === "ouro"
+                   ? <NumField label="USDC por ponto de 1 unidade GC" value={1} readOnly helper="Valor fixo: 10 unidades GC-PERP equivalem à exposição de 1 MGC CME." />
+                   : <NumField label="$/ponto do contrato futuro" value={asset.params.mnq} onChange={setP("mnq")} />}
+               </div>
               <div className="rounded-xl border border-[#183b43] bg-[#091a20] p-3"><NumField label="Broker CFD $/ponto/lote" value={asset.params.hfm} onChange={setP("hfm")} /></div>
               <div className="rounded-xl border border-cyan-950 bg-[#091522] p-3"><NumField label="Saldo broker CFD ($)" value={saldo} readOnly helper={`Saldo financeiro conciliado, incluindo resultados reais e bônus disponível`} /></div>
             </div>
@@ -691,8 +695,13 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
       </div>
       <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
         <div className="min-w-0 rounded-xl border border-[#18324e] bg-gradient-to-br from-[#0d1b2b] to-[#080f1a] p-3 lg:p-2.5">
-          <NumField cockpit label={<><FileText className="h-3.5 w-3.5 text-blue-400" />{mesa === "vest" && assetKey === "ouro" ? "Unidades Vest (GC)" : "Contratos"}</>} value={d.mnq} onChange={setD("mnq")} />
-           {mesa === "vest" && assetKey === "ouro" && <p className="mt-2 text-[11px] font-semibold text-cyan-200">≈ {fmt(vestMgcEquivalent(d.mnq))} MGC CME · {fmt(vestUsdPerPoint(d.mnq))} USDC/ponto. Equivalência de exposição, não contrato CME.</p>}
+          <NumField cockpit
+             label={<><FileText className="h-3.5 w-3.5 text-blue-400" />{mesa === "vest" && assetKey === "ouro" ? "MGC equivalente" : "Contratos"}</>}
+             value={mesa === "vest" && assetKey === "ouro" ? vestMgcEquivalent(d.mnq) : d.mnq}
+             onChange={mesa === "vest" && assetKey === "ouro" ? (v: number) => setD("mnq")(v * 10) : setD("mnq")} />
+           {mesa === "vest" && assetKey === "ouro" && <p className="mt-2 text-[11px] font-semibold text-cyan-200">
+             {fmt(vestMgcEquivalent(d.mnq))} MGC equivalente = {fmt(d.mnq)} unidades Vest GC-PERP · {fmt(vestUsdPerPoint(d.mnq))} USDC/ponto. Equivalência de exposição, não contrato CME.
+           </p>
           <span className="mt-2 inline-block rounded-full border border-market-down/40 bg-rose-950/40 px-2 py-0.5 font-mono text-[11px] text-market-down">-${fmt(Math.abs(c.passa))} se passar</span>
         </div>
         <div className="min-w-0 rounded-xl border border-[#183b43] bg-gradient-to-br from-[#092126] to-[#080f1a] p-3 lg:p-2.5">
@@ -711,9 +720,14 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
           {projecao && <p className="mb-1 text-[11px] leading-snug text-slate-300" title="Na abertura deste dia. Usa o resultado líquido informado nos dias anteriores ou a meta do card quando o campo está vazio. Tocar o piso reprova a conta.">
             Piso projetado: <strong>${fmt(projecao.piso)}</strong> · Folga: <strong>${fmt(projecao.distancia)}</strong>
           </p>}
-          <NumField cockpit label="Loss limit do cenário ($)" value={c.limiteDoCard ?? asset.params.mll} onChange={ajustarStop} />
-          {c.ticksReprova !== undefined && c.valorTickMesa ? <NumField label="Stop em ticks" value={c.ticksReprova}
-            onChange={ticks => ajustarStop(Math.ceil(ticks) * c.valorTickMesa!)} /> : <p>Informe os contratos para calcular os ticks.</p>}
+          {mesa === "vest" && assetKey === "ouro"
+             ? <NumField cockpit label="Drawdown estático do plano (US$)" value={asset.params.mll} readOnly helper="Piso fixo da conta. Não é EOD, não acompanha lucro e inclui P&L aberto." />
+             : <NumField cockpit label="Loss limit do cenário ($)" value={c.limiteDoCard ?? asset.params.mll} onChange={ajustarStop} />}
+          {c.ticksReprova !== undefined && c.valorTickMesa
+             ? (mesa === "vest" && assetKey === "ouro"
+               ? <NumField label="Distância teórica até o piso (ticks)" value={c.ticksReprova} readOnly />
+               : <NumField label="Stop em ticks" value={c.ticksReprova} onChange={ticks => ajustarStop(Math.ceil(ticks) * c.valorTickMesa!)} />)
+             : <p>Informe os contratos para calcular os ticks.</p>}
           {d[campoStop] !== undefined && <button type="button" className="mt-1 text-xs text-cyan-300 underline" onClick={() => ajustarStop(0)}>Usar limite automático</button>}
         </div>
       </div>
@@ -756,7 +770,7 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
           </div>
         );
       })() : <p className="mt-2 font-mono text-[11px] text-muted-foreground">{row.statusText}</p>}
-       {mesa === "vest" && assetKey === "ouro" && <p className="mt-2 text-[11px] text-amber-200">Vest GC-PERP: taker 0,0025% por execução, além de spread/funding. Alavancagem 25x normal e 3x temporária. Veja Simulador Vest. Não envia ordens pelo robô TopstepX.</p>}
+       {mesa === "vest" && assetKey === "ouro" && <p className="mt-2 text-[11px] text-amber-200">Vest: digite 1 MGC equivalente para 10 unidades GC, ou 2 para 20. Com a mesma meta e o mesmo lote Forex, dobrar unidades reduz à metade os pontos necessários e o resultado projetado do Forex. Isso não obriga aumentar os lotes. Taxas Vest (taker 0,0025% por execução), spread e funding não estão incluídos nesta projeção. Confira no Simulador Vest. Não envia ordens pelo robô TopstepX.</p>}
        {isCurrent && asset.mesaConfig && (d.mnq <= 0 || d.lotes <= 0) && <p className="mt-3 text-sm text-amber-200">Preencha os contratos e os lotes CFD para calcular e registrar a operação.</p>}
        {isCurrent && (!asset.mesaConfig || (d.mnq > 0 && d.lotes > 0)) && <Settle risco={row.status === "risco"} custo={c.custoSePassar} reprova={c.reprova}
         onProfit={(real) => mutate((s) => handleProfit(s, assetKey, real))} onStop={(real) => mutate((s) => handleStop(s, assetKey, real))} />}
