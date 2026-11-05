@@ -8,9 +8,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Platform } from "./Platform";
-import { fmt, fmtSigned, MESAS_FUTUROS, prepararMesaPersonalizada, selecionarMesaGold, type MesaFuturos } from "@/lib/platform/engine";
+import { fmt, fmtSigned, MESAS_FUTUROS, prepararMesaPersonalizada, prepararBancaVest, selecionarMesaGold, type MesaFuturos } from "@/lib/platform/engine";
 import { type BancasDoc, aplicarForex, extrairForex, forexDoDocumento, novaBanca, parseBancas, referenciaDaMesa, excluirMesaPersonalizada, podeDesfazerBanca, relatorioCsv, resumoBanca } from "@/lib/platform/bancas";
 import { validarCatalogoTopstep, type CatalogoTopstep } from "@/lib/platform/topstep-vinculo";
+import { VEST_ACCOUNT_SIZES, vestPlan, type VestCapital, type VestDailyLimit } from "@/lib/platform/vest-oficial";
 import { Plus, Building2, CheckCircle2, Pencil, Trash2, Download, Upload, ArrowUpRight, WalletCards, Activity } from "lucide-react";
 import { extrairDocumentoBackup, mesclarBackup } from "@/lib/platform/importar-backup";
 
@@ -25,6 +26,8 @@ export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectio
   const [cadastroMesa, setCadastroMesa] = useState(false);
   const [nome, setNome] = useState("");
   const [taxaAvaliacao, setTaxaAvaliacao] = useState("");
+  const [vestCapital,setVestCapital] = useState<VestCapital>(50000);
+  const [vestDll,setVestDll] = useState<VestDailyLimit>(0);
   const [catalogoTopstep, setCatalogoTopstep] = useState<CatalogoTopstep | null>(null);
   const [consultandoContas, setConsultandoContas] = useState(false);
   const [bancaPorConta, setBancaPorConta] = useState<Record<string, string>>({});
@@ -254,16 +257,25 @@ export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectio
             <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
               <div><p className="text-[11px] font-bold uppercase tracking-[0.2em] text-cyan-300/80">Central de contas</p><h3 className="mt-1 text-lg font-bold text-slate-100">Seu portfólio de bancas</h3><p className="mt-1 max-w-2xl text-sm text-slate-400">Cada banca mantém seu próprio ciclo e histórico. Escolha uma para continuar operando ou crie uma nova.</p></div>
               <div className="flex flex-col gap-2 sm:flex-row">
+                {mesa === "vest" && <div className="flex flex-wrap items-end gap-2 rounded-xl border border-amber-700/40 bg-[#0b1c27] p-3 text-xs text-amber-100" aria-label="Plano Vest Capital">
+                  <label>Capital<select className="mt-1 block rounded-md bg-[#061322] p-2" aria-label="Capital Vest" value={vestCapital} onChange={ev => {setVestCapital(Number(ev.target.value) as VestCapital);setTaxaAvaliacao("");}}>{VEST_ACCOUNT_SIZES.map(v => <option key={v} value={v}>US$ {fmt(v)}</option>)}</select></label>
+                  <label>Limite diário<select className="mt-1 block rounded-md bg-[#061322] p-2" aria-label="Limite diário Vest" value={vestDll} onChange={ev => {setVestDll(Number(ev.target.value) as VestDailyLimit);setTaxaAvaliacao("");}}><option value={0}>Sem DLL</option><option value={3}>3% (opcional)</option></select></label>
+                  <p className="max-w-[220px] leading-relaxed">Alvo 10%: US$ {fmt(vestPlan(vestCapital,vestDll).target)} · DD estático 6%: US$ {fmt(vestPlan(vestCapital,vestDll).staticDrawdown)}. Taxa estimada US$ {fmt(vestPlan(vestCapital,vestDll).fee)}. Confirme no checkout.</p>
+                </div>}
                 <form className="flex min-w-0 flex-1 flex-wrap gap-2 sm:min-w-[330px]" onSubmit={(e) => {
-                  e.preventDefault(); if (!nome.trim() || !taxaAvaliacao.trim()) return;
-                  const valor = Number(taxaAvaliacao.trim().replace(",", "."));
+                  e.preventDefault();
+                  const nomeBanca = nome.trim() || (mesa === "vest" ? `Vest ${vestCapital / 1000}K · Banca ${bancasDaMesa.length+1}` : "");
+                  const valorTaxa = taxaAvaliacao.trim() || (mesa === "vest" ? String(vestPlan(vestCapital,vestDll).fee) : "");
+                  if (!nomeBanca || !valorTaxa) return;
+                  const valor = Number(valorTaxa.replace(",", "."));
                   if (!Number.isFinite(valor) || valor < 0) return;
-                  const b = novaBanca(nome);
+                  const b = novaBanca(nomeBanca);
+                  if (mesa === "vest") prepararBancaVest(b.state,vestCapital,vestDll);
                   b.taxaCompra = valor;
                   b.mesa = mesa;
                   const personalizada = doc.mesasPersonalizadas?.find(m => m.id === mesa) ?? selecionada?.state.assets.ouro.mesaConfig;
                   if (personalizada?.id === mesa) prepararMesaPersonalizada(b.state, personalizada);
-                  else if (mesa !== "tradefive") selecionarMesaGold(b.state.assets.ouro, mesa);
+                  else if (mesa !== "tradefive" && mesa !== "vest") selecionarMesaGold(b.state.assets.ouro, mesa);
                   b.state = aplicarForex(b.state, forexDoDocumento(doc));
                   b.state.assets.nasdaq.params.taxa = valor;
                   b.state.assets.ouro.params.taxa = valor;
@@ -272,8 +284,8 @@ export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectio
                   setPainel(false);
                   persist({ ...doc, activeId: b.id, activeIdsMesa: { ...doc.activeIdsMesa, [mesa]: b.id }, bancas: [...doc.bancas, b] });
                 }}>
-                  <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome da nova banca" aria-label="Nome da nova banca" className="h-10 min-w-0 rounded-xl border-cyan-950 bg-[#071426] text-slate-100 placeholder:text-slate-500 focus-visible:ring-cyan-400" maxLength={60} />
-                  <Input type="text" inputMode="decimal" value={taxaAvaliacao} onChange={(e) => setTaxaAvaliacao(e.target.value)} placeholder="Taxa de avaliação ($)" aria-label="Taxa de avaliação em dólares" required className="h-10 min-w-[145px] flex-1 rounded-xl border-cyan-950 bg-[#071426] text-slate-100 placeholder:text-slate-500 focus-visible:ring-cyan-400" />
+                  <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder={mesa === "vest" ? "Nome opcional: Vest 50K · Banca 1" : "Nome da nova banca"} aria-label="Nome da nova banca" className="h-10 min-w-0 rounded-xl border-cyan-950 bg-[#071426] text-slate-100 placeholder:text-slate-500 focus-visible:ring-cyan-400" maxLength={60} />
+                  <Input type="text" inputMode="decimal" value={mesa === "vest" && !taxaAvaliacao.trim() ? String(vestPlan(vestCapital,vestDll).fee) : taxaAvaliacao} onChange={(e) => setTaxaAvaliacao(e.target.value)} placeholder={mesa === "vest" ? "Taxa Vest estimada ($)" : "Taxa de avaliação ($)"} aria-label="Taxa de avaliação em dólares" required className="h-10 min-w-[145px] flex-1 rounded-xl border-cyan-950 bg-[#071426] text-slate-100 placeholder:text-slate-500 focus-visible:ring-cyan-400" />
                   <Button type="submit" className="h-10 shrink-0 rounded-xl bg-cyan-300 font-semibold text-slate-950 hover:bg-cyan-200"><Plus className="size-4" /><span className="hidden sm:inline">Criar banca</span><span className="sm:hidden">Criar</span></Button>
                 </form>
                 <Button type="button" variant="outline" className="h-10 rounded-xl border-cyan-900/80 bg-[#071426] text-blue-100 hover:border-cyan-400" onClick={exportar}><Download className="size-4" />Exportar CSV</Button>
