@@ -206,7 +206,7 @@ export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectio
         <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-start gap-3">
             <div className="flex size-20 shrink-0 items-center justify-center rounded-2xl border border-cyan-400/20 bg-cyan-400/10 shadow-[0_0_24px_rgba(0,190,255,0.08)]"><img src="/logo.png" alt="Win or Win" className="size-[72px] object-contain [filter:hue-rotate(150deg)_saturate(1.25)]" /></div>
-            <div><p className="text-[11px] font-bold uppercase tracking-[0.22em] text-cyan-300/80">Workspace financeiro</p><h2 className="mt-1 text-xl font-bold tracking-tight text-slate-100 sm:text-2xl">Gerenciar bancas</h2><p className="mt-1 text-sm text-slate-400">Organize suas contas, acompanhe resultados e alterne entre ciclos.</p></div>
+            <div><p className="text-[11px] font-bold uppercase tracking-[0.22em] text-cyan-300/80">Workspace financeiro</p><h2 className="mt-1 text-xl font-bold tracking-tight text-slate-100 sm:text-2xl">Gerenciar contas</h2><p className="mt-1 text-sm text-slate-400">Organize suas contas, acompanhe resultados e alterne entre ciclos.</p></div>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
             <label className="flex items-center gap-1 text-sm text-amber-200"><Building2 className="size-4" /><select aria-label="Mesa de futuros" value={mesa} onChange={(e) => escolherMesa(e.target.value as MesaFuturos)} className="rounded-lg border border-amber-800 bg-[#071426] px-2 py-2 text-sm font-semibold text-amber-100">{Object.entries(mesasDisponiveis).map(([k, m]) => <option key={k} value={k}>{m.nome}</option>)}</select></label>
@@ -220,7 +220,7 @@ export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectio
               <span className="shrink-0 rounded-md bg-emerald-400/10 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-300">Ativa</span>
             </div>
             <Button size="sm" variant="outline" className="h-10 rounded-xl border-cyan-900/80 bg-[#071426] text-blue-100 hover:border-cyan-400 hover:bg-blue-950/60" onClick={() => setPainel(!painel)} aria-expanded={painel}>
-              <WalletCards className="size-4" />{painel ? "Fechar gestão" : `Minhas bancas · ${bancasDaMesa.length}`}
+              <WalletCards className="size-4" />{painel ? "Fechar gestão" : `Minhas contas · ${bancasDaMesa.length}`}
             </Button>
           </div>
         </div>
