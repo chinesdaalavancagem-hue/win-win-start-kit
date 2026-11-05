@@ -56,7 +56,7 @@ export function parseBancas(raw: string | null): BancasDoc {
     const bancas: Banca[] = p.bancas.filter((b: any) => b.mesa !== "ylos").map((b: any, i: number) => ({
       id: String(b.id || newId()), nome: String(b.nome || `Banca ${i + 1}`), criadaEm: Number(b.criadaEm) || Date.now(),
       state: isValidState(b.state) ? normalizeState(b.state) : defaultState(),
-      mesa: b.mesa === "lucid" || b.mesa === "mff" || b.mesa === "topstep" || idMesaPersonalizada(b.mesa) ? b.mesa : "tradefive",
+      mesa: b.mesa === "lucid" || b.mesa === "mff" || b.mesa === "topstep" || b.mesa === "vest" || idMesaPersonalizada(b.mesa) ? b.mesa : "tradefive",
       ...(Number.isFinite(b.taxaCompra) && b.taxaCompra >= 0 ? { taxaCompra: b.taxaCompra } : {}),
       ...(b.ativo === "nasdaq" || b.ativo === "ouro" ? { ativo: b.ativo } : {}),
       ...(typeof b.officialAcceptedAt === "string" ? { officialAcceptedAt: b.officialAcceptedAt } : {}),
@@ -66,7 +66,7 @@ export function parseBancas(raw: string | null): BancasDoc {
     }));
     bancas.sort((a, b) => (a.criadaEm || 0) - (b.criadaEm || 0));
     const activeId = bancas.some((b) => b.id === p.activeId) ? p.activeId : bancas[0]?.id ?? "";
-    const mesaAtiva: MesaFuturos = p.mesaAtiva === "lucid" || p.mesaAtiva === "mff" || p.mesaAtiva === "topstep" || (idMesaPersonalizada(p.mesaAtiva) && (mesasPersonalizadas.some(m => m.id === p.mesaAtiva) || bancas.some(b => b.mesa === p.mesaAtiva))) ? p.mesaAtiva : "tradefive";
+    const mesaAtiva: MesaFuturos = p.mesaAtiva === "lucid" || p.mesaAtiva === "mff" || p.mesaAtiva === "topstep" || p.mesaAtiva === "vest" || (idMesaPersonalizada(p.mesaAtiva) && (mesasPersonalizadas.some(m => m.id === p.mesaAtiva) || bancas.some(b => b.mesa === p.mesaAtiva))) ? p.mesaAtiva : "tradefive";
     const ids = p.activeIdsMesa && typeof p.activeIdsMesa === "object" ? p.activeIdsMesa as Partial<Record<MesaFuturos, string>> : {};
     const remainingIds = { ...ids } as typeof ids & { ylos?: string };
     delete remainingIds.ylos;
