@@ -64,6 +64,7 @@ export function parseBancas(raw: string | null): BancasDoc {
       ...(typeof b.contaMesaNome === "string" && /^[A-Za-z0-9][A-Za-z0-9_. -]{1,99}$/.test(b.contaMesaNome) ? { contaMesaNome: b.contaMesaNome } : {}),
       ...(challengeAccountSchema.safeParse(b.challengeAccount).success ? { challengeAccount: challengeAccountSchema.parse(b.challengeAccount) } : {}),
     }));
+    bancas.sort((a, b) => (a.criadaEm || 0) - (b.criadaEm || 0));
     const activeId = bancas.some((b) => b.id === p.activeId) ? p.activeId : bancas[0]?.id ?? "";
     const mesaAtiva: MesaFuturos = p.mesaAtiva === "lucid" || p.mesaAtiva === "mff" || p.mesaAtiva === "topstep" || (idMesaPersonalizada(p.mesaAtiva) && (mesasPersonalizadas.some(m => m.id === p.mesaAtiva) || bancas.some(b => b.mesa === p.mesaAtiva))) ? p.mesaAtiva : "tradefive";
     const ids = p.activeIdsMesa && typeof p.activeIdsMesa === "object" ? p.activeIdsMesa as Partial<Record<MesaFuturos, string>> : {};
