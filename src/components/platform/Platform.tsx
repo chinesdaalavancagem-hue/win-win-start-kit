@@ -565,12 +565,14 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
               <div className="flex items-start gap-3">
                 <span className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-amber-400/20 bg-amber-400/10 text-amber-300"><ShieldCheck className="size-4" /></span>
                 <div>
-                  <h3 className="font-bold text-slate-100">Limite de perda da mesa · EOD</h3>
-                  <p className="mt-1 text-xs leading-relaxed text-blue-100/60">Este valor serve de base para as projeções. Ajuste o limite de um dia diretamente no card de operações.</p>
+                  <h3 className="font-bold text-slate-100">{mesaAtiva === "vest" ? "Limite máximo Vest · Estático" : "Limite de perda da mesa · EOD"}</h3>
+                  <p className="mt-1 text-xs leading-relaxed text-blue-100/60">{mesaAtiva === "vest" ? "O piso da conta é fixo desde a abertura; não é calculado no fechamento do dia e considera o lucro/prejuízo aberto. As projeções do card usam o drawdown nominal do plano como aproximação." : "Este valor serve de base para as projeções. Ajuste o limite de um dia diretamente no card de operações."}</p>
                 </div>
               </div>
               <div className="mt-4 max-w-sm rounded-xl border border-amber-400/20 bg-[#080f18] p-3">
-                <NumField label="Limite geral EOD da mesa (reprovação $)" value={asset.params.mll} onChange={setP("mll")} helper="Limite móvel calculado no fechamento do dia — não é limite diário." />
+                {mesaAtiva === "vest" && assetKey === "ouro"
+                   ? <NumField label="Drawdown total (6% do plano)" value={state.vestAccount?.capital ? state.vestAccount.capital * 0.06 : asset.params.mll} readOnly helper="Piso estático de referência; lucro acumulado aumenta a folga até ele." />
+                   : <NumField label="Limite geral EOD da mesa (reprovação $)" value={asset.params.mll} onChange={setP("mll")} helper="Limite móvel calculado no fechamento do dia — não é limite diário." />}
               </div>
             </div>
           </section>
@@ -582,7 +584,14 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
         </div>
       )}
 
-      {section === "meta" && (
+      {section === "meta" && mesaAtiva === "vest" && (
+        <section aria-label="Projeção financiada Vest" className="rounded-2xl border border-cyan-900/70 bg-[#071426] p-4">
+          <h3 className="font-bold text-cyan-100">Lucro financiado Vest · projeção</h3>
+          <p className="mt-2 text-sm text-slate-200">Metas planejadas: US$ {fmt(lucroFunded)} · sua participação padrão (80%): US$ {fmt(lucroFunded * 0.8)}.</p>
+          <p className="mt-2 text-xs text-slate-400">Sem mínimo de dias ou regra de consistência. Claim Profit sob demanda, sujeito às regras da Vest e à elegibilidade do lucro. Não se aplica a regra de primeiro saque de 50% nem a exigência de cinco dias da Topstep.</p>
+        </section>
+      )}
+      {section === "meta" && mesaAtiva !== "vest" && (
         <section aria-label="Meta geral — projeção de lucro dos cinco dias Funded">
           <div className="mb-3 rounded-2xl border border-cyan-900/70 bg-gradient-to-r from-[#0a1929] to-[#07121e] px-3 py-3 shadow-lg sm:px-4">
             <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
@@ -728,7 +737,7 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
                ? <NumField label="Distância teórica até o piso (ticks)" value={c.ticksReprova} readOnly />
                : <NumField label="Stop em ticks" value={c.ticksReprova} onChange={ticks => ajustarStop(Math.ceil(ticks) * c.valorTickMesa!)} />)
              : <p>Informe os contratos para calcular os ticks.</p>}
-          {d[campoStop] !== undefined && <button type="button" className="mt-1 text-xs text-cyan-300 underline" onClick={() => ajustarStop(0)}>Usar limite automático</button>}
+          {mesa !== "vest" && d[campoStop] !== undefined && <button type="button" className="mt-1 text-xs text-cyan-300 underline" onClick={() => ajustarStop(0)}>Usar limite automático</button>}
         </div>
       </div>
 
