@@ -51,8 +51,9 @@ export function mesclarBackup(atual: BancasDoc, backup: BancasDoc): { doc: Banca
   const novas = backup.bancas.filter((b) => !ids.has(b.id));
   const idsMesas = new Set((atual.mesasPersonalizadas ?? []).map((m) => m.id));
   const mesasNovas = (backup.mesasPersonalizadas ?? []).filter((m) => !idsMesas.has(m.id));
+  const todasBancas = [...atual.bancas, ...novas].sort((a, b) => (a.criadaEm ?? 0) - (b.criadaEm ?? 0));
   return {
-    doc: { ...atual, bancas: [...atual.bancas, ...novas], mesasPersonalizadas: [...(atual.mesasPersonalizadas ?? []), ...mesasNovas] },
+    doc: { ...atual, bancas: todasBancas, mesasPersonalizadas: [...(atual.mesasPersonalizadas ?? []), ...mesasNovas] },
     adicionadas: novas.length,
     ignoradas: backup.bancas.length - novas.length,
   };
