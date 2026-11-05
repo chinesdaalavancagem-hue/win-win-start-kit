@@ -11,7 +11,8 @@ import { Platform } from "./Platform";
 import { fmt, fmtSigned, MESAS_FUTUROS, prepararMesaPersonalizada, selecionarMesaGold, type MesaFuturos } from "@/lib/platform/engine";
 import { type BancasDoc, aplicarForex, extrairForex, forexDoDocumento, novaBanca, parseBancas, referenciaDaMesa, excluirMesaPersonalizada, podeDesfazerBanca, relatorioCsv, resumoBanca } from "@/lib/platform/bancas";
 import { validarCatalogoTopstep, type CatalogoTopstep } from "@/lib/platform/topstep-vinculo";
-import { Plus, Building2, CheckCircle2, Pencil, Trash2, Download, ArrowUpRight, WalletCards, Activity } from "lucide-react";
+import { Plus, Building2, CheckCircle2, Pencil, Trash2, Download, Upload, ArrowUpRight, WalletCards, Activity } from "lucide-react";
+import { extrairDocumentoBackup, mesclarBackup } from "@/lib/platform/importar-backup";
 
 export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectionsMenuChange = () => {} }: { sectionsMenuOpen?: boolean; onSectionsMenuChange?: (open: boolean) => void; load: () => Promise<string | null>; save: (v: string) => Promise<boolean>; isAdmin: boolean }) {
   const [doc, setDoc] = useState<BancasDoc | null>(null);
@@ -191,6 +192,25 @@ export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectio
     return true;
   }
 
+  const backupFileRef = useRef<HTMLInputElement>(null);
+  async function importarBackup(file: File, input: HTMLInputElement) {
+    try {
+      const texto = await file.text();
+      const backup = extrairDocumentoBackup(texto);
+      if (!backup) { window.alert("Arquivo inválido. Selecione o backup das bancas (CSV ou JSON)."); return; }
+      await pendingSave.current.catch(() => false);
+      const current = docRef.current;
+      if (!current) return;
+      const r = mesclarBackup(current, backup);
+      if (!r.adicionadas) { window.alert("Todas as bancas desse backup já estão na plataforma. Nada foi alterado."); return; }
+      if (!window.confirm(`Encontramos ${backup.bancas.length} banca(s) no backup.\n\n${r.adicionadas} serão adicionadas${r.ignoradas ? ` (${r.ignoradas} já existem e serão mantidas como estão)` : ""}.\n\nNenhuma banca atual será apagada ou alterada. Confirma?`)) return;
+      const ok = await persist(r.doc).catch(() => false);
+      if (!ok) { if (docRef.current === r.doc) { docRef.current = current; setDoc(current); } window.alert("Não foi possível salvar. Nada foi alterado. Tente novamente."); return; }
+      window.alert(`${r.adicionadas} banca(s) restaurada(s) com sucesso.`);
+    } catch { window.alert("Não foi possível ler esse arquivo."); }
+    finally { input.value = ""; }
+  }
+
   function exportar() {
     const current = docRef.current;
     if (!current) return;
@@ -256,6 +276,8 @@ export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectio
                   <Button type="submit" className="h-10 shrink-0 rounded-xl bg-cyan-300 font-semibold text-slate-950 hover:bg-cyan-200"><Plus className="size-4" /><span className="hidden sm:inline">Criar banca</span><span className="sm:hidden">Criar</span></Button>
                 </form>
                 <Button type="button" variant="outline" className="h-10 rounded-xl border-cyan-900/80 bg-[#071426] text-blue-100 hover:border-cyan-400" onClick={exportar}><Download className="size-4" />Exportar CSV</Button>
+                <Button type="button" variant="outline" className="h-10 rounded-xl border-cyan-900/80 bg-[#071426] text-blue-100 hover:border-cyan-400" onClick={() => backupFileRef.current?.click()}><Upload className="size-4" />Restaurar backup</Button>
+                <input ref={backupFileRef} type="file" accept=".csv,.json,text/csv,application/json" className="hidden" aria-label="Arquivo de backup das bancas" onChange={(e) => { const f = e.target.files?.[0]; if (f) void importarBackup(f, e.currentTarget); }} />
               </div>
             </div>
             {mesa === "topstep" && (
