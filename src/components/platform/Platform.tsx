@@ -710,7 +710,7 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
              onChange={mesa === "vest" && assetKey === "ouro" ? (v: number) => setD("mnq")(v * 10) : setD("mnq")} />
            {mesa === "vest" && assetKey === "ouro" && <p className="mt-2 text-[11px] font-semibold text-cyan-200">
              {fmt(vestMgcEquivalent(d.mnq))} MGC equivalente = {fmt(d.mnq)} unidades Vest GC-PERP · {fmt(vestUsdPerPoint(d.mnq))} USDC/ponto. Equivalência de exposição, não contrato CME.
-           </p>
+           </p>}
           <span className="mt-2 inline-block rounded-full border border-market-down/40 bg-rose-950/40 px-2 py-0.5 font-mono text-[11px] text-market-down">-${fmt(Math.abs(c.passa))} se passar</span>
         </div>
         <div className="min-w-0 rounded-xl border border-[#183b43] bg-gradient-to-br from-[#092126] to-[#080f1a] p-3 lg:p-2.5">
