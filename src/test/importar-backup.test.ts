@@ -4,7 +4,7 @@ import { extrairDocumentoBackup, mesclarBackup } from "@/lib/platform/importar-b
 
 function doc(nomes: string[]) {
   const bancas = nomes.map((n) => novaBanca(n));
-  return parseBancas(JSON.stringify({ bancasVersion: 1, activeId: bancas[0].id, bancas }));
+  return parseBancas(JSON.stringify({ bancasVersion: 1, activeId: bancas[0]!.id, bancas }));
 }
 
 describe("importar backup", () => {
