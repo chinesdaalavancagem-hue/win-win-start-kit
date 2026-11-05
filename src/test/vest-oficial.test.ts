@@ -27,4 +27,23 @@ describe("Vest Capital como mesa oficial", () => {
     expect(state.log).toHaveLength(0);
     expect(JSON.stringify(state.assets.saque2.days)).toBe(before);
   });
+  it("calcula Vest por unidades GC mesmo com parâmetro legado incorreto", () => {
+    const state=defaultState();
+    prepararBancaVest(state,10000,0);
+    const gold=state.assets.ouro;
+    gold.params.mnq=60; // valor legado não deve virar dólares por ponto da Vest
+    gold.days[0]!.lotes=0.21;
+    let calc=computeAssetCalcs(gold,"ouro")[0]!;
+    expect(calc.pontos).toBe(100); // 1 MGC equivalente = 10 unidades = 10 USDC/ponto
+    expect(calc.pontosReprova).toBe(60); // piso inicial de 600 / 10 USDC/ponto
+    expect(calc.custoSePassar).toBeCloseTo(2100,6);
+    expect(calc.reprova).toBeCloseTo(1260,6);
+    gold.days[0]!.mnq=20; // 2 MGC equivalentes = 20 unidades
+    calc=computeAssetCalcs(gold,"ouro")[0]!;
+    expect(calc.pontos).toBe(50);
+    expect(calc.pontosReprova).toBe(30);
+    expect(calc.custoSePassar).toBeCloseTo(1050,6);
+    expect(calc.reprova).toBeCloseTo(630,6);
+  });
+
 });
