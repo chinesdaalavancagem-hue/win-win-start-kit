@@ -111,7 +111,8 @@ export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectio
     ...Object.fromEntries((doc?.bancas ?? []).flatMap(b => b.state.assets.ouro.mesaConfig ? [[b.state.assets.ouro.mesaConfig.id, b.state.assets.ouro.mesaConfig]] : [])),
     ...Object.fromEntries((doc?.mesasPersonalizadas ?? []).map(m => [m.id, m])) };
   const mesa = doc?.mesaAtiva ?? "tradefive";
-  const bancasDaMesa = doc?.bancas.filter((b) => (b.mesa ?? "tradefive") === mesa) ?? [];
+  const bancasDaMesa = (doc?.bancas.filter((b) => (b.mesa ?? "tradefive") === mesa) ?? [])
+    .sort((a, b) => (a.criadaEm ?? 0) - (b.criadaEm ?? 0));
   const selecionada = bancasDaMesa.find((b) => b.id === doc?.activeIdsMesa?.[mesa]) ?? bancasDaMesa.find((b) => b.id === doc?.activeId) ?? bancasDaMesa[0];
   const activeId = selecionada?.id;
   const escolherBanca = (id: string) => { if (doc) persist({ ...doc, activeId: id, activeIdsMesa: { ...doc.activeIdsMesa, [mesa]: id } }); };
