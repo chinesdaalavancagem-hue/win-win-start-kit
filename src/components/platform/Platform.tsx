@@ -1,4 +1,5 @@
 import type { Banca } from "@/lib/platform/bancas";
+import { VestSimulator } from "./VestSimulator";
 import { calcularCoberturaSimultanea } from "@/lib/platform/caixa-consolidado";
 import { createPortal } from "react-dom";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type CSSProperties } from "react";
@@ -14,7 +15,7 @@ import {
   historicoTotals, isValidState, normalizeState, parseNum, parseValorFinanceiro, parseResultadoCfd, podeDesfazerUltimaOperacao, projetarZeragemBonus, reiniciarCicloBonus, resetBonus, tipoLabel, undoLast,
 } from "@/lib/platform/engine";
 
-type Section = "operacoes" | "parametros" | "bonus" | "aporte" | "caixa" | "meta";
+type Section = "operacoes" | "parametros" | "bonus" | "aporte" | "caixa" | "meta" | "vest";
 type Sync = { mode: "ok" | "busy" | "err"; text: string };
 
 const TABS: { key: TabKey; label: string; dot: string }[] = [
@@ -163,6 +164,7 @@ export function Platform({ mesasDisponiveis = MESAS_FUTUROS, leftMenuOpen = fals
     ["aporte", "Aporte fracionado"],
     ["caixa", "Caixa do ciclo"],
     ["meta", "Meta geral"],
+    ["vest", "Vest · Perpétuos"],
   ];
 
 
@@ -210,8 +212,8 @@ export function Platform({ mesasDisponiveis = MESAS_FUTUROS, leftMenuOpen = fals
       <nav ref={rightRailRef} className="lg:max-h-[var(--rail-max-height)] lg:overflow-y-auto fixed right-1 top-[calc(65%-54px)] z-30 flex -translate-y-1/2 flex-col gap-2 lg:right-2 lg:top-auto lg:translate-y-0" aria-label="Ativos e histórico" style={{ top: typeof window !== "undefined" && window.innerWidth >= 1024 ? desktopRailTop : undefined }}>
         <button type="button" title="Escolher mesa de futuros" aria-label="Escolher mesa de futuros" aria-expanded={mostrarMesas} onClick={() => setMostrarMesas((v) => !v)} className={cn("relative flex size-9 items-center justify-center rounded-xl border border-cyan-700/70 bg-[#061322] shadow-xl transition-colors lg:size-14", mostrarMesas ? "border-amber-400/70 bg-amber-950/60 text-amber-200" : "border-transparent text-amber-300 hover:bg-amber-950/50")}><Building2 className="size-4 lg:size-5" /></button>
         {TABS.map((t) => (
-          <button key={t.key} type="button" title={t.label} aria-label={t.label} aria-pressed={tab === t.key} onClick={() => { setActiveTabLabel(null); mutate((s) => { s.activeTab = t.key; }); setActiveTabLabel(t.key); }}
-            className={cn("relative flex size-9 items-center justify-center rounded-xl border border-cyan-700/70 bg-[#061322] shadow-xl transition-colors lg:size-14", tab === t.key ? "border-cyan-400/70 bg-blue-950 text-white" : "border-transparent text-slate-400 hover:bg-blue-950/60")}>
+          <button key={t.key} type="button" title={t.label} aria-label={t.label} aria-pressed={section !== "vest" && tab === t.key} onClick={() => { if (section === "vest") setSection("operacoes"); setActiveTabLabel(null); mutate((s) => { s.activeTab = t.key; }); setActiveTabLabel(t.key); }}
+            className={cn("relative flex size-9 items-center justify-center rounded-xl border border-cyan-700/70 bg-[#061322] shadow-xl transition-colors lg:size-14", section !== "vest" && tab === t.key ? "border-cyan-400/70 bg-blue-950 text-white" : "border-transparent text-slate-400 hover:bg-blue-950/60")}>
             {activeTabLabel === t.key && <span aria-hidden="true" className="pointer-events-none absolute right-full mr-2 whitespace-nowrap rounded-lg border border-cyan-800/80 bg-[#061322] px-3 py-1.5 text-xs font-semibold text-cyan-100 shadow-xl">{t.label}</span>}
             {t.key === "ouro" ? <svg aria-hidden="true" viewBox="0 0 32 28" className="size-4 lg:size-5 shrink-0" fill="none"><path d="M2 17 8 8h12l6 9-6 9H8L2 17Z" fill="#E9A900" stroke="#FFDF69" strokeWidth="1.2"/><path d="m8 8 6 9-6 9-6-9Z" fill="#FFE075"/><path d="m14 17 6-9 6 9-6 9Z" fill="#FFC533"/></svg> : t.key === "nasdaq" ? <ChartNoAxesCombined className="size-4 lg:size-5 text-sky-400" /> : t.key === "saque2" ? <Landmark className="size-4 lg:size-5 text-violet-400" /> : <History className="size-4 lg:size-5 text-slate-300" />}
           </button>
@@ -256,7 +258,7 @@ export function Platform({ mesasDisponiveis = MESAS_FUTUROS, leftMenuOpen = fals
         </Button>
       </div>
 
-      {tab === "historico" ? <Historico state={state} mutate={mutate} bancas={allBancas} bancasGlobais={bancasGlobais} mesaAtiva={mesaAtiva} bancaAtivaId={bancaAtivaId} podeDesfazerForex={podeDesfazerForex} /> : (
+      {section === "vest" ? <VestSimulator value={state.vestStudy} onChange={(value) => mutate((s) => { s.vestStudy = value; })} /> : tab === "historico" ? <Historico state={state} mutate={mutate} bancas={allBancas} bancasGlobais={bancasGlobais} mesaAtiva={mesaAtiva} bancaAtivaId={bancaAtivaId} podeDesfazerForex={podeDesfazerForex} /> : (
         <AssetView key={tab} state={state} bancasGlobais={bancasGlobais} bancaAtivaId={bancaAtivaId} contaMesa={contaMesa} mesaAtiva={mesaAtiva} assetKey={tab} section={section} mutate={mutate} isAdmin={isAdmin} />
       )}
 

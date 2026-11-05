@@ -1,4 +1,5 @@
 import { type MesaPersonalizada, validarMesaPersonalizada, metasAvaliacao } from "./mesas-personalizadas";
+import { type VestDraft, normalizeVestDraft } from "./vest";
 // Lógica da plataforma Win or Win (portada 1:1 do HTML original).
 // O formato do estado salvo em app_data NÃO deve mudar — mantém os dados dos usuários.
 
@@ -71,6 +72,8 @@ export interface LogEntry {
   assinaturaForexApos?: string;
 }
 export interface State {
+  /** Estudo manual independente; não representa posição nem altera o histórico. */
+  vestStudy?: VestDraft;
   revisoesHistorico?: { ts: number; anteriores: LogEntry[] }[];
   activeTab: TabKey; assets: Record<AssetKey, Asset>; log: LogEntry[]; cfdBalance: number; totalGasto: number;
   forexSaldoReal?: number | undefined;
@@ -224,6 +227,7 @@ export function isValidState(p: any): boolean {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function normalizeState(p: any): State {
+  if (p.vestStudy !== undefined) p.vestStudy = normalizeVestDraft(p.vestStudy);
   if (p.revisoesHistorico !== undefined && !Array.isArray(p.revisoesHistorico)) delete p.revisoesHistorico;
   if (!p.assets.saque2) p.assets.saque2 = clone(defaultAssetsBase.saque2);
   for (const k of ASSETS) {
