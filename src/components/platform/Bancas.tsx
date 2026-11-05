@@ -31,6 +31,7 @@ export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectio
   const pedidoContasRef = useRef<string | null>(null);
   const timeoutContasRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const docRef = useRef<BancasDoc | null>(null);
+  const backupFileRef = useRef<HTMLInputElement>(null);
   const pendingSave = useRef<Promise<boolean>>(Promise.resolve(true));
   const gravarEmOrdem = useCallback((d: BancasDoc) => {
     const snapshot = JSON.stringify(d);
@@ -192,7 +193,6 @@ export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectio
     return true;
   }
 
-  const backupFileRef = useRef<HTMLInputElement>(null);
   async function importarBackup(file: File, input: HTMLInputElement) {
     try {
       const texto = await file.text();
