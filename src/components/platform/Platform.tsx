@@ -12,7 +12,7 @@ import { registrarAuditoria } from "@/lib/auditoria-registro";
 import { applyOfficialParams, buildOfficialParams, isOfficialParams } from "@/lib/platform/official-params";
 import {
   type AssetKey, type State, type TabKey, type Asset, type MesaFuturos, MESAS_FUTUROS, nomeMesa, diasAvaliacaoAtivo, diasAvaliacaoGold, limitesTradeify, limitesTopstep, adicionarDiaGold, removerDiaGold,
-  aplicarDeposito, aplicarSaque, projetarAportesFuturos, conciliarCreditoForex, calcAporteFracionado, calcCaixaCiclo, clampDayIndex, computeAssetCalcs, defaultState, fmt, fmtSigned, handleProfit, handleStop,
+  simularSaque2, calculosDoEstado, aplicarDeposito, aplicarSaque, projetarAportesFuturos, conciliarCreditoForex, calcAporteFracionado, calcCaixaCiclo, clampDayIndex, computeAssetCalcs, defaultState, fmt, fmtSigned, handleProfit, handleStop,
   historicoTotals, isValidState, normalizeState, parseNum, parseValorFinanceiro, parseResultadoCfd, podeDesfazerUltimaOperacao, projetarZeragemBonus, reiniciarCicloBonus, resetBonus, tipoLabel, undoLast,
 } from "@/lib/platform/engine";
 
@@ -369,7 +369,7 @@ const Note = ({ children }: { children: ReactNode }) => <p className="mt-3 font-
 function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, assetKey, section, mutate, isAdmin }: { state: State; bancasGlobais?: Banca[] | undefined; bancaAtivaId?: string | undefined; contaMesa?: string | undefined; mesaAtiva: MesaFuturos; assetKey: AssetKey; section: Section; mutate: (fn: (s: State) => void) => void; isAdmin: boolean }) {
   const asset = state.assets[assetKey];
   const avaliacaoDias = diasAvaliacaoAtivo(asset, assetKey);
-  const calcs = useMemo(() => computeAssetCalcs(asset, assetKey), [asset, assetKey]);
+  const calcs = useMemo(() => calculosDoEstado(state, assetKey), [state, assetKey]);
   const setP = (k: keyof Asset["params"]) => (v: number) => mutate((s) => { (s.assets[assetKey].params as unknown as Record<string, number>)[k] = v; });
   const bonus = asset.bonus;
   // O Forex é compartilhado entre as bancas e ativos: considerar todos os depósitos e bônus disponíveis.
@@ -377,7 +377,8 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
   const forexBonus = Object.values(state.assets).reduce((sum, a) => sum + Math.max(0, a.bonus.bonusAtual || 0), 0);
   const saldo = (state.forexSaldoReal ?? forexProprio) + forexBonus;
   const [bonusPct, setBonusPct] = useState("100");
-  const caixaCiclo = useMemo(() => calcCaixaCiclo(asset, assetKey, parseNum(bonusPct)), [asset, assetKey, bonusPct]);
+  const continuidade = useMemo(() => assetKey === "saque2" ? simularSaque2(state, parseNum(bonusPct)) : null, [state, assetKey, bonusPct]);
+  const caixaCiclo = continuidade?.segundo ?? calcCaixaCiclo(asset, assetKey, parseNum(bonusPct));
   // Atalhos: Shift+N = Profit no dia N; Ctrl+N (ou Alt+N) = Stop no dia N. Só vale para o dia atual; usa o valor teórico.
   const curIdx = asset.attempt.currentDayIndex;
   useEffect(() => {
@@ -430,7 +431,7 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
     const caixaProjetado = caixaCiclo.dias[i];
     // Saldo antes do aporte deste dia; nos futuros, após passar os anteriores.
     const detalhe = projecaoForex[i];
-    const caixaDia = caixaProjetado && detalhe ? { ...caixaProjetado, ...detalhe } : caixaProjetado;
+    const caixaDia = continuidade ? caixaProjetado : caixaProjetado && detalhe ? { ...caixaProjetado, ...detalhe } : caixaProjetado;
     let status: "ok" | "alerta" | "risco" = "ok";
     let statusText = "— sem posição CFD hoje (0 lotes)";
     if (margem > 0 && caixaDia) {
@@ -439,7 +440,7 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
         statusText = "✅ dia já concluído";
       } else if (caixaDia.deposito <= 0) {
         status = "ok";
-        statusText = i > curIdx ? "✅ saldo projetado cobre o necessário após passar os dias anteriores" : "✅ saldo compartilhado do Forex cobre o necessário";
+        statusText = i > curIdx ? "✅ saldo projetado cobre o necessário após passar os dias anteriores" : continuidade ? "✅ saldo projetado após o ciclo 1 cobre o necessário" : "✅ saldo compartilhado do Forex cobre o necessário";
       } else if (caixaDia.saldoAntes >= margemTotal) {
         status = "alerta";
         statusText = `⚠️ margem coberta; falta aporte de ${fmt(caixaDia.deposito)} para a cobertura completa`;
@@ -469,7 +470,11 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
     : 0;
   return (
     <div>
-
+      {continuidade && <div className="mb-4 rounded-xl border border-violet-400/30 bg-violet-950/20 p-3 text-sm text-slate-200">
+        <strong>Saque 2 vinculado ao ciclo 1 · {continuidade.origemKey === "ouro" ? "Gold" : "Nasdaq"}</strong>
+        <p className="mt-1 text-xs text-slate-300">Projeção após o primeiro saque: Forex próprio ${fmt(continuidade.primeiro.proprioRecuperavel)} · bônus ${fmt(continuidade.primeiro.bonusRestante)} · folga inicial na mesa ${fmt(continuidade.limites[0] ?? 0)}. Alterações no ciclo 1 recalculam esta simulação. Limites manuais dos cards continuam valendo.</p>
+        {(continuidade.limites[0] ?? 0) <= 0 && <p className="mt-2 text-xs text-amber-300">O saque projetado deixa a conta no piso ou abaixo dele. Reduza o débito do saque ou reveja os resultados do ciclo 1 antes de simular a continuidade.</p>}
+      </div>}
       {section === "parametros" && (
         <div className="space-y-4 lg:space-y-3">
           <section className="relative overflow-hidden rounded-2xl border border-cyan-700/50 bg-[radial-gradient(ellipse_at_top_right,rgba(0,190,255,0.13),transparent_45%),linear-gradient(135deg,#0a192b,#050c17_72%)] p-4 shadow-[0_18px_48px_rgba(0,0,0,0.22)] sm:p-6">
@@ -556,6 +561,7 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
               <div className="rounded-xl border border-[#183b43] bg-[#091a20] p-3"><NumField label="Margem exigida por 1 lote ($)" value={asset.params.marginPerLot} onChange={setP("marginPerLot")} /></div>
               <div className="rounded-xl border border-[#18324e] bg-[#091827] p-3"><NumField label="Stop-out da corretora (%)" value={asset.params.stopoutPct} onChange={setP("stopoutPct")} /></div>
               <div className="rounded-xl border border-[#183b43] bg-[#091a20] p-3"><NumField label="Saque esperado por conta aprovada ($)" value={asset.params.saqueAprovada} onChange={setP("saqueAprovada")} /></div>
+              {assetKey !== "saque2" && <div className="rounded-xl border border-[#183b43] bg-[#091a20] p-3"><NumField label="Valor descontado da mesa no 1º saque ($)" value={asset.params.saqueDebitadoMesa ?? asset.params.saqueAprovada} onChange={setP("saqueDebitadoMesa")} helper="Débito na conta da mesa, antes da divisão de lucros. O saque esperado acima é o valor que você recebe. Sem ajuste, usa o mesmo valor." /></div>}
               <div className="rounded-xl border border-[#18324e] bg-[#091827] p-3"><NumField label="Folga extra de segurança p/ saque (%)" value={asset.params.folgaExtraPct} onChange={setP("folgaExtraPct")} /></div>
             </div>
           </section>
@@ -651,7 +657,7 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
     wasCurrent.current = isCurrent;
   }, [isCurrent]);
   const setD = (k: "mnq" | "lotes" | "meta") => (v: number) => mutate((s) => { s.assets[assetKey].days[i]![k] = v; });
-  const projecao = mesa === "tradefive" ? limitesTradeify(asset, assetKey, i)
+  const projecao = assetKey === "saque2" ? null : mesa === "tradefive" ? limitesTradeify(asset, assetKey, i)
     : mesa === "topstep" ? limitesTopstep(asset, assetKey, i) : null;
   const campoStop = mesa === "topstep" ? "stopPlanejadoTopstep" : "mll";
   const ajustarStop = (valor: number) => mutate(st => {
@@ -1417,7 +1423,8 @@ function SimuladorConsolidado({ bancas, estadoAtivo, bancaAtivaId, ativoAtual, b
 
 function CaixaPanel({ asset, state, bancasGlobais, bancaAtivaId, assetKey, bonusPct, setBonusPct }: { asset: Asset; state: State; bancasGlobais?: Banca[] | undefined; bancaAtivaId?: string | undefined; assetKey: AssetKey; bonusPct: string; setBonusPct: (value: string) => void }) {
   if (!asset.days.length) return <p className="text-muted-foreground">Cadastre os dias do ciclo em Parâmetros para ver o caixa.</p>;
-  const r = calcCaixaCiclo(asset, assetKey, parseNum(bonusPct));
+  const continuidade = assetKey === "saque2" ? simularSaque2(state, parseNum(bonusPct)) : null;
+  const r = continuidade?.segundo ?? calcCaixaCiclo(asset, assetKey, parseNum(bonusPct));
   const items: [string, number, string, string][] = [
     ["Caixa próprio máximo disponível", r.caixaMaximo, "text-cyan-300", "Taxa da mesa + todos os depósitos próprios do cenário"],
     ["Total depositado no CFD", r.totalDepositado, "text-slate-100", "Garantia operacional; não significa perda total"],
@@ -1425,9 +1432,9 @@ function CaixaPanel({ asset, state, bancasGlobais, bancaAtivaId, assetKey, bonus
     ["Perda do depósito próprio", r.perdaPropriaTotal, "text-rose-300", "Parte das perdas coberta pelo seu dinheiro"],
     ["Perda do bônus", r.perdaBonusTotal, "text-amber-300", "Parte das perdas coberta pelo crédito promocional"],
     ["Saldo próprio recuperável", r.proprioRecuperavel, "text-emerald-300", "Dinheiro que sobra no CFD e pode ser sacado"],
-    ["Bônus recebido no ciclo", r.bonusTotal, "text-amber-300", `Limitado ao teto de ${fmt(asset.bonus.bonusCap)}`],
+    ["Bônus recebido no ciclo", r.bonusTotal, "text-amber-300", `Limitado ao teto de ${fmt(r.bonusCap)}`],
     ["Recuperação total no fim", r.recuperado, "text-emerald-300", `Saque da mesa ${fmt(r.saque)} + saldo próprio recuperável`],
-    ["Resultado do ciclo", r.resultadoFinal, r.resultadoFinal >= 0 ? "text-emerald-300" : "text-rose-300", "Valor recuperado menos o caixa próprio utilizado"],
+    ["Resultado do ciclo", r.resultadoFinal, r.resultadoFinal >= 0 ? "text-emerald-300" : "text-rose-300", continuidade ? "Saque 2 menos as perdas próprias e a taxa deste ciclo; saldo herdado não é lucro novo" : "Valor recuperado menos o caixa próprio utilizado"],
   ];
   const money = (value: number) => `${value < 0 ? "−" : ""}$${fmt(Math.abs(value))}`;
   return (
@@ -1450,6 +1457,11 @@ function CaixaPanel({ asset, state, bancasGlobais, bancaAtivaId, assetKey, bonus
         </div>
       </header>
 
+      {continuidade && <div className="rounded-xl border border-violet-400/30 p-4 text-sm">
+        <p>Resultado do ciclo 1: <strong>{money(continuidade.primeiro.resultadoFinal)}</strong></p>
+        <p>Resultado dos dois ciclos: <strong>{money(continuidade.resultadoAcumulado)}</strong></p>
+        <p className="mt-1 text-xs text-slate-400">O saldo próprio e o bônus remanescentes continuam no Forex. O primeiro saque fica fora da corretora. Não há novo bônus sobre o saldo herdado; o teto já utilizado é descontado.</p>
+      </div>}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {items.map(([label, value, tone, helper], index) => (
           <article key={label} className={cn("relative min-w-0 overflow-hidden rounded-xl border p-4 shadow-[0_8px_24px_rgba(0,0,0,0.16)] transition-colors", index === 2 ? "border-rose-500/35 bg-[radial-gradient(ellipse_at_top_right,rgba(244,63,94,0.12),transparent_65%),#0a1422]" : index === 5 || index === 7 ? "border-emerald-500/25 bg-[radial-gradient(ellipse_at_top_right,rgba(16,185,129,0.10),transparent_65%),#0a1422]" : "border-cyan-950 bg-[radial-gradient(ellipse_at_top_right,rgba(0,190,255,0.07),transparent_65%),#0a1422]")}>
@@ -1515,11 +1527,12 @@ function CaixaPanel({ asset, state, bancasGlobais, bancaAtivaId, assetKey, bonus
           <li>• Pior cenário de caixa: a mesa passa em todos os dias até aprovar. Se reprovar antes, o caixa utilizado tende a ser menor.</li>
           <li>• O total depositado no CFD é margem de garantia, não perda total. As perdas são separadas entre depósito próprio e bônus; o saldo próprio que sobra permanece recuperável.</li>
           <li>• Cada dia precisa no CFD: margem × (1 + stop out) + a perda do CFD se a mesa passar. Só se deposita o que falta sobre o saldo que já está lá.</li>
-          <li>• Bônus de ${fmt(parseNum(bonusPct))}% sobre cada depósito, até o teto de $${fmt(asset.bonus.bonusCap)}. A perda consome primeiro o seu dinheiro e depois o bônus.</li>
-          <li>• O ciclo começa com a corretora zerada; o saldo atual da banca não entra na conta.</li>
+          <li>• Bônus de ${fmt(parseNum(bonusPct))}% sobre cada depósito, até o teto de $${fmt(r.bonusCap)}. A perda consome primeiro o seu dinheiro e depois o bônus.</li>
+          <li>• {continuidade ? "Este ciclo começa com o saldo próprio e o bônus finais do ciclo 1. Seu resultado desconta o saldo próprio herdado, para não contá-lo como lucro novo." : "O ciclo começa com a corretora zerada; o saldo atual da conta não entra na conta."}</li>
           <li>• No fim, você recupera o saque da mesa e o depósito próprio que sobrou no CFD. O bônus não pode ser sacado.</li>
         </ul>
       </details>
     </section>
   );
 }
+

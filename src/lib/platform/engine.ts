@@ -11,6 +11,8 @@ export type TabKey = AssetKey | "historico";
 export interface Day { stopPlanejadoTopstep?: number; mnq: number; lotes: number; meta: number; mll?: number }
 export const dayMll = (a: Asset, d: Day) => (typeof d.mll === "number" && d.mll > 0 ? d.mll : a.params.mll);
 export interface Params {
+  /** Débito bruto da mesa no saque; ausente usa o recebimento esperado (legado). */
+  saqueDebitadoMesa?: number;
   mnq: number; hfm: number; mll: number; saldoInicial: number; taxa: number; lucroDesejado: number;
   marginPerLot: number; stopoutPct: number; saqueAprovada: number; folgaExtraPct: number; ativoReal?: "ouro" | "nasdaq";
 }
@@ -265,6 +267,7 @@ export function normalizeState(p: any): State {
     if (typeof a.attempt.cycleCost !== "number") a.attempt.cycleCost = 0;
     if (typeof a.attempt.custoProprioAcumulado !== "number") a.attempt.custoProprioAcumulado = 0;
     if (!a.bonus) a.bonus = freshBonus();
+    if (a.params.saqueDebitadoMesa !== undefined && (!Number.isFinite(a.params.saqueDebitadoMesa) || a.params.saqueDebitadoMesa < 0)) delete a.params.saqueDebitadoMesa;
     const d = defaultAssetsBase[k].params;
     if (typeof a.params.marginPerLot !== "number") a.params.marginPerLot = d.marginPerLot;
     if (typeof a.params.stopoutPct !== "number") a.params.stopoutPct = d.stopoutPct;
@@ -360,8 +363,20 @@ export function limitesTradeify(a: Asset, key: AssetKey, indice: number) {
   return { saldo, piso, distancia: Math.max(0, Math.round((saldo - piso) * 100) / 100) };
 }
 
+/** Lucid Flex: valores relativos ao saldo nominal, válidos também para 25K. */
+export function limitesLucid(a: Asset, key: AssetKey, indice: number) {
+  const avaliacao = diasAvaliacaoAtivo(a, key);
+  let saldo = 0, piso = -a.params.mll;
+  for (let i = indice < avaliacao ? 0 : avaliacao; i < indice; i++) {
+    saldo = Math.round((saldo + (a.attempt.resultadosMesaEod?.[i] ?? a.days[i]!.meta)) * 100) / 100;
+    piso = Math.max(piso, Math.min(100, saldo - a.params.mll));
+  }
+  return {saldo, piso, distancia: Math.max(0, Math.round((saldo - piso) * 100) / 100)};
+}
+
 /** Projeção sobre metas planejadas, não um limite efetivo confirmado pela mesa. */
 export function lossLimitGoldProjetado(a: Asset, indice: number): number {
+  if (a.mesaFuturos === "lucid") return limitesLucid(a, "ouro", indice).distancia;
   if (a.mesaFuturos === "topstep") return limitesTopstep(a, "ouro", indice).distancia;
   if (a.mesaFuturos === "vest") return a.params.mll;
   if (a.mesaConfig) return a.params.mll;
@@ -380,10 +395,10 @@ export function lossLimitGoldEfetivo(a: Asset, indice: number): number {
   return typeof manual === "number" && Number.isFinite(manual) && manual > 0 ? manual : lossLimitGoldProjetado(a, indice);
 }
 
-export function computeAssetCalcs(a: Asset, key: AssetKey): DayCalc[] {
+export function computeAssetCalcs(a: Asset, key: AssetKey, continuidade?: { divida: number; limites: number[] }): DayCalc[] {
   const { mnq: mnqPt, hfm: hfmPt, taxa, lucroDesejado } = a.params;
   const incluiPretensao = key === "saque2";
-  let divida = taxa;
+  let divida = taxa + (continuidade?.divida ?? 0);
   return a.days.map((d) => {
     // Vest GC-PERP: d.mnq armazena unidades Vest (USDC 1 por ponto por unidade).
     // Nunca reutilizar o multiplicador de contratos CME, que pode ter sido editado.
@@ -392,8 +407,10 @@ export function computeAssetCalcs(a: Asset, key: AssetKey): DayCalc[] {
     const custoSePassar = pontos * d.lotes * hfmPt;
     const indice = a.days.indexOf(d);
     const stopManual = d.stopPlanejadoTopstep;
-    const limite = a.mesaFuturos === "topstep" ? (typeof stopManual === "number" && Number.isFinite(stopManual) && stopManual > 0
+    const limiteAutomatico = continuidade?.limites[indice];
+    const limite = limiteAutomatico !== undefined && !(Number.isFinite(d.mll) && (d.mll ?? 0) > 0) && !(Number.isFinite(d.stopPlanejadoTopstep) && (d.stopPlanejadoTopstep ?? 0) > 0) ? limiteAutomatico : a.mesaFuturos === "topstep" ? (typeof stopManual === "number" && Number.isFinite(stopManual) && stopManual > 0
       ? stopManual : limitesTopstep(a, key, indice).distancia) : a.mesaFuturos === "tradefive" && !d.mll ? limitesTradeify(a, key, indice).distancia
+      : a.mesaFuturos === "lucid" && d.mll === undefined ? limitesLucid(a, key, indice).distancia
       : key === "ouro" || a.mesaConfig ? lossLimitGoldEfetivo(a, indice) : dayMll(a, d);
     const pontosAtePiso = exp > 0 ? limite / exp : 0;
     const ativo = key === "saque2" ? (a.params.ativoReal ?? "ouro") : key;
@@ -453,7 +470,7 @@ export function handleProfit(s: State, key: AssetKey, realCfd?: number) {
   const a = s.assets[key];
   const idx = clampDayIndex(a);
   if (idx < 0) return;
-  const calc = { ...computeAssetCalcs(a, key)[idx]! };
+  const calc = { ...calculosDoEstado(s, key)[idx]! };
   const teorico = -calc.custoSePassar;
   if (typeof realCfd === "number" && Number.isFinite(realCfd)) calc.custoSePassar = -realCfd;
   const isLast = idx === a.days.length - 1;
@@ -480,7 +497,7 @@ export function handleStop(s: State, key: AssetKey, realCfd?: number) {
   const a = s.assets[key];
   const idx = clampDayIndex(a);
   if (idx < 0) return;
-  const calc = { ...computeAssetCalcs(a, key)[idx]! };
+  const calc = { ...calculosDoEstado(s, key)[idx]! };
   const teorico = calc.reprova;
   if (typeof realCfd === "number" && Number.isFinite(realCfd)) calc.reprova = realCfd;
   const taxaCobrada = idx === 0 ? a.params.taxa : 0;
@@ -667,12 +684,12 @@ export function calcAporteFracionado(o: { margem: number; stopoutPct: number; cu
 
 export interface CaixaDia { dia: number; necessario: number; saldoAntes: number; proprioAntes: number; bonusAntes: number; proprioDisponivel: number; bonusDisponivel: number; excedenteProprioSacavel: number; deposito: number; bonusGanho: number; perda: number; perdaPropria: number; perdaBonus: number; proprioRestante: number; bonusRestante: number; caixaAcumulado: number }
 /** Caixa do ciclo completo: simula passar em todos os dias (pior caso de caixa) com aporte fracionado e bônus com teto. */
-export function calcCaixaCiclo(a: Asset, key: AssetKey, bonusPct: number) {
-  const calcs = computeAssetCalcs(a, key);
+export function calcCaixaCiclo(a: Asset, key: AssetKey, bonusPct: number, inicio?: { proprio: number; bonus: number; bonusUtilizado: number }, calcs = computeAssetCalcs(a, key)) {
   const p = Math.max(0, bonusPct || 0) / 100;
   const cap = Number.isFinite(a.bonus.bonusCap) ? Math.max(0, a.bonus.bonusCap) : 0;
   const taxa = a.params.taxa || 0;
-  let proprio = 0, bonus = 0, bonusTotal = 0, depositado = 0, perdaPropriaTotal = 0, perdaBonusTotal = 0;
+  const proprioInicial = Math.max(0, inicio?.proprio ?? 0);
+  let proprio = proprioInicial, bonus = Math.max(0, inicio?.bonus ?? 0), bonusTotal = 0, depositado = 0, perdaPropriaTotal = 0, perdaBonusTotal = 0;
   const dias: CaixaDia[] = a.days.map((d, i) => {
     const perda = Math.max(0, calcs[i]?.custoSePassar ?? 0);
     const necessario = (a.params.marginPerLot || 0) * d.lotes * (1 + Math.max(0, a.params.stopoutPct || 0) / 100) + perda;
@@ -680,7 +697,7 @@ export function calcCaixaCiclo(a: Asset, key: AssetKey, bonusPct: number) {
     const bonusAntes = bonus;
     const saldoAntes = proprioAntes + bonusAntes;
     const falta = Math.max(0, necessario - saldoAntes);
-    const espaco = Math.max(0, cap - bonusTotal);
+    const espaco = Math.max(0, cap - (inicio?.bonusUtilizado ?? 0) - bonusTotal);
     const deposito = aporteMinimoComBonus(falta, bonusPct, espaco);
     const bonusGanho = Math.min(deposito * p, espaco);
     proprio += deposito; bonus += bonusGanho; bonusTotal += bonusGanho; depositado += deposito;
@@ -706,5 +723,37 @@ export function calcCaixaCiclo(a: Asset, key: AssetKey, bonusPct: number) {
   const caixaMaximo = taxa + depositado;
   const recuperado = proprio + saque;
   const totalPerda = dias.reduce((acc, d) => acc + d.perda, 0);
-  return { dias, taxa, totalDepositado: depositado, totalPerda, perdaPropriaTotal, perdaBonusTotal, caixaMaximo, proprioRecuperavel: proprio, saque, recuperado, resultadoFinal: recuperado - caixaMaximo, bonusTotal };
+  return { dias, taxa, totalDepositado: depositado, totalPerda, perdaPropriaTotal, perdaBonusTotal, caixaMaximo, proprioRecuperavel: proprio, saque, recuperado, resultadoFinal: recuperado - caixaMaximo - proprioInicial, bonusTotal, bonusRestante: bonus, bonusCap: cap };
+}
+
+
+/** Continuidade apenas calculada: não grava saldo, bônus, histórico ou depósitos reais. */
+export function simularSaque2(s: State, bonusPct = 100) {
+  const segundo = s.assets.saque2;
+  const origemKey = segundo.params.ativoReal === "nasdaq" ? "nasdaq" : "ouro";
+  const origem = s.assets[origemKey];
+  const primeiro = calcCaixaCiclo(origem, origemKey, bonusPct);
+  const retirada = origem.params.saqueDebitadoMesa ?? origem.params.saqueAprovada;
+  const avaliacao = diasAvaliacaoAtivo(origem, origemKey);
+  const lucroMesa = origem.days.slice(avaliacao).reduce((total, d, n) => total + (origem.attempt.resultadosMesaEod?.[n + avaliacao] ?? d.meta), 0);
+  const mesa = origem.mesaFuturos ?? "tradefive";
+  // Valores relativos ao saldo nominal: assim 25K e 50K usam a mesma regra.
+  const pisoTravado = mesa === "topstep" ? 0 : mesa === "lucid" || mesa === "tradefive" ? 100 : undefined;
+  let saldoMesa = lucroMesa - retirada;
+  const limites = segundo.days.map((d, i) => {
+    const folga = pisoTravado === undefined ? dayMll(segundo, d) : Math.max(0, Math.round((saldoMesa - pisoTravado) * 100) / 100);
+    saldoMesa += segundo.attempt.resultadosMesaEod?.[i] ?? d.meta;
+    return folga;
+  });
+  const divida = primeiro.taxa + primeiro.totalPerda - primeiro.saque;
+  const calcs = computeAssetCalcs(segundo, "saque2", {divida, limites});
+  const segundoCaixa = calcCaixaCiclo({...segundo, bonus: {...segundo.bonus, bonusCap: origem.bonus.bonusCap}}, "saque2", bonusPct, {
+    proprio: primeiro.proprioRecuperavel, bonus: primeiro.bonusRestante, bonusUtilizado: primeiro.bonusTotal,
+  }, calcs);
+  return { origemKey, primeiro, segundo: segundoCaixa, calcs, limites, lucroMesa, retirada,
+    resultadoAcumulado: primeiro.resultadoFinal + segundoCaixa.resultadoFinal };
+}
+
+export function calculosDoEstado(s: State, key: AssetKey): DayCalc[] {
+  return key === "saque2" ? simularSaque2(s).calcs : computeAssetCalcs(s.assets[key], key);
 }
