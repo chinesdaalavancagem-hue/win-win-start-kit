@@ -745,7 +745,10 @@ export function simularSaque2(s: State, bonusPct = 100) {
     saldoMesa += segundo.attempt.resultadosMesaEod?.[i] ?? d.meta;
     return folga;
   });
-  const divida = primeiro.taxa + primeiro.totalPerda - primeiro.saque;
+  // Transporta o resultado próprio líquido: o payout já recupera custos do ciclo 1.
+  // Perda coberta pelo bônus não é dívida do usuário; saldo CFD restante não é perda.
+  // Resultado positivo vira crédito, zero quita a dívida, negativo deixa só o déficit.
+  const divida = -primeiro.resultadoFinal;
   const calcs = computeAssetCalcs(segundo, "saque2", {divida, limites});
   const segundoCaixa = calcCaixaCiclo({...segundo, bonus: {...segundo.bonus, bonusCap: origem.bonus.bonusCap}}, "saque2", bonusPct, {
     proprio: primeiro.proprioRecuperavel, bonus: primeiro.bonusRestante, bonusUtilizado: primeiro.bonusTotal,

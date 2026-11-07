@@ -12,7 +12,7 @@ import { registrarAuditoria } from "@/lib/auditoria-registro";
 import { applyOfficialParams, buildOfficialParams, isOfficialParams } from "@/lib/platform/official-params";
 import {
   type AssetKey, type State, type TabKey, type Asset, type MesaFuturos, MESAS_FUTUROS, nomeMesa, diasAvaliacaoAtivo, diasAvaliacaoGold, limitesTradeify, limitesTopstep, adicionarDiaGold, removerDiaGold,
-  simularSaque2, calculosDoEstado, aplicarDeposito, aplicarSaque, projetarAportesFuturos, conciliarCreditoForex, calcAporteFracionado, calcCaixaCiclo, clampDayIndex, computeAssetCalcs, defaultState, fmt, fmtSigned, handleProfit, handleStop,
+  simularSaque2, aplicarDeposito, aplicarSaque, projetarAportesFuturos, conciliarCreditoForex, calcAporteFracionado, calcCaixaCiclo, clampDayIndex, computeAssetCalcs, defaultState, fmt, fmtSigned, handleProfit, handleStop,
   historicoTotals, isValidState, normalizeState, parseNum, parseValorFinanceiro, parseResultadoCfd, podeDesfazerUltimaOperacao, projetarZeragemBonus, reiniciarCicloBonus, resetBonus, tipoLabel, undoLast,
 } from "@/lib/platform/engine";
 
@@ -369,7 +369,6 @@ const Note = ({ children }: { children: ReactNode }) => <p className="mt-3 font-
 function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, assetKey, section, mutate, isAdmin }: { state: State; bancasGlobais?: Banca[] | undefined; bancaAtivaId?: string | undefined; contaMesa?: string | undefined; mesaAtiva: MesaFuturos; assetKey: AssetKey; section: Section; mutate: (fn: (s: State) => void) => void; isAdmin: boolean }) {
   const asset = state.assets[assetKey];
   const avaliacaoDias = diasAvaliacaoAtivo(asset, assetKey);
-  const calcs = useMemo(() => calculosDoEstado(state, assetKey), [state, assetKey]);
   const setP = (k: keyof Asset["params"]) => (v: number) => mutate((s) => { (s.assets[assetKey].params as unknown as Record<string, number>)[k] = v; });
   const bonus = asset.bonus;
   // O Forex é compartilhado entre as bancas e ativos: considerar todos os depósitos e bônus disponíveis.
@@ -378,6 +377,7 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
   const saldo = (state.forexSaldoReal ?? forexProprio) + forexBonus;
   const [bonusPct, setBonusPct] = useState("100");
   const continuidade = useMemo(() => assetKey === "saque2" ? simularSaque2(state, parseNum(bonusPct)) : null, [state, assetKey, bonusPct]);
+  const calcs = continuidade?.calcs ?? computeAssetCalcs(asset, assetKey);
   const caixaCiclo = continuidade?.segundo ?? calcCaixaCiclo(asset, assetKey, parseNum(bonusPct));
   // Atalhos: Shift+N = Profit no dia N; Ctrl+N (ou Alt+N) = Stop no dia N. Só vale para o dia atual; usa o valor teórico.
   const curIdx = asset.attempt.currentDayIndex;
@@ -472,6 +472,7 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
     <div>
       {continuidade && <div className="mb-4 rounded-xl border border-violet-400/30 bg-violet-950/20 p-3 text-sm text-slate-200">
         <strong>Saque 2 vinculado ao ciclo 1 · {continuidade.origemKey === "ouro" ? "Gold" : "Nasdaq"}</strong>
+        <p className="mt-1 text-xs text-slate-300">Ciclo 1: payout líquido ${fmt(continuidade.primeiro.saque)} − taxa ${fmt(continuidade.primeiro.taxa)} − perda própria no Forex ${fmt(continuidade.primeiro.perdaPropriaTotal)} = resultado {fmtSigned(continuidade.primeiro.resultadoFinal)}. Esse resultado entra no cálculo do ganho do ciclo 2.</p>
         <p className="mt-1 text-xs text-slate-300">Projeção após o primeiro saque: Forex próprio ${fmt(continuidade.primeiro.proprioRecuperavel)} · bônus ${fmt(continuidade.primeiro.bonusRestante)} · folga inicial na mesa ${fmt(continuidade.limites[0] ?? 0)}. Alterações no ciclo 1 recalculam esta simulação. Limites manuais dos cards continuam valendo.</p>
         {(continuidade.limites[0] ?? 0) <= 0 && <p className="mt-2 text-xs text-amber-300">O saque projetado deixa a conta no piso ou abaixo dele. Reduza o débito do saque ou reveja os resultados do ciclo 1 antes de simular a continuidade.</p>}
       </div>}

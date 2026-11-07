@@ -63,4 +63,22 @@ describe('Saque 2 continua a projeção do ciclo 1',()=>{
     expect(simularSaque2(n).retirada).toBe(900);
     expect(simularSaque2(n).primeiro).toEqual(calcCaixaCiclo(n.assets.ouro,'ouro',100));
   });
+  it('abate o primeiro payout das perdas próprias e da taxa, sem cobrar o bônus perdido',()=>{
+    const s=setup(); const base=simularSaque2(s,100).primeiro;
+    expect(base.perdaBonusTotal).toBeGreaterThan(0);
+    const custoProprio=base.taxa+base.perdaPropriaTotal;
+    for (const sobra of [-100,0,100]) {
+      s.assets.ouro.params.saqueAprovada=custoProprio+sobra;
+      const r=simularSaque2(s,100), d1=r.calcs[0]!;
+      expect(r.primeiro.resultadoFinal).toBeCloseTo(sobra);
+      expect(d1.dividaHoje).toBeCloseTo(-sobra);
+      expect(d1.liquidoSeReprovar).toBeCloseTo(d1.reprova+sobra);
+    }
+  });
+  it('percentual de bônus recalcula o custo próprio herdado',()=>{
+    const s=setup(); const sem=simularSaque2(s,0), com=simularSaque2(s,100);
+    expect(com.calcs[0]!.liquidoSeReprovar-sem.calcs[0]!.liquidoSeReprovar)
+      .toBeCloseTo(sem.primeiro.perdaPropriaTotal-com.primeiro.perdaPropriaTotal);
+  });
+
 });
