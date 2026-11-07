@@ -682,6 +682,18 @@ export function calcAporteFracionado(o: { margem: number; stopoutPct: number; cu
   return { total, proprio, bonus, economia };
 }
 
+/** Mesma base da Meta geral: até cinco dias financiados, sem lucro da avaliação.
+ * Projeção 50%/90% solicitada pelo usuário; não valida tetos ou elegibilidade.
+ */
+export function projetarPrimeiroPayout(a: Asset, key: AssetKey) {
+  const avaliacao = diasAvaliacaoAtivo(a, key);
+  const lucro = a.days.slice(avaliacao, avaliacao + 5).reduce((total, d, i) =>
+    total + (a.attempt.resultadosMesaEod?.[avaliacao + i] ?? d.meta), 0);
+  const bruto = Math.round(Math.max(0, lucro) * 0.5 * 100) / 100;
+  const liquido = Math.round(bruto * 0.9 * 100) / 100;
+  return {lucro, bruto, liquido};
+}
+
 export interface CaixaDia { dia: number; necessario: number; saldoAntes: number; proprioAntes: number; bonusAntes: number; proprioDisponivel: number; bonusDisponivel: number; excedenteProprioSacavel: number; deposito: number; bonusGanho: number; perda: number; perdaPropria: number; perdaBonus: number; proprioRestante: number; bonusRestante: number; caixaAcumulado: number }
 /** Caixa do ciclo completo: simula passar em todos os dias (pior caso de caixa) com aporte fracionado e bônus com teto. */
 export function calcCaixaCiclo(a: Asset, key: AssetKey, bonusPct: number, inicio?: { proprio: number; bonus: number; bonusUtilizado: number }, calcs = computeAssetCalcs(a, key)) {
@@ -719,7 +731,7 @@ export function calcCaixaCiclo(a: Asset, key: AssetKey, bonusPct: number, inicio
     bonus = Math.max(0, bonus - deBonus);
     return { dia: i + 1, necessario, saldoAntes, proprioAntes, bonusAntes, proprioDisponivel, bonusDisponivel, excedenteProprioSacavel, deposito, bonusGanho, perda, perdaPropria: deProprio, perdaBonus: deBonus, proprioRestante: proprio, bonusRestante: bonus, caixaAcumulado: taxa + depositado };
   });
-  const saque = a.params.saqueAprovada || 0;
+  const saque = key !== "saque2" && a.mesaFuturos !== "vest" ? projetarPrimeiroPayout(a, key).liquido : a.params.saqueAprovada || 0;
   const caixaMaximo = taxa + depositado;
   const recuperado = proprio + saque;
   const totalPerda = dias.reduce((acc, d) => acc + d.perda, 0);
@@ -732,10 +744,10 @@ export function simularSaque2(s: State, bonusPct = 100) {
   const segundo = s.assets.saque2;
   const origemKey = segundo.params.ativoReal === "nasdaq" ? "nasdaq" : "ouro";
   const origem = s.assets[origemKey];
+  const payout = projetarPrimeiroPayout(origem, origemKey);
   const primeiro = calcCaixaCiclo(origem, origemKey, bonusPct);
-  const retirada = origem.params.saqueDebitadoMesa ?? origem.params.saqueAprovada;
-  const avaliacao = diasAvaliacaoAtivo(origem, origemKey);
-  const lucroMesa = origem.days.slice(avaliacao).reduce((total, d, n) => total + (origem.attempt.resultadosMesaEod?.[n + avaliacao] ?? d.meta), 0);
+  const retirada = origem.mesaFuturos === "vest" ? origem.params.saqueDebitadoMesa ?? origem.params.saqueAprovada : payout.bruto;
+  const lucroMesa = payout.lucro;
   const mesa = origem.mesaFuturos ?? "tradefive";
   // Valores relativos ao saldo nominal: assim 25K e 50K usam a mesma regra.
   const pisoTravado = mesa === "topstep" ? 0 : mesa === "lucid" || mesa === "tradefive" ? 100 : undefined;

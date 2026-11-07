@@ -12,7 +12,7 @@ import { registrarAuditoria } from "@/lib/auditoria-registro";
 import { applyOfficialParams, buildOfficialParams, isOfficialParams } from "@/lib/platform/official-params";
 import {
   type AssetKey, type State, type TabKey, type Asset, type MesaFuturos, MESAS_FUTUROS, nomeMesa, diasAvaliacaoAtivo, diasAvaliacaoGold, limitesTradeify, limitesTopstep, adicionarDiaGold, removerDiaGold,
-  simularSaque2, aplicarDeposito, aplicarSaque, projetarAportesFuturos, conciliarCreditoForex, calcAporteFracionado, calcCaixaCiclo, clampDayIndex, computeAssetCalcs, defaultState, fmt, fmtSigned, handleProfit, handleStop,
+  projetarPrimeiroPayout, simularSaque2, aplicarDeposito, aplicarSaque, projetarAportesFuturos, conciliarCreditoForex, calcAporteFracionado, calcCaixaCiclo, clampDayIndex, computeAssetCalcs, defaultState, fmt, fmtSigned, handleProfit, handleStop,
   historicoTotals, isValidState, normalizeState, parseNum, parseValorFinanceiro, parseResultadoCfd, podeDesfazerUltimaOperacao, projetarZeragemBonus, reiniciarCicloBonus, resetBonus, tipoLabel, undoLast,
 } from "@/lib/platform/engine";
 
@@ -458,7 +458,8 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
   const visibleRows = isAdmin ? rows : rows.filter((r) => r.isCurrent);
   const displayedTotalMeta = isAdmin ? totalMeta : visibleRows.reduce((total, r) => total + r.d.meta, 0);
   // Soma das metas configuradas nos parâmetros para D1 a D5 Funded (índices 3–7), independentemente de operações realizadas.
-  const lucroFunded = asset.days.slice(avaliacaoDias, avaliacaoDias + 5).reduce((total, dia) => total + (Number(dia.meta) || 0), 0);
+  const payoutProjetado = projetarPrimeiroPayout(asset, assetKey);
+  const lucroFunded = payoutProjetado.lucro;
   const displayedCum = isAdmin ? cum : visibleRows.reduce((total, r) => total + r.c.passa, saldo);
   const folga = asset.params.folgaExtraPct ?? 20;
   const reservaComFolga = reservaMinima > 0 ? reservaMinima * (1 + folga / 100) : 0;
@@ -472,7 +473,7 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
     <div>
       {continuidade && <div className="mb-4 rounded-xl border border-violet-400/30 bg-violet-950/20 p-3 text-sm text-slate-200">
         <strong>Saque 2 vinculado ao ciclo 1 · {continuidade.origemKey === "ouro" ? "Gold" : "Nasdaq"}</strong>
-        <p className="mt-1 text-xs text-slate-300">Ciclo 1: payout líquido ${fmt(continuidade.primeiro.saque)} − taxa ${fmt(continuidade.primeiro.taxa)} − perda própria no Forex ${fmt(continuidade.primeiro.perdaPropriaTotal)} = resultado {fmtSigned(continuidade.primeiro.resultadoFinal)}. Esse resultado entra no cálculo do ganho do ciclo 2.</p>
+        <p className="mt-1 text-xs text-slate-300">Ciclo 1: lucro financiado ${fmt(continuidade.lucroMesa)} → saque de 50% ${fmt(continuidade.retirada)} → recebe 90% ${fmt(continuidade.primeiro.saque)} − taxa ${fmt(continuidade.primeiro.taxa)} − perda própria no Forex ${fmt(continuidade.primeiro.perdaPropriaTotal)} = resultado {fmtSigned(continuidade.primeiro.resultadoFinal)}. Esse resultado entra no cálculo do ganho do ciclo 2.</p>
         <p className="mt-1 text-xs text-slate-300">Projeção após o primeiro saque: Forex próprio ${fmt(continuidade.primeiro.proprioRecuperavel)} · bônus ${fmt(continuidade.primeiro.bonusRestante)} · folga inicial na mesa ${fmt(continuidade.limites[0] ?? 0)}. Alterações no ciclo 1 recalculam esta simulação. Limites manuais dos cards continuam valendo.</p>
         {(continuidade.limites[0] ?? 0) <= 0 && <p className="mt-2 text-xs text-amber-300">O saque projetado deixa a conta no piso ou abaixo dele. Reduza o débito do saque ou reveja os resultados do ciclo 1 antes de simular a continuidade.</p>}
       </div>}
@@ -561,8 +562,8 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
               <div className="rounded-xl border border-[#18324e] bg-[#091827] p-3"><NumField label="Lucro líquido desejado ($, sem a taxa)" value={asset.params.lucroDesejado} onChange={setP("lucroDesejado")} /></div>
               <div className="rounded-xl border border-[#183b43] bg-[#091a20] p-3"><NumField label="Margem exigida por 1 lote ($)" value={asset.params.marginPerLot} onChange={setP("marginPerLot")} /></div>
               <div className="rounded-xl border border-[#18324e] bg-[#091827] p-3"><NumField label="Stop-out da corretora (%)" value={asset.params.stopoutPct} onChange={setP("stopoutPct")} /></div>
-              <div className="rounded-xl border border-[#183b43] bg-[#091a20] p-3"><NumField label="Saque esperado por conta aprovada ($)" value={asset.params.saqueAprovada} onChange={setP("saqueAprovada")} /></div>
-              {assetKey !== "saque2" && <div className="rounded-xl border border-[#183b43] bg-[#091a20] p-3"><NumField label="Valor descontado da mesa no 1º saque ($)" value={asset.params.saqueDebitadoMesa ?? asset.params.saqueAprovada} onChange={setP("saqueDebitadoMesa")} helper="Débito na conta da mesa, antes da divisão de lucros. O saque esperado acima é o valor que você recebe. Sem ajuste, usa o mesmo valor." /></div>}
+              <div className="rounded-xl border border-[#183b43] bg-[#091a20] p-3"><NumField label="Saque no registro da operação ($)" value={asset.params.saqueAprovada} onChange={setP("saqueAprovada")} helper="Valor creditado ao registrar a aprovação. A simulação do primeiro payout usa automaticamente a Meta geral × 50% × 90%." /></div>
+              {assetKey !== "saque2" && mesaAtiva !== "vest" && <div className="rounded-xl border border-[#183b43] bg-[#091a20] p-3"><NumField label="1º payout líquido projetado ($)" value={payoutProjetado.liquido} readOnly helper={`Meta geral $${fmt(payoutProjetado.lucro)} × 50% × 90%. Débito projetado na mesa: $${fmt(payoutProjetado.bruto)}.`} /></div>}
               <div className="rounded-xl border border-[#18324e] bg-[#091827] p-3"><NumField label="Folga extra de segurança p/ saque (%)" value={asset.params.folgaExtraPct} onChange={setP("folgaExtraPct")} /></div>
             </div>
           </section>
@@ -603,7 +604,7 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
           <div className="mb-3 rounded-2xl border border-cyan-900/70 bg-gradient-to-r from-[#0a1929] to-[#07121e] px-3 py-3 shadow-lg sm:px-4">
             <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
               <p className="flex items-center gap-2 text-xs font-semibold text-blue-100/75"><Target className="size-4 text-cyan-400" />Meta Funded · D1–D5</p>
-              <span className="rounded-full border border-cyan-800/60 bg-cyan-950/40 px-2 py-0.5 text-[10px] text-cyan-200/80">Projeção pelas metas</span>
+              <span className="rounded-full border border-cyan-800/60 bg-cyan-950/40 px-2 py-0.5 text-[10px] text-cyan-200/80">Projeção pelas metas/resultados</span>
             </div>
             <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1.1fr_1.1fr] sm:items-stretch">
               <div className="flex items-center justify-between gap-2 rounded-lg border border-cyan-900/40 bg-[#071423]/70 px-3 py-2 sm:block">
@@ -613,15 +614,15 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
               <div className="grid grid-cols-2 gap-2 sm:col-span-2">
                 <div className="min-w-0 rounded-lg border border-slate-700/40 bg-slate-800/35 px-2.5 py-2">
                   <p className="text-[10px] leading-tight text-blue-100/65">1º saque · 50%</p>
-                  <p className="mt-1 font-mono text-lg font-bold text-slate-100">$ {fmt(lucroFunded / 2)}</p>
+                  <p className="mt-1 font-mono text-lg font-bold text-slate-100">$ {fmt(payoutProjetado.bruto)}</p>
                 </div>
                 <div className="min-w-0 rounded-lg border border-emerald-700/40 bg-emerald-950/30 px-2.5 py-2">
                   <p className="text-[10px] leading-tight text-emerald-200/80">Recebe · split 90%</p>
-                  <p className="mt-1 font-mono text-lg font-bold text-emerald-400">$ {fmt(lucroFunded * 0.45)}</p>
+                  <p className="mt-1 font-mono text-lg font-bold text-emerald-400">$ {fmt(payoutProjetado.liquido)}</p>
                 </div>
               </div>
             </div>
-            <p className="mt-2 flex items-start gap-1.5 text-[10px] leading-snug text-blue-100/55"><span className="shrink-0 text-cyan-400">↳</span> Próximo saque após mais 5 dias positivos de pelo menos $150 por dia, conforme regras da mesa.</p>
+            <p className="mt-2 flex items-start gap-1.5 text-[10px] leading-snug text-blue-100/55"><span className="shrink-0 text-cyan-400">↳</span> Projeção de 50% com split de 90%, vinculada ao Saque 2. Tetos de saque e elegibilidade da conta devem ser conferidos na mesa.</p>
           </div>
         </section>
       )}
