@@ -73,8 +73,8 @@ describe('Saque 2 continua a projeção do ciclo 1',()=>{
       s.assets.ouro.params.taxa=recebimento-base.perdaPropriaTotal-sobra;
       const r=simularSaque2(s,100), d1=r.calcs[0]!;
       expect(r.primeiro.resultadoFinal).toBeCloseTo(sobra);
-      expect(d1.dividaHoje).toBeCloseTo(-sobra);
-      expect(d1.liquidoSeReprovar).toBeCloseTo(d1.reprova+sobra);
+      expect(d1.dividaHoje).toBeCloseTo(Math.max(0,-sobra));
+      expect(d1.liquidoSeReprovar).toBeCloseTo(d1.reprova-Math.max(0,-sobra));
     }
   });
   it('percentual de bônus recalcula o custo próprio herdado',()=>{
@@ -90,7 +90,7 @@ describe('Saque 2 continua a projeção do ciclo 1',()=>{
     const p=projetarPrimeiroPayout(s.assets.ouro,'ouro'), r=simularSaque2(s);
     expect(p).toEqual({lucro:3000,bruto:1500,liquido:1350});
     expect(r.retirada).toBe(p.bruto);expect(r.primeiro.saque).toBe(p.liquido);
-    expect(r.calcs[0]!.dividaHoje).toBeCloseTo(r.primeiro.taxa+r.primeiro.perdaPropriaTotal-1350);
+    expect(r.calcs[0]!.dividaHoje).toBeCloseTo(Math.max(0,r.primeiro.taxa+r.primeiro.perdaPropriaTotal-1350));
   });
 
   it('Lucid respeita teto de US$ 2.000 no primeiro saque e carrega a sobra ao segundo ciclo',()=>{
@@ -123,6 +123,29 @@ describe('Saque 2 continua a projeção do ciclo 1',()=>{
     s.assets.ouro.days[2]!.meta=4200;
     s.assets.ouro.mesaFuturos='mff';
     expect(projetarPrimeiroPayout(s.assets.ouro,'ouro')).toEqual({lucro:5000,bruto:2500,liquido:2250});
+  });
+
+  it('não transporta os US$ 500 de lucro do saque 1 como crédito no saque 2',()=>{
+    const s=setup();
+    s.assets.ouro.params.taxa=0;
+    s.assets.ouro.days.slice(2).forEach(d=>{d.lotes=0;});
+    const entrada=simularSaque2(s).primeiro;
+    const saque=projetarPrimeiroPayout(s.assets.ouro,'ouro').liquido;
+    s.assets.ouro.params.taxa=saque-500;
+    const r=simularSaque2(s);
+    expect(r.primeiro.resultadoFinal).toBeCloseTo(500);
+    expect(r.calcs[0]!.dividaHoje).toBeCloseTo(0);
+    expect(r.calcs[0]!.liquidoSeReprovar).toBeCloseTo(r.calcs[0]!.reprova);
+  });
+
+  it('transporta somente o déficit do primeiro saque para o ciclo 2',()=>{
+    const s=setup();
+    s.assets.ouro.days.slice(2).forEach(d=>{d.lotes=0;});
+    const saque=projetarPrimeiroPayout(s.assets.ouro,'ouro').liquido;
+    s.assets.ouro.params.taxa=saque+300;
+    const r=simularSaque2(s);
+    expect(r.primeiro.resultadoFinal).toBeCloseTo(-300);
+    expect(r.calcs[0]!.dividaHoje).toBeCloseTo(300);
   });
 
 });
