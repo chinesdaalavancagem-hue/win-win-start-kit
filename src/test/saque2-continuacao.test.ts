@@ -93,4 +93,36 @@ describe('Saque 2 continua a projeção do ciclo 1',()=>{
     expect(r.calcs[0]!.dividaHoje).toBeCloseTo(r.primeiro.taxa+r.primeiro.perdaPropriaTotal-1350);
   });
 
+  it('Lucid respeita teto de US$ 2.000 no primeiro saque e carrega a sobra ao segundo ciclo',()=>{
+    const s=setup();
+    s.assets.ouro.days[2]!.meta=4200; // 625+625+4200+200+200 = 5.850
+    const payout=projetarPrimeiroPayout(s.assets.ouro,'ouro');
+    expect(payout).toEqual({lucro:5000,bruto:2000,liquido:1800});
+    const r=simularSaque2(s);
+    expect(r.retirada).toBe(2000);
+    expect(r.limites).toEqual([2900,3100,3300,3500,3700]);
+    expect(r.lucroSegundoCiclo).toBe(1000);
+    expect(r.baseSaque2).toBe(4000);
+    expect(r.saque2Bruto).toBe(2000);
+    expect(r.saque2Liquido).toBe(1800);
+    expect(r.segundo.saque).toBe(1800);
+  });
+
+  it('Lucid calcula 50% quando abaixo do teto no segundo pedido',()=>{
+    const s=setup(), r=simularSaque2(s);
+    expect(r.lucroMesa).toBe(2800);
+    expect(r.retirada).toBe(1400);
+    expect(r.baseSaque2).toBe(2400);
+    expect(r.saque2Bruto).toBe(1200);
+    expect(r.saque2Liquido).toBe(1080);
+    expect(r.segundo.saque).toBe(1080);
+  });
+
+  it('teto da Lucid não afeta o payout de outra mesa',()=>{
+    const s=setup();
+    s.assets.ouro.days[2]!.meta=4200;
+    s.assets.ouro.mesaFuturos='mff';
+    expect(projetarPrimeiroPayout(s.assets.ouro,'ouro')).toEqual({lucro:5000,bruto:2500,liquido:2250});
+  });
+
 });
