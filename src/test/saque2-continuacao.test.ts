@@ -128,7 +128,7 @@ describe('Saque 2 continua a projeção do ciclo 1',()=>{
   it('não transporta os US$ 500 de lucro do saque 1 como crédito no saque 2',()=>{
     const s=setup();
     s.assets.ouro.params.taxa=0;
-    s.assets.ouro.days.slice(2).forEach(d=>{d.lotes=0;});
+    s.assets.ouro.days.forEach(d=>{d.lotes=0;});
     const entrada=simularSaque2(s).primeiro;
     const saque=projetarPrimeiroPayout(s.assets.ouro,'ouro').liquido;
     s.assets.ouro.params.taxa=saque-500;
@@ -140,7 +140,7 @@ describe('Saque 2 continua a projeção do ciclo 1',()=>{
 
   it('transporta somente o déficit do primeiro saque para o ciclo 2',()=>{
     const s=setup();
-    s.assets.ouro.days.slice(2).forEach(d=>{d.lotes=0;});
+    s.assets.ouro.days.forEach(d=>{d.lotes=0;});
     const saque=projetarPrimeiroPayout(s.assets.ouro,'ouro').liquido;
     s.assets.ouro.params.taxa=saque+300;
     const r=simularSaque2(s);
