@@ -683,20 +683,22 @@ export function calcAporteFracionado(o: { margem: number; stopoutPct: number; cu
 }
 
 /** Mesma base da Meta geral: até cinco dias financiados, sem lucro da avaliação.
- * Projeção 50%/90% solicitada pelo usuário; não valida tetos ou elegibilidade.
+ * Projeção 50%/90%; Lucid limita o saque bruto projetado a US$ 2.000.
+ * Elegibilidade efetiva deve ser conferida na mesa.
  */
 export function projetarPrimeiroPayout(a: Asset, key: AssetKey) {
   const avaliacao = diasAvaliacaoAtivo(a, key);
   const lucro = a.days.slice(avaliacao, avaliacao + 5).reduce((total, d, i) =>
     total + (a.attempt.resultadosMesaEod?.[avaliacao + i] ?? d.meta), 0);
-  const bruto = Math.round(Math.max(0, lucro) * 0.5 * 100) / 100;
+  const brutoSemTeto = Math.round(Math.max(0, lucro) * 0.5 * 100) / 100;
+  const bruto = a.mesaFuturos === "lucid" ? Math.min(2000, brutoSemTeto) : brutoSemTeto;
   const liquido = Math.round(bruto * 0.9 * 100) / 100;
   return {lucro, bruto, liquido};
 }
 
 export interface CaixaDia { dia: number; necessario: number; saldoAntes: number; proprioAntes: number; bonusAntes: number; proprioDisponivel: number; bonusDisponivel: number; excedenteProprioSacavel: number; deposito: number; bonusGanho: number; perda: number; perdaPropria: number; perdaBonus: number; proprioRestante: number; bonusRestante: number; caixaAcumulado: number }
 /** Caixa do ciclo completo: simula passar em todos os dias (pior caso de caixa) com aporte fracionado e bônus com teto. */
-export function calcCaixaCiclo(a: Asset, key: AssetKey, bonusPct: number, inicio?: { proprio: number; bonus: number; bonusUtilizado: number }, calcs = computeAssetCalcs(a, key)) {
+export function calcCaixaCiclo(a: Asset, key: AssetKey, bonusPct: number, inicio?: { proprio: number; bonus: number; bonusUtilizado: number }, calcs = computeAssetCalcs(a, key), saqueProjetado?: number) {
   const p = Math.max(0, bonusPct || 0) / 100;
   const cap = Number.isFinite(a.bonus.bonusCap) ? Math.max(0, a.bonus.bonusCap) : 0;
   const taxa = a.params.taxa || 0;
@@ -731,7 +733,7 @@ export function calcCaixaCiclo(a: Asset, key: AssetKey, bonusPct: number, inicio
     bonus = Math.max(0, bonus - deBonus);
     return { dia: i + 1, necessario, saldoAntes, proprioAntes, bonusAntes, proprioDisponivel, bonusDisponivel, excedenteProprioSacavel, deposito, bonusGanho, perda, perdaPropria: deProprio, perdaBonus: deBonus, proprioRestante: proprio, bonusRestante: bonus, caixaAcumulado: taxa + depositado };
   });
-  const saque = key !== "saque2" && a.mesaFuturos !== "vest" ? projetarPrimeiroPayout(a, key).liquido : a.params.saqueAprovada || 0;
+  const saque = saqueProjetado ?? (key !== "saque2" && a.mesaFuturos !== "vest" ? projetarPrimeiroPayout(a, key).liquido : a.params.saqueAprovada || 0);
   const caixaMaximo = taxa + depositado;
   const recuperado = proprio + saque;
   const totalPerda = dias.reduce((acc, d) => acc + d.perda, 0);
@@ -762,10 +764,15 @@ export function simularSaque2(s: State, bonusPct = 100) {
   // Resultado positivo vira crédito, zero quita a dívida, negativo deixa só o déficit.
   const divida = -primeiro.resultadoFinal;
   const calcs = computeAssetCalcs(segundo, "saque2", {divida, limites});
+  const lucroSegundoCiclo = segundo.days.slice(0, 5).reduce((total, d, i) =>
+    total + (segundo.attempt.resultadosMesaEod?.[i] ?? d.meta), 0);
+  const baseSaque2 = Math.max(0, lucroMesa - retirada + lucroSegundoCiclo);
+  const saque2Bruto = mesa === "lucid" ? Math.min(2000, Math.round(baseSaque2 * 0.5 * 100) / 100) : null;
+  const saque2Liquido = saque2Bruto === null ? undefined : Math.round(saque2Bruto * 0.9 * 100) / 100;
   const segundoCaixa = calcCaixaCiclo({...segundo, bonus: {...segundo.bonus, bonusCap: origem.bonus.bonusCap}}, "saque2", bonusPct, {
     proprio: primeiro.proprioRecuperavel, bonus: primeiro.bonusRestante, bonusUtilizado: primeiro.bonusTotal,
-  }, calcs);
-  return { origemKey, primeiro, segundo: segundoCaixa, calcs, limites, lucroMesa, retirada,
+  }, calcs, saque2Liquido);
+  return { origemKey, primeiro, segundo: segundoCaixa, calcs, limites, lucroMesa, retirada, lucroSegundoCiclo, baseSaque2, saque2Bruto, saque2Liquido,
     resultadoAcumulado: primeiro.resultadoFinal + segundoCaixa.resultadoFinal };
 }
 
