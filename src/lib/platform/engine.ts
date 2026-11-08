@@ -514,7 +514,11 @@ export function handleProfit(s: State, key: AssetKey, realCfd?: number) {
   const custoDoDia = calc.custoSePassar + taxaCobrada;
   const resultadoMesa = resultadoMesaDia(a, idx);
   const continuacao = key === "saque2" ? simularSaque2(s, 100, {indice: idx, custo: calc.custoSePassar, resultadoMesa}) : null;
-  const saque = isLast ? continuacao?.segundo.saque ?? a.params.saqueAprovada ?? 0 : 0;
+  const saque = isLast
+    ? key === "saque2" ? continuacao?.segundo.saque ?? 0
+      : a.mesaFuturos === "vest" ? a.params.saqueAprovada ?? 0
+      : projetarPrimeiroPayout(a, key).liquido
+    : 0;
   const delta = saque - custoDoDia;
   const cicloCusto = prev.prevCycleCost + custoDoDia;
   const deb = debitarCustoDoBonus(s, key, calc.custoSePassar);
