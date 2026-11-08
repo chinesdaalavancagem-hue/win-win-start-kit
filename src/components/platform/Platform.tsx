@@ -197,11 +197,11 @@ export function Platform({ mesasDisponiveis = MESAS_FUTUROS, leftMenuOpen = fals
 
       <aside className="pointer-events-none fixed left-1 top-[calc(50%-48px)] z-40 flex lg:left-2" aria-label="Menu de operações" style={{ top: typeof window !== "undefined" && window.innerWidth >= 1024 ? desktopRailTop : undefined }}>
         <div className="flex items-start gap-3">
-          <button type="button" aria-label={leftMenuOpen ? "Recolher menu" : "Expandir menu"} aria-expanded={leftMenuOpen} onClick={() => setLeftMenuOpen(!leftMenuOpen)}
+          <button type="button" data-wow-menu-trigger aria-label={leftMenuOpen ? "Recolher menu" : "Expandir menu"} aria-expanded={leftMenuOpen} onClick={() => setLeftMenuOpen(!leftMenuOpen)}
             className="pointer-events-auto flex size-9 items-center justify-center rounded-xl border border-cyan-700/70 bg-[#061322] sm:size-11 lg:size-12 text-cyan-300 shadow-xl hover:bg-blue-950">
             {leftMenuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
           </button>
-          {leftMenuOpen && <nav className="pointer-events-auto lg:max-h-[var(--rail-max-height)] lg:overflow-y-auto flex w-48 flex-col gap-1 rounded-xl border border-cyan-800/70 bg-[#061322] p-2 shadow-2xl" aria-label="Seções da plataforma">
+          {leftMenuOpen && <nav data-wow-menu-panel className="pointer-events-auto lg:max-h-[var(--rail-max-height)] lg:overflow-y-auto flex w-48 flex-col gap-1 rounded-xl border border-cyan-800/70 bg-[#061322] p-2 shadow-2xl" aria-label="Seções da plataforma">
             {sections.map(([k, l]) => (
               <button key={k} type="button" aria-pressed={tab !== "historico" && section === k} onClick={() => { setSection(k); if (tab === "historico") { mutate((s) => { s.activeTab = "ouro"; }); setActiveTabLabel("ouro"); } setLeftMenuOpen(false); }}
                 className={cn("rounded-lg px-3 py-2 text-left text-xs font-semibold transition-colors", tab !== "historico" && section === k ? "bg-emerald-500/20 text-emerald-300" : "text-blue-100 hover:bg-blue-950")}>{l}</button>
