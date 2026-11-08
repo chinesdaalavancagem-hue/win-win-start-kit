@@ -28,7 +28,18 @@ export const MESAS_FUTUROS: Record<MesaFuturos, { nome: string; consistencia: nu
   vest: { nome: "Vest Capital · GC-PERP", consistencia: 0, avaliacao: 1, payout: 1 },
 };
 export interface Asset { mesaConfig?: MesaPersonalizada; params: Params; days: Day[]; attempt: Attempt; bonus: Bonus; mesaFuturos?: MesaFuturos; diasPorMesa?: Partial<Record<MesaFuturos, Day[]>>; avaliacaoPorMesa?: Partial<Record<MesaFuturos, number>> }
+export interface ContinuacaoSaque {
+  origem: "ouro" | "nasdaq"; numero: number;
+  saldoAntes: number; saldoDepois: number; bruto: number; liquido: number;
+  resultadoAcumulado: number; divida: number;
+  forexProprio: number; forexBonus: number; bonusUtilizado: number; bonusCap: number;
+}
 export interface LogEntry {
+  /** Fotografia do encerramento; desfazer remove também esta continuidade. */
+  continuacaoSaque?: ContinuacaoSaque;
+  origemSaque?: "ouro" | "nasdaq";
+  resultadoMesa?: number;
+  prevAttempt?: Attempt;
   prevResultadosMesaEod?: Record<string, number>;
   revisadoEm?: number;
   id: number; ts: number; asset: AssetKey; day: number; tipo: "profit" | "aprovada" | "reprovada"; delta: number; saldoApos: number;
@@ -276,6 +287,13 @@ export function normalizeState(p: any): State {
   }
   if (p.assets.saque2.params.ativoReal !== "ouro" && p.assets.saque2.params.ativoReal !== "nasdaq") p.assets.saque2.params.ativoReal = "ouro";
   if (!Array.isArray(p.log)) p.log = [];
+  for (const e of p.log) {
+    if (e.continuacaoSaque !== undefined) {
+      const c = e.continuacaoSaque;
+      const campos = ["numero", "saldoAntes", "saldoDepois", "bruto", "liquido", "resultadoAcumulado", "divida", "forexProprio", "forexBonus", "bonusUtilizado", "bonusCap"];
+      if (!c || !["ouro", "nasdaq"].includes(c.origem) || !campos.every(k => Number.isFinite(c[k])) || !Number.isInteger(c.numero) || c.numero < 2) delete e.continuacaoSaque;
+    }
+  }
   if (typeof p.cfdBalance !== "number") p.cfdBalance = 0;
   if (!Number.isFinite(p.forexSaldoReal)) p.forexSaldoReal = ASSETS.reduce((v, k) => v + Math.max(0, p.assets[k].bonus.deposito || 0), 0);
   if (!p.counts) p.counts = { aprovadas: 0, reprovadas: 0 };
@@ -474,10 +492,12 @@ export function handleProfit(s: State, key: AssetKey, realCfd?: number) {
   const teorico = -calc.custoSePassar;
   if (typeof realCfd === "number" && Number.isFinite(realCfd)) calc.custoSePassar = -realCfd;
   const isLast = idx === a.days.length - 1;
-  const prev = { ...(a.attempt.resultadosMesaEod ? { prevResultadosMesaEod: {...a.attempt.resultadosMesaEod} } : {}), prevBonusTodos: Object.fromEntries(ASSETS.map((k) => [k, structuredClone(s.assets[k].bonus)])) as Record<AssetKey, Bonus>, prevForexSaldoReal: s.forexSaldoReal, prevCfdBalance: s.cfdBalance, prevCounts: { ...s.counts }, prevDayIndex: a.attempt.currentDayIndex, prevCycleCost: a.attempt.cycleCost || 0, prevCustoProprioAcumulado: a.attempt.custoProprioAcumulado || 0, prevTotalGasto: s.totalGasto, prevBonusDeposito: a.bonus.deposito || 0, prevBonusAtual: a.bonus.bonusAtual || 0 };
+  const prev = { prevAttempt: structuredClone(a.attempt), ...(a.attempt.resultadosMesaEod ? { prevResultadosMesaEod: {...a.attempt.resultadosMesaEod} } : {}), prevBonusTodos: Object.fromEntries(ASSETS.map((k) => [k, structuredClone(s.assets[k].bonus)])) as Record<AssetKey, Bonus>, prevForexSaldoReal: s.forexSaldoReal, prevCfdBalance: s.cfdBalance, prevCounts: { ...s.counts }, prevDayIndex: a.attempt.currentDayIndex, prevCycleCost: a.attempt.cycleCost || 0, prevCustoProprioAcumulado: a.attempt.custoProprioAcumulado || 0, prevTotalGasto: s.totalGasto, prevBonusDeposito: a.bonus.deposito || 0, prevBonusAtual: a.bonus.bonusAtual || 0 };
   const taxaCobrada = idx === 0 ? a.params.taxa : 0;
   const custoDoDia = calc.custoSePassar + taxaCobrada;
-  const saque = isLast ? a.params.saqueAprovada || 0 : 0;
+  const resultadoMesa = a.attempt.resultadosMesaEod?.[idx] ?? a.days[idx]!.meta;
+  const continuacao = key === "saque2" ? simularSaque2(s, 100, {indice: idx, custo: calc.custoSePassar, resultadoMesa}) : null;
+  const saque = isLast ? continuacao?.segundo.saque ?? a.params.saqueAprovada ?? 0 : 0;
   const delta = saque - custoDoDia;
   const cicloCusto = prev.prevCycleCost + custoDoDia;
   const deb = debitarCustoDoBonus(s, key, calc.custoSePassar);
@@ -490,7 +510,16 @@ export function handleProfit(s: State, key: AssetKey, realCfd?: number) {
   else { tipo = "profit"; a.attempt.currentDayIndex = idx + 1; a.attempt.cycleCost = cicloCusto; a.attempt.custoProprioAcumulado = custoProprioAcumulado; }
   s.cfdBalance += delta;
   s.totalGasto += taxaCobrada;
-  pushLog(s, { asset: key, day: idx + 1, tipo, delta, saldoApos: s.cfdBalance, custoDia: calc.custoSePassar, custoCiclo: cicloCusto, taxaCobrada, saque, proporcaoPropria: deb.proporcaoPropria, custoProprioDia, custoBonusDia: deb.custoBonus, custoProprioCiclo: isLast ? custoProprioAcumulado : null, resultadoReal, cfdTeorico: teorico, cfdReal: -calc.custoSePassar, spread: -calc.custoSePassar - teorico, ...prev });
+  const registroSaque = continuacao && isLast ? {
+    origem: continuacao.origemKey, numero: continuacao.numeroCiclo,
+    saldoAntes: continuacao.baseSaque2, saldoDepois: continuacao.baseSaque2 - continuacao.saque2Bruto!,
+    bruto: continuacao.saque2Bruto!, liquido: saque,
+    resultadoAcumulado: continuacao.resultadoAcumulado,
+    divida: Math.max(0, continuacao.dividaAnterior - continuacao.segundo.resultadoFinal),
+    forexProprio: continuacao.segundo.proprioRecuperavel, forexBonus: continuacao.segundo.bonusRestante,
+    bonusUtilizado: continuacao.bonusUtilizado + continuacao.segundo.bonusTotal, bonusCap: continuacao.segundo.bonusCap,
+  } satisfies ContinuacaoSaque : undefined;
+  pushLog(s, { ...(continuacao ? {origemSaque: continuacao.origemKey, resultadoMesa} : {}), ...(registroSaque ? {continuacaoSaque: registroSaque} : {}), asset: key, day: idx + 1, tipo, delta, saldoApos: s.cfdBalance, custoDia: calc.custoSePassar, custoCiclo: cicloCusto, taxaCobrada, saque, proporcaoPropria: deb.proporcaoPropria, custoProprioDia, custoBonusDia: deb.custoBonus, custoProprioCiclo: isLast ? custoProprioAcumulado : null, resultadoReal, cfdTeorico: teorico, cfdReal: -calc.custoSePassar, spread: -calc.custoSePassar - teorico, ...prev });
 }
 
 export function handleStop(s: State, key: AssetKey, realCfd?: number) {
@@ -502,7 +531,7 @@ export function handleStop(s: State, key: AssetKey, realCfd?: number) {
   if (typeof realCfd === "number" && Number.isFinite(realCfd)) calc.reprova = realCfd;
   const taxaCobrada = idx === 0 ? a.params.taxa : 0;
   const delta = calc.reprova - taxaCobrada;
-  const prev = { ...(a.attempt.resultadosMesaEod ? { prevResultadosMesaEod: {...a.attempt.resultadosMesaEod} } : {}), prevBonusTodos: Object.fromEntries(ASSETS.map((k) => [k, structuredClone(s.assets[k].bonus)])) as Record<AssetKey, Bonus>, prevForexSaldoReal: s.forexSaldoReal, prevCfdBalance: s.cfdBalance, prevCounts: { ...s.counts }, prevDayIndex: a.attempt.currentDayIndex, prevCycleCost: a.attempt.cycleCost || 0, prevCustoProprioAcumulado: a.attempt.custoProprioAcumulado || 0, prevTotalGasto: s.totalGasto, prevBonusDeposito: a.bonus.deposito || 0, prevBonusAtual: a.bonus.bonusAtual || 0 };
+  const prev = { prevAttempt: structuredClone(a.attempt), ...(a.attempt.resultadosMesaEod ? { prevResultadosMesaEod: {...a.attempt.resultadosMesaEod} } : {}), prevBonusTodos: Object.fromEntries(ASSETS.map((k) => [k, structuredClone(s.assets[k].bonus)])) as Record<AssetKey, Bonus>, prevForexSaldoReal: s.forexSaldoReal, prevCfdBalance: s.cfdBalance, prevCounts: { ...s.counts }, prevDayIndex: a.attempt.currentDayIndex, prevCycleCost: a.attempt.cycleCost || 0, prevCustoProprioAcumulado: a.attempt.custoProprioAcumulado || 0, prevTotalGasto: s.totalGasto, prevBonusDeposito: a.bonus.deposito || 0, prevBonusAtual: a.bonus.bonusAtual || 0 };
   const custoTotalCiclo = prev.prevCycleCost + taxaCobrada;
   if (calc.reprova >= 0) a.bonus.deposito = (a.bonus.deposito || 0) + calc.reprova;
   else debitarCustoDoBonus(s, key, -calc.reprova);
@@ -512,7 +541,7 @@ export function handleStop(s: State, key: AssetKey, realCfd?: number) {
   s.totalGasto += taxaCobrada;
   s.counts.reprovadas++;
   a.attempt = freshAttempt();
-  pushLog(s, { asset: key, day: idx + 1, tipo: "reprovada", delta, saldoApos: s.cfdBalance, bruto: calc.reprova, taxaCobrada, custoCiclo: custoTotalCiclo, proporcaoPropria: 1, custoProprioDia: 0, custoBonusDia: 0, custoProprioCiclo: prev.prevCustoProprioAcumulado, resultadoReal, cfdTeorico: teorico, cfdReal: calc.reprova, spread: calc.reprova - teorico, ...prev });
+  pushLog(s, { ...(key === "saque2" ? {origemSaque: a.params.ativoReal === "nasdaq" ? "nasdaq" as const : "ouro" as const} : {}), asset: key, day: idx + 1, tipo: "reprovada", delta, saldoApos: s.cfdBalance, bruto: calc.reprova, taxaCobrada, custoCiclo: custoTotalCiclo, proporcaoPropria: 1, custoProprioDia: 0, custoBonusDia: 0, custoProprioCiclo: prev.prevCustoProprioAcumulado, resultadoReal, cfdTeorico: teorico, cfdReal: calc.reprova, spread: calc.reprova - teorico, ...prev });
 }
 
 export function undoLast(s: State) {
@@ -525,6 +554,7 @@ export function undoLast(s: State) {
   if (last.prevCounts) s.counts = last.prevCounts;
   if (typeof last.prevTotalGasto === "number") s.totalGasto = last.prevTotalGasto;
   const a = s.assets[last.asset];
+  if (last.prevAttempt) a.attempt = structuredClone(last.prevAttempt);
   if (last.prevResultadosMesaEod) a.attempt.resultadosMesaEod = {...last.prevResultadosMesaEod};
   if (typeof last.prevDayIndex === "number") a.attempt.currentDayIndex = last.prevDayIndex;
   if (typeof last.prevCycleCost === "number") a.attempt.cycleCost = last.prevCycleCost;
@@ -742,9 +772,9 @@ export function calcCaixaCiclo(a: Asset, key: AssetKey, bonusPct: number, inicio
 
 
 /** Continuidade apenas calculada: não grava saldo, bônus, histórico ou depósitos reais. */
-export function simularSaque2(s: State, bonusPct = 100) {
+export function simularSaque2(s: State, bonusPct = 100, operacao?: {indice: number; custo: number; resultadoMesa: number}) {
   const segundo = s.assets.saque2;
-  const origemKey = segundo.params.ativoReal === "nasdaq" ? "nasdaq" : "ouro";
+  const origemKey: "ouro" | "nasdaq" = segundo.params.ativoReal === "nasdaq" ? "nasdaq" : "ouro";
   const origem = s.assets[origemKey];
   const payout = projetarPrimeiroPayout(origem, origemKey);
   const primeiro = calcCaixaCiclo(origem, origemKey, bonusPct);
@@ -753,30 +783,50 @@ export function simularSaque2(s: State, bonusPct = 100) {
   const mesa = origem.mesaFuturos ?? "tradefive";
   // Valores relativos ao saldo nominal: assim 25K e 50K usam a mesma regra.
   const pisoTravado = mesa === "topstep" ? 0 : mesa === "lucid" || mesa === "tradefive" ? 100 : undefined;
-  let saldoMesa = lucroMesa - retirada;
+  const anteriores = s.log.filter(e => e.asset === "saque2" && e.origemSaque === origemKey);
+  const fechamento = [...anteriores].reverse().find(e => e.tipo !== "profit");
+  const ultimo = fechamento?.tipo === "aprovada" ? fechamento.continuacaoSaque : undefined;
+  const numeroCiclo = ultimo ? ultimo.numero + 1 : 2;
+  const saldoMesaInicial = ultimo?.saldoDepois ?? lucroMesa - retirada;
+  const resultadoAnterior = ultimo?.resultadoAcumulado ?? primeiro.resultadoFinal;
+  const dividaAnterior = ultimo?.divida ?? Math.max(0, -primeiro.resultadoFinal);
+  const forexProprioInicial = ultimo?.forexProprio ?? primeiro.proprioRecuperavel;
+  const forexBonusInicial = ultimo?.forexBonus ?? primeiro.bonusRestante;
+  const bonusUtilizado = ultimo?.bonusUtilizado ?? primeiro.bonusTotal;
+  const diasRegistrados = anteriores.filter(e => e.tipo === "profit" && (!fechamento || e.id > fechamento.id));
+  const resultados = {...segundo.attempt.resultadosMesaEod};
+  for (const e of diasRegistrados) if (Number.isFinite(e.resultadoMesa)) resultados[e.day - 1] = e.resultadoMesa!;
+  if (operacao) resultados[operacao.indice] = operacao.resultadoMesa;
+  let saldoMesa = saldoMesaInicial;
   const limites = segundo.days.map((d, i) => {
     const folga = pisoTravado === undefined ? dayMll(segundo, d) : Math.max(0, Math.round((saldoMesa - pisoTravado) * 100) / 100);
-    saldoMesa += segundo.attempt.resultadosMesaEod?.[i] ?? d.meta;
+    saldoMesa += resultados[i] ?? d.meta;
     return folga;
   });
   // Transporta o resultado próprio líquido: o payout já recupera custos do ciclo 1.
   // Perda coberta pelo bônus não é dívida do usuário; saldo CFD restante não é perda.
   // Resultado positivo do ciclo 1 não gera crédito para as metas do ciclo 2.
   // Apenas o déficit próprio não recuperado pelo primeiro saque é transportado.
-  const divida = Math.max(0, -primeiro.resultadoFinal);
+  const divida = dividaAnterior;
   const calcs = computeAssetCalcs(segundo, "saque2", {divida, limites});
-  const lucroSegundoCiclo = segundo.days.slice(0, 5).reduce((total, d, i) =>
-    total + (segundo.attempt.resultadosMesaEod?.[i] ?? d.meta), 0);
-  const baseSaque2 = Math.max(0, lucroMesa - retirada + lucroSegundoCiclo);
-  const saque2Bruto = mesa === "lucid" ? Math.min(2000, Math.round(baseSaque2 * 0.5 * 100) / 100) : null;
-  const saque2Liquido = saque2Bruto === null ? undefined : Math.round(saque2Bruto * 0.9 * 100) / 100;
-  const segundoCaixa = calcCaixaCiclo({...segundo, bonus: {...segundo.bonus, bonusCap: origem.bonus.bonusCap}}, "saque2", bonusPct, {
-    proprio: primeiro.proprioRecuperavel, bonus: primeiro.bonusRestante, bonusUtilizado: primeiro.bonusTotal,
-  }, calcs, saque2Liquido);
-  return { origemKey, primeiro, segundo: segundoCaixa, calcs, limites, lucroMesa, retirada, lucroSegundoCiclo, baseSaque2, saque2Bruto, saque2Liquido,
-    resultadoAcumulado: primeiro.resultadoFinal + segundoCaixa.resultadoFinal };
+  // Os dias efetivamente cadastrados compõem o ciclo; por padrão são cinco.
+  const lucroSegundoCiclo = segundo.days.reduce((total, d, i) => total + (resultados[i] ?? d.meta), 0);
+  const baseSaque2 = Math.max(0, saldoMesaInicial + lucroSegundoCiclo);
+  const saque2Bruto = Math.min(mesa === "lucid" ? 2000 : Infinity, Math.round(baseSaque2 * 0.5 * 100) / 100);
+  const saque2Liquido = Math.round(saque2Bruto * 0.9 * 100) / 100;
+  const calcsCaixa = calcs.map((c, i) => {
+    const registro = diasRegistrados.find(e => e.day === i + 1);
+    const custo = operacao?.indice === i ? operacao.custo : typeof registro?.cfdReal === "number" ? -registro.cfdReal : c.custoSePassar;
+    return {...c, custoSePassar: custo};
+  });
+  const segundoCaixa = calcCaixaCiclo({...segundo, bonus: {...segundo.bonus, bonusCap: ultimo?.bonusCap ?? origem.bonus.bonusCap}}, "saque2", bonusPct, {
+    proprio: forexProprioInicial, bonus: forexBonusInicial, bonusUtilizado,
+  }, calcsCaixa, saque2Liquido);
+  return { numeroCiclo, saldoMesaInicial, resultadoAnterior, dividaAnterior, forexProprioInicial, forexBonusInicial, bonusUtilizado, origemKey, primeiro, segundo: segundoCaixa, calcs, limites, lucroMesa, retirada, lucroSegundoCiclo, baseSaque2, saque2Bruto, saque2Liquido,
+    resultadoAcumulado: resultadoAnterior + segundoCaixa.resultadoFinal };
 }
 
 export function calculosDoEstado(s: State, key: AssetKey): DayCalc[] {
   return key === "saque2" ? simularSaque2(s).calcs : computeAssetCalcs(s.assets[key], key);
 }
+

@@ -458,7 +458,7 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
   const visibleRows = isAdmin ? rows : rows.filter((r) => r.isCurrent);
   const displayedTotalMeta = isAdmin ? totalMeta : visibleRows.reduce((total, r) => total + r.d.meta, 0);
   // Soma das metas configuradas nos parâmetros para D1 a D5 Funded (índices 3–7), independentemente de operações realizadas.
-  const payoutProjetado = projetarPrimeiroPayout(asset, assetKey);
+  const payoutProjetado = continuidade ? {lucro: continuidade.baseSaque2, bruto: continuidade.saque2Bruto, liquido: continuidade.saque2Liquido} : projetarPrimeiroPayout(asset, assetKey);
   const lucroFunded = payoutProjetado.lucro;
   const displayedCum = isAdmin ? cum : visibleRows.reduce((total, r) => total + r.c.passa, saldo);
   const folga = asset.params.folgaExtraPct ?? 20;
@@ -472,10 +472,10 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
   return (
     <div>
       {continuidade && <div className="mb-4 rounded-xl border border-violet-400/30 bg-violet-950/20 p-3 text-sm text-slate-200">
-        <strong>Saque 2 vinculado ao ciclo 1 · {continuidade.origemKey === "ouro" ? "Gold" : "Nasdaq"}</strong>
-        <p className="mt-1 text-xs text-slate-300">Ciclo 1: lucro financiado ${fmt(continuidade.lucroMesa)} → saque de 50% ${fmt(continuidade.retirada)}${asset.mesaFuturos === "lucid" ? " (teto bruto US$ 2.000)" : ""} → recebe 90% ${fmt(continuidade.primeiro.saque)} − taxa ${fmt(continuidade.primeiro.taxa)} − perda própria no Forex ${fmt(continuidade.primeiro.perdaPropriaTotal)} = resultado {fmtSigned(continuidade.primeiro.resultadoFinal)}. Somente eventual prejuízo não recuperado entra como dívida no Saque 2; se houver lucro no ciclo 1, a dívida inicial do Saque 2 é zero, sem crédito adicional.</p>
-        {continuidade.saque2Bruto !== null && <p className="mt-1 text-xs text-violet-200">Saque 2: lucro mantido na mesa + novos resultados do ciclo = ${fmt(continuidade.baseSaque2)} · 50% limitado a US$ 2.000 = ${fmt(continuidade.saque2Bruto)} bruto · split 90% = ${fmt(continuidade.saque2Liquido ?? 0)} líquido. Valor projetado, sujeito à elegibilidade da Lucid.</p>}
-        <p className="mt-1 text-xs text-slate-300">Projeção após o primeiro saque: Forex próprio ${fmt(continuidade.primeiro.proprioRecuperavel)} · bônus ${fmt(continuidade.primeiro.bonusRestante)} · folga inicial na mesa ${fmt(continuidade.limites[0] ?? 0)}. Alterações no ciclo 1 recalculam esta simulação. Limites manuais dos cards continuam valendo.</p>
+        <strong>Saque 2 · Ciclo {continuidade.numeroCiclo} · {continuidade.origemKey === "ouro" ? "Gold" : "Nasdaq"}</strong>
+        <p className="mt-1 text-xs text-slate-300">Saldo mantido na mesa: ${fmt(continuidade.saldoMesaInicial)} + lucro deste ciclo: ${fmt(continuidade.lucroSegundoCiclo)} = base do saque: ${fmt(continuidade.baseSaque2)}.</p>
+        <p className="mt-1 text-xs text-violet-200">Saque bruto: ${fmt(continuidade.saque2Bruto)} · recebe 90%: ${fmt(continuidade.saque2Liquido)} · fica na mesa: ${fmt(continuidade.baseSaque2 - continuidade.saque2Bruto)}. Ao registrar o último Profit, a mesma aba avança para o próximo ciclo.</p>
+        <p className="mt-1 text-xs text-slate-300">Forex próprio projetado na abertura: ${fmt(continuidade.forexProprioInicial)} · bônus: ${fmt(continuidade.forexBonusInicial)} · dívida anterior não recuperada: ${fmt(continuidade.dividaAnterior)} · folga inicial na mesa: ${fmt(continuidade.limites[0] ?? 0)}. Limites manuais dos cards continuam valendo. Saques são projeções, sujeitos às regras da mesa.</p>
         {(continuidade.limites[0] ?? 0) <= 0 && <p className="mt-2 text-xs text-amber-300">O saque projetado deixa a conta no piso ou abaixo dele. Reduza o débito do saque ou reveja os resultados do ciclo 1 antes de simular a continuidade.</p>}
       </div>}
       {section === "parametros" && (
@@ -604,12 +604,12 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
         <section aria-label="Meta geral — projeção de lucro dos cinco dias Funded">
           <div className="mb-3 rounded-2xl border border-cyan-900/70 bg-gradient-to-r from-[#0a1929] to-[#07121e] px-3 py-3 shadow-lg sm:px-4">
             <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-              <p className="flex items-center gap-2 text-xs font-semibold text-blue-100/75"><Target className="size-4 text-cyan-400" />Meta Funded · D1–D5</p>
+              <p className="flex items-center gap-2 text-xs font-semibold text-blue-100/75"><Target className="size-4 text-cyan-400" />{continuidade ? `Meta geral · Ciclo ${continuidade.numeroCiclo}` : "Meta Funded · D1–D5"}</p>
               <span className="rounded-full border border-cyan-800/60 bg-cyan-950/40 px-2 py-0.5 text-[10px] text-cyan-200/80">Projeção pelas metas/resultados</span>
             </div>
             <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1.1fr_1.1fr] sm:items-stretch">
               <div className="flex items-center justify-between gap-2 rounded-lg border border-cyan-900/40 bg-[#071423]/70 px-3 py-2 sm:block">
-                <p className="text-[10px] text-blue-100/60">Lucro total previsto</p>
+                <p className="text-[10px] text-blue-100/60">{continuidade ? "Saldo anterior + lucro do ciclo" : "Lucro total previsto"}</p>
                 <p className="font-mono text-xl font-bold tracking-tight text-slate-100 sm:mt-1 sm:text-2xl">$ {fmt(lucroFunded)}</p>
               </div>
               <div className="grid grid-cols-2 gap-2 sm:col-span-2">
@@ -729,9 +729,8 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
         <div className="min-w-0 rounded-xl border border-[#18324e] bg-gradient-to-br from-[#0d1b2b] to-[#080f1a] p-3 sm:p-4">
           <NumField cockpit label={<><Target className="h-3.5 w-3.5 text-blue-400" />Meta $</>} value={d.meta} onChange={setD("meta")} />
           <p className="mt-2 font-mono text-[11px] text-muted-foreground">{fmt(row.ticks)} ticks</p>
-          {projecao && <div className="mt-1.5 space-y-1">
+          {(projecao || assetKey === "saque2") && <div className="mt-1.5 space-y-1">
             {campoEod(String(i), "Resultado líquido do dia ($)")}
-            {assetKey === "saque2" && i === 0 && campoEod("posSaque", "Saldo após o 1º saque ($)")}
           </div>}
         </div>
         <div className="min-w-0 rounded-xl border border-[#18324e] bg-gradient-to-br from-[#0d1b2b] to-[#080f1a] p-3 sm:p-4">
@@ -1106,6 +1105,10 @@ function LogList({ state }: { state: State }) {
           const p = e.resultadoReal + tx;
           extra += ` · profit = líquido ${e.resultadoReal >= 0 ? "+$" : "-$"}${fmt(Math.abs(e.resultadoReal))} + taxa mesa +$${fmt(tx)} = ${p >= 0 ? "+$" : "-$"}${fmt(Math.abs(p))}`;
         }
+        if (e.continuacaoSaque) {
+          const p = e.continuacaoSaque;
+          extra += ` · ciclo ${p.numero}: base mesa $${fmt(p.saldoAntes)}, saque bruto $${fmt(p.bruto)}, recebido $${fmt(p.liquido)}, saldo para ciclo ${p.numero + 1} $${fmt(p.saldoDepois)}`;
+        }
         return (
           <div key={e.id} className="flex flex-wrap items-start gap-2 p-3 font-mono text-xs">
             <span className={cn("rounded px-1.5 py-0.5 text-[10px]", e.asset === "ouro" ? "bg-brand-gold/20 text-brand-gold" : e.asset === "saque2" ? "bg-brand-violet/20 text-brand-violet" : "bg-primary/20 text-primary")}>{ASSET_NAME[e.asset]}</span>
@@ -1437,7 +1440,7 @@ function CaixaPanel({ asset, state, bancasGlobais, bancaAtivaId, assetKey, bonus
     ["Saldo próprio recuperável", r.proprioRecuperavel, "text-emerald-300", "Dinheiro que sobra no CFD e pode ser sacado"],
     ["Bônus recebido no ciclo", r.bonusTotal, "text-amber-300", `Limitado ao teto de ${fmt(r.bonusCap)}`],
     ["Recuperação total no fim", r.recuperado, "text-emerald-300", `Saque da mesa ${fmt(r.saque)} + saldo próprio recuperável`],
-    ["Resultado do ciclo", r.resultadoFinal, r.resultadoFinal >= 0 ? "text-emerald-300" : "text-rose-300", continuidade ? "Saque 2 menos as perdas próprias e a taxa deste ciclo; saldo herdado não é lucro novo" : "Valor recuperado menos o caixa próprio utilizado"],
+    ["Resultado do ciclo", r.resultadoFinal, r.resultadoFinal >= 0 ? "text-emerald-300" : "text-rose-300", continuidade ? "Payout menos as perdas próprias e a taxa deste ciclo; saldo herdado não é lucro novo" : "Valor recuperado menos o caixa próprio utilizado"],
   ];
   const money = (value: number) => `${value < 0 ? "−" : ""}$${fmt(Math.abs(value))}`;
   return (
@@ -1461,9 +1464,9 @@ function CaixaPanel({ asset, state, bancasGlobais, bancaAtivaId, assetKey, bonus
       </header>
 
       {continuidade && <div className="rounded-xl border border-violet-400/30 p-4 text-sm">
-        <p>Resultado do ciclo 1: <strong>{money(continuidade.primeiro.resultadoFinal)}</strong></p>
-        <p>Resultado dos dois ciclos: <strong>{money(continuidade.resultadoAcumulado)}</strong></p>
-        <p className="mt-1 text-xs text-slate-400">O saldo próprio e o bônus remanescentes continuam no Forex. O primeiro saque fica fora da corretora. Não há novo bônus sobre o saldo herdado; o teto já utilizado é descontado.</p>
+        <p>Resultado acumulado anterior: <strong>{money(continuidade.resultadoAnterior)}</strong></p>
+        <p>Resultado acumulado até este ciclo: <strong>{money(continuidade.resultadoAcumulado)}</strong></p>
+        <p className="mt-1 text-xs text-slate-400">O saldo próprio e o bônus remanescentes continuam no Forex. Os saques da mesa ficam fora da corretora. Não há novo bônus sobre o saldo herdado; o teto já utilizado é descontado.</p>
       </div>}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {items.map(([label, value, tone, helper], index) => (
@@ -1531,11 +1534,12 @@ function CaixaPanel({ asset, state, bancasGlobais, bancaAtivaId, assetKey, bonus
           <li>• O total depositado no CFD é margem de garantia, não perda total. As perdas são separadas entre depósito próprio e bônus; o saldo próprio que sobra permanece recuperável.</li>
           <li>• Cada dia precisa no CFD: margem × (1 + stop out) + a perda do CFD se a mesa passar. Só se deposita o que falta sobre o saldo que já está lá.</li>
           <li>• Bônus de ${fmt(parseNum(bonusPct))}% sobre cada depósito, até o teto de $${fmt(r.bonusCap)}. A perda consome primeiro o seu dinheiro e depois o bônus.</li>
-          <li>• {continuidade ? "Este ciclo começa com o saldo próprio e o bônus finais do ciclo 1. Seu resultado desconta o saldo próprio herdado, para não contá-lo como lucro novo." : "O ciclo começa com a corretora zerada; o saldo atual da conta não entra na conta."}</li>
+          <li>• {continuidade ? "Este ciclo começa com o saldo próprio e o bônus finais do ciclo anterior. Seu resultado desconta o saldo próprio herdado, para não contá-lo como lucro novo." : "O ciclo começa com a corretora zerada; o saldo atual da conta não entra na conta."}</li>
           <li>• No fim, você recupera o saque da mesa e o depósito próprio que sobrou no CFD. O bônus não pode ser sacado.</li>
         </ul>
       </details>
     </section>
   );
 }
+
 

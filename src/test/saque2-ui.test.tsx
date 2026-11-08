@@ -1,4 +1,4 @@
-import {render,screen,fireEvent} from '@testing-library/react';
+import {render,screen,fireEvent,waitFor} from '@testing-library/react';
 import {describe,it,expect,vi} from 'vitest';
 import {Platform} from '../components/platform/Platform';
 import {defaultState} from '../lib/platform/engine';
@@ -9,10 +9,10 @@ describe('continuidade visível no Saque 2',()=>{
   const initial=defaultState(); initial.activeTab='saque2';
   const original=JSON.stringify(initial), save=vi.fn(async()=>true);
   render(<Platform load={async()=>original} save={save} isAdmin={true} officialAcceptedAt={null}/>);
-  expect(await screen.findByText('Saque 2 vinculado ao ciclo 1 · Gold')).toBeInTheDocument();
-  expect(screen.getByText(/Projeção após o primeiro saque/)).toBeInTheDocument();
+  expect(await screen.findByText('Saque 2 · Ciclo 2 · Gold')).toBeInTheDocument();
+  expect(screen.getByText(/Forex próprio projetado na abertura/)).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button',{name:'Gold'}));
-  expect(screen.queryByText('Saque 2 vinculado ao ciclo 1 · Gold')).not.toBeInTheDocument();
+  expect(screen.queryByText('Saque 2 · Ciclo 2 · Gold')).not.toBeInTheDocument();
   expect(JSON.stringify(initial)).toBe(original);
  });
  it('usa na continuidade o recebimento exibido em Meta geral, não o saque manual antigo',async()=>{
@@ -24,7 +24,36 @@ describe('continuidade visível no Saque 2',()=>{
   expect(screen.getByText('$ 1.400')).toBeInTheDocument();
   expect(screen.getByText('$ 1.260')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button',{name:'Saque 2'}));
-  expect(screen.getByText(/Ciclo 1: lucro financiado.*2.800.*1.400.*1.260/)).toBeInTheDocument();
+  expect(screen.getByText(/Saldo mantido na mesa.*1.400.*base do saque/)).toBeInTheDocument();
+ });
+
+ it('registra cinco Profits, salva o saque e exibe a Meta geral do ciclo seguinte',async()=>{
+  HTMLElement.prototype.scrollIntoView=vi.fn();
+  const initial=defaultState();initial.activeTab='saque2';
+  const a=initial.assets.ouro;a.mesaFuturos='lucid';a.params.mll=1000;
+  a.days=[625,625,2000,200,200,200,200].map(meta=>({mnq:10,lotes:.21,meta}));
+  initial.assets.saque2.days=Array.from({length:5},()=>({mnq:2,lotes:.03,meta:200}));
+  const save=vi.fn(async(_v:string)=>true);
+  render(<Platform load={async()=>JSON.stringify(initial)} save={save} isAdmin={true} officialAcceptedAt={null} mesaAtiva="lucid" leftMenuOpen={true}/>);
+  await screen.findByText('Saque 2 · Ciclo 2 · Gold');
+  fireEvent.click(screen.getByRole('button',{name:'Meta geral'}));
+  expect(screen.getByText('$ 2.400')).toBeInTheDocument();
+  expect(screen.getByText('$ 1.200')).toBeInTheDocument();
+  expect(screen.getByText('$ 1.080')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button',{name:'Operações'}));
+  for(let i=0;i<5;i++) {
+    fireEvent.click(screen.getByRole('button',{name:'✅ Profit (bateu a meta)'}));
+    fireEvent.click(screen.getByRole('button',{name:'confirmar'}));
+  }
+  expect(screen.getByText('Saque 2 · Ciclo 3 · Gold')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button',{name:'Meta geral'}));
+  expect(screen.getByText('$ 2.200')).toBeInTheDocument();
+  expect(screen.getByText('$ 1.100')).toBeInTheDocument();
+  expect(screen.getByText('$ 990')).toBeInTheDocument();
+  await waitFor(()=>expect(save).toHaveBeenCalled(),{timeout:2000});
+  const saved=JSON.parse(save.mock.calls.at(-1)![0]!);
+  expect(saved.log.at(-1).continuacaoSaque.saldoDepois).toBe(1200);
  });
 
 });
+

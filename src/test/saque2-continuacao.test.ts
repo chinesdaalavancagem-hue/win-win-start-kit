@@ -1,5 +1,5 @@
 import {describe,it,expect} from 'vitest';
-import {defaultState, simularSaque2, computeAssetCalcs, normalizeState, calcCaixaCiclo, projetarPrimeiroPayout} from '../lib/platform/engine';
+import {handleProfit, undoLast, handleStop, defaultState, simularSaque2, computeAssetCalcs, normalizeState, calcCaixaCiclo, projetarPrimeiroPayout} from '../lib/platform/engine';
 function setup() {
   const s=defaultState();
   const a=s.assets.ouro;
@@ -78,7 +78,7 @@ describe('Saque 2 continua a projeção do ciclo 1',()=>{
     }
   });
   it('percentual de bônus recalcula o custo próprio herdado',()=>{
-    const s=setup(); const sem=simularSaque2(s,0), com=simularSaque2(s,100);
+    const s=setup(); s.assets.ouro.params.taxa=2000; const sem=simularSaque2(s,0), com=simularSaque2(s,100);
     expect(com.calcs[0]!.liquidoSeReprovar-sem.calcs[0]!.liquidoSeReprovar)
       .toBeCloseTo(sem.primeiro.perdaPropriaTotal-com.primeiro.perdaPropriaTotal);
   });
@@ -122,6 +122,7 @@ describe('Saque 2 continua a projeção do ciclo 1',()=>{
     const s=setup();
     s.assets.ouro.days[2]!.meta=4200;
     s.assets.ouro.mesaFuturos='mff';
+    s.assets.ouro.avaliacaoPorMesa={mff:2};
     expect(projetarPrimeiroPayout(s.assets.ouro,'ouro')).toEqual({lucro:5000,bruto:2500,liquido:2250});
   });
 
@@ -148,4 +149,55 @@ describe('Saque 2 continua a projeção do ciclo 1',()=>{
     expect(r.calcs[0]!.dividaHoje).toBeCloseTo(300);
   });
 
+  it('encerra Saque 2 e continua 3 e 4 na mesma aba, inclusive após recarregar',()=>{
+    let s=setup();
+    const antes=simularSaque2(s);
+    expect(antes.baseSaque2).toBe(2400);expect(antes.saque2Bruto).toBe(1200);expect(antes.saque2Liquido).toBe(1080);
+    for(let i=0;i<4;i++) handleProfit(s,'saque2');
+    expect(simularSaque2(s).numeroCiclo).toBe(2);
+    handleProfit(s,'saque2');
+    expect(s.log.at(-1)!.saque).toBe(1080);
+    expect(s.log.at(-1)!.continuacaoSaque?.saldoDepois).toBe(1200);
+    expect(s.assets.saque2.attempt.currentDayIndex).toBe(0);
+    s=normalizeState(JSON.parse(JSON.stringify(s)));
+    expect(simularSaque2(s).numeroCiclo).toBe(3);
+    expect(simularSaque2(s).baseSaque2).toBe(2200);
+    expect(simularSaque2(s).limites[0]).toBe(1100);
+    for(let i=0;i<5;i++) handleProfit(s,'saque2');
+    expect(s.log.at(-1)!.saque).toBe(990);
+    expect(simularSaque2(s).numeroCiclo).toBe(4);
+    expect(simularSaque2(s).saldoMesaInicial).toBe(1100);
+  });
+  it('desfazer o fechamento restaura D5 e não duplica o saque ao refazer',()=>{
+    const s=setup();for(let i=0;i<4;i++)handleProfit(s,'saque2');
+    const antes=structuredClone(s);
+    handleProfit(s,'saque2');undoLast(s);
+    expect(s).toEqual(antes);
+    expect(simularSaque2(s).numeroCiclo).toBe(2);
+    handleProfit(s,'saque2');
+    expect(s.log.filter(e=>e.continuacaoSaque)).toHaveLength(1);
+    expect(simularSaque2(s).numeroCiclo).toBe(3);
+  });
+  it('congela resultados registrados e preserva encerramentos após alterar metas',()=>{
+    const s=setup();s.assets.saque2.attempt.resultadosMesaEod={'0':250};
+    handleProfit(s,'saque2');s.assets.saque2.days[0]!.meta=900;
+    expect(simularSaque2(s).lucroSegundoCiclo).toBe(1050);
+    for(let i=0;i<4;i++)handleProfit(s,'saque2');
+    expect(s.log.at(-1)!.continuacaoSaque?.saldoDepois).toBe(1225);
+    s.assets.ouro.days[2]!.meta=99999;
+    expect(simularSaque2(s).saldoMesaInicial).toBe(1225);
+  });
+  it('não mistura continuidade de Gold e Nasdaq e um stop não gera payout',()=>{
+    const s=setup();for(let i=0;i<5;i++)handleProfit(s,'saque2');
+    s.assets.saque2.params.ativoReal='nasdaq';
+    expect(simularSaque2(s).numeroCiclo).toBe(2);
+    s.assets.saque2.params.ativoReal='ouro';
+    expect(simularSaque2(s).numeroCiclo).toBe(3);
+    handleStop(s,'saque2');
+    expect(s.log.at(-1)!.continuacaoSaque).toBeUndefined();
+    undoLast(s);
+    expect(simularSaque2(s).numeroCiclo).toBe(3);
+  });
+
 });
+
