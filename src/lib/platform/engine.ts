@@ -761,8 +761,9 @@ export function simularSaque2(s: State, bonusPct = 100) {
   });
   // Transporta o resultado próprio líquido: o payout já recupera custos do ciclo 1.
   // Perda coberta pelo bônus não é dívida do usuário; saldo CFD restante não é perda.
-  // Resultado positivo vira crédito, zero quita a dívida, negativo deixa só o déficit.
-  const divida = -primeiro.resultadoFinal;
+  // Resultado positivo do ciclo 1 não gera crédito para as metas do ciclo 2.
+  // Apenas o déficit próprio não recuperado pelo primeiro saque é transportado.
+  const divida = Math.max(0, -primeiro.resultadoFinal);
   const calcs = computeAssetCalcs(segundo, "saque2", {divida, limites});
   const lucroSegundoCiclo = segundo.days.slice(0, 5).reduce((total, d, i) =>
     total + (segundo.attempt.resultadosMesaEod?.[i] ?? d.meta), 0);
