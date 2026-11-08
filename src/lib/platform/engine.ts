@@ -13,8 +13,24 @@ export const dayMll = (a: Asset, d: Day) => (typeof d.mll === "number" && d.mll 
 export interface Params {
   /** Débito bruto da mesa no saque; ausente usa o recebimento esperado (legado). */
   saqueDebitadoMesa?: number;
+  /** Comissão total de entrada + saída por contrato; ausente mantém o legado sem desconto. */
+  comissaoPorContrato?: number;
   mnq: number; hfm: number; mll: number; saldoInicial: number; taxa: number; lucroDesejado: number;
   marginPerLot: number; stopoutPct: number; saqueAprovada: number; folgaExtraPct: number; ativoReal?: "ouro" | "nasdaq";
+}
+/** Meta do card é bruta: mantém o movimento de preço usado no hedge. */
+export function taxasMesaDia(a: Asset, d: Day): number {
+  if (a.mesaFuturos === "vest") return 0;
+  const taxa = a.params.comissaoPorContrato;
+  return typeof taxa === "number" && Number.isFinite(taxa) && taxa >= 0
+    ? Math.round(Math.max(0, d.mnq) * taxa * 100) / 100 : 0;
+}
+export function metaLiquidaDia(a: Asset, d: Day): number {
+  return Math.round((d.meta - taxasMesaDia(a, d)) * 100) / 100;
+}
+/** Resultado informado já é líquido; inclusive zero e prejuízo são preservados. */
+export function resultadoMesaDia(a: Asset, indice: number): number {
+  return a.attempt.resultadosMesaEod?.[indice] ?? metaLiquidaDia(a, a.days[indice]!);
 }
 export interface Attempt { resultadosMesaEod?: Record<string, number>; currentDayIndex: number; cycleCost: number; custoProprioAcumulado: number }
 export interface BonusLog { ts: number; tipo: "deposito" | "saque" | "reset" | "ajuste_credito" | "reinicio_ciclo"; valor: number; dia?: number; bonusGanho?: number; proporcao?: number; bonusReduzido?: number; depositoZerado?: number }
@@ -279,6 +295,7 @@ export function normalizeState(p: any): State {
     if (typeof a.attempt.custoProprioAcumulado !== "number") a.attempt.custoProprioAcumulado = 0;
     if (!a.bonus) a.bonus = freshBonus();
     if (a.params.saqueDebitadoMesa !== undefined && (!Number.isFinite(a.params.saqueDebitadoMesa) || a.params.saqueDebitadoMesa < 0)) delete a.params.saqueDebitadoMesa;
+    if (a.params.comissaoPorContrato !== undefined && (typeof a.params.comissaoPorContrato !== "number" || !Number.isFinite(a.params.comissaoPorContrato) || a.params.comissaoPorContrato < 0)) delete a.params.comissaoPorContrato;
     const d = defaultAssetsBase[k].params;
     if (typeof a.params.marginPerLot !== "number") a.params.marginPerLot = d.marginPerLot;
     if (typeof a.params.stopoutPct !== "number") a.params.stopoutPct = d.stopoutPct;
@@ -358,7 +375,7 @@ export function limitesTopstep(a: Asset, key: AssetKey, indice: number) {
   let saldo = posSaque ? resultados.posSaque ?? 0 : inicial;
   let piso = posSaque ? 0 : inicial - a.params.mll;
   for (let i = indice < avaliacao ? 0 : avaliacao; i < indice; i++) {
-    const resultado = resultados[i] ?? a.days[i]!.meta;
+    const resultado = resultadoMesaDia(a, i);
     saldo = Math.round((saldo + resultado) * 100) / 100;
     piso = Math.max(piso, Math.min(inicial, Math.round((saldo - a.params.mll) * 100) / 100));
   }
@@ -374,7 +391,7 @@ export function limitesTradeify(a: Asset, key: AssetKey, indice: number) {
   let piso = posSaque ? 50100 : 50000 - a.params.mll;
   let saldo = posSaque ? resultados.posSaque ?? piso : 50000;
   for (let i = financiada ? avaliacao : 0; i < indice; i++) {
-    saldo = Math.round((saldo + (resultados[i] ?? a.days[i]!.meta)) * 100) / 100;
+    saldo = Math.round((saldo + (resultadoMesaDia(a, i))) * 100) / 100;
     const novoPiso = Math.round((saldo - a.params.mll) * 100) / 100;
     piso = Math.max(piso, financiada ? Math.min(50100, novoPiso) : novoPiso);
   }
@@ -386,7 +403,7 @@ export function limitesLucid(a: Asset, key: AssetKey, indice: number) {
   const avaliacao = diasAvaliacaoAtivo(a, key);
   let saldo = 0, piso = -a.params.mll;
   for (let i = indice < avaliacao ? 0 : avaliacao; i < indice; i++) {
-    saldo = Math.round((saldo + (a.attempt.resultadosMesaEod?.[i] ?? a.days[i]!.meta)) * 100) / 100;
+    saldo = Math.round((saldo + (resultadoMesaDia(a, i))) * 100) / 100;
     piso = Math.max(piso, Math.min(100, saldo - a.params.mll));
   }
   return {saldo, piso, distancia: Math.max(0, Math.round((saldo - piso) * 100) / 100)};
@@ -401,7 +418,7 @@ export function lossLimitGoldProjetado(a: Asset, indice: number): number {
   if ((a.mesaFuturos ?? "tradefive") === "tradefive") return limitesTradeify(a, "ouro", indice).distancia;
   const avaliacao = diasAvaliacaoGold(a);
   if (indice <= avaliacao) return a.params.mll;
-  const metasAnteriores = a.days.slice(avaliacao, indice).reduce((soma, dia) => soma + (Number.isFinite(dia.meta) ? dia.meta : 0), 0);
+  const metasAnteriores = a.days.slice(avaliacao, indice).reduce((soma, _dia, i) => soma + resultadoMesaDia(a, avaliacao + i), 0);
   return Math.max(0, a.params.mll * (1 + metasAnteriores / 50000));
 }
 
@@ -495,7 +512,7 @@ export function handleProfit(s: State, key: AssetKey, realCfd?: number) {
   const prev = { prevAttempt: structuredClone(a.attempt), ...(a.attempt.resultadosMesaEod ? { prevResultadosMesaEod: {...a.attempt.resultadosMesaEod} } : {}), prevBonusTodos: Object.fromEntries(ASSETS.map((k) => [k, structuredClone(s.assets[k].bonus)])) as Record<AssetKey, Bonus>, prevForexSaldoReal: s.forexSaldoReal, prevCfdBalance: s.cfdBalance, prevCounts: { ...s.counts }, prevDayIndex: a.attempt.currentDayIndex, prevCycleCost: a.attempt.cycleCost || 0, prevCustoProprioAcumulado: a.attempt.custoProprioAcumulado || 0, prevTotalGasto: s.totalGasto, prevBonusDeposito: a.bonus.deposito || 0, prevBonusAtual: a.bonus.bonusAtual || 0 };
   const taxaCobrada = idx === 0 ? a.params.taxa : 0;
   const custoDoDia = calc.custoSePassar + taxaCobrada;
-  const resultadoMesa = a.attempt.resultadosMesaEod?.[idx] ?? a.days[idx]!.meta;
+  const resultadoMesa = resultadoMesaDia(a, idx);
   const continuacao = key === "saque2" ? simularSaque2(s, 100, {indice: idx, custo: calc.custoSePassar, resultadoMesa}) : null;
   const saque = isLast ? continuacao?.segundo.saque ?? a.params.saqueAprovada ?? 0 : 0;
   const delta = saque - custoDoDia;
@@ -719,7 +736,7 @@ export function calcAporteFracionado(o: { margem: number; stopoutPct: number; cu
 export function projetarPrimeiroPayout(a: Asset, key: AssetKey) {
   const avaliacao = diasAvaliacaoAtivo(a, key);
   const lucro = a.days.slice(avaliacao, avaliacao + 5).reduce((total, d, i) =>
-    total + (a.attempt.resultadosMesaEod?.[avaliacao + i] ?? d.meta), 0);
+    total + resultadoMesaDia(a, avaliacao + i), 0);
   const brutoSemTeto = Math.round(Math.max(0, lucro) * 0.5 * 100) / 100;
   const bruto = a.mesaFuturos === "lucid" ? Math.min(2000, brutoSemTeto) : brutoSemTeto;
   const liquido = Math.round(bruto * 0.9 * 100) / 100;
@@ -800,7 +817,7 @@ export function simularSaque2(s: State, bonusPct = 100, operacao?: {indice: numb
   let saldoMesa = saldoMesaInicial;
   const limites = segundo.days.map((d, i) => {
     const folga = pisoTravado === undefined ? dayMll(segundo, d) : Math.max(0, Math.round((saldoMesa - pisoTravado) * 100) / 100);
-    saldoMesa += resultados[i] ?? d.meta;
+    saldoMesa += resultados[i] ?? metaLiquidaDia(segundo, d);
     return folga;
   });
   // Transporta o resultado próprio líquido: o payout já recupera custos do ciclo 1.
@@ -810,7 +827,7 @@ export function simularSaque2(s: State, bonusPct = 100, operacao?: {indice: numb
   const divida = dividaAnterior;
   const calcs = computeAssetCalcs(segundo, "saque2", {divida, limites});
   // Os dias efetivamente cadastrados compõem o ciclo; por padrão são cinco.
-  const lucroSegundoCiclo = segundo.days.reduce((total, d, i) => total + (resultados[i] ?? d.meta), 0);
+  const lucroSegundoCiclo = segundo.days.reduce((total, d, i) => total + (resultados[i] ?? metaLiquidaDia(segundo, d)), 0);
   const baseSaque2 = Math.max(0, saldoMesaInicial + lucroSegundoCiclo);
   const saque2Bruto = Math.min(mesa === "lucid" ? 2000 : Infinity, Math.round(baseSaque2 * 0.5 * 100) / 100);
   const saque2Liquido = Math.round(saque2Bruto * 0.9 * 100) / 100;

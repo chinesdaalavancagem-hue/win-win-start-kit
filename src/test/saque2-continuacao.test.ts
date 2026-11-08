@@ -201,3 +201,55 @@ describe('Saque 2 continua a projeção do ciclo 1',()=>{
 
 });
 
+
+describe('comissões nas metas e ciclos',()=>{
+ it('separa 685 brutos em 625 líquidos sem reduzir o movimento no Forex',()=>{
+  const s=setup(), a=s.assets.ouro;
+  a.days.forEach(d=>{d.mnq=20;d.meta=685;});
+  const antes=computeAssetCalcs(a,'ouro')[0]!;
+  a.params.comissaoPorContrato=3;
+  const depois=computeAssetCalcs(a,'ouro')[0]!;
+  expect(depois.pontos).toBe(antes.pontos);
+  expect(depois.custoSePassar).toBe(antes.custoSePassar);
+  expect(projetarPrimeiroPayout(a,'ouro')).toEqual({lucro:3125,bruto:1562.5,liquido:1406.25});
+  a.days[2]!.mnq=10;
+  expect(projetarPrimeiroPayout(a,'ouro').lucro).toBe(3155);
+ });
+ it('usa líquido real, zero e prejuízo sem desconto repetido',()=>{
+  const s=setup(), a=s.assets.ouro;
+  a.days.forEach(d=>{d.mnq=20;d.meta=685;});a.params.comissaoPorContrato=3;
+  a.attempt.resultadosMesaEod={'2':625,'3':0,'4':-100};
+  expect(projetarPrimeiroPayout(a,'ouro').lucro).toBe(1775);
+ });
+ it('leva somente lucro líquido ao saldo retido e aos ciclos seguintes',()=>{
+  const s=setup(), a=s.assets.ouro, b=s.assets.saque2;
+  a.days.forEach(d=>{d.mnq=20;d.meta=685;});a.params.comissaoPorContrato=3;
+  b.params.comissaoPorContrato=3;b.days.forEach(d=>{d.mnq=20;d.meta=260;});
+  let r=simularSaque2(s);
+  expect(r.saldoMesaInicial).toBe(1562.5);expect(r.lucroSegundoCiclo).toBe(1000);
+  expect(r.baseSaque2).toBe(2562.5);expect(r.limites.slice(0,2)).toEqual([1462.5,1662.5]);
+  handleProfit(s,'saque2');expect(s.log.at(-1)?.resultadoMesa).toBe(200);
+  b.params.comissaoPorContrato=4;expect(simularSaque2(s).lucroSegundoCiclo).toBe(920);
+  for(let i=0;i<4;i++) handleProfit(s,'saque2');
+  r=simularSaque2(s);expect(r.numeroCiclo).toBe(3);
+  expect(r.saldoMesaInicial).toBe(1241.25);expect(r.lucroSegundoCiclo).toBe(900);
+ });
+ it('calcula a folga financiada com lucro após taxas',()=>{
+  const s=setup(), a=s.assets.ouro;
+  a.params.comissaoPorContrato=3;a.days[2]!.mnq=20;a.days[2]!.meta=2060;
+  expect(computeAssetCalcs(a,'ouro')[3]!.limiteDoCard).toBe(1900);
+ });
+ it('mantém backups antigos e ignora taxas inválidas ou comissões CME na Vest',()=>{
+  const s=setup(), antes=projetarPrimeiroPayout(s.assets.ouro,'ouro');
+  for(const invalid of [-1,Infinity,NaN]) {
+   s.assets.ouro.params.comissaoPorContrato=invalid;
+   expect(normalizeState(s).assets.ouro.params.comissaoPorContrato).toBeUndefined();
+   expect(projetarPrimeiroPayout(s.assets.ouro,'ouro')).toEqual(antes);
+  }
+  s.assets.ouro.params.comissaoPorContrato=3;
+  expect(normalizeState(JSON.parse(JSON.stringify(s))).assets.ouro.params.comissaoPorContrato).toBe(3);
+  s.assets.ouro.mesaFuturos='vest';const comTaxa=projetarPrimeiroPayout(s.assets.ouro,'ouro');
+  delete s.assets.ouro.params.comissaoPorContrato;
+  expect(projetarPrimeiroPayout(s.assets.ouro,'ouro')).toEqual(comTaxa);
+ });
+});

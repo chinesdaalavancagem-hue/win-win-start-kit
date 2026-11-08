@@ -57,3 +57,19 @@ describe('continuidade visível no Saque 2',()=>{
 
 });
 
+
+it('edita a comissão, recalcula Meta geral e salva o parâmetro',async()=>{
+ const initial=defaultState();initial.activeTab='ouro';
+ const a=initial.assets.ouro;a.mesaFuturos='lucid';
+ a.days=Array.from({length:7},()=>({mnq:20,lotes:.21,meta:685}));
+ const save=vi.fn(async(_v:string)=>true);
+ render(<Platform load={async()=>JSON.stringify(initial)} save={save} isAdmin={true} officialAcceptedAt={null} mesaAtiva="lucid" leftMenuOpen={true}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Meta geral'}));
+ const field=screen.getByRole('textbox',{name:/Taxa por contrato/});
+ fireEvent.change(field,{target:{value:'3'}});fireEvent.blur(field);
+ expect(screen.getByText('$ 3.125')).toBeInTheDocument();
+ expect(screen.getByText('$ 1.562,5')).toBeInTheDocument();
+ await waitFor(()=>expect(save.mock.calls.some(([v])=>JSON.parse(v).assets.ouro.params.comissaoPorContrato===3)).toBe(true));
+ fireEvent.click(screen.getByRole('button',{name:'Operações'}));
+ expect(screen.getAllByText('Taxas: $60 · Líquido previsto: $625')).toHaveLength(7);
+});
