@@ -473,7 +473,8 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
     <div>
       {continuidade && <div className="mb-4 rounded-xl border border-violet-400/30 bg-violet-950/20 p-3 text-sm text-slate-200">
         <strong>Saque 2 vinculado ao ciclo 1 · {continuidade.origemKey === "ouro" ? "Gold" : "Nasdaq"}</strong>
-        <p className="mt-1 text-xs text-slate-300">Ciclo 1: lucro financiado ${fmt(continuidade.lucroMesa)} → saque de 50% ${fmt(continuidade.retirada)} → recebe 90% ${fmt(continuidade.primeiro.saque)} − taxa ${fmt(continuidade.primeiro.taxa)} − perda própria no Forex ${fmt(continuidade.primeiro.perdaPropriaTotal)} = resultado {fmtSigned(continuidade.primeiro.resultadoFinal)}. Esse resultado entra no cálculo do ganho do ciclo 2.</p>
+        <p className="mt-1 text-xs text-slate-300">Ciclo 1: lucro financiado ${fmt(continuidade.lucroMesa)} → saque de 50% ${fmt(continuidade.retirada)}${asset.mesaFuturos === "lucid" ? " (teto bruto US$ 2.000)" : ""} → recebe 90% ${fmt(continuidade.primeiro.saque)} − taxa ${fmt(continuidade.primeiro.taxa)} − perda própria no Forex ${fmt(continuidade.primeiro.perdaPropriaTotal)} = resultado {fmtSigned(continuidade.primeiro.resultadoFinal)}. Esse resultado entra no cálculo do ganho do ciclo 2.</p>
+        {continuidade.saque2Bruto !== null && <p className="mt-1 text-xs text-violet-200">Saque 2: lucro mantido na mesa + novos resultados do ciclo = ${fmt(continuidade.baseSaque2)} · 50% limitado a US$ 2.000 = ${fmt(continuidade.saque2Bruto)} bruto · split 90% = ${fmt(continuidade.saque2Liquido ?? 0)} líquido. Valor projetado, sujeito à elegibilidade da Lucid.</p>}
         <p className="mt-1 text-xs text-slate-300">Projeção após o primeiro saque: Forex próprio ${fmt(continuidade.primeiro.proprioRecuperavel)} · bônus ${fmt(continuidade.primeiro.bonusRestante)} · folga inicial na mesa ${fmt(continuidade.limites[0] ?? 0)}. Alterações no ciclo 1 recalculam esta simulação. Limites manuais dos cards continuam valendo.</p>
         {(continuidade.limites[0] ?? 0) <= 0 && <p className="mt-2 text-xs text-amber-300">O saque projetado deixa a conta no piso ou abaixo dele. Reduza o débito do saque ou reveja os resultados do ciclo 1 antes de simular a continuidade.</p>}
       </div>}
@@ -562,8 +563,8 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
               <div className="rounded-xl border border-[#18324e] bg-[#091827] p-3"><NumField label="Lucro líquido desejado ($, sem a taxa)" value={asset.params.lucroDesejado} onChange={setP("lucroDesejado")} /></div>
               <div className="rounded-xl border border-[#183b43] bg-[#091a20] p-3"><NumField label="Margem exigida por 1 lote ($)" value={asset.params.marginPerLot} onChange={setP("marginPerLot")} /></div>
               <div className="rounded-xl border border-[#18324e] bg-[#091827] p-3"><NumField label="Stop-out da corretora (%)" value={asset.params.stopoutPct} onChange={setP("stopoutPct")} /></div>
-              <div className="rounded-xl border border-[#183b43] bg-[#091a20] p-3"><NumField label="Saque no registro da operação ($)" value={asset.params.saqueAprovada} onChange={setP("saqueAprovada")} helper="Valor creditado ao registrar a aprovação. A simulação do primeiro payout usa automaticamente a Meta geral × 50% × 90%." /></div>
-              {assetKey !== "saque2" && mesaAtiva !== "vest" && <div className="rounded-xl border border-[#183b43] bg-[#091a20] p-3"><NumField label="1º payout líquido projetado ($)" value={payoutProjetado.liquido} readOnly helper={`Meta geral $${fmt(payoutProjetado.lucro)} × 50% × 90%. Débito projetado na mesa: $${fmt(payoutProjetado.bruto)}.`} /></div>}
+              <div className="rounded-xl border border-[#183b43] bg-[#091a20] p-3"><NumField label="Saque no registro da operação ($)" value={asset.params.saqueAprovada} onChange={setP("saqueAprovada")} helper={mesaAtiva === "lucid" ? "Valor registrado manualmente. A projeção Lucid calcula 50% do lucro, limitada a US$ 2.000 brutos, com split de 90%." : "Valor creditado ao registrar a aprovação. A simulação do primeiro payout usa automaticamente a Meta geral × 50% × 90%."} /></div>
+              {assetKey !== "saque2" && mesaAtiva !== "vest" && <div className="rounded-xl border border-[#183b43] bg-[#091a20] p-3"><NumField label="1º payout líquido projetado ($)" value={payoutProjetado.liquido} readOnly helper={mesaAtiva === "lucid" ? `Meta geral ${fmt(payoutProjetado.lucro)} × 50% (teto de US$ 2.000 brutos) × 90%. Débito projetado na mesa: ${fmt(payoutProjetado.bruto)}.` : `Meta geral ${fmt(payoutProjetado.lucro)} × 50% × 90%. Débito projetado na mesa: ${fmt(payoutProjetado.bruto)}.`} /></div>}
               <div className="rounded-xl border border-[#18324e] bg-[#091827] p-3"><NumField label="Folga extra de segurança p/ saque (%)" value={asset.params.folgaExtraPct} onChange={setP("folgaExtraPct")} /></div>
             </div>
           </section>
@@ -613,7 +614,7 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
               </div>
               <div className="grid grid-cols-2 gap-2 sm:col-span-2">
                 <div className="min-w-0 rounded-lg border border-slate-700/40 bg-slate-800/35 px-2.5 py-2">
-                  <p className="text-[10px] leading-tight text-blue-100/65">1º saque · 50%</p>
+                  <p className="text-[10px] leading-tight text-blue-100/65">1º saque · 50%{mesaAtiva === "lucid" ? " (máx. US$ 2.000)" : ""}</p>
                   <p className="mt-1 font-mono text-lg font-bold text-slate-100">$ {fmt(payoutProjetado.bruto)}</p>
                 </div>
                 <div className="min-w-0 rounded-lg border border-emerald-700/40 bg-emerald-950/30 px-2.5 py-2">
@@ -622,7 +623,7 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
                 </div>
               </div>
             </div>
-            <p className="mt-2 flex items-start gap-1.5 text-[10px] leading-snug text-blue-100/55"><span className="shrink-0 text-cyan-400">↳</span> Projeção de 50% com split de 90%, vinculada ao Saque 2. Tetos de saque e elegibilidade da conta devem ser conferidos na mesa.</p>
+            <p className="mt-2 flex items-start gap-1.5 text-[10px] leading-snug text-blue-100/55"><span className="shrink-0 text-cyan-400">↳</span> {mesaAtiva === "lucid" ? "Lucid: 50% do lucro, teto de US$ 2.000 brutos por pedido, split de 90%. O lucro não sacado continua na projeção do Saque 2. Elegibilidade deve ser conferida na mesa." : "Projeção de 50% com split de 90%, vinculada ao Saque 2. Tetos de saque e elegibilidade da conta devem ser conferidos na mesa."}</p>
           </div>
         </section>
       )}
