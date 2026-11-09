@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import type { Banca } from '@/lib/platform/bancas';
-import { importarCompras, resumoCarteira, TIPOS_CARTEIRA, type Carteira, type LancamentoCarteira, type SaldoCarteira, type TipoLancamento } from '@/lib/platform/carteira';
+import { importarCompras, valorCompraRegistrada, resumoCarteira, TIPOS_CARTEIRA, type Carteira, type LancamentoCarteira, type SaldoCarteira, type TipoLancamento } from '@/lib/platform/carteira';
 import { parseValorFinanceiro } from '@/lib/platform/engine';
 
 const hoje = () => new Date().toLocaleDateString('en-CA');
@@ -21,6 +21,7 @@ export function CarteiraPessoal({ value, bancas, mesas, onSave, onClose, onBacku
   const [busy, setBusy] = useState(false), [aviso, setAviso] = useState('');
   const [filtro, setFiltro] = useState(''), [pagina, setPagina] = useState(0);
   const r = resumoCarteira(value);
+  const semPreco = bancas.filter(b => !value.lancamentos.some(e => e.origemConta === b.id) && valorCompraRegistrada(b) === null);
   const lancamentos = [...value.lancamentos].filter(e => `${e.descricao} ${e.local} ${TIPOS_CARTEIRA[e.tipo]}`.toLowerCase().includes(filtro.toLowerCase())).sort((a,b) => b.data.localeCompare(a.data));
   const paginaAtual = Math.min(pagina, Math.max(0, Math.ceil(lancamentos.length / 10) - 1));
   const guardar = async (next: Carteira) => {
@@ -48,7 +49,8 @@ export function CarteiraPessoal({ value, bancas, mesas, onSave, onClose, onBacku
         }}>Importar compras cadastradas</Button>
         <Button variant="outline" onClick={onBackup}>Baixar backup completo</Button>
       </div>
-      <p className="text-xs text-slate-400">Importa uma compra por conta, pelo valor pago cadastrado. Compras importadas podem ser corrigidas aqui e permanecem no controle mesmo se a conta for excluída. Não importa simulações de payout.</p>
+      <p className="text-xs text-slate-400">Importa uma compra por conta, pelo valor pago cadastrado ou pela taxa registrada no histórico antigo. Compras importadas podem ser corrigidas aqui e permanecem no controle mesmo se a conta for excluída. Não importa simulações de payout.</p>
+      {semPreco.length > 0 && <p role="status" className="text-xs text-amber-200">{semPreco.length} conta(s) sem preço de compra confirmado: {semPreco.map(b => b.nome).join(", ")}. Confira o valor pago em Minhas Contas e importe novamente.</p>}
       <section className="rounded-xl border border-cyan-900 p-3" aria-label="Compras por mesa">
         <h3 className="font-semibold">Compras por mesa · {usd(r.compras)}</h3>
         {Object.entries(r.mesas).length ? <ul className="mt-2 space-y-1 text-sm">{Object.entries(r.mesas).map(([nome,m]) => <li key={nome} className="flex justify-between gap-2"><span>{nome} · {m.quantidade} contas</span><strong>{usd(m.valor)}</strong></li>)}</ul> : <p className="mt-2 text-sm text-slate-400">Importe suas contas ou registre as compras manualmente.</p>}

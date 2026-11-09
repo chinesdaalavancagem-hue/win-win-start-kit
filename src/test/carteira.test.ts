@@ -1,5 +1,5 @@
 import {describe,it,expect} from 'vitest';
-import {carteiraVazia, importarCompras, mesclarCarteiras, normalizarCarteira, resumoCarteira, type LancamentoCarteira} from '@/lib/platform/carteira';
+import {carteiraVazia, valorCompraRegistrada, importarCompras, mesclarCarteiras, normalizarCarteira, resumoCarteira, type LancamentoCarteira} from '@/lib/platform/carteira';
 import {novaBanca, parseBancas, extrairForex} from '@/lib/platform/bancas';
 import {defaultState, MESAS_FUTUROS} from '@/lib/platform/engine';
 import {mesclarBackup} from '@/lib/platform/importar-backup';
@@ -43,4 +43,20 @@ describe('carteira pessoal',()=>{
   expect(doc.mesaAtiva).toBe('tradefive');expect(doc.forex!.forexSaldoReal).toBe(400);expect(doc.contasArquivadas).toEqual([legacy]);
   expect(parseBancas(JSON.stringify(doc)).contasArquivadas).toEqual([legacy]);expect(MESAS_FUTUROS).not.toHaveProperty('vest');
  });
+});
+
+it('recupera preço do histórico antigo sem alterar contas e ignora parâmetros de simulação',()=>{
+ const b=novaBanca('Antiga');
+ b.state.assets.ouro.params.taxa=999;
+ expect(valorCompraRegistrada(b)).toBeNull();
+ b.state.log=[{taxaCobrada:115.5},{taxaCobrada:0}] as typeof b.state.log;
+ const before=JSON.stringify(b);
+ const c=importarCompras(carteiraVazia(),[b],MESAS_FUTUROS);
+ expect(c.lancamentos[0]!.valor).toBe(115.5);
+ expect(JSON.stringify(b)).toBe(before);
+ expect(importarCompras(c,[b],MESAS_FUTUROS).lancamentos).toHaveLength(1);
+ b.taxaCompra=109;expect(valorCompraRegistrada(b)).toBe(109);
+ delete b.taxaCompra;
+ b.state.log.push({taxaCobrada:132} as typeof b.state.log[number]);
+ expect(valorCompraRegistrada(b)).toBeNull();
 });

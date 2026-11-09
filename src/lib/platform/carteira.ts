@@ -57,14 +57,23 @@ export function resumoCarteira(c: Carteira) {
   return { aportes: centavos(aportes), retiradas: centavos(retiradas), compras: centavos(compras), despesas: centavos(despesas), payouts: centavos(payouts), saldo, investido, recebido, resultado, rentabilidade: investido > 0 ? resultado / investido * 100 : null, mesas };
 }
 
+/** Backups antigos guardavam a compra no evento, sem taxaCompra no cadastro.
+ * Não usa parâmetros de simulação nem escolhe entre taxas históricas conflitantes. */
+export function valorCompraRegistrada(b: Banca): number | null {
+  if (numero(b.taxaCompra)) return centavos(b.taxaCompra);
+  const taxas = [...new Set(b.state.log.flatMap(e => numero(e.taxaCobrada) && e.taxaCobrada > 0 ? [centavos(e.taxaCobrada)] : []))];
+  return taxas.length === 1 ? taxas[0]! : null;
+}
+
 /** Importação explícita, uma compra por ID, sem inferir compras pelo número de ciclos. */
 export function importarCompras(c: Carteira, bancas: Banca[], nomes: Record<string, {nome: string}>): Carteira {
   const origens = new Set(c.lancamentos.flatMap(e => e.origemConta ? [e.origemConta] : []));
   const novas: LancamentoCarteira[] = [];
   for (const b of bancas) {
-    if (origens.has(b.id) || !numero(b.taxaCompra)) continue;
+    const valor = valorCompraRegistrada(b);
+    if (origens.has(b.id) || valor === null) continue;
     origens.add(b.id);
-    novas.push({id: `compra-conta:${b.id}`, origemConta: b.id, data: new Date(b.criadaEm).toISOString().slice(0, 10), tipo: 'compra', valor: centavos(b.taxaCompra), quantidade: 1, externo: true, local: nomes[b.mesa ?? 'tradefive']?.nome ?? 'Mesa personalizada', destino: '', descricao: b.nome});
+    novas.push({id: `compra-conta:${b.id}`, origemConta: b.id, data: new Date(b.criadaEm).toISOString().slice(0, 10), tipo: 'compra', valor, quantidade: 1, externo: true, local: nomes[b.mesa ?? 'tradefive']?.nome ?? 'Mesa personalizada', destino: '', descricao: b.nome});
   }
   return novas.length ? {...c, conferida: false, lancamentos: [...c.lancamentos, ...novas]} : c;
 }
