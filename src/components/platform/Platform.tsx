@@ -789,11 +789,18 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
               <div className="bg-gradient-to-r from-sky-500 to-cyan-400" style={{ width: pct(cx.bonusAntes) }} />
             </div>
             <p className="mt-1 text-[10px] text-slate-400">{futuro ? "Saldo projetado após passar os dias anteriores, considerando as perdas no Forex e os aportes estimados anteriores. Antes do aporte deste dia." : concluido ? "Dia concluído" : "Saldo real + bônus disponível agora"}</p>
-            {!concluido && <div className="mt-2 flex items-center justify-between gap-2 rounded-xl border border-blue-600/80 bg-gradient-to-r from-blue-950/70 to-[#071a31] px-3 py-2.5">
-              <span className="flex items-center gap-2 text-[11px] font-semibold leading-snug text-cyan-300 sm:text-sm"><Wallet className="h-4 w-4 shrink-0" />{futuro ? "Aporte estimado para este dia" : "Aporte Recomendado Hoje"}</span>
-              <span className="font-mono text-base font-bold text-sky-400 sm:text-xl">${fmt(cx.deposito)}</span>
-            </div>}
-            <div className="mt-3 flex items-center justify-between gap-2 rounded-lg border border-[#142b43] bg-[#0b1726] px-3 py-2.5 font-mono text-xs"><span className="flex items-center gap-1.5 text-muted-foreground"><Calculator className="h-3.5 w-3.5" />Necessário no CFD</span><span className="font-semibold">${fmt(cx.necessario)}</span></div>
+            <div className={cn("mt-2 grid gap-2", concluido ? "grid-cols-1" : "grid-cols-2")}>
+              {!concluido && <div className="min-w-0 rounded-xl border border-blue-600/80 bg-gradient-to-r from-blue-950/70 to-[#071a31] px-3 py-2.5">
+                <span className="flex items-center gap-1.5 text-[11px] font-semibold leading-snug text-cyan-300 sm:text-sm"><Wallet className="h-4 w-4 shrink-0" />{futuro ? "Aporte estimado para este dia" : "Aporte Recomendado Hoje"}</span>
+                <p className="mt-2 break-words font-mono text-base font-bold text-sky-400 sm:text-xl">${fmt(cx.deposito)}</p>
+              </div>}
+              <div className="min-w-0 rounded-xl border border-blue-600/80 bg-gradient-to-r from-blue-950/70 to-[#071a31] px-3 py-2.5">
+                <span className="flex items-center gap-1.5 text-[11px] font-semibold leading-snug text-cyan-300 sm:text-sm"><Calculator className="h-4 w-4 shrink-0" />Necessário no CFD</span>
+                <p className="mt-2 break-words font-mono text-base font-bold text-sky-400 sm:text-xl">${fmt(cx.necessario)}</p>
+                <p className="mt-1 text-[11px] leading-snug text-slate-200">{concluido ? "Saldo da simulação" : futuro || assetKey === "saque2" ? "Saldo projetado" : "Disponível no CFD"}: <strong className="font-mono">${fmt(cx.proprioAntes + cx.bonusAntes)}</strong></p>
+                <p className="mt-1 text-[10px] leading-snug text-slate-400">Próprio ${fmt(cx.proprioAntes)} + bônus ${fmt(cx.bonusAntes)} · antes do aporte</p>
+              </div>
+            </div>
 
 
 
