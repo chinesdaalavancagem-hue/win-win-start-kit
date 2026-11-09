@@ -330,9 +330,9 @@ function Settle({ risco, custo, reprova, onProfit, onStop }: { risco: boolean; c
   const spread = valorInvalido ? null : real - teorico;
   const abrir = (m: "profit" | "stop") => { setModo(m); setValor(String(Math.round((m === "profit" ? -custo : reprova) * 100) / 100)); };
   if (!modo) return (
-    <div className="mt-3 grid grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] gap-2 sm:grid-cols-2">
-      <Button className="h-auto min-h-9 min-w-0 whitespace-normal px-2 text-xs leading-snug sm:h-9 sm:whitespace-nowrap sm:px-4 sm:text-sm" type="button" onClick={() => abrir("profit")}>✅ Profit (bateu a meta)</Button>
-      <Button className="h-auto min-h-9 min-w-0 whitespace-normal px-2 text-xs leading-snug sm:h-9 sm:whitespace-nowrap sm:px-4 sm:text-sm" type="button" variant="destructive" onClick={() => abrir("stop")}>🛑 Stop (reprovou)</Button>
+    <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+      <Button className="h-10 min-h-9 min-w-0 w-full whitespace-nowrap px-2 text-xs leading-snug sm:h-9 sm:px-4 sm:text-sm" type="button" onClick={() => abrir("profit")}>✅ Profit (bateu a meta)</Button>
+      <Button className="h-10 min-h-9 min-w-0 w-full whitespace-nowrap px-2 text-xs leading-snug sm:h-9 sm:px-4 sm:text-sm" type="button" variant="destructive" onClick={() => abrir("stop")}>🛑 Stop (reprovou)</Button>
     </div>
   );
   return (
@@ -789,16 +789,16 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
               <div className="bg-gradient-to-r from-sky-500 to-cyan-400" style={{ width: pct(cx.bonusAntes) }} />
             </div>
             <p className="mt-1 text-[10px] text-slate-400">{futuro ? "Saldo projetado após passar os dias anteriores, considerando as perdas no Forex e os aportes estimados anteriores. Antes do aporte deste dia." : concluido ? "Dia concluído" : "Saldo real + bônus disponível agora"}</p>
-            <div className={cn("mt-2 grid gap-2", concluido ? "grid-cols-1" : "grid-cols-2")}>
+            <div className={cn("mt-2 grid gap-2", concluido ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2")}>
               {!concluido && <div className="min-w-0 rounded-xl border border-blue-600/80 bg-gradient-to-r from-blue-950/70 to-[#071a31] px-3 py-2.5">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="flex min-w-0 items-center gap-1 text-[11px] font-semibold leading-snug text-cyan-300 sm:text-sm"><Wallet className="h-3.5 w-3.5 shrink-0" />{futuro ? "Aporte estimado para este dia" : "Aporte Recomendado Hoje"}</span>
+                  <span className="flex min-w-0 items-center gap-1 text-[11px] font-semibold leading-snug text-cyan-300 sm:text-sm"><Wallet className="h-3.5 w-3.5 shrink-0" /><span className="min-w-0">{futuro ? "Aporte estimado para este dia" : "Aporte Recomendado Hoje"}</span></span>
                   <span className="shrink-0 whitespace-nowrap font-mono text-sm font-bold text-sky-400 sm:text-xl">${fmt(cx.deposito)}</span>
                 </div>
               </div>}
               <div className="min-w-0 rounded-xl border border-blue-600/80 bg-gradient-to-r from-blue-950/70 to-[#071a31] px-3 py-2.5">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="flex min-w-0 items-center gap-1 text-[11px] font-semibold leading-snug text-cyan-300 sm:text-sm"><Calculator className="h-3.5 w-3.5 shrink-0" />Necessário no CFD</span>
+                  <span className="flex min-w-0 items-center gap-1 text-[11px] font-semibold leading-snug text-cyan-300 sm:text-sm"><Calculator className="h-3.5 w-3.5 shrink-0" /><span className="min-w-0">Necessário no CFD</span></span>
                   <span className="shrink-0 whitespace-nowrap font-mono text-sm font-bold text-sky-400 sm:text-xl">${fmt(cx.necessario)}</span>
                 </div>
                 <p className="mt-1 text-[11px] leading-snug text-slate-200">{concluido ? "Saldo da simulação" : futuro || assetKey === "saque2" ? "Saldo projetado" : "Disponível no CFD"}: <strong className="font-mono">${fmt(cx.proprioAntes + cx.bonusAntes)}</strong></p>
