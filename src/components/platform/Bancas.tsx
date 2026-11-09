@@ -1,3 +1,5 @@
+import { CarteiraPessoal } from "./CarteiraPessoal";
+import { normalizarCarteira, type Carteira } from "@/lib/platform/carteira";
 import { RevisarBanca } from "./RevisarBanca";
 import type { Banca } from "@/lib/platform/bancas";
 import type { State } from "@/lib/platform/engine";
@@ -8,14 +10,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Platform } from "./Platform";
-import { fmt, fmtSigned, MESAS_FUTUROS, prepararMesaPersonalizada, prepararBancaVest, selecionarMesaGold, type MesaFuturos } from "@/lib/platform/engine";
+import { fmt, fmtSigned, MESAS_FUTUROS, prepararMesaPersonalizada, selecionarMesaGold, type MesaFuturos } from "@/lib/platform/engine";
 import { type BancasDoc, aplicarForex, extrairForex, forexDoDocumento, novaBanca, parseBancas, referenciaDaMesa, excluirMesaPersonalizada, podeDesfazerBanca, relatorioCsv, resumoBanca } from "@/lib/platform/bancas";
 import { validarCatalogoTopstep, type CatalogoTopstep } from "@/lib/platform/topstep-vinculo";
-import { VEST_ACCOUNT_SIZES, vestPlan, type VestCapital, type VestDailyLimit } from "@/lib/platform/vest-oficial";
 import { Plus, Building2, CheckCircle2, Pencil, Trash2, Download, Upload, ArrowUpRight, WalletCards, Activity } from "lucide-react";
 import { extrairDocumentoBackup, mesclarBackup } from "@/lib/platform/importar-backup";
 
 export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectionsMenuChange = () => {} }: { sectionsMenuOpen?: boolean; onSectionsMenuChange?: (open: boolean) => void; load: () => Promise<string | null>; save: (v: string) => Promise<boolean>; isAdmin: boolean }) {
+  const [carteiraAberta, setCarteiraAberta] = useState(false);
+  const [grupos, setGrupos] = useState<Record<string, number>>({});
   const [doc, setDoc] = useState<BancasDoc | null>(null);
   const [revisao, setRevisao] = useState<Banca | null>(null);
   const [revisionKey, setRevisionKey] = useState(0);
@@ -26,8 +29,6 @@ export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectio
   const [cadastroMesa, setCadastroMesa] = useState(false);
   const [nome, setNome] = useState("");
   const [taxaAvaliacao, setTaxaAvaliacao] = useState("");
-  const [vestCapital,setVestCapital] = useState<VestCapital>(50000);
-  const [vestDll,setVestDll] = useState<VestDailyLimit>(0);
   const [catalogoTopstep, setCatalogoTopstep] = useState<CatalogoTopstep | null>(null);
   const [consultandoContas, setConsultandoContas] = useState(false);
   const [bancaPorConta, setBancaPorConta] = useState<Record<string, string>>({});
@@ -116,6 +117,7 @@ export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectio
   const mesa = doc?.mesaAtiva ?? "tradefive";
   const bancasDaMesa = (doc?.bancas.filter((b) => (b.mesa ?? "tradefive") === mesa) ?? [])
     .sort((a, b) => (a.criadaEm ?? 0) - (b.criadaEm ?? 0));
+  const grupo = Math.min(grupos[mesa] ?? 0, Math.max(0, Math.ceil(bancasDaMesa.length / 10) - 1));
   const selecionada = bancasDaMesa.find((b) => b.id === doc?.activeIdsMesa?.[mesa]) ?? bancasDaMesa.find((b) => b.id === doc?.activeId) ?? bancasDaMesa[0];
   const activeId = selecionada?.id;
   const escolherBanca = (id: string) => { if (doc) persist({ ...doc, activeId: id, activeIdsMesa: { ...doc.activeIdsMesa, [mesa]: id } }); };
@@ -197,6 +199,22 @@ export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectio
     return true;
   }
 
+  async function salvarCarteira(carteira: Carteira) {
+    await pendingSave.current.catch(() => false);
+    const current = docRef.current;
+    if (!current) return false;
+    const next = {...current, carteira};
+    const ok = await persist(next).catch(() => false);
+    if (!ok && docRef.current === next) {docRef.current = current; setDoc(current);}
+    return ok;
+  }
+
+  function baixarBackup() {
+    const current = docRef.current; if (!current) return;
+    const url = URL.createObjectURL(new Blob([JSON.stringify(current, null, 2)], {type:'application/json'}));
+    const a = document.createElement('a'); a.href = url; a.download = `win-or-win-backup-${new Date().toISOString().slice(0,10)}.json`; a.click(); URL.revokeObjectURL(url);
+  }
+
   async function importarBackup(file: File, input: HTMLInputElement) {
     try {
       const texto = await file.text();
@@ -206,11 +224,11 @@ export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectio
       const current = docRef.current;
       if (!current) return;
       const r = mesclarBackup(current, backup);
-      if (!r.adicionadas) { window.alert("Todas as bancas desse backup já estão na plataforma. Nada foi alterado."); return; }
-      if (!window.confirm(`Encontramos ${backup.bancas.length} banca(s) no backup.\n\n${r.adicionadas} serão adicionadas${r.ignoradas ? ` (${r.ignoradas} já existem e serão mantidas como estão)` : ""}.\n\nNenhuma banca atual será apagada ou alterada. Confirma?`)) return;
+
+      if (!window.confirm(`Encontramos ${backup.bancas.length} banca(s) no backup.\n\n${r.adicionadas} serão adicionadas${r.ignoradas ? ` (${r.ignoradas} já existem e serão mantidas como estão)` : ""}.\n\nNovos lançamentos da carteira também serão mesclados, sem repetir IDs. Saldos atuais da mesma carteira serão mantidos. Nenhuma conta atual será apagada. Confirma?`)) return;
       const ok = await persist(r.doc).catch(() => false);
       if (!ok) { if (docRef.current === r.doc) { docRef.current = current; setDoc(current); } window.alert("Não foi possível salvar. Nada foi alterado. Tente novamente."); return; }
-      window.alert(`${r.adicionadas} banca(s) restaurada(s) com sucesso.`);
+      window.alert(`${r.adicionadas} conta(s) restaurada(s). Carteira mesclada com sucesso.`);
     } catch { window.alert("Não foi possível ler esse arquivo."); }
     finally { input.value = ""; }
   }
@@ -257,25 +275,21 @@ export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectio
             <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
               <div><p className="text-[11px] font-bold uppercase tracking-[0.2em] text-cyan-300/80">Central de contas</p><h3 className="mt-1 text-lg font-bold text-slate-100">Seu portfólio de bancas</h3><p className="mt-1 max-w-2xl text-sm text-slate-400">Cada banca mantém seu próprio ciclo e histórico. Escolha uma para continuar operando ou crie uma nova.</p></div>
               <div className="flex flex-col gap-2 sm:flex-row">
-                {mesa === "vest" && <div className="flex flex-wrap items-end gap-2 rounded-xl border border-amber-700/40 bg-[#0b1c27] p-3 text-xs text-amber-100" aria-label="Plano Vest Capital">
-                  <label>Capital<select className="mt-1 block rounded-md bg-[#061322] p-2" aria-label="Capital Vest" value={vestCapital} onChange={ev => {setVestCapital(Number(ev.target.value) as VestCapital);setTaxaAvaliacao("");}}>{VEST_ACCOUNT_SIZES.map(v => <option key={v} value={v}>US$ {fmt(v)}</option>)}</select></label>
-                  <label>Limite diário<select className="mt-1 block rounded-md bg-[#061322] p-2" aria-label="Limite diário Vest" value={vestDll} onChange={ev => {setVestDll(Number(ev.target.value) as VestDailyLimit);setTaxaAvaliacao("");}}><option value={0}>Sem DLL</option><option value={3}>3% (opcional)</option></select></label>
-                  <p className="max-w-[220px] leading-relaxed">Alvo 10%: US$ {fmt(vestPlan(vestCapital,vestDll).target)} · DD estático 6%: US$ {fmt(vestPlan(vestCapital,vestDll).staticDrawdown)}. Taxa estimada US$ {fmt(vestPlan(vestCapital,vestDll).fee)}. Confirme no checkout.</p>
-                </div>}
+                
                 <form className="flex min-w-0 flex-1 flex-wrap gap-2 sm:min-w-[330px]" onSubmit={(e) => {
                   e.preventDefault();
-                  const nomeBanca = nome.trim() || (mesa === "vest" ? `Vest ${vestCapital / 1000}K · Banca ${bancasDaMesa.length+1}` : "");
-                  const valorTaxa = taxaAvaliacao.trim() || (mesa === "vest" ? String(vestPlan(vestCapital,vestDll).fee) : "");
+                  const nomeBanca = nome.trim() || ("");
+                  const valorTaxa = taxaAvaliacao.trim() || ("");
                   if (!nomeBanca || !valorTaxa) return;
                   const valor = Number(valorTaxa.replace(",", "."));
                   if (!Number.isFinite(valor) || valor < 0) return;
                   const b = novaBanca(nomeBanca);
-                  if (mesa === "vest") prepararBancaVest(b.state,vestCapital,vestDll);
+                  
                   b.taxaCompra = valor;
                   b.mesa = mesa;
                   const personalizada = doc.mesasPersonalizadas?.find(m => m.id === mesa) ?? selecionada?.state.assets.ouro.mesaConfig;
                   if (personalizada?.id === mesa) prepararMesaPersonalizada(b.state, personalizada);
-                  else if (mesa !== "tradefive" && mesa !== "vest") selecionarMesaGold(b.state.assets.ouro, mesa);
+                  else if (mesa !== "tradefive") selecionarMesaGold(b.state.assets.ouro, mesa);
                   b.state = aplicarForex(b.state, forexDoDocumento(doc));
                   b.state.assets.nasdaq.params.taxa = valor;
                   b.state.assets.ouro.params.taxa = valor;
@@ -284,8 +298,8 @@ export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectio
                   setPainel(false);
                   persist({ ...doc, activeId: b.id, activeIdsMesa: { ...doc.activeIdsMesa, [mesa]: b.id }, bancas: [...doc.bancas, b] });
                 }}>
-                  <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder={mesa === "vest" ? "Nome opcional: Vest 50K · Banca 1" : "Nome da nova banca"} aria-label="Nome da nova banca" className="h-10 min-w-0 rounded-xl border-cyan-950 bg-[#071426] text-slate-100 placeholder:text-slate-500 focus-visible:ring-cyan-400" maxLength={60} />
-                  <Input type="text" inputMode="decimal" value={mesa === "vest" && !taxaAvaliacao.trim() ? String(vestPlan(vestCapital,vestDll).fee) : taxaAvaliacao} onChange={(e) => setTaxaAvaliacao(e.target.value)} placeholder={mesa === "vest" ? "Taxa Vest estimada ($)" : "Taxa de avaliação ($)"} aria-label="Taxa de avaliação em dólares" required className="h-10 min-w-[145px] flex-1 rounded-xl border-cyan-950 bg-[#071426] text-slate-100 placeholder:text-slate-500 focus-visible:ring-cyan-400" />
+                  <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder={"Nome da nova banca"} aria-label="Nome da nova banca" className="h-10 min-w-0 rounded-xl border-cyan-950 bg-[#071426] text-slate-100 placeholder:text-slate-500 focus-visible:ring-cyan-400" maxLength={60} />
+                  <Input type="text" inputMode="decimal" value={taxaAvaliacao} onChange={(e) => setTaxaAvaliacao(e.target.value)} placeholder={"Taxa de avaliação ($)"} aria-label="Taxa de avaliação em dólares" required className="h-10 min-w-[145px] flex-1 rounded-xl border-cyan-950 bg-[#071426] text-slate-100 placeholder:text-slate-500 focus-visible:ring-cyan-400" />
                   <Button type="submit" className="h-10 shrink-0 rounded-xl bg-cyan-300 font-semibold text-slate-950 hover:bg-cyan-200"><Plus className="size-4" /><span className="hidden sm:inline">Criar banca</span><span className="sm:hidden">Criar</span></Button>
                 </form>
                 <Button type="button" variant="outline" className="h-10 rounded-xl border-cyan-900/80 bg-[#071426] text-blue-100 hover:border-cyan-400" onClick={exportar}><Download className="size-4" />Exportar CSV</Button>
@@ -334,21 +348,26 @@ export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectio
                 )}
               </section>
             )}
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-              {bancasDaMesa.map((b) => {
+            <nav aria-label="Grupos de contas" className="flex flex-wrap gap-2">
+              {Array.from({length: Math.ceil(bancasDaMesa.length / 10)}, (_, i) => <Button key={i} size="sm" variant={grupo === i ? "default" : "outline"} aria-pressed={grupo === i} onClick={() => setGrupos(g => ({...g, [mesa]:i}))}>Grupo {i+1} · {i*10+1}–{Math.min((i+1)*10,bancasDaMesa.length)}</Button>)}
+            </nav>
+            <p className="text-xs text-slate-400">Ordem de criação · até 10 contas por grupo. Expanda uma linha para editar.</p>
+            <div className="space-y-2">
+              {bancasDaMesa.slice(grupo * 10, grupo * 10 + 10).map((b, indice) => {
                 const r = resumoBanca(b);
                 const isActive = b.id === ativa?.id;
                 return (
                   <article key={b.id} className={`group relative overflow-hidden rounded-xl border bg-gradient-to-br from-[#0b1b30] via-[#081426] to-[#050c17] p-2.5 sm:p-3 transition-colors ${isActive ? "border-cyan-400/70 shadow-[0_0_26px_rgba(0,190,255,0.09)]" : "border-cyan-950/90 hover:border-cyan-800"}`}>
                     {isActive && <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-cyan-300 via-teal-300 to-emerald-300" />}
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex min-w-0 items-center gap-2">
-                        <div className={`flex size-8 shrink-0 items-center justify-center rounded-lg border ${isActive ? "border-cyan-300/25 bg-cyan-300/10 text-cyan-200" : "border-slate-700 bg-slate-800/70 text-slate-400"}`}><Building2 className="size-4" /></div>
-                        <div className="min-w-0"><h4 className="truncate text-sm font-bold text-slate-100">{b.nome}</h4><p className="text-[10px] text-slate-500">{isActive ? "Selecionada para operação" : "Banca cadastrada"}</p></div>
-                      </div>
-                      {isActive ? <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-300"><CheckCircle2 className="size-3" />Ativa</span> :
-                        <Button size="sm" variant="outline" className="h-7 shrink-0 rounded-lg border-cyan-900 bg-[#071426] text-cyan-200 hover:border-cyan-400 hover:bg-cyan-950/50" onClick={() => escolherBanca(b.id)}>Abrir <ArrowUpRight className="size-3.5" /></Button>}
-                    </div>
+                    <details>
+                      <summary className="flex cursor-pointer list-none flex-wrap items-center gap-2 text-sm">
+                        <span className="font-mono text-xs text-slate-500">{grupo * 10 + indice + 1}.</span>
+                        <strong className="min-w-0 flex-1 break-words text-slate-100">{b.nome}</strong>
+                        {isActive && <span className="text-xs text-cyan-300">Selecionada</span>}
+                        <span className={r.lucro >= 0 ? "text-emerald-300" : "text-rose-300"}>{fmtSigned(r.lucro)}</span>
+                        <span className="text-xs text-slate-400">Detalhes ▾</span>
+                      </summary>
+                      <Button size="sm" variant="outline" className="mt-3" onClick={() => escolherBanca(b.id)}>Abrir conta</Button>
                     <div className="mt-2.5 grid grid-cols-2 gap-1.5">
                       <div className="rounded-lg border border-white/5 bg-black/15 px-2.5 py-1.5"><p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Ciclos</p><p className="text-base font-bold tabular-nums text-slate-100">{r.ciclos}</p></div>
                       <div className="rounded-lg border border-white/5 bg-black/15 px-2.5 py-1.5"><p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Resultado</p><p className={`truncate text-base font-bold tabular-nums ${r.lucro >= 0 ? "text-emerald-300" : "text-rose-300"}`}>{fmtSigned(r.lucro)}</p></div>
@@ -402,6 +421,7 @@ export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectio
                         }}><Trash2 className="size-3.5" />Excluir</Button>
                       )}
                     </div>
+                    </details>
                   </article>
                 );
               })}
@@ -410,8 +430,10 @@ export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectio
         </section>
       )}
 
+      {carteiraAberta && <CarteiraPessoal value={normalizarCarteira(doc.carteira)} bancas={doc.bancas} mesas={mesasDisponiveis} onSave={salvarCarteira} onClose={() => setCarteiraAberta(false)} onBackup={baixarBackup} saldoForex={forexDoDocumento(doc).forexSaldoReal ?? 0} />}
+      {!ativa && <Button variant="outline" className="mx-auto mt-4" onClick={() => setCarteiraAberta(true)}>Carteira pessoal</Button>}
       {revisao && <RevisarBanca banca={revisao} onClose={() => setRevisao(null)} onSave={salvarRevisao} />}
-      {ativa ? <Platform mesasDisponiveis={mesasDisponiveis} key={`${ativa.id}-${revisionKey}`} leftMenuOpen={sectionsMenuOpen} setLeftMenuOpen={onSectionsMenuChange} load={loadActive} save={saveActive} isAdmin={isAdmin} officialAcceptedAt={ativa.officialAcceptedAt ?? null} allBancas={bancasDaMesa} bancasGlobais={doc.bancas} bancaAtivaId={ativa.id} contaMesa={ativa.contaMesa ?? ativa.challengeAccount?.account_external_id} podeDesfazerForex={podeDesfazerForex} mesaAtiva={mesa} onMesaChange={escolherMesa} /> : <section className="mx-auto my-10 max-w-lg rounded-xl border border-amber-800/60 bg-[#081321] p-5 text-center text-slate-200"><h3 className="font-bold">Nenhuma banca cadastrada na {(mesasDisponiveis[mesa]?.nome ?? "Mesa personalizada")}</h3><p className="mt-2 text-sm text-slate-400">As bancas das outras mesas permanecem preservadas. Crie uma banca nesta mesa para começar.</p><Button type="button" className="mt-3" onClick={() => setPainel(true)}>Cadastrar banca</Button></section>}
+      {ativa ? <Platform onOpenCarteira={() => setCarteiraAberta(true)} mesasDisponiveis={mesasDisponiveis} key={`${ativa.id}-${revisionKey}`} leftMenuOpen={sectionsMenuOpen} setLeftMenuOpen={onSectionsMenuChange} load={loadActive} save={saveActive} isAdmin={isAdmin} officialAcceptedAt={ativa.officialAcceptedAt ?? null} allBancas={bancasDaMesa} bancasGlobais={doc.bancas} bancaAtivaId={ativa.id} contaMesa={ativa.contaMesa ?? ativa.challengeAccount?.account_external_id} podeDesfazerForex={podeDesfazerForex} mesaAtiva={mesa} onMesaChange={escolherMesa} /> : <section className="mx-auto my-10 max-w-lg rounded-xl border border-amber-800/60 bg-[#081321] p-5 text-center text-slate-200"><h3 className="font-bold">Nenhuma banca cadastrada na {(mesasDisponiveis[mesa]?.nome ?? "Mesa personalizada")}</h3><p className="mt-2 text-sm text-slate-400">As bancas das outras mesas permanecem preservadas. Crie uma banca nesta mesa para começar.</p><Button type="button" className="mt-3" onClick={() => setPainel(true)}>Cadastrar banca</Button></section>}
     </div>
   );
 }

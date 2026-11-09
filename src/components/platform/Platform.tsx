@@ -1,6 +1,4 @@
 import type { Banca } from "@/lib/platform/bancas";
-import { VestSimulator } from "./VestSimulator";
-import { vestMgcEquivalent, vestPlan, vestUsdPerPoint } from "@/lib/platform/vest-oficial";
 import { calcularCoberturaSimultanea } from "@/lib/platform/caixa-consolidado";
 import { createPortal } from "react-dom";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type CSSProperties } from "react";
@@ -16,7 +14,7 @@ import {
   historicoTotals, isValidState, normalizeState, parseNum, parseValorFinanceiro, parseResultadoCfd, podeDesfazerUltimaOperacao, projetarZeragemBonus, reiniciarCicloBonus, resetBonus, tipoLabel, undoLast,
 } from "@/lib/platform/engine";
 
-type Section = "operacoes" | "parametros" | "bonus" | "aporte" | "caixa" | "meta" | "vest";
+type Section = "operacoes" | "parametros" | "bonus" | "aporte" | "caixa" | "meta";
 type Sync = { mode: "ok" | "busy" | "err"; text: string };
 
 const TABS: { key: TabKey; label: string; dot: string }[] = [
@@ -28,7 +26,7 @@ const TABS: { key: TabKey; label: string; dot: string }[] = [
 const ASSET_NAME: Record<AssetKey, string> = { nasdaq: "NASDAQ", ouro: "GOLD", saque2: "SAQUE 2" };
 const rotuloDia = (asset: Asset, key: AssetKey, indice: number) => { const avaliacao = diasAvaliacaoAtivo(asset, key); return `D${indice < avaliacao ? indice + 1 : indice - avaliacao + 1} ${indice < avaliacao ? "Avaliação" : "Financiada"}`; };
 
-export function Platform({ mesasDisponiveis = MESAS_FUTUROS, leftMenuOpen = false, setLeftMenuOpen = () => {}, load, save, isAdmin, officialAcceptedAt, allBancas, bancasGlobais, bancaAtivaId, contaMesa, podeDesfazerForex = true, mesaAtiva = "tradefive", onMesaChange = () => {} }: { mesasDisponiveis?: typeof MESAS_FUTUROS; leftMenuOpen?: boolean; setLeftMenuOpen?: (open: boolean) => void; load: () => Promise<string | null>; save: (v: string, acceptedAt?: string) => Promise<boolean>; isAdmin: boolean; officialAcceptedAt: string | null; allBancas?: Banca[]; bancasGlobais?: Banca[] | undefined; bancaAtivaId?: string | undefined; contaMesa?: string | undefined; podeDesfazerForex?: boolean; mesaAtiva?: MesaFuturos; onMesaChange?: (mesa: MesaFuturos) => void }) {
+export function Platform({ onOpenCarteira, mesasDisponiveis = MESAS_FUTUROS, leftMenuOpen = false, setLeftMenuOpen = () => {}, load, save, isAdmin, officialAcceptedAt, allBancas, bancasGlobais, bancaAtivaId, contaMesa, podeDesfazerForex = true, mesaAtiva = "tradefive", onMesaChange = () => {} }: { onOpenCarteira?: () => void; mesasDisponiveis?: typeof MESAS_FUTUROS; leftMenuOpen?: boolean; setLeftMenuOpen?: (open: boolean) => void; load: () => Promise<string | null>; save: (v: string, acceptedAt?: string) => Promise<boolean>; isAdmin: boolean; officialAcceptedAt: string | null; allBancas?: Banca[]; bancasGlobais?: Banca[] | undefined; bancaAtivaId?: string | undefined; contaMesa?: string | undefined; podeDesfazerForex?: boolean; mesaAtiva?: MesaFuturos; onMesaChange?: (mesa: MesaFuturos) => void }) {
   const [state, setState] = useState<State | null>(null);
   const [section, setSection] = useState<Section>("operacoes");
   const [activeTabLabel, setActiveTabLabel] = useState<TabKey | null>(null);
@@ -174,7 +172,6 @@ export function Platform({ mesasDisponiveis = MESAS_FUTUROS, leftMenuOpen = fals
     ["aporte", "Aporte fracionado"],
     ["caixa", "Caixa do ciclo"],
     ["meta", "Meta geral"],
-    ["vest", "Vest · Perpétuos"],
   ];
 
 
@@ -211,6 +208,7 @@ export function Platform({ mesasDisponiveis = MESAS_FUTUROS, leftMenuOpen = fals
             {leftMenuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
           </button>
           {leftMenuOpen && <nav data-wow-menu-panel className="pointer-events-auto lg:max-h-[var(--rail-max-height)] lg:overflow-y-auto flex w-48 flex-col gap-1 rounded-xl border border-cyan-800/70 bg-[#061322] p-2 shadow-2xl" aria-label="Seções da plataforma">
+            {onOpenCarteira && <button type="button" className="rounded-lg px-3 py-2 text-left text-xs font-semibold text-cyan-200 hover:bg-blue-950" onClick={() => {setLeftMenuOpen(false); onOpenCarteira();}}>Carteira pessoal</button>}
             {sections.map(([k, l]) => (
               <button key={k} type="button" aria-pressed={tab !== "historico" && section === k} onClick={() => { setSection(k); if (tab === "historico") { mutate((s) => { s.activeTab = "ouro"; }); setActiveTabLabel("ouro"); } setLeftMenuOpen(false); }}
                 className={cn("rounded-lg px-3 py-2 text-left text-xs font-semibold transition-colors", tab !== "historico" && section === k ? "bg-emerald-500/20 text-emerald-300" : "text-blue-100 hover:bg-blue-950")}>{l}</button>
@@ -222,8 +220,8 @@ export function Platform({ mesasDisponiveis = MESAS_FUTUROS, leftMenuOpen = fals
       <nav ref={rightRailRef} className="lg:max-h-[var(--rail-max-height)] lg:overflow-y-auto fixed right-1 top-[calc(65%-54px)] z-30 flex -translate-y-1/2 flex-col gap-2 lg:right-2 lg:top-auto lg:translate-y-0" aria-label="Ativos e histórico" style={{ top: typeof window !== "undefined" && window.innerWidth >= 1024 ? desktopRailTop : undefined }}>
         <button type="button" title="Escolher mesa de futuros" aria-label="Escolher mesa de futuros" aria-expanded={mostrarMesas} onClick={() => setMostrarMesas((v) => !v)} className={cn("relative flex size-9 items-center justify-center rounded-xl border border-cyan-700/70 bg-[#061322] shadow-xl transition-colors lg:size-14", mostrarMesas ? "border-amber-400/70 bg-amber-950/60 text-amber-200" : "border-transparent text-amber-300 hover:bg-amber-950/50")}><Building2 className="size-4 lg:size-5" /></button>
         {TABS.map((t) => (
-          <button key={t.key} type="button" title={t.label} aria-label={t.label} aria-pressed={section !== "vest" && tab === t.key} onClick={() => { if (section === "vest") setSection("operacoes"); setActiveTabLabel(null); mutate((s) => { s.activeTab = t.key; }); setActiveTabLabel(t.key); }}
-            className={cn("relative flex size-9 items-center justify-center rounded-xl border border-cyan-700/70 bg-[#061322] shadow-xl transition-colors lg:size-14", section !== "vest" && tab === t.key ? "border-cyan-400/70 bg-blue-950 text-white" : "border-transparent text-slate-400 hover:bg-blue-950/60")}>
+          <button key={t.key} type="button" title={t.label} aria-label={t.label} aria-pressed={tab === t.key} onClick={() => {  setActiveTabLabel(null); mutate((s) => { s.activeTab = t.key; }); setActiveTabLabel(t.key); }}
+            className={cn("relative flex size-9 items-center justify-center rounded-xl border border-cyan-700/70 bg-[#061322] shadow-xl transition-colors lg:size-14", tab === t.key ? "border-cyan-400/70 bg-blue-950 text-white" : "border-transparent text-slate-400 hover:bg-blue-950/60")}>
             {activeTabLabel === t.key && <span aria-hidden="true" className="pointer-events-none absolute right-full mr-2 whitespace-nowrap rounded-lg border border-cyan-800/80 bg-[#061322] px-3 py-1.5 text-xs font-semibold text-cyan-100 shadow-xl">{t.label}</span>}
             {t.key === "ouro" ? <svg aria-hidden="true" viewBox="0 0 32 28" className="size-4 lg:size-5 shrink-0" fill="none"><path d="M2 17 8 8h12l6 9-6 9H8L2 17Z" fill="#E9A900" stroke="#FFDF69" strokeWidth="1.2"/><path d="m8 8 6 9-6 9-6-9Z" fill="#FFE075"/><path d="m14 17 6-9 6 9-6 9Z" fill="#FFC533"/></svg> : t.key === "nasdaq" ? <ChartNoAxesCombined className="size-4 lg:size-5 text-sky-400" /> : t.key === "saque2" ? <Landmark className="size-4 lg:size-5 text-violet-400" /> : <History className="size-4 lg:size-5 text-slate-300" />}
           </button>
@@ -245,13 +243,7 @@ export function Platform({ mesasDisponiveis = MESAS_FUTUROS, leftMenuOpen = fals
               const percentualMaiorDia = totalMetas > 0 ? Math.max(...dias.map((dia) => Math.max(0, metaLiquidaDia(state.assets.ouro, dia)))) / totalMetas * 100 : 0;
               const custom = state.assets.ouro.mesaConfig;
               if (custom) return <><p>Avaliação: target <strong>${fmt(custom.target)}</strong> · loss limit geral <strong>${fmt(custom.lossLimit)}</strong> · consistência <strong>{custom.consistencia ? `${custom.consistencia}%` : "sem regra"}</strong>.</p><p className="mt-1">Maior meta diária: {fmt(percentualMaiorDia)}% do total{custom.consistencia > 0 && percentualMaiorDia > custom.consistencia ? " — atenção: acima da consistência." : "."}</p><p className="mt-1">Financiada: {custom.payout} dias · meta diária ${fmt(custom.metaFinanciada)} · consistência {custom.consistenciaFinanciada ? `${custom.consistenciaFinanciada}%` : "sem regra"}.</p></>;
-              if (mesaAtiva === "vest") {
-                const p = vestPlan(state.vestAccount?.capital ?? 50000, state.vestAccount?.dailyLimitPercent ?? 0);
-                return <><p><strong>Vest Capital · Avaliação 1 etapa</strong>: capital US$ {fmt(p.capital)} · alvo US$ {fmt(p.target)} (10%) · drawdown estático por equity US$ {fmt(p.staticDrawdown)} (piso inicial US$ {fmt(p.equityFloor)}).</p>
-                <p className="mt-1">DLL: {p.dailyLimitPercent ? p.dailyLimitPercent + "%" : "sem limite diário"} · sem consistência, sem número mínimo de dias e sem prazo máximo. Os dias nos cards são apenas planejamento.</p>
-                <p className="mt-1">Taxa de referência US$ {fmt(p.fee)} (pagamento único; confirme no checkout). Split padrão na conta financiada 80%, solicitações de lucro sob demanda e crédito em até 24h à conta principal em USDC.</p>
-                <p className="mt-1">Instant é uma modalidade distinta (95% de split, sem avaliação). Os termos descrevem contas virtuais e compensação condicional. <a href="https://www.vestmarkets.com/" target="_blank" rel="noopener noreferrer" className="text-cyan-300 underline">Preços e regras oficiais</a> · <a href="https://paper.vestmarkets.com/prop-terms" target="_blank" rel="noopener noreferrer" className="text-cyan-300 underline">Termos</a>.</p></>;
-              }
+              
               if (mesaAtiva === "topstep") return <><p>Avaliação: meta de <strong>US$ 3.000</strong>, loss limit de <strong>US$ 2.000</strong> e consistência máxima de <strong>55%</strong> (possível concluir em 2 dias).</p><p className="mt-1">Maior meta diária / soma das metas: <strong>{fmt(percentualMaiorDia)}%</strong> · {percentualMaiorDia > 55 ? "Atenção: acima da consistência." : "Dentro da consistência planejada."}</p><p className="mt-1">Financiada: <strong>sem consistência</strong>. Para pedir saque: <strong>5 dias operados com lucro mínimo de US$ 150 em cada dia</strong>.</p></>;
               if (mesa.consistencia === 0) return <p>Sem regra de consistência. Saque: 7 dias úteis com lucro mínimo de US$ 50 por dia (condição separada da avaliação).</p>;
               return <><p>Consistência máxima: <strong className="text-amber-200">{mesa.consistencia}%</strong></p><p className="mt-1">Maior meta diária / soma das metas: <strong>{fmt(percentualMaiorDia)}%</strong></p><p className={cn("mt-1", percentualMaiorDia > mesa.consistencia ? "text-rose-300" : "text-emerald-300")}>{totalMetas <= 0 ? "Configure as metas da avaliação." : percentualMaiorDia > mesa.consistencia ? "Atenção: metas ultrapassam o limite de consistência." : "Metas compatíveis com o limite informado."}</p></>;
@@ -275,7 +267,7 @@ export function Platform({ mesasDisponiveis = MESAS_FUTUROS, leftMenuOpen = fals
         </Button>
       </div>
 
-      {section === "vest" ? <VestSimulator value={state.vestStudy} onChange={(value) => mutate((s) => { s.vestStudy = value; })} /> : tab === "historico" ? <Historico state={state} mutate={mutate} bancas={allBancas} bancasGlobais={bancasGlobais} mesaAtiva={mesaAtiva} bancaAtivaId={bancaAtivaId} podeDesfazerForex={podeDesfazerForex} /> : (
+      {tab === "historico" ? <Historico state={state} mutate={mutate} bancas={allBancas} bancasGlobais={bancasGlobais} mesaAtiva={mesaAtiva} bancaAtivaId={bancaAtivaId} podeDesfazerForex={podeDesfazerForex} /> : (
         <AssetView key={tab} state={state} bancasGlobais={bancasGlobais} bancaAtivaId={bancaAtivaId} contaMesa={contaMesa} mesaAtiva={mesaAtiva} assetKey={tab} section={section} mutate={mutate} isAdmin={isAdmin} />
       )}
 
@@ -550,9 +542,7 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <div className="rounded-xl border border-[#18324e] bg-[#091827] p-3">
-                 {mesaAtiva === "vest" && assetKey === "ouro"
-                   ? <NumField label="USDC por ponto de 1 unidade GC" value={1} readOnly helper="Valor fixo: 10 unidades GC-PERP equivalem à exposição de 1 MGC CME." />
-                   : <NumField label="$/ponto do contrato futuro" value={asset.params.mnq} onChange={setP("mnq")} />}
+                 {<NumField label="$/ponto do contrato futuro" value={asset.params.mnq} onChange={setP("mnq")} />}
                </div>
               <div className="rounded-xl border border-[#183b43] bg-[#091a20] p-3"><NumField label="Broker CFD $/ponto/lote" value={asset.params.hfm} onChange={setP("hfm")} /></div>
               <div className="rounded-xl border border-cyan-950 bg-[#091522] p-3"><NumField label="Saldo broker CFD ($)" value={saldo} readOnly helper={`Saldo financeiro conciliado, incluindo resultados reais e bônus disponível`} /></div>
@@ -572,9 +562,9 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
               <div className="rounded-xl border border-[#18324e] bg-[#091827] p-3"><NumField label="Lucro líquido desejado ($, sem a taxa)" value={asset.params.lucroDesejado} onChange={setP("lucroDesejado")} /></div>
               <div className="rounded-xl border border-[#183b43] bg-[#091a20] p-3"><NumField label="Margem exigida por 1 lote ($)" value={asset.params.marginPerLot} onChange={setP("marginPerLot")} /></div>
               <div className="rounded-xl border border-[#18324e] bg-[#091827] p-3"><NumField label="Stop-out da corretora (%)" value={asset.params.stopoutPct} onChange={setP("stopoutPct")} /></div>
-              {mesaAtiva === "vest" && <div className="rounded-xl border border-[#183b43] bg-[#091a20] p-3"><NumField label="Saque no registro da operação ($)" value={asset.params.saqueAprovada} onChange={setP("saqueAprovada")} helper="Valor manual exclusivo da Vest, que utiliza regras de saque diferentes." /></div>}
-              {assetKey === "saque2" && mesaAtiva !== "vest" && <div className="rounded-xl border border-[#183b43] bg-[#091a20] p-3"><NumField label="Saque 2 líquido projetado ($)" value={continuidade?.segundo.saque ?? 0} readOnly helper="Valor automático da projeção do ciclo atual: considera o saldo retido na mesa, as novas metas, 50%, split de 90% e o teto da Lucid, quando aplicável." /></div>}
-              {assetKey !== "saque2" && mesaAtiva !== "vest" && <div className="rounded-xl border border-[#183b43] bg-[#091a20] p-3"><NumField label="1º payout líquido projetado ($)" value={payoutProjetado.liquido} readOnly helper={mesaAtiva === "lucid" ? `Meta geral ${fmt(payoutProjetado.lucro)} × 50% (teto de US$ 2.000 brutos) × 90%. Débito projetado na mesa: ${fmt(payoutProjetado.bruto)}.` : `Meta geral ${fmt(payoutProjetado.lucro)} × 50% × 90%. Débito projetado na mesa: ${fmt(payoutProjetado.bruto)}.`} /></div>}
+              
+              {assetKey === "saque2" && <div className="rounded-xl border border-[#183b43] bg-[#091a20] p-3"><NumField label="Saque 2 líquido projetado ($)" value={continuidade?.segundo.saque ?? 0} readOnly helper="Valor automático da projeção do ciclo atual: considera o saldo retido na mesa, as novas metas, 50%, split de 90% e o teto da Lucid, quando aplicável." /></div>}
+              {assetKey !== "saque2" && <div className="rounded-xl border border-[#183b43] bg-[#091a20] p-3"><NumField label="1º payout líquido projetado ($)" value={payoutProjetado.liquido} readOnly helper={mesaAtiva === "lucid" ? `Meta geral ${fmt(payoutProjetado.lucro)} × 50% (teto de US$ 2.000 brutos) × 90%. Débito projetado na mesa: ${fmt(payoutProjetado.bruto)}.` : `Meta geral ${fmt(payoutProjetado.lucro)} × 50% × 90%. Débito projetado na mesa: ${fmt(payoutProjetado.bruto)}.`} /></div>}
               <div className="rounded-xl border border-[#18324e] bg-[#091827] p-3"><NumField label="Folga extra de segurança p/ saque (%)" value={asset.params.folgaExtraPct} onChange={setP("folgaExtraPct")} /></div>
             </div>
           </section>
@@ -584,19 +574,17 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
               <div className="flex items-start gap-3">
                 <span className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-amber-400/20 bg-amber-400/10 text-amber-300"><ShieldCheck className="size-4" /></span>
                 <div>
-                  <h3 className="font-bold text-slate-100">{mesaAtiva === "vest" ? "Limite máximo Vest · Estático" : "Limite de perda da mesa · EOD"}</h3>
-                  <p className="mt-1 text-xs leading-relaxed text-blue-100/60">{mesaAtiva === "vest" ? "O piso da conta é fixo desde a abertura; não é calculado no fechamento do dia e considera o lucro/prejuízo aberto. As projeções do card usam o drawdown nominal do plano como aproximação." : "Este valor serve de base para as projeções. Ajuste o limite de um dia diretamente no card de operações."}</p>
+                  <h3 className="font-bold text-slate-100">{"Limite de perda da mesa · EOD"}</h3>
+                  <p className="mt-1 text-xs leading-relaxed text-blue-100/60">{"Este valor serve de base para as projeções. Ajuste o limite de um dia diretamente no card de operações."}</p>
                 </div>
               </div>
               <div className="mt-4 max-w-sm rounded-xl border border-amber-400/20 bg-[#080f18] p-3">
-                {mesaAtiva === "vest" && assetKey === "ouro"
-                   ? <NumField label="Drawdown total (6% do plano)" value={state.vestAccount?.capital ? state.vestAccount.capital * 0.06 : asset.params.mll} readOnly helper="Piso estático de referência; lucro acumulado aumenta a folga até ele." />
-                   : <NumField label="Limite geral EOD da mesa (reprovação $)" value={asset.params.mll} onChange={setP("mll")} helper="Limite móvel calculado no fechamento do dia — não é limite diário." />}
+                {<NumField label="Limite geral EOD da mesa (reprovação $)" value={asset.params.mll} onChange={setP("mll")} helper="Limite móvel calculado no fechamento do dia — não é limite diário." />}
               </div>
             </div>
           </section>
 
-          {mesaAtiva !== "vest" && <div className="rounded-xl border border-[#18324e] bg-[#091827] p-3"><NumField label="Taxa por contrato · entrada + saída ($)" value={asset.params.comissaoPorContrato ?? 0} onChange={v => setP("comissaoPorContrato")(Math.max(0, v))} helper="Ex.: US$ 3 × 20 contratos = US$ 60. A meta do card é bruta; as projeções descontam a taxa. Configure por ativo e também no Saque 2. Resultado líquido informado não sofre novo desconto." /></div>}
+          {<div className="rounded-xl border border-[#18324e] bg-[#091827] p-3"><NumField label="Taxa por contrato · entrada + saída ($)" value={asset.params.comissaoPorContrato ?? 0} onChange={v => setP("comissaoPorContrato")(Math.max(0, v))} helper="Ex.: US$ 3 × 20 contratos = US$ 60. A meta do card é bruta; as projeções descontam a taxa. Configure por ativo e também no Saque 2. Resultado líquido informado não sofre novo desconto." /></div>}
           <div className="flex items-start gap-2 rounded-xl border border-cyan-950/70 bg-[#06101b] p-3 text-xs leading-relaxed text-blue-100/60">
             <Check className="mt-0.5 size-4 shrink-0 text-emerald-400" />
             <p>Após a aprovação, o histórico e o Profit registram automaticamente o saque líquido projetado na Meta Geral, com o split e o teto da mesa quando aplicável. O valor é guardado no histórico da operação para não mudar ao editar metas futuras.</p>
@@ -604,14 +592,8 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
         </div>
       )}
 
-      {section === "meta" && mesaAtiva === "vest" && (
-        <section aria-label="Projeção financiada Vest" className="rounded-2xl border border-cyan-900/70 bg-[#071426] p-4">
-          <h3 className="font-bold text-cyan-100">Lucro financiado Vest · projeção</h3>
-          <p className="mt-2 text-sm text-slate-200">Metas planejadas: US$ {fmt(lucroFunded)} · sua participação padrão (80%): US$ {fmt(lucroFunded * 0.8)}.</p>
-          <p className="mt-2 text-xs text-slate-400">Sem mínimo de dias ou regra de consistência. Claim Profit sob demanda, sujeito às regras da Vest e à elegibilidade do lucro. Não se aplica a regra de primeiro saque de 50% nem a exigência de cinco dias da Topstep.</p>
-        </section>
-      )}
-      {section === "meta" && mesaAtiva !== "vest" && (
+      
+      {section === "meta" && (
         <section aria-label="Meta geral — projeção de lucro dos cinco dias Funded">
           <div className="rounded-xl border border-[#18324e] bg-[#091827] p-3"><NumField label="Taxa por contrato · entrada + saída ($)" value={asset.params.comissaoPorContrato ?? 0} onChange={v => setP("comissaoPorContrato")(Math.max(0, v))} helper="Ex.: US$ 3 × 20 contratos = US$ 60. A meta do card é bruta; as projeções descontam a taxa. Configure por ativo e também no Saque 2. Resultado líquido informado não sofre novo desconto." /></div>
           <div className="mb-3 rounded-2xl border border-cyan-900/70 bg-gradient-to-r from-[#0a1929] to-[#07121e] px-3 py-3 shadow-lg sm:px-4">
@@ -703,17 +685,17 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
       }} /></label>;
   return (
     <div ref={ref}
-      data-wow-card={isCurrent && assetKey !== "saque2" && mesa !== "vest" ? "active" : undefined}
-      data-wow-schema={isCurrent && assetKey !== "saque2" && mesa !== "vest" ? "1" : undefined}
-      data-wow-banca-id={isCurrent && mesa !== "vest" ? bancaId : undefined}
-      data-wow-mesa={isCurrent && mesa !== "vest" ? mesa : undefined}
-      data-wow-conta-mesa={isCurrent && mesa !== "vest" ? contaMesa : undefined}
-      data-wow-ativo={isCurrent && assetKey !== "saque2" && mesa !== "vest" ? assetKey : undefined}
-      data-wow-fase={isCurrent && mesa !== "vest" ? (i < avaliacaoDias ? "avaliacao" : "financiada") : undefined}
-      data-wow-dia={isCurrent && mesa !== "vest" ? `D${i < avaliacaoDias ? i + 1 : i - avaliacaoDias + 1}` : undefined}
-      data-wow-contratos-planejados={isCurrent && mesa !== "vest" ? d.mnq : undefined}
-      data-wow-lote-cfd={isCurrent && mesa !== "vest" ? d.lotes : undefined}
-      data-wow-ready={mesa !== "vest" && isCurrent && !!bancaId && !!contaMesa && assetKey !== "saque2" && Number.isFinite(d.mnq) && d.mnq > 0 && Number.isFinite(d.lotes) && d.lotes > 0 ? "true" : "false"}
+      data-wow-card={isCurrent && assetKey !== "saque2" ? "active" : undefined}
+      data-wow-schema={isCurrent && assetKey !== "saque2" ? "1" : undefined}
+      data-wow-banca-id={isCurrent ? bancaId : undefined}
+      data-wow-mesa={isCurrent ? mesa : undefined}
+      data-wow-conta-mesa={isCurrent ? contaMesa : undefined}
+      data-wow-ativo={isCurrent && assetKey !== "saque2" ? assetKey : undefined}
+      data-wow-fase={isCurrent ? (i < avaliacaoDias ? "avaliacao" : "financiada") : undefined}
+      data-wow-dia={isCurrent ? `D${i < avaliacaoDias ? i + 1 : i - avaliacaoDias + 1}` : undefined}
+      data-wow-contratos-planejados={isCurrent ? d.mnq : undefined}
+      data-wow-lote-cfd={isCurrent ? d.lotes : undefined}
+      data-wow-ready={isCurrent && !!bancaId && !!contaMesa && assetKey !== "saque2" && Number.isFinite(d.mnq) && d.mnq > 0 && Number.isFinite(d.lotes) && d.lotes > 0 ? "true" : "false"}
       className={cn("platform-day-card overflow-hidden rounded-2xl border border-[#142b43] bg-[#0b0f19] p-3 text-slate-100 shadow-[0_12px_40px_rgba(0,0,0,0.22)] sm:p-5 lg:p-3", isCurrent && "border-[#087cff]/70 ring-1 ring-[#087cff]/25")}>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-[#142b43] pb-3">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -726,12 +708,10 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
       <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
         <div className="min-w-0 rounded-xl border border-[#18324e] bg-gradient-to-br from-[#0d1b2b] to-[#080f1a] p-3 lg:p-2.5">
           <NumField cockpit
-             label={<><FileText className="h-3.5 w-3.5 text-blue-400" />{mesa === "vest" && assetKey === "ouro" ? "MGC equivalente" : "Contratos"}</>}
-             value={mesa === "vest" && assetKey === "ouro" ? vestMgcEquivalent(d.mnq) : d.mnq}
-             onChange={mesa === "vest" && assetKey === "ouro" ? (v: number) => setD("mnq")(v * 10) : setD("mnq")} />
-           {mesa === "vest" && assetKey === "ouro" && <p className="mt-2 text-[11px] font-semibold text-cyan-200">
-             {fmt(vestMgcEquivalent(d.mnq))} MGC equivalente = {fmt(d.mnq)} unidades Vest GC-PERP · {fmt(vestUsdPerPoint(d.mnq))} USDC/ponto. Equivalência de exposição, não contrato CME.
-           </p>}
+             label={<><FileText className="h-3.5 w-3.5 text-blue-400" />{"Contratos"}</>}
+             value={d.mnq}
+             onChange={setD("mnq")} />
+           
           <span className="mt-2 inline-block rounded-full border border-market-down/40 bg-rose-950/40 px-2 py-0.5 font-mono text-[11px] text-market-down">-${fmt(Math.abs(c.passa))} se passar</span>
         </div>
         <div className="min-w-0 rounded-xl border border-[#183b43] bg-gradient-to-br from-[#092126] to-[#080f1a] p-3 lg:p-2.5">
@@ -741,8 +721,8 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
         <div className="min-w-0 rounded-xl border border-[#18324e] bg-gradient-to-br from-[#0d1b2b] to-[#080f1a] p-3 sm:p-4">
           <NumField cockpit label={<><Target className="h-3.5 w-3.5 text-blue-400" />Meta bruta $</>} value={d.meta} onChange={setD("meta")} />
           <p className="mt-2 font-mono text-[11px] text-muted-foreground">{fmt(row.ticks)} ticks</p>
-          {mesa !== "vest" && <p className="mt-1 text-[11px] text-slate-300">Taxas: ${fmt(taxasMesaDia(asset, d))} · Líquido previsto: ${fmt(metaLiquidaDia(asset, d))}</p>}
-          {(mesa !== "vest") && <div className="mt-1.5 space-y-1">
+          {<p className="mt-1 text-[11px] text-slate-300">Taxas: ${fmt(taxasMesaDia(asset, d))} · Líquido previsto: ${fmt(metaLiquidaDia(asset, d))}</p>}
+          {<div className="mt-1.5 space-y-1">
             {campoEod(String(i), "Resultado líquido do dia ($)")}
           </div>}
         </div>
@@ -750,15 +730,11 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
           {projecao && <p className="mb-1 text-[11px] leading-snug text-slate-300" title="Na abertura deste dia. Usa o resultado líquido informado nos dias anteriores ou a meta menos taxas quando o campo está vazio. Tocar o piso reprova a conta.">
             Piso projetado: <strong>${fmt(projecao.piso)}</strong> · Folga: <strong>${fmt(projecao.distancia)}</strong>
           </p>}
-          {mesa === "vest" && assetKey === "ouro"
-             ? <NumField cockpit label="Drawdown estático do plano (US$)" value={asset.params.mll} readOnly helper="Piso fixo da conta. Não é EOD, não acompanha lucro e inclui P&L aberto." />
-             : <NumField cockpit label="Loss limit do cenário ($)" value={c.limiteDoCard ?? asset.params.mll} onChange={ajustarStop} />}
+          {<NumField cockpit label="Loss limit do cenário ($)" value={c.limiteDoCard ?? asset.params.mll} onChange={ajustarStop} />}
           {c.ticksReprova !== undefined && c.valorTickMesa
-             ? (mesa === "vest" && assetKey === "ouro"
-               ? <NumField label="Distância teórica até o piso (ticks)" value={c.ticksReprova} readOnly />
-               : <NumField label="Stop em ticks" value={c.ticksReprova} onChange={ticks => ajustarStop(Math.ceil(ticks) * c.valorTickMesa!)} />)
+             ? (<NumField label="Stop em ticks" value={c.ticksReprova} onChange={ticks => ajustarStop(Math.ceil(ticks) * c.valorTickMesa!)} />)
              : <p>Informe os contratos para calcular os ticks.</p>}
-          {mesa !== "vest" && d[campoStop] !== undefined && <button type="button" className="mt-1 text-xs text-cyan-300 underline" onClick={() => ajustarStop(0)}>Usar limite automático</button>}
+          {d[campoStop] !== undefined && <button type="button" className="mt-1 text-xs text-cyan-300 underline" onClick={() => ajustarStop(0)}>Usar limite automático</button>}
         </div>
       </div>
 
@@ -811,7 +787,7 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
           </div>
         );
       })() : <p className="mt-2 font-mono text-[11px] text-muted-foreground">{row.statusText}</p>}
-       {mesa === "vest" && assetKey === "ouro" && <p className="mt-2 text-[11px] text-amber-200">Vest: digite 1 MGC equivalente para 10 unidades GC, ou 2 para 20. Com a mesma meta e o mesmo lote Forex, dobrar unidades reduz à metade os pontos necessários e o resultado projetado do Forex. Isso não obriga aumentar os lotes. Taxas Vest (taker 0,0025% por execução), spread e funding não estão incluídos nesta projeção. Confira no Simulador Vest. Não envia ordens pelo robô TopstepX.</p>}
+       
        {isCurrent && asset.mesaConfig && (d.mnq <= 0 || d.lotes <= 0) && <p className="mt-3 text-sm text-amber-200">Preencha os contratos e os lotes CFD para calcular e registrar a operação.</p>}
        {isCurrent && (!asset.mesaConfig || (d.mnq > 0 && d.lotes > 0)) && <Settle risco={row.status === "risco"} custo={c.custoSePassar} reprova={c.reprova}
         onProfit={(real) => mutate((s) => handleProfit(s, assetKey, real))} onStop={(real) => mutate((s) => handleStop(s, assetKey, real))} />}

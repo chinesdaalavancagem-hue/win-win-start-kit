@@ -1,3 +1,4 @@
+import { normalizarCarteira, type Carteira } from "./carteira";
 import { type MesaPersonalizada, idMesaPersonalizada, normalizarMesasPersonalizadas } from "./mesas-personalizadas";
 import { type State, type AssetKey, type Bonus, type MesaFuturos, defaultState, selecionarMesaGold, prepararMesaPersonalizada, historicoTotals, isValidState, normalizeState, podeDesfazerUltimaOperacao, tipoLabel } from "./engine";
 import { challengeAccountSchema, type ChallengeAccount } from "../prop-firms";
@@ -5,7 +6,7 @@ import { challengeAccountSchema, type ChallengeAccount } from "../prop-firms";
 export type BancaAtivo = "nasdaq" | "ouro";
 export interface Banca { id: string; nome: string; criadaEm: number; state: State; taxaCompra?: number; mesa?: MesaFuturos; ativo?: BancaAtivo; officialAcceptedAt?: string; challengeAccount?: ChallengeAccount; contaMesa?: string | undefined; contaMesaNome?: string | undefined }
 export interface ForexCompartilhado { cfdBalance: number; forexSaldoReal?: number | undefined; bonus: Record<AssetKey, Bonus> }
-export interface BancasDoc { mesasPersonalizadas?: MesaPersonalizada[]; bancasVersion: 1; activeId: string; bancas: Banca[]; mesaAtiva?: MesaFuturos; activeIdsMesa?: Partial<Record<MesaFuturos, string>>; forex?: ForexCompartilhado }
+export interface BancasDoc { carteira?: Carteira; contasArquivadas?: unknown[]; mesasPersonalizadas?: MesaPersonalizada[]; bancasVersion: 1; activeId: string; bancas: Banca[]; mesaAtiva?: MesaFuturos; activeIdsMesa?: Partial<Record<MesaFuturos, string>>; forex?: ForexCompartilhado }
 
 export function extrairForex(state: State): ForexCompartilhado {
   return { cfdBalance: state.cfdBalance, forexSaldoReal: state.forexSaldoReal, bonus: {
@@ -53,10 +54,10 @@ export function parseBancas(raw: string | null): BancasDoc {
   if (p && Array.isArray(p.bancas) && (p.bancas.length || p.bancasVersion === 1)) {
     const mesasPersonalizadas = normalizarMesasPersonalizadas(p.mesasPersonalizadas);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const bancas: Banca[] = p.bancas.filter((b: any) => b.mesa !== "ylos").map((b: any, i: number) => ({
+    const bancas: Banca[] = p.bancas.filter((b: any) => b.mesa !== "ylos" && b.mesa !== "vest" && b.state?.assets?.ouro?.mesaFuturos !== "vest").map((b: any, i: number) => ({
       id: String(b.id || newId()), nome: String(b.nome || `Banca ${i + 1}`), criadaEm: Number(b.criadaEm) || Date.now(),
       state: isValidState(b.state) ? normalizeState(b.state) : defaultState(),
-      mesa: b.mesa === "lucid" || b.mesa === "mff" || b.mesa === "topstep" || b.mesa === "vest" || idMesaPersonalizada(b.mesa) ? b.mesa : "tradefive",
+      mesa: b.mesa === "lucid" || b.mesa === "mff" || b.mesa === "topstep" || idMesaPersonalizada(b.mesa) ? b.mesa : "tradefive",
       ...(Number.isFinite(b.taxaCompra) && b.taxaCompra >= 0 ? { taxaCompra: b.taxaCompra } : {}),
       ...(b.ativo === "nasdaq" || b.ativo === "ouro" ? { ativo: b.ativo } : {}),
       ...(typeof b.officialAcceptedAt === "string" ? { officialAcceptedAt: b.officialAcceptedAt } : {}),
@@ -64,15 +65,21 @@ export function parseBancas(raw: string | null): BancasDoc {
       ...(typeof b.contaMesaNome === "string" && /^[A-Za-z0-9][A-Za-z0-9_. -]{1,99}$/.test(b.contaMesaNome) ? { contaMesaNome: b.contaMesaNome } : {}),
       ...(challengeAccountSchema.safeParse(b.challengeAccount).success ? { challengeAccount: challengeAccountSchema.parse(b.challengeAccount) } : {}),
     }));
+    // Retira a mesa descontinuada das operações sem converter suas posições em outra mesa.
+    const legadas = p.bancas.filter((b: any) => b.mesa === "vest" || b.state?.assets?.ouro?.mesaFuturos === "vest");
+    const forexLegado = legadas.length && !p.forex ? forexDoDocumento({bancasVersion:1,activeId:"",bancas:p.bancas.filter((b: any) => isValidState(b.state)).map((b: any) => ({...b,state:normalizeState(structuredClone(b.state))}))}) : undefined;
+    if (!bancas.length && legadas.length) bancas.push({...novaBanca("Conta principal"), mesa:"tradefive"});
     bancas.sort((a, b) => (a.criadaEm || 0) - (b.criadaEm || 0));
     const activeId = bancas.some((b) => b.id === p.activeId) ? p.activeId : bancas[0]?.id ?? "";
-    const mesaAtiva: MesaFuturos = p.mesaAtiva === "lucid" || p.mesaAtiva === "mff" || p.mesaAtiva === "topstep" || p.mesaAtiva === "vest" || (idMesaPersonalizada(p.mesaAtiva) && (mesasPersonalizadas.some(m => m.id === p.mesaAtiva) || bancas.some(b => b.mesa === p.mesaAtiva))) ? p.mesaAtiva : "tradefive";
+    const mesaAtiva: MesaFuturos = p.mesaAtiva === "lucid" || p.mesaAtiva === "mff" || p.mesaAtiva === "topstep" || (idMesaPersonalizada(p.mesaAtiva) && (mesasPersonalizadas.some(m => m.id === p.mesaAtiva) || bancas.some(b => b.mesa === p.mesaAtiva))) ? p.mesaAtiva : "tradefive";
     const ids = p.activeIdsMesa && typeof p.activeIdsMesa === "object" ? p.activeIdsMesa as Partial<Record<MesaFuturos, string>> : {};
-    const remainingIds = { ...ids } as typeof ids & { ylos?: string };
+    const remainingIds = { ...ids } as typeof ids & { ylos?: string; vest?: string };
+    delete remainingIds.vest;
     delete remainingIds.ylos;
     const activeIdsMesa = { ...remainingIds, tradefive: remainingIds.tradefive ?? bancas.find((b) => b.mesa === "tradefive")?.id ?? "" };
-    const doc: BancasDoc = { bancasVersion: 1, activeId, bancas, mesaAtiva, activeIdsMesa, mesasPersonalizadas };
-    return { ...doc, forex: p.forex && Number.isFinite(p.forex.cfdBalance) && p.forex.bonus ? p.forex : forexDoDocumento(doc) };
+    const contasArquivadas = [...(Array.isArray(p.contasArquivadas) ? p.contasArquivadas : []), ...legadas];
+    const doc: BancasDoc = { carteira: normalizarCarteira(p.carteira), contasArquivadas, bancasVersion: 1, activeId, bancas, mesaAtiva, activeIdsMesa, mesasPersonalizadas };
+    return { ...doc, forex: p.forex && Number.isFinite(p.forex.cfdBalance) && p.forex.bonus ? p.forex : forexLegado ?? forexDoDocumento(doc) };
   }
   const first = novaBanca("Banca principal", isValidState(p) ? normalizeState(p) : defaultState());
   return { bancasVersion: 1, activeId: first.id, bancas: [first], mesaAtiva: "tradefive", activeIdsMesa: { tradefive: first.id }, forex: extrairForex(first.state) };

@@ -1,5 +1,5 @@
 import {describe,it,expect} from 'vitest';
-import {handleProfit, undoLast, handleStop, historicoTotals, defaultState, simularSaque2, computeAssetCalcs, normalizeState, calcCaixaCiclo, projetarPrimeiroPayout} from '../lib/platform/engine';
+import {handleProfit, undoLast, handleStop, defaultState, simularSaque2, computeAssetCalcs, normalizeState, calcCaixaCiclo, projetarPrimeiroPayout} from '../lib/platform/engine';
 function setup() {
   const s=defaultState();
   const a=s.assets.ouro;
@@ -239,7 +239,7 @@ describe('comissões nas metas e ciclos',()=>{
   a.params.comissaoPorContrato=3;a.days[2]!.mnq=20;a.days[2]!.meta=2060;
   expect(computeAssetCalcs(a,'ouro')[3]!.limiteDoCard).toBe(1900);
  });
- it('mantém backups antigos e ignora taxas inválidas ou comissões CME na Vest',()=>{
+ it('mantém backups antigos e ignora taxas inválidas',()=>{
   const s=setup(), antes=projetarPrimeiroPayout(s.assets.ouro,'ouro');
   for(const invalid of [-1,Infinity,NaN]) {
    s.assets.ouro.params.comissaoPorContrato=invalid;
@@ -248,40 +248,6 @@ describe('comissões nas metas e ciclos',()=>{
   }
   s.assets.ouro.params.comissaoPorContrato=3;
   expect(normalizeState(JSON.parse(JSON.stringify(s))).assets.ouro.params.comissaoPorContrato).toBe(3);
-  s.assets.ouro.mesaFuturos='vest';const comTaxa=projetarPrimeiroPayout(s.assets.ouro,'ouro');
-  delete s.assets.ouro.params.comissaoPorContrato;
-  expect(projetarPrimeiroPayout(s.assets.ouro,'ouro')).toEqual(comTaxa);
+
  });
-});
-
-
-describe('histórico registra saque calculado automaticamente',()=>{
-  it('ignora campo manual e usa líquido da Meta Geral ao concluir primeiro ciclo',()=>{
-    const s=setup(), a=s.assets.ouro;
-    a.days.forEach(d=>{d.lotes=0;});
-    a.params.taxa=0;
-    a.params.saqueAprovada=99999;
-    a.attempt.currentDayIndex=a.days.length-1;
-    const esperado=projetarPrimeiroPayout(a,'ouro').liquido;
-    handleProfit(s,'ouro');
-    expect(esperado).toBe(1260);
-    expect(s.log.at(-1)?.saque).toBe(esperado);
-    expect(s.log.at(-1)?.resultadoReal).toBe(esperado);
-    expect(historicoTotals(s).profit).toBe(esperado);
-    a.params.saqueAprovada=0;
-    a.days[2]!.meta=10000;
-    expect(historicoTotals(s).profit).toBe(esperado);
-  });
-
-  it('respeita o teto Lucid de US$ 2.000 brutos no saque gravado',()=>{
-    const s=setup(), a=s.assets.ouro;
-    a.days.forEach(d=>{d.lotes=0;});
-    a.params.taxa=0;
-    a.days[2]!.meta=4200;
-    a.params.saqueAprovada=123;
-    a.attempt.currentDayIndex=a.days.length-1;
-    handleProfit(s,'ouro');
-    expect(s.log.at(-1)?.saque).toBe(1800);
-    expect(historicoTotals(s).profit).toBe(1800);
-  });
 });

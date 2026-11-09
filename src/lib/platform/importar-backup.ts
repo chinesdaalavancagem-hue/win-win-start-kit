@@ -1,3 +1,4 @@
+import { normalizarCarteira, mesclarCarteiras } from "./carteira";
 import { parseBancas, type BancasDoc } from "./bancas";
 
 /** Lê CSV com ";" ou "," (aspas duplas com "" de escape, campos multilinha). */
@@ -37,7 +38,7 @@ export function extrairDocumentoBackup(texto: string): BancasDoc | null {
   for (const c of candidatos) {
     try {
       const p = JSON.parse(c);
-      if (!p || !Array.isArray(p.bancas) || !p.bancas.length) continue;
+      if (!p || !Array.isArray(p.bancas) || (!p.bancas.length && !p.carteira)) continue;
       const doc = parseBancas(c);
       if (!melhor || doc.bancas.length > melhor.bancas.length) melhor = doc;
     } catch { /* linha inválida: ignora */ }
@@ -53,7 +54,7 @@ export function mesclarBackup(atual: BancasDoc, backup: BancasDoc): { doc: Banca
   const mesasNovas = (backup.mesasPersonalizadas ?? []).filter((m) => !idsMesas.has(m.id));
   const todasBancas = [...atual.bancas, ...novas].sort((a, b) => (a.criadaEm ?? 0) - (b.criadaEm ?? 0));
   return {
-    doc: { ...atual, bancas: todasBancas, mesasPersonalizadas: [...(atual.mesasPersonalizadas ?? []), ...mesasNovas] },
+    doc: { ...atual, carteira: mesclarCarteiras(normalizarCarteira(atual.carteira), normalizarCarteira(backup.carteira)), contasArquivadas: [...(atual.contasArquivadas ?? []), ...(backup.contasArquivadas ?? []).filter(b => !(atual.contasArquivadas ?? []).some(a => JSON.stringify(a) === JSON.stringify(b)))], bancas: todasBancas, mesasPersonalizadas: [...(atual.mesasPersonalizadas ?? []), ...mesasNovas] },
     adicionadas: novas.length,
     ignoradas: backup.bancas.length - novas.length,
   };

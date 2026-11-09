@@ -1,6 +1,4 @@
 import { type MesaPersonalizada, validarMesaPersonalizada, metasAvaliacao } from "./mesas-personalizadas";
-import { type VestDraft, normalizeVestDraft } from "./vest";
-import { type VestCapital, type VestDailyLimit, vestPlan } from "./vest-oficial";
 // Lógica da plataforma Win or Win (portada 1:1 do HTML original).
 // O formato do estado salvo em app_data NÃO deve mudar — mantém os dados dos usuários.
 
@@ -20,7 +18,7 @@ export interface Params {
 }
 /** Meta do card é bruta: mantém o movimento de preço usado no hedge. */
 export function taxasMesaDia(a: Asset, d: Day): number {
-  if (a.mesaFuturos === "vest") return 0;
+  
   const taxa = a.params.comissaoPorContrato;
   return typeof taxa === "number" && Number.isFinite(taxa) && taxa >= 0
     ? Math.round(Math.max(0, d.mnq) * taxa * 100) / 100 : 0;
@@ -36,13 +34,12 @@ export interface Attempt { resultadosMesaEod?: Record<string, number>; currentDa
 export interface ReversaoDeposito { saldoAntes: number; depositoAntes: number; bonusAntes: number; ganhoAntes: number; assinatura: string }
 export interface BonusLog { reversaoDeposito?: ReversaoDeposito; ts: number; tipo: "deposito" | "saque" | "reset" | "ajuste_credito" | "reinicio_ciclo"; valor: number; dia?: number; bonusGanho?: number; proporcao?: number; bonusReduzido?: number; depositoZerado?: number }
 export interface Bonus { deposito: number; bonusAtual: number; bonusGanhoTotal: number; bonusCap: number; log: BonusLog[] }
-export type MesaFuturos = "tradefive" | "lucid" | "mff" | "topstep" | "vest" | MesaPersonalizada["id"];
+export type MesaFuturos = "tradefive" | "lucid" | "mff" | "topstep" | MesaPersonalizada["id"];
 export const MESAS_FUTUROS: Record<MesaFuturos, { nome: string; consistencia: number; avaliacao: number; payout: number }> = {
   tradefive: { nome: "Tradeify", consistencia: 40, avaliacao: 3, payout: 5 },
   lucid: { nome: "Lucid Trading", consistencia: 50, avaliacao: 2, payout: 5 },
   mff: { nome: "My Funded Futures (MFF)", consistencia: 30, avaliacao: 4, payout: 5 },
   topstep: { nome: "Topstep", consistencia: 55, avaliacao: 2, payout: 5 },
-  vest: { nome: "Vest Capital · GC-PERP", consistencia: 0, avaliacao: 1, payout: 1 },
 };
 export interface Asset { mesaConfig?: MesaPersonalizada; params: Params; days: Day[]; attempt: Attempt; bonus: Bonus; mesaFuturos?: MesaFuturos; diasPorMesa?: Partial<Record<MesaFuturos, Day[]>>; avaliacaoPorMesa?: Partial<Record<MesaFuturos, number>> }
 export interface ContinuacaoSaque {
@@ -104,9 +101,6 @@ export interface LogEntry {
   assinaturaForexApos?: string;
 }
 export interface State {
-  /** Estudo manual independente; não representa posição nem altera o histórico. */
-  vestStudy?: VestDraft;
-  vestAccount?: { capital: VestCapital; dailyLimitPercent: VestDailyLimit };
   revisoesHistorico?: { ts: number; anteriores: LogEntry[] }[];
   activeTab: TabKey; assets: Record<AssetKey, Asset>; log: LogEntry[]; cfdBalance: number; totalGasto: number;
   forexSaldoReal?: number | undefined;
@@ -212,26 +206,6 @@ export function selecionarMesaGold(asset: Asset, mesa: MesaFuturos): void {
   asset.attempt.currentDayIndex = Math.min(asset.attempt.currentDayIndex, asset.days.length - 1);
 }
 
-/** Plano de avaliação Vest, exclusivo da banca, sem integração automática de ordens. */
-export function prepararBancaVest(s: State, capital: VestCapital = 50000, dll: VestDailyLimit = 0): void {
-  const plano = vestPlan(capital,dll);
-  s.vestAccount = {capital, dailyLimitPercent:dll};
-  const ouro = s.assets.ouro;
-  ouro.mesaFuturos = "vest";
-  ouro.avaliacaoPorMesa = {...ouro.avaliacaoPorMesa, vest:1};
-  ouro.days = [{mnq:10,lotes:0.01,meta:plano.target,mll:plano.staticDrawdown},
-               {mnq:10,lotes:0.01,meta:100,mll:plano.staticDrawdown}];
-  ouro.diasPorMesa = {...ouro.diasPorMesa, vest:structuredClone(ouro.days)};
-  ouro.params.mnq = 1;
-  ouro.params.mll = plano.staticDrawdown;
-  ouro.params.taxa = plano.fee;
-  ouro.params.saqueAprovada = 0;
-  ouro.attempt = freshAttempt();
-  s.assets.nasdaq.mesaFuturos = "vest";
-  s.assets.nasdaq.days = [{mnq:0,lotes:0,meta:0}];
-  s.assets.saque2.mesaFuturos = "vest";
-}
-
 /** Aplica regras apenas ao criar uma banca nova. Não reescreve planos existentes. */
 export function prepararMesaPersonalizada(state: State, mesa: MesaPersonalizada, referencia?: State): void {
   const erro = validarMesaPersonalizada(mesa);
@@ -280,7 +254,8 @@ export function isValidState(p: any): boolean {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function normalizeState(p: any): State {
-  if (p.vestStudy !== undefined) p.vestStudy = normalizeVestDraft(p.vestStudy);
+  delete p.vestStudy;
+  delete p.vestAccount;
   if (p.revisoesHistorico !== undefined && !Array.isArray(p.revisoesHistorico)) delete p.revisoesHistorico;
   if (!p.assets.saque2) p.assets.saque2 = clone(defaultAssetsBase.saque2);
   for (const k of ASSETS) {
@@ -419,7 +394,7 @@ export function limitesLucid(a: Asset, key: AssetKey, indice: number) {
 export function lossLimitGoldProjetado(a: Asset, indice: number): number {
   if (a.mesaFuturos === "lucid") return limitesLucid(a, "ouro", indice).distancia;
   if (a.mesaFuturos === "topstep") return limitesTopstep(a, "ouro", indice).distancia;
-  if (a.mesaFuturos === "vest") return a.params.mll;
+  
   if (a.mesaConfig) return a.params.mll;
   if ((a.mesaFuturos ?? "tradefive") === "tradefive") return limitesTradeify(a, "ouro", indice).distancia;
   const avaliacao = diasAvaliacaoGold(a);
@@ -430,7 +405,7 @@ export function lossLimitGoldProjetado(a: Asset, indice: number): number {
 
 export function lossLimitGoldEfetivo(a: Asset, indice: number): number {
   if (a.mesaFuturos === "topstep") return limitesTopstep(a, "ouro", indice).distancia;
-  if (a.mesaFuturos === "vest") return a.params.mll;
+  
   if (a.mesaConfig) return dayMll(a, a.days[indice] ?? {mnq:0, lotes:0, meta:0});
   const manual = a.days[indice]?.mll;
   return typeof manual === "number" && Number.isFinite(manual) && manual > 0 ? manual : lossLimitGoldProjetado(a, indice);
@@ -441,9 +416,8 @@ export function computeAssetCalcs(a: Asset, key: AssetKey, continuidade?: { divi
   const incluiPretensao = key === "saque2";
   let divida = taxa + (continuidade?.divida ?? 0);
   return a.days.map((d) => {
-    // Vest GC-PERP: d.mnq armazena unidades Vest (USDC 1 por ponto por unidade).
-    // Nunca reutilizar o multiplicador de contratos CME, que pode ter sido editado.
-    const exp = a.mesaFuturos === "vest" && key === "ouro" ? d.mnq : d.mnq * mnqPt;
+
+    const exp = d.mnq * mnqPt;
     const pontos = exp > 0 ? d.meta / exp : 0;
     const custoSePassar = pontos * d.lotes * hfmPt;
     const indice = a.days.indexOf(d);
@@ -522,7 +496,6 @@ export function handleProfit(s: State, key: AssetKey, realCfd?: number) {
   const continuacao = key === "saque2" ? simularSaque2(s, 100, {indice: idx, custo: calc.custoSePassar, resultadoMesa}) : null;
   const saque = isLast
     ? key === "saque2" ? continuacao?.segundo.saque ?? 0
-      : a.mesaFuturos === "vest" ? a.params.saqueAprovada ?? 0
       : projetarPrimeiroPayout(a, key).liquido
     : 0;
   const delta = saque - custoDoDia;
@@ -814,7 +787,7 @@ export function calcCaixaCiclo(a: Asset, key: AssetKey, bonusPct: number, inicio
     bonus = Math.max(0, bonus - deBonus);
     return { dia: i + 1, necessario, saldoAntes, proprioAntes, bonusAntes, proprioDisponivel, bonusDisponivel, excedenteProprioSacavel, deposito, bonusGanho, perda, perdaPropria: deProprio, perdaBonus: deBonus, proprioRestante: proprio, bonusRestante: bonus, caixaAcumulado: taxa + depositado };
   });
-  const saque = saqueProjetado ?? (key !== "saque2" && a.mesaFuturos !== "vest" ? projetarPrimeiroPayout(a, key).liquido : a.params.saqueAprovada || 0);
+  const saque = saqueProjetado ?? (key !== "saque2" ? projetarPrimeiroPayout(a, key).liquido : a.params.saqueAprovada || 0);
   const caixaMaximo = taxa + depositado;
   const recuperado = proprio + saque;
   const totalPerda = dias.reduce((acc, d) => acc + d.perda, 0);
@@ -829,7 +802,7 @@ export function simularSaque2(s: State, bonusPct = 100, operacao?: {indice: numb
   const origem = s.assets[origemKey];
   const payout = projetarPrimeiroPayout(origem, origemKey);
   const primeiro = calcCaixaCiclo(origem, origemKey, bonusPct);
-  const retirada = origem.mesaFuturos === "vest" ? origem.params.saqueDebitadoMesa ?? origem.params.saqueAprovada : payout.bruto;
+  const retirada = payout.bruto;
   const lucroMesa = payout.lucro;
   const mesa = origem.mesaFuturos ?? "tradefive";
   // Valores relativos ao saldo nominal: assim 25K e 50K usam a mesma regra.
