@@ -33,7 +33,8 @@ export function resultadoMesaDia(a: Asset, indice: number): number {
   return a.attempt.resultadosMesaEod?.[indice] ?? metaLiquidaDia(a, a.days[indice]!);
 }
 export interface Attempt { resultadosMesaEod?: Record<string, number>; currentDayIndex: number; cycleCost: number; custoProprioAcumulado: number }
-export interface BonusLog { ts: number; tipo: "deposito" | "saque" | "reset" | "ajuste_credito" | "reinicio_ciclo"; valor: number; dia?: number; bonusGanho?: number; proporcao?: number; bonusReduzido?: number; depositoZerado?: number }
+export interface ReversaoDeposito { saldoAntes: number; depositoAntes: number; bonusAntes: number; ganhoAntes: number; assinatura: string }
+export interface BonusLog { reversaoDeposito?: ReversaoDeposito; ts: number; tipo: "deposito" | "saque" | "reset" | "ajuste_credito" | "reinicio_ciclo"; valor: number; dia?: number; bonusGanho?: number; proporcao?: number; bonusReduzido?: number; depositoZerado?: number }
 export interface Bonus { deposito: number; bonusAtual: number; bonusGanhoTotal: number; bonusCap: number; log: BonusLog[] }
 export type MesaFuturos = "tradefive" | "lucid" | "mff" | "topstep" | "vest" | MesaPersonalizada["id"];
 export const MESAS_FUTUROS: Record<MesaFuturos, { nome: string; consistencia: number; avaliacao: number; payout: number }> = {
@@ -294,6 +295,11 @@ export function normalizeState(p: any): State {
     if (typeof a.attempt.cycleCost !== "number") a.attempt.cycleCost = 0;
     if (typeof a.attempt.custoProprioAcumulado !== "number") a.attempt.custoProprioAcumulado = 0;
     if (!a.bonus) a.bonus = freshBonus();
+    for (const evento of a.bonus.log ?? []) {
+      const r = evento.reversaoDeposito;
+      if (r !== undefined && (!r || typeof r.assinatura !== "string" ||
+        ![r.saldoAntes, r.depositoAntes, r.bonusAntes, r.ganhoAntes].every(v => typeof v === "number" && Number.isFinite(v) && v >= 0))) delete evento.reversaoDeposito;
+    }
     if (a.params.saqueDebitadoMesa !== undefined && (!Number.isFinite(a.params.saqueDebitadoMesa) || a.params.saqueDebitadoMesa < 0)) delete a.params.saqueDebitadoMesa;
     if (a.params.comissaoPorContrato !== undefined && (typeof a.params.comissaoPorContrato !== "number" || !Number.isFinite(a.params.comissaoPorContrato) || a.params.comissaoPorContrato < 0)) delete a.params.comissaoPorContrato;
     const d = defaultAssetsBase[k].params;
@@ -621,14 +627,38 @@ export function atualizarSaldoReal(s: State, delta: number) {
   s.forexSaldoReal = Math.max(0, (s.forexSaldoReal ?? 0) + delta);
 }
 
+/** Detecta movimentações posteriores, inclusive em outros ativos que usam o saldo global. */
+function assinaturaCaixa(s: State): string {
+  return JSON.stringify([s.forexSaldoReal, s.cfdBalance, s.totalGasto, s.log.map(e => [e.id, e.delta]),
+    ASSETS.map(k => { const b = s.assets[k].bonus; return [b.deposito, b.bonusAtual, b.bonusGanhoTotal, b.bonusCap,
+      b.log.map(e => [e.ts, e.tipo, e.valor, e.bonusGanho, e.bonusReduzido])]; })]);
+}
+export function podeReverterDeposito(s: State, key: AssetKey): boolean {
+  const ultimo = s.assets[key].bonus.log.at(-1);
+  const r = ultimo?.reversaoDeposito;
+  return ultimo?.tipo === "deposito" && !!r &&
+    [r.saldoAntes, r.depositoAntes, r.bonusAntes, r.ganhoAntes].every(v => Number.isFinite(v) && v >= 0) &&
+    r.assinatura === assinaturaCaixa(s);
+}
+export function reverterDeposito(s: State, key: AssetKey): boolean {
+  if (!podeReverterDeposito(s, key)) return false;
+  const b = s.assets[key].bonus, r = b.log.at(-1)!.reversaoDeposito!;
+  s.forexSaldoReal = r.saldoAntes;
+  b.deposito = r.depositoAntes; b.bonusAtual = r.bonusAntes; b.bonusGanhoTotal = r.ganhoAntes;
+  b.log.pop();
+  return true;
+}
+
 export function aplicarDeposito(s: State, key: AssetKey, valor: number) {
   if (!Number.isFinite(valor) || valor <= 0) return;
   const b = s.assets[key].bonus;
   const espaco = Math.max(0, b.bonusCap - b.bonusGanhoTotal);
   const ganho = Math.min(valor, espaco);
+  const reversaoDeposito: ReversaoDeposito = {saldoAntes: s.forexSaldoReal ?? 0, depositoAntes: b.deposito, bonusAntes: b.bonusAtual, ganhoAntes: b.bonusGanhoTotal, assinatura: ""};
   atualizarSaldoReal(s, valor);
   b.deposito += valor; b.bonusAtual += ganho; b.bonusGanhoTotal += ganho;
-  b.log.push({ ts: Date.now(), tipo: "deposito", valor, dia: s.assets[key].attempt.currentDayIndex + 1, bonusGanho: ganho });
+  b.log.push({ ts: Date.now(), tipo: "deposito", valor, dia: s.assets[key].attempt.currentDayIndex + 1, bonusGanho: ganho, reversaoDeposito });
+  reversaoDeposito.assinatura = assinaturaCaixa(s);
 }
 
 export function aplicarSaque(s: State, key: AssetKey, valor: number) {
@@ -850,4 +880,5 @@ export function simularSaque2(s: State, bonusPct = 100, operacao?: {indice: numb
 export function calculosDoEstado(s: State, key: AssetKey): DayCalc[] {
   return key === "saque2" ? simularSaque2(s).calcs : computeAssetCalcs(s.assets[key], key);
 }
+
 

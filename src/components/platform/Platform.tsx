@@ -12,7 +12,7 @@ import { registrarAuditoria } from "@/lib/auditoria-registro";
 import { applyOfficialParams, buildOfficialParams, isOfficialParams } from "@/lib/platform/official-params";
 import {
   type AssetKey, type State, type TabKey, type Asset, type MesaFuturos, MESAS_FUTUROS, nomeMesa, diasAvaliacaoAtivo, diasAvaliacaoGold, limitesTradeify, limitesTopstep, adicionarDiaGold, removerDiaGold,
-  taxasMesaDia, metaLiquidaDia, projetarPrimeiroPayout, simularSaque2, aplicarDeposito, aplicarSaque, projetarAportesFuturos, conciliarCreditoForex, calcAporteFracionado, calcCaixaCiclo, clampDayIndex, computeAssetCalcs, defaultState, fmt, fmtSigned, handleProfit, handleStop,
+  podeReverterDeposito, reverterDeposito, taxasMesaDia, metaLiquidaDia, projetarPrimeiroPayout, simularSaque2, aplicarDeposito, aplicarSaque, projetarAportesFuturos, conciliarCreditoForex, calcAporteFracionado, calcCaixaCiclo, clampDayIndex, computeAssetCalcs, defaultState, fmt, fmtSigned, handleProfit, handleStop,
   historicoTotals, isValidState, normalizeState, parseNum, parseValorFinanceiro, parseResultadoCfd, podeDesfazerUltimaOperacao, projetarZeragemBonus, reiniciarCicloBonus, resetBonus, tipoLabel, undoLast,
 } from "@/lib/platform/engine";
 
@@ -42,6 +42,15 @@ export function Platform({ mesasDisponiveis = MESAS_FUTUROS, leftMenuOpen = fals
   const [tentativaSalvar, repetirSalvamento] = useState(0);
   const [syncTarget, setSyncTarget] = useState<HTMLElement | null>(null);
   const heroRef = useRef<HTMLElement>(null);
+  const leftMenuRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (!leftMenuOpen) return;
+    const fecharFora = (event: PointerEvent) => {
+      if (event.target instanceof Node && !leftMenuRef.current?.contains(event.target)) setLeftMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", fecharFora, true);
+    return () => document.removeEventListener("pointerdown", fecharFora, true);
+  }, [leftMenuOpen, setLeftMenuOpen]);
   const rightRailRef = useRef<HTMLElement>(null);
   const [desktopRailTop, setDesktopRailTop] = useState(120);
   const [headerHeight, setHeaderHeight] = useState(112);
@@ -195,7 +204,7 @@ export function Platform({ mesasDisponiveis = MESAS_FUTUROS, leftMenuOpen = fals
       </section>
 
 
-      <aside className="pointer-events-none fixed left-1 top-[calc(50%-48px)] z-40 flex lg:left-2" aria-label="Menu de operações" style={{ top: typeof window !== "undefined" && window.innerWidth >= 1024 ? desktopRailTop : undefined }}>
+      <aside ref={leftMenuRef} className="pointer-events-none fixed left-1 top-[calc(50%-48px)] z-40 flex lg:left-2" aria-label="Menu de operações" style={{ top: typeof window !== "undefined" && window.innerWidth >= 1024 ? desktopRailTop : undefined }}>
         <div className="flex items-start gap-3">
           <button type="button" data-wow-menu-trigger aria-label={leftMenuOpen ? "Recolher menu" : "Expandir menu"} aria-expanded={leftMenuOpen} onClick={() => setLeftMenuOpen(!leftMenuOpen)}
             className="pointer-events-auto flex size-9 items-center justify-center rounded-xl border border-cyan-700/70 bg-[#061322] sm:size-11 lg:size-12 text-cyan-300 shadow-xl hover:bg-blue-950">
@@ -904,6 +913,8 @@ function BonusPanel({ state, assetKey, reserva, folga, mutate }: { state: State;
                 <input inputMode="decimal" value={dep} placeholder="Ex.: 1000" onChange={(e) => setDep(e.target.value)} className={inputClass} />
               </label>
               <Button type="button" className="mt-3 w-full rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 font-bold text-slate-950 hover:from-emerald-400 hover:to-cyan-300" disabled={valorDeposito === null || valorDeposito <= 0} onClick={() => { if (valorDeposito === null || valorDeposito <= 0) return; mutate((s) => aplicarDeposito(s, assetKey, valorDeposito)); setDep(""); }}>Aplicar depósito</Button>
+              <ConfirmButton className="mt-2 w-full rounded-xl" disabled={!podeReverterDeposito(state, assetKey)} confirmText="Confirmar reversão do depósito" onConfirm={() => { mutate(s => { reverterDeposito(s, assetKey); }); setSaquePendente(null); }}>↶ Reverter último depósito</ConfirmButton>
+              <p className="mt-2 text-[11px] text-slate-400">Desfaz o depósito e o bônus gerado, inclusive no teto conquistado. Disponível para novos depósitos enquanto não houver outra movimentação financeira posterior. Não movimenta dinheiro na corretora.</p>
             </div>
             <div className="rounded-xl border border-[#482d39] bg-gradient-to-br from-[#27131e]/70 to-[#0b101b] p-3.5 sm:p-4">
               <p className="mb-1 flex items-center gap-2 text-sm font-bold text-rose-300"><Wallet className="size-4" />Registrar saque</p>
@@ -1545,5 +1556,6 @@ function CaixaPanel({ asset, state, bancasGlobais, bancaAtivaId, assetKey, bonus
     </section>
   );
 }
+
 
 
