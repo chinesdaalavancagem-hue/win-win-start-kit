@@ -330,9 +330,9 @@ function Settle({ risco, custo, reprova, onProfit, onStop }: { risco: boolean; c
   const spread = valorInvalido ? null : real - teorico;
   const abrir = (m: "profit" | "stop") => { setModo(m); setValor(String(Math.round((m === "profit" ? -custo : reprova) * 100) / 100)); };
   if (!modo) return (
-    <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-      <Button className="h-10 min-h-9 min-w-0 w-full whitespace-nowrap px-2 text-xs leading-snug sm:h-9 sm:px-4 sm:text-sm" type="button" onClick={() => abrir("profit")}>✅ Profit (bateu a meta)</Button>
-      <Button className="h-10 min-h-9 min-w-0 w-full whitespace-nowrap px-2 text-xs leading-snug sm:h-9 sm:px-4 sm:text-sm" type="button" variant="destructive" onClick={() => abrir("stop")}>🛑 Stop (reprovou)</Button>
+    <div className="mt-3 grid grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] gap-1.5 sm:grid-cols-2 sm:gap-2">
+      <Button className="h-10 min-h-9 min-w-0 w-full whitespace-nowrap px-1 text-[10px] leading-snug sm:h-9 sm:px-4 sm:text-sm" type="button" onClick={() => abrir("profit")}>✅ Profit (bateu a meta)</Button>
+      <Button className="h-10 min-h-9 min-w-0 w-full whitespace-nowrap px-1 text-[10px] leading-snug sm:h-9 sm:px-4 sm:text-sm" type="button" variant="destructive" onClick={() => abrir("stop")}>🛑 Stop (reprovou)</Button>
     </div>
   );
   return (
