@@ -1,6 +1,6 @@
 import type { Banca } from './bancas';
 
-export type TipoLancamento = 'deposito' | 'saque' | 'compra' | 'payout' | 'despesa' | 'transferencia';
+export type TipoLancamento = 'deposito' | 'saque_forex' | 'saque' | 'compra' | 'payout' | 'despesa' | 'transferencia';
 export interface LancamentoCarteira {
   id: string; data: string; tipo: TipoLancamento; valor: number; descricao: string;
   local: string; destino: string; externo: boolean; quantidade: number; origemConta?: string;
@@ -9,8 +9,8 @@ export interface SaldoCarteira { id: string; nome: string; valor: number; data: 
 export interface Carteira { versao: 1; lancamentos: LancamentoCarteira[]; saldos: SaldoCarteira[]; conferida: boolean }
 export const carteiraVazia = (): Carteira => ({ versao: 1, lancamentos: [], saldos: [], conferida: false });
 export const TIPOS_CARTEIRA: Record<TipoLancamento, string> = {
-  deposito: 'Aporte de dinheiro novo', saque: 'Retirada para uso pessoal', compra: 'Compra de contas',
-  payout: 'Payout recebido', despesa: 'Outras despesas', transferencia: 'Transferência entre carteiras',
+  deposito: 'Coloquei dinheiro do meu bolso no Forex', saque_forex: 'Saquei do Forex', saque: 'Levei dinheiro para meu bolso', compra: 'Comprei contas',
+  payout: 'Recebi saque da mesa', despesa: 'Paguei outra despesa', transferencia: 'Movi dinheiro entre corretoras / cripto',
 };
 const centavos = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 const objeto = (v: unknown): Record<string, unknown> => v && typeof v === 'object' ? v as Record<string, unknown> : {};
@@ -37,11 +37,13 @@ export function normalizarCarteira(raw: unknown): Carteira {
 
 /** Os saldos são retratos atuais, não a soma dos fluxos. Transferências internas nunca são receita. */
 export function resumoCarteira(c: Carteira) {
+  let saquesForex = 0, forexNoBolso = 0;
   let aportes = 0, retiradas = 0, compras = 0, despesas = 0, payouts = 0, custosExternos = 0, payoutsExternos = 0;
   const mesas: Record<string, { quantidade: number; valor: number }> = Object.create(null);
   for (const e of c.lancamentos) {
     if (e.tipo === 'deposito') aportes += e.valor;
     if (e.tipo === 'saque') retiradas += e.valor;
+    if (e.tipo === 'saque_forex') {saquesForex += e.valor; if(e.externo) forexNoBolso += e.valor;}
     if (e.tipo === 'payout') { payouts += e.valor; if (e.externo) payoutsExternos += e.valor; }
     if (e.tipo === 'despesa') { despesas += e.valor; if (e.externo) custosExternos += e.valor; }
     if (e.tipo === 'compra') {
@@ -52,9 +54,9 @@ export function resumoCarteira(c: Carteira) {
     }
   }
   const saldo = centavos(c.saldos.reduce((t, s) => t + s.valor, 0));
-  const investido = centavos(aportes + custosExternos), recebido = centavos(retiradas + payoutsExternos);
+  const investido = centavos(aportes + custosExternos), recebido = centavos(retiradas + payoutsExternos + forexNoBolso);
   const resultado = centavos(saldo + recebido - investido);
-  return { aportes: centavos(aportes), retiradas: centavos(retiradas), compras: centavos(compras), despesas: centavos(despesas), payouts: centavos(payouts), saldo, investido, recebido, resultado, rentabilidade: investido > 0 ? resultado / investido * 100 : null, mesas };
+  return { saquesForex: centavos(saquesForex), aportes: centavos(aportes), retiradas: centavos(retiradas), compras: centavos(compras), despesas: centavos(despesas), payouts: centavos(payouts), saldo, investido, recebido, resultado, rentabilidade: investido > 0 ? resultado / investido * 100 : null, mesas };
 }
 
 /** Backups antigos guardavam a compra no evento, sem taxaCompra no cadastro.

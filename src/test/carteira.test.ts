@@ -60,3 +60,17 @@ it('recupera preço do histórico antigo sem alterar contas e ignora parâmetros
  b.state.log.push({taxaCobrada:132} as typeof b.state.log[number]);
  expect(valorCompraRegistrada(b)).toBeNull();
 });
+
+it('separa saques recebidos de dinheiro realmente levado ao bolso',()=>{
+ const c=carteiraVazia();
+ c.lancamentos=[entry('deposito',1400),entry('saque_forex',2000,{externo:false}),entry('payout',500,{externo:false})];
+ c.saldos=[{id:'cripto',nome:'Cripto',valor:2500,data:'2026-11-09'}];
+ expect(resumoCarteira(c)).toMatchObject({saquesForex:2000,payouts:500,recebido:0,resultado:1100});
+ c.lancamentos.push(entry('saque',600));c.saldos[0]!.valor=1900;
+ expect(resumoCarteira(c)).toMatchObject({recebido:600,resultado:1100});
+ expect(normalizarCarteira(JSON.parse(JSON.stringify(c)))).toEqual(c);
+});
+it('saque direto ao bolso entra uma vez no resultado e preserva significado dos registros antigos',()=>{
+ const c=carteiraVazia();c.lancamentos=[entry('deposito',1400),entry('saque_forex',2000),entry('payout',500),entry('saque',100)];
+ expect(resumoCarteira(c)).toMatchObject({saquesForex:2000,payouts:500,recebido:2600,resultado:1200});
+});

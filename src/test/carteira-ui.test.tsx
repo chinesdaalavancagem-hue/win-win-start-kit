@@ -23,7 +23,7 @@ describe('carteira interface',()=>{
   fireEvent.change(screen.getByLabelText('Saldo atual (US$)'),{target:{value:'1500'}});
   fireEvent.click(screen.getByRole('button',{name:'Atualizar saldo'}));
   await waitFor(()=>expect(save.mock.calls.at(-1)![0].saldos[0]!.valor).toBe(1500));
-  expect(screen.getByText('Resultado parcial').parentElement).toHaveTextContent('100,00');
+  expect(screen.getByText(/Meu lucro ou prejuízo · parcial/)).toHaveTextContent('100,00');
  });
  it('falha de salvamento mantém formulário para nova tentativa',async()=>{
   save.mockResolvedValueOnce(false);render(<Wallet/>);
