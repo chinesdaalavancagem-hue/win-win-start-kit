@@ -1,0 +1,24 @@
+import {render,screen,fireEvent,waitFor} from '@testing-library/react';
+import {it,expect,vi} from 'vitest';
+import {Platform} from '../components/platform/Platform';
+import {defaultState} from '../lib/platform/engine';
+vi.mock('@/integrations/supabase/client',()=>({supabase:{auth:{getSession:vi.fn(async()=>({data:{session:null}}))}}}));
+vi.mock('@/lib/auditoria-registro',()=>({registrarAuditoria:vi.fn(async()=>{})}));
+it('salva 150%, aplica o crédito correto e preserva após recarregar',async()=>{
+ const s=defaultState(); s.activeTab='ouro'; let saved=JSON.stringify(s);
+ const save=vi.fn(async(v:string)=>{saved=v; return true;});
+ const load=async()=>saved;
+ const view=render(<Platform leftMenuOpen load={load} save={save} isAdmin officialAcceptedAt={null}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Bônus e saques'}));
+ fireEvent.change(screen.getByLabelText(/Bônus da corretora/),{target:{value:'150'}});
+ fireEvent.change(screen.getByLabelText('Valor do depósito ($)'),{target:{value:'500'}});
+ fireEvent.click(screen.getByRole('button',{name:'Aplicar depósito'}));
+ expect(screen.getByText('Conquistado: $750')).toBeInTheDocument();
+ await waitFor(()=>expect(JSON.parse(saved).assets.ouro.bonus.percentual).toBe(150),{timeout:5000});
+ await waitFor(()=>expect(JSON.parse(saved).assets.ouro.bonus.bonusAtual).toBe(750),{timeout:5000});
+ view.unmount();
+ render(<Platform leftMenuOpen load={load} save={save} isAdmin officialAcceptedAt={null}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Bônus e saques'}));
+ expect(screen.getByLabelText(/Bônus da corretora/)).toHaveValue('150');
+ expect(screen.getByText('Conquistado: $750')).toBeInTheDocument();
+});

@@ -10,7 +10,7 @@ import { registrarAuditoria } from "@/lib/auditoria-registro";
 import { applyOfficialParams, buildOfficialParams, isOfficialParams } from "@/lib/platform/official-params";
 import {
   type AssetKey, type State, type TabKey, type Asset, type MesaFuturos, MESAS_FUTUROS, nomeMesa, diasAvaliacaoAtivo, diasAvaliacaoGold, limitesTradeify, limitesTopstep, adicionarDiaGold, removerDiaGold,
-  podeReverterDeposito, reverterDeposito, taxasMesaDia, metaLiquidaDia, projetarPrimeiroPayout, simularSaque2, aplicarDeposito, aplicarSaque, projetarAportesFuturos, conciliarCreditoForex, calcAporteFracionado, calcCaixaCiclo, clampDayIndex, computeAssetCalcs, defaultState, fmt, fmtSigned, handleProfit, handleStop,
+  percentualBonus, podeReverterDeposito, reverterDeposito, taxasMesaDia, metaLiquidaDia, projetarPrimeiroPayout, simularSaque2, aplicarDeposito, aplicarSaque, projetarAportesFuturos, conciliarCreditoForex, calcAporteFracionado, calcCaixaCiclo, clampDayIndex, computeAssetCalcs, defaultState, fmt, fmtSigned, handleProfit, handleStop,
   historicoTotals, isValidState, normalizeState, parseNum, parseValorFinanceiro, parseResultadoCfd, podeDesfazerUltimaOperacao, projetarZeragemBonus, reiniciarCicloBonus, resetBonus, tipoLabel, undoLast,
 } from "@/lib/platform/engine";
 
@@ -376,7 +376,8 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
   const forexProprio = Object.values(state.assets).reduce((sum, a) => sum + Math.max(0, a.bonus.deposito || 0), 0);
   const forexBonus = Object.values(state.assets).reduce((sum, a) => sum + Math.max(0, a.bonus.bonusAtual || 0), 0);
   const saldo = (state.forexSaldoReal ?? forexProprio) + forexBonus;
-  const [bonusPct, setBonusPct] = useState("100");
+  const bonusPct = String(percentualBonus(asset.bonus));
+  const setBonusPct = (value: string) => { const pct = parseValorFinanceiro(value); if (pct !== null && pct >= 0) mutate(s => { s.assets[assetKey].bonus.percentual = pct; }); };
   const continuidade = useMemo(() => assetKey === "saque2" ? simularSaque2(state, parseNum(bonusPct)) : null, [state, assetKey, bonusPct]);
   const calcs = continuidade?.calcs ?? computeAssetCalcs(asset, assetKey);
   const caixaCiclo = continuidade?.segundo ?? calcCaixaCiclo(asset, assetKey, parseNum(bonusPct));
@@ -622,7 +623,7 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
         </section>
       )}
 
-      {section === "aporte" && <AportePanel asset={asset} assetKey={assetKey} calcs={calcs} />}
+      {section === "aporte" && <AportePanel asset={asset} assetKey={assetKey} calcs={calcs} pct={bonusPct} setPct={setBonusPct} />}
       {section === "caixa" && <CaixaPanel asset={asset} state={state} bancasGlobais={bancasGlobais} bancaAtivaId={bancaAtivaId} assetKey={assetKey} bonusPct={bonusPct} setBonusPct={setBonusPct} /> }
       {section === "bonus" && <BonusPanel state={state} assetKey={assetKey} reserva={reservaComFolga} folga={folga} mutate={mutate} />}
 
@@ -890,6 +891,7 @@ function BonusPanel({ state, assetKey, reserva, folga, mutate }: { state: State;
             <h3 className="text-sm font-bold text-slate-100">Configuração e movimentações</h3>
           </div>
           <div className="mb-4">
+            <NumField label="Bônus da corretora (%)" value={percentualBonus(b)} onChange={(v) => { if (Number.isFinite(v) && v >= 0) mutate(s => { s.assets[assetKey].bonus.percentual = v; }); }} helper="Ex.: 0, 25, 100 ou 150. Vale para novos depósitos e projeções deste plano; não altera o bônus já registrado. Ajuste ao mudar de promoção." />
             <NumField label="Teto de bônus do plano ($)" value={b.bonusCap} onChange={(v) => mutate((s) => { if (v) s.assets[assetKey].bonus.bonusCap = v; })} />
           </div>
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
@@ -899,6 +901,7 @@ function BonusPanel({ state, assetKey, reserva, folga, mutate }: { state: State;
               <label className={labelClass}>Valor do depósito ($)
                 <input inputMode="decimal" value={dep} placeholder="Ex.: 1000" onChange={(e) => setDep(e.target.value)} className={inputClass} />
               </label>
+              <p className="mt-2 text-xs text-cyan-200">Bônus estimado ({fmt(percentualBonus(b))}%): ${fmt(Math.min((valorDeposito ?? 0) * percentualBonus(b) / 100, espacoBonus))} · limitado ao teto disponível.</p>
               <Button type="button" className="mt-3 w-full rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 font-bold text-slate-950 hover:from-emerald-400 hover:to-cyan-300" disabled={valorDeposito === null || valorDeposito <= 0} onClick={() => { if (valorDeposito === null || valorDeposito <= 0) return; mutate((s) => aplicarDeposito(s, assetKey, valorDeposito)); setDep(""); }}>Aplicar depósito</Button>
               <ConfirmButton className="mt-2 w-full rounded-xl" disabled={!podeReverterDeposito(state, assetKey)} confirmText="Confirmar reversão do depósito" onConfirm={() => { mutate(s => { reverterDeposito(s, assetKey); }); setSaquePendente(null); }}>↶ Reverter último depósito</ConfirmButton>
               <p className="mt-2 text-[11px] text-slate-400">Desfaz o depósito e o bônus gerado, inclusive no teto conquistado. Disponível para novos depósitos enquanto não houver outra movimentação financeira posterior. Não movimenta dinheiro na corretora.</p>
@@ -1257,9 +1260,8 @@ function StrategyNotes() {
   );
 }
 
-function AportePanel({ asset, assetKey, calcs }: { asset: Asset; assetKey: AssetKey; calcs: ReturnType<typeof computeAssetCalcs> }) {
+function AportePanel({ asset, assetKey, calcs, pct, setPct }: { asset: Asset; assetKey: AssetKey; calcs: ReturnType<typeof computeAssetCalcs>; pct: string; setPct: (value: string) => void }) {
   const [dia, setDia] = useState(Math.max(0, Math.min(asset.attempt.currentDayIndex, asset.days.length - 1)));
-  const [pct, setPct] = useState("100");
   const [banca, setBanca] = useState("1200");
   const d = asset.days[dia];
   if (!d) return <p className="text-muted-foreground">Cadastre os dias do ciclo em Parâmetros para usar a calculadora.</p>;
@@ -1272,7 +1274,7 @@ function AportePanel({ asset, assetKey, calcs }: { asset: Asset; assetKey: Asset
   const bonusPctBar = r.total > 0 ? Math.min(100 - ownPct, Math.max(0, r.bonus / r.total * 100)) : 0;
   const fields = [
     { label: "Dia do ciclo", content: <select value={dia} onChange={(e) => setDia(Number(e.target.value))} className="mt-1.5 w-full rounded-xl border border-cyan-950 bg-[#030b15] px-3 py-3 text-sm text-slate-100 outline-none transition focus:border-cyan-400/70">{asset.days.map((x, i) => <option key={i} value={i}>{rotuloDia(asset, assetKey, i)} · {x.lotes} lotes{i === asset.attempt.currentDayIndex ? " (atual)" : ""}</option>)}</select> },
-    { label: "Bônus da corretora (%)", content: <input inputMode="decimal" value={pct} onChange={(e) => setPct(e.target.value)} className="mt-1.5 w-full rounded-xl border border-cyan-950 bg-[#030b15] px-3 py-3 font-mono text-sm text-slate-100 outline-none transition focus:border-cyan-400/70" /> },
+    { label: "Bônus da corretora (%)", content: <NumField label="Percentual do bônus" value={parseNum(pct)} onChange={v => setPct(String(v))} /> },
     { label: "Banca integral para comparar ($)", content: <input inputMode="decimal" value={banca} onChange={(e) => setBanca(e.target.value)} className="mt-1.5 w-full rounded-xl border border-cyan-950 bg-[#030b15] px-3 py-3 font-mono text-sm text-slate-100 outline-none transition focus:border-cyan-400/70" /> },
   ];
   return (
@@ -1460,8 +1462,7 @@ function CaixaPanel({ asset, state, bancasGlobais, bancaAtivaId, assetKey, bonus
           </div>
         </div>
         <div className="min-w-[150px] rounded-xl border border-cyan-900/80 bg-[#06101f]/90 p-3">
-          <label className="block text-xs font-medium text-blue-100/70">Bônus da corretora (%)</label>
-          <input inputMode="decimal" value={bonusPct} onChange={(e) => setBonusPct(e.target.value)} className="mt-1 w-full rounded-lg border border-cyan-900/80 bg-[#030b15] px-3 py-2 font-mono text-lg font-bold text-slate-50 outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/15" />
+          <NumField label="Bônus da corretora (%)" value={parseNum(bonusPct)} onChange={v => setBonusPct(String(v))} />
         </div>
       </header>
 

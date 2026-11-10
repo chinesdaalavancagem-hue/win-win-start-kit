@@ -33,7 +33,7 @@ export function resultadoMesaDia(a: Asset, indice: number): number {
 export interface Attempt { resultadosMesaEod?: Record<string, number>; currentDayIndex: number; cycleCost: number; custoProprioAcumulado: number }
 export interface ReversaoDeposito { saldoAntes: number; depositoAntes: number; bonusAntes: number; ganhoAntes: number; assinatura: string }
 export interface BonusLog { reversaoDeposito?: ReversaoDeposito; ts: number; tipo: "deposito" | "saque" | "reset" | "ajuste_credito" | "reinicio_ciclo"; valor: number; dia?: number; bonusGanho?: number; proporcao?: number; bonusReduzido?: number; depositoZerado?: number }
-export interface Bonus { deposito: number; bonusAtual: number; bonusGanhoTotal: number; bonusCap: number; log: BonusLog[] }
+export interface Bonus { percentual?: number; deposito: number; bonusAtual: number; bonusGanhoTotal: number; bonusCap: number; log: BonusLog[] }
 export type MesaFuturos = "tradefive" | "lucid" | "mff" | "topstep" | MesaPersonalizada["id"];
 export const MESAS_FUTUROS: Record<MesaFuturos, { nome: string; consistencia: number; avaliacao: number; payout: number }> = {
   tradefive: { nome: "Tradeify", consistencia: 40, avaliacao: 3, payout: 5 },
@@ -239,7 +239,8 @@ export function nomeMesa(mesa: MesaFuturos, config?: MesaPersonalizada): string 
 }
 
 export const freshAttempt = (): Attempt => ({ currentDayIndex: 0, cycleCost: 0, custoProprioAcumulado: 0 });
-export const freshBonus = (): Bonus => ({ deposito: 0, bonusAtual: 0, bonusGanhoTotal: 0, bonusCap: 3000, log: [] });
+export const percentualBonus = (b: Bonus): number => typeof b.percentual === "number" && Number.isFinite(b.percentual) && b.percentual >= 0 ? b.percentual : 100;
+export const freshBonus = (): Bonus => ({ percentual: 100, deposito: 0, bonusAtual: 0, bonusGanhoTotal: 0, bonusCap: 3000, log: [] });
 
 export function defaultState(): State {
   const assets = clone(defaultAssetsBase) as unknown as Record<AssetKey, Asset>;
@@ -270,6 +271,7 @@ export function normalizeState(p: any): State {
     if (typeof a.attempt.cycleCost !== "number") a.attempt.cycleCost = 0;
     if (typeof a.attempt.custoProprioAcumulado !== "number") a.attempt.custoProprioAcumulado = 0;
     if (!a.bonus) a.bonus = freshBonus();
+    a.bonus.percentual = percentualBonus(a.bonus);
     for (const evento of a.bonus.log ?? []) {
       const r = evento.reversaoDeposito;
       if (r !== undefined && (!r || typeof r.assinatura !== "string" ||
@@ -493,7 +495,7 @@ export function handleProfit(s: State, key: AssetKey, realCfd?: number) {
   const taxaCobrada = idx === 0 ? a.params.taxa : 0;
   const custoDoDia = calc.custoSePassar + taxaCobrada;
   const resultadoMesa = resultadoMesaDia(a, idx);
-  const continuacao = key === "saque2" ? simularSaque2(s, 100, {indice: idx, custo: calc.custoSePassar, resultadoMesa}) : null;
+  const continuacao = key === "saque2" ? simularSaque2(s, percentualBonus(a.bonus), {indice: idx, custo: calc.custoSePassar, resultadoMesa}) : null;
   const saque = isLast
     ? key === "saque2" ? continuacao?.segundo.saque ?? 0
       : projetarPrimeiroPayout(a, key).liquido
@@ -626,7 +628,7 @@ export function aplicarDeposito(s: State, key: AssetKey, valor: number) {
   if (!Number.isFinite(valor) || valor <= 0) return;
   const b = s.assets[key].bonus;
   const espaco = Math.max(0, b.bonusCap - b.bonusGanhoTotal);
-  const ganho = Math.min(valor, espaco);
+  const ganho = Math.min(valor * percentualBonus(b) / 100, espaco);
   const reversaoDeposito: ReversaoDeposito = {saldoAntes: s.forexSaldoReal ?? 0, depositoAntes: b.deposito, bonusAntes: b.bonusAtual, ganhoAntes: b.bonusGanhoTotal, assinatura: ""};
   atualizarSaldoReal(s, valor);
   b.deposito += valor; b.bonusAtual += ganho; b.bonusGanhoTotal += ganho;
@@ -796,7 +798,7 @@ export function calcCaixaCiclo(a: Asset, key: AssetKey, bonusPct: number, inicio
 
 
 /** Continuidade apenas calculada: não grava saldo, bônus, histórico ou depósitos reais. */
-export function simularSaque2(s: State, bonusPct = 100, operacao?: {indice: number; custo: number; resultadoMesa: number}) {
+export function simularSaque2(s: State, bonusPct = percentualBonus(s.assets.saque2.bonus), operacao?: {indice: number; custo: number; resultadoMesa: number}) {
   const segundo = s.assets.saque2;
   const origemKey: "ouro" | "nasdaq" = segundo.params.ativoReal === "nasdaq" ? "nasdaq" : "ouro";
   const origem = s.assets[origemKey];
