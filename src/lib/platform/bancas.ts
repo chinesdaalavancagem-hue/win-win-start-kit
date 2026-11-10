@@ -1,15 +1,15 @@
 import { normalizarCarteira, type Carteira } from "./carteira";
 import { type MesaPersonalizada, idMesaPersonalizada, normalizarMesasPersonalizadas } from "./mesas-personalizadas";
-import { type State, type AssetKey, type Bonus, type MesaFuturos, defaultState, selecionarMesaGold, prepararMesaPersonalizada, historicoTotals, isValidState, normalizeState, podeDesfazerUltimaOperacao, tipoLabel } from "./engine";
+import { type State, type AssetKey, type Bonus, type MesaFuturos, defaultState, selecionarMesaGold, prepararMesaPersonalizada, historicoTotals, isValidState, normalizeState, sincronizarParametros, podeDesfazerUltimaOperacao, tipoLabel } from "./engine";
 import { challengeAccountSchema, type ChallengeAccount } from "../prop-firms";
 
 export type BancaAtivo = "nasdaq" | "ouro";
 export interface Banca { id: string; nome: string; criadaEm: number; state: State; taxaCompra?: number; mesa?: MesaFuturos; ativo?: BancaAtivo; officialAcceptedAt?: string; challengeAccount?: ChallengeAccount; contaMesa?: string | undefined; contaMesaNome?: string | undefined }
-export interface ForexCompartilhado { cfdBalance: number; forexSaldoReal?: number | undefined; bonus: Record<AssetKey, Bonus> }
+export interface ForexCompartilhado { corretora?: State["corretora"]; cfdBalance: number; forexSaldoReal?: number | undefined; bonus: Record<AssetKey, Bonus> }
 export interface BancasDoc { carteira?: Carteira; contasArquivadas?: unknown[]; mesasPersonalizadas?: MesaPersonalizada[]; bancasVersion: 1; activeId: string; bancas: Banca[]; mesaAtiva?: MesaFuturos; activeIdsMesa?: Partial<Record<MesaFuturos, string>>; forex?: ForexCompartilhado }
 
 export function extrairForex(state: State): ForexCompartilhado {
-  return { cfdBalance: state.cfdBalance, forexSaldoReal: state.forexSaldoReal, bonus: {
+  return { ...(state.corretora ? { corretora: structuredClone(state.corretora) } : {}), cfdBalance: state.cfdBalance, forexSaldoReal: state.forexSaldoReal, bonus: {
     nasdaq: structuredClone(state.assets.nasdaq.bonus),
     ouro: structuredClone(state.assets.ouro.bonus),
     saque2: structuredClone(state.assets.saque2.bonus),
@@ -17,12 +17,14 @@ export function extrairForex(state: State): ForexCompartilhado {
 }
 export function aplicarForex(state: State, forex: ForexCompartilhado): State {
   const next = structuredClone(state);
+  next.corretora = forex.corretora ? structuredClone(forex.corretora) : undefined;
   next.cfdBalance = forex.cfdBalance;
   next.forexSaldoReal = Number.isFinite(forex.forexSaldoReal) ? forex.forexSaldoReal : Object.values(forex.bonus).reduce((t, b) => t + Math.max(0, b.deposito || 0), 0);
   for (const key of ["nasdaq", "ouro", "saque2"] as AssetKey[]) {
     next.assets[key].bonus = structuredClone(forex.bonus[key]);
     next.assets[key].params.saldoInicial = forex.bonus[key].deposito + forex.bonus[key].bonusAtual;
   }
+  sincronizarParametros(next);
   return next;
 }
 /** A última operação só pode reverter o Forex quando seu snapshot ainda coincide com o compartilhado. */

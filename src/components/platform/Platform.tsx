@@ -11,7 +11,7 @@ import { applyOfficialParams, buildOfficialParams, isOfficialParams } from "@/li
 import {
   type AssetKey, type State, type TabKey, type Asset, type MesaFuturos, MESAS_FUTUROS, nomeMesa, diasAvaliacaoAtivo, diasAvaliacaoGold, limitesTradeify, limitesTopstep, adicionarDiaGold, removerDiaGold,
   percentualBonus, podeReverterDeposito, reverterDeposito, taxasMesaDia, metaLiquidaDia, projetarPrimeiroPayout, simularSaque2, aplicarDeposito, aplicarSaque, projetarAportesFuturos, conciliarCreditoForex, calcAporteFracionado, calcCaixaCiclo, clampDayIndex, computeAssetCalcs, defaultState, fmt, fmtSigned, handleProfit, handleStop,
-  historicoTotals, isValidState, normalizeState, parseNum, parseValorFinanceiro, parseResultadoCfd, podeDesfazerUltimaOperacao, projetarZeragemBonus, reiniciarCicloBonus, resetBonus, tipoLabel, undoLast,
+  historicoTotals, isValidState, normalizeState, sincronizarParametros, parseNum, parseValorFinanceiro, parseResultadoCfd, podeDesfazerUltimaOperacao, projetarZeragemBonus, reiniciarCicloBonus, resetBonus, tipoLabel, undoLast,
 } from "@/lib/platform/engine";
 
 type Section = "operacoes" | "parametros" | "bonus" | "aporte" | "caixa" | "meta";
@@ -153,6 +153,7 @@ export function Platform({ onOpenCarteira, mesasDisponiveis = MESAS_FUTUROS, lef
       if (!prev) return prev;
       const n: State = structuredClone(prev);
       fn(n);
+      sincronizarParametros(n, prev);
       for (const k of ["nasdaq", "ouro", "saque2"] as AssetKey[]) {
         const b = n.assets[k].bonus;
         n.assets[k].params.saldoInicial = (b.deposito || 0) + (b.bonusAtual || 0);
@@ -370,7 +371,7 @@ const Note = ({ children }: { children: ReactNode }) => <p className="mt-3 font-
 function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, assetKey, section, mutate, isAdmin }: { state: State; bancasGlobais?: Banca[] | undefined; bancaAtivaId?: string | undefined; contaMesa?: string | undefined; mesaAtiva: MesaFuturos; assetKey: AssetKey; section: Section; mutate: (fn: (s: State) => void) => void; isAdmin: boolean }) {
   const asset = state.assets[assetKey];
   const avaliacaoDias = diasAvaliacaoAtivo(asset, assetKey);
-  const setP = (k: keyof Asset["params"]) => (v: number) => mutate((s) => { (s.assets[assetKey].params as unknown as Record<string, number>)[k] = v; });
+  const setP = (k: keyof Asset["params"]) => (v: number) => mutate((s) => { (s.assets[k === "comissaoPorContrato" && assetKey === "saque2" ? (s.assets.saque2.params.ativoReal === "nasdaq" ? "nasdaq" : "ouro") : assetKey].params as unknown as Record<string, number>)[k] = v; });
   const bonus = asset.bonus;
   // O Forex é compartilhado entre as bancas e ativos: considerar todos os depósitos e bônus disponíveis.
   const forexProprio = Object.values(state.assets).reduce((sum, a) => sum + Math.max(0, a.bonus.deposito || 0), 0);
@@ -584,7 +585,7 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
             </div>
           </section>
 
-          {<div className="rounded-xl border border-[#18324e] bg-[#091827] p-3"><NumField label="Taxa por contrato · entrada + saída ($)" value={asset.params.comissaoPorContrato ?? 0} onChange={v => setP("comissaoPorContrato")(Math.max(0, v))} helper="Ex.: US$ 3 × 20 contratos = US$ 60. A meta do card é bruta; as projeções descontam a taxa. Configure por ativo e também no Saque 2. Resultado líquido informado não sofre novo desconto." /></div>}
+          {<div className="rounded-xl border border-[#18324e] bg-[#091827] p-3"><NumField label="Taxa por contrato · entrada + saída ($)" value={asset.params.comissaoPorContrato ?? 0} onChange={v => setP("comissaoPorContrato")(Math.max(0, v))} helper="Ex.: US$ 3 × 20 contratos = US$ 60. A meta do card é bruta; as projeções descontam a taxa. O Saque 2 acompanha automaticamente a taxa do ativo de origem. Resultado líquido informado não sofre novo desconto." /></div>}
           <div className="flex items-start gap-2 rounded-xl border border-cyan-950/70 bg-[#06101b] p-3 text-xs leading-relaxed text-blue-100/60">
             <Check className="mt-0.5 size-4 shrink-0 text-emerald-400" />
             <p>Após a aprovação, o histórico e o Profit registram automaticamente o saque líquido projetado na Meta Geral, com o split e o teto da mesa quando aplicável. O valor é guardado no histórico da operação para não mudar ao editar metas futuras.</p>
@@ -595,7 +596,7 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
       
       {section === "meta" && (
         <section aria-label="Meta geral — projeção de lucro dos cinco dias Funded">
-          <div className="rounded-xl border border-[#18324e] bg-[#091827] p-3"><NumField label="Taxa por contrato · entrada + saída ($)" value={asset.params.comissaoPorContrato ?? 0} onChange={v => setP("comissaoPorContrato")(Math.max(0, v))} helper="Ex.: US$ 3 × 20 contratos = US$ 60. A meta do card é bruta; as projeções descontam a taxa. Configure por ativo e também no Saque 2. Resultado líquido informado não sofre novo desconto." /></div>
+          <div className="rounded-xl border border-[#18324e] bg-[#091827] p-3"><NumField label="Taxa por contrato · entrada + saída ($)" value={asset.params.comissaoPorContrato ?? 0} onChange={v => setP("comissaoPorContrato")(Math.max(0, v))} helper="Ex.: US$ 3 × 20 contratos = US$ 60. A meta do card é bruta; as projeções descontam a taxa. O Saque 2 acompanha automaticamente a taxa do ativo de origem. Resultado líquido informado não sofre novo desconto." /></div>
           <div className="mb-3 rounded-2xl border border-cyan-900/70 bg-gradient-to-r from-[#0a1929] to-[#07121e] px-3 py-3 shadow-lg sm:px-4">
             <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
               <p className="flex items-center gap-2 text-xs font-semibold text-blue-100/75"><Target className="size-4 text-cyan-400" />{continuidade ? `Meta geral · Ciclo ${continuidade.numeroCiclo}` : "Meta Funded · D1–D5"}</p>
@@ -891,7 +892,7 @@ function BonusPanel({ state, assetKey, reserva, folga, mutate }: { state: State;
           </div>
           <div className="mb-4 space-y-3">
             <NumField label="Stop-out da corretora (%)" value={state.assets[assetKey].params.stopoutPct} onChange={(v) => mutate(s => { s.assets[assetKey].params.stopoutPct = v; })} />
-            <NumField label="Bônus da corretora (%)" value={percentualBonus(b)} onChange={(v) => { if (Number.isFinite(v) && v >= 0) mutate(s => { s.assets[assetKey].bonus.percentual = v; }); }} helper="Ex.: 0, 25, 100 ou 150. Vale para novos depósitos e projeções deste plano; não altera o bônus já registrado. Ajuste ao mudar de promoção." />
+            <NumField label="Bônus da corretora (%)" value={percentualBonus(b)} onChange={(v) => { if (Number.isFinite(v) && v >= 0) mutate(s => { s.assets[assetKey].bonus.percentual = v; }); }} helper="Ex.: 0, 25, 100 ou 150. Compartilhado entre mesas e Saque 2. Vale para novos depósitos e projeções; não altera o bônus já registrado. Ajuste ao mudar de promoção." />
             <NumField label="Teto de bônus do plano ($)" value={b.bonusCap} onChange={(v) => mutate((s) => { if (v) s.assets[assetKey].bonus.bonusCap = v; })} />
           </div>
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">

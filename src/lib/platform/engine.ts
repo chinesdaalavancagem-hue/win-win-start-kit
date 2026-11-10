@@ -101,6 +101,7 @@ export interface LogEntry {
   assinaturaForexApos?: string;
 }
 export interface State {
+  corretora?: { stopoutPct: number; bonusPct: number } | undefined;
   revisoesHistorico?: { ts: number; anteriores: LogEntry[] }[];
   activeTab: TabKey; assets: Record<AssetKey, Asset>; log: LogEntry[]; cfdBalance: number; totalGasto: number;
   forexSaldoReal?: number | undefined;
@@ -254,6 +255,32 @@ export function isValidState(p: any): boolean {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+/** Compartilha condições da corretora sem modificar dinheiro ou histórico. */
+export function sincronizarParametros(s: State, anterior?: State): void {
+  const origem = s.assets.saque2.params.ativoReal === "nasdaq" ? "nasdaq" : "ouro";
+  const comissao = s.assets[origem].params.comissaoPorContrato;
+  if (comissao === undefined) delete s.assets.saque2.params.comissaoPorContrato;
+  else s.assets.saque2.params.comissaoPorContrato = comissao;
+  const alterado = anterior && ASSETS.find(k =>
+    s.assets[k].params.stopoutPct !== anterior.assets[k].params.stopoutPct ||
+    percentualBonus(s.assets[k].bonus) !== percentualBonus(anterior.assets[k].bonus));
+  if (alterado) s.corretora = {
+    stopoutPct: s.assets[alterado].params.stopoutPct,
+    bonusPct: percentualBonus(s.assets[alterado].bonus),
+  };
+  if (s.corretora && (!Number.isFinite(s.corretora.stopoutPct) || s.corretora.stopoutPct < 0 ||
+    !Number.isFinite(s.corretora.bonusPct) || s.corretora.bonusPct < 0)) delete s.corretora;
+  // Backups antigos adotam o ativo de origem; os saldos continuam separados.
+  const config = s.corretora ?? {
+    stopoutPct: s.assets[origem].params.stopoutPct,
+    bonusPct: percentualBonus(s.assets[origem].bonus),
+  };
+  for (const k of s.corretora ? ASSETS : ["saque2"] as AssetKey[]) {
+    s.assets[k].params.stopoutPct = config.stopoutPct;
+    s.assets[k].bonus.percentual = config.bonusPct;
+  }
+}
+
 export function normalizeState(p: any): State {
   delete p.vestStudy;
   delete p.vestAccount;
@@ -299,6 +326,7 @@ export function normalizeState(p: any): State {
   if (!p.counts) p.counts = { aprovadas: 0, reprovadas: 0 };
   if (typeof p.totalGasto !== "number") p.totalGasto = 0;
   if (!p.activeTab) p.activeTab = "nasdaq";
+  sincronizarParametros(p as State);
   return p as State;
 }
 
@@ -484,6 +512,7 @@ function debitarCustoDoBonus(s: State, key: AssetKey, custo: number) {
 
 /** realCfd: valor real liquidado no CFD (perda negativa). Sem ele, usa o teórico. */
 export function handleProfit(s: State, key: AssetKey, realCfd?: number) {
+  sincronizarParametros(s);
   const a = s.assets[key];
   const idx = clampDayIndex(a);
   if (idx < 0) return;
@@ -799,6 +828,8 @@ export function calcCaixaCiclo(a: Asset, key: AssetKey, bonusPct: number, inicio
 
 /** Continuidade apenas calculada: não grava saldo, bônus, histórico ou depósitos reais. */
 export function simularSaque2(s: State, bonusPct = percentualBonus(s.assets.saque2.bonus), operacao?: {indice: number; custo: number; resultadoMesa: number}) {
+  s = structuredClone(s);
+  sincronizarParametros(s);
   const segundo = s.assets.saque2;
   const origemKey: "ouro" | "nasdaq" = segundo.params.ativoReal === "nasdaq" ? "nasdaq" : "ouro";
   const origem = s.assets[origemKey];

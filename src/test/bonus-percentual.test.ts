@@ -24,7 +24,7 @@ describe('percentual do bônus',()=>{
  const restored=normalizeState(JSON.parse(JSON.stringify(s)));
  expect(percentualBonus(restored.assets.ouro.bonus)).toBe(100);
  expect(restored.assets.nasdaq.bonus.percentual).toBe(0);
- expect(restored.assets.saque2.bonus.percentual).toBe(150);
+ expect(restored.assets.saque2.bonus.percentual).toBe(100);
  });
  it('calcula aporte com 150% e teto parcial',()=>{
  expect(aporteMinimoComBonus(1250,150,1500)).toBe(500);

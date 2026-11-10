@@ -229,10 +229,10 @@ describe('comissões nas metas e ciclos',()=>{
   expect(r.saldoMesaInicial).toBe(1562.5);expect(r.lucroSegundoCiclo).toBe(1000);
   expect(r.baseSaque2).toBe(2562.5);expect(r.limites.slice(0,2)).toEqual([1462.5,1662.5]);
   handleProfit(s,'saque2');expect(s.log.at(-1)?.resultadoMesa).toBe(200);
-  b.params.comissaoPorContrato=4;expect(simularSaque2(s).lucroSegundoCiclo).toBe(920);
+  a.params.comissaoPorContrato=4;expect(simularSaque2(s).lucroSegundoCiclo).toBe(920);
   for(let i=0;i<4;i++) handleProfit(s,'saque2');
   r=simularSaque2(s);expect(r.numeroCiclo).toBe(3);
-  expect(r.saldoMesaInicial).toBe(1241.25);expect(r.lucroSegundoCiclo).toBe(900);
+  expect(r.saldoMesaInicial).toBe(1216.25);expect(r.lucroSegundoCiclo).toBe(900);
  });
  it('calcula a folga financiada com lucro após taxas',()=>{
   const s=setup(), a=s.assets.ouro;
