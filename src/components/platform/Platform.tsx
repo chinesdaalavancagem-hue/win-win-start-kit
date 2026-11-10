@@ -562,7 +562,6 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
               
               <div className="rounded-xl border border-[#18324e] bg-[#091827] p-3"><NumField label="Lucro líquido desejado ($, sem a taxa)" value={asset.params.lucroDesejado} onChange={setP("lucroDesejado")} /></div>
               <div className="rounded-xl border border-[#183b43] bg-[#091a20] p-3"><NumField label="Margem exigida por 1 lote ($)" value={asset.params.marginPerLot} onChange={setP("marginPerLot")} /></div>
-              <div className="rounded-xl border border-[#18324e] bg-[#091827] p-3"><NumField label="Stop-out da corretora (%)" value={asset.params.stopoutPct} onChange={setP("stopoutPct")} /></div>
               
               {assetKey === "saque2" && <div className="rounded-xl border border-[#183b43] bg-[#091a20] p-3"><NumField label="Saque 2 líquido projetado ($)" value={continuidade?.segundo.saque ?? 0} readOnly helper="Valor automático da projeção do ciclo atual: considera o saldo retido na mesa, as novas metas, 50%, split de 90% e o teto da Lucid, quando aplicável." /></div>}
               {assetKey !== "saque2" && <div className="rounded-xl border border-[#183b43] bg-[#091a20] p-3"><NumField label="1º payout líquido projetado ($)" value={payoutProjetado.liquido} readOnly helper={mesaAtiva === "lucid" ? `Meta geral ${fmt(payoutProjetado.lucro)} × 50% (teto de US$ 2.000 brutos) × 90%. Débito projetado na mesa: ${fmt(payoutProjetado.bruto)}.` : `Meta geral ${fmt(payoutProjetado.lucro)} × 50% × 90%. Débito projetado na mesa: ${fmt(payoutProjetado.bruto)}.`} /></div>}
@@ -890,7 +889,8 @@ function BonusPanel({ state, assetKey, reserva, folga, mutate }: { state: State;
             <Calculator className="size-4 text-cyan-400" />
             <h3 className="text-sm font-bold text-slate-100">Configuração e movimentações</h3>
           </div>
-          <div className="mb-4">
+          <div className="mb-4 space-y-3">
+            <NumField label="Stop-out da corretora (%)" value={state.assets[assetKey].params.stopoutPct} onChange={(v) => mutate(s => { s.assets[assetKey].params.stopoutPct = v; })} />
             <NumField label="Bônus da corretora (%)" value={percentualBonus(b)} onChange={(v) => { if (Number.isFinite(v) && v >= 0) mutate(s => { s.assets[assetKey].bonus.percentual = v; }); }} helper="Ex.: 0, 25, 100 ou 150. Vale para novos depósitos e projeções deste plano; não altera o bônus já registrado. Ajuste ao mudar de promoção." />
             <NumField label="Teto de bônus do plano ($)" value={b.bonusCap} onChange={(v) => mutate((s) => { if (v) s.assets[assetKey].bonus.bonusCap = v; })} />
           </div>
