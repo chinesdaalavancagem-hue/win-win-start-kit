@@ -14,6 +14,7 @@ export interface Params {
   /** Comissão total de entrada + saída por contrato; ausente mantém o legado sem desconto. */
   comissaoPorContrato?: number;
   mnq: number; hfm: number; mll: number; saldoInicial: number; taxa: number; lucroDesejado: number;
+  alavancagem?: number;
   marginPerLot: number; stopoutPct: number; saqueAprovada: number; folgaExtraPct: number; ativoReal?: "ouro" | "nasdaq";
 }
 /** Meta do card é bruta: mantém o movimento de preço usado no hedge. */
@@ -255,10 +256,25 @@ export function isValidState(p: any): boolean {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+/** A primeira configuração calibra a margem existente; mudanças seguintes a estimam por proporção. */
+export function definirAlavancagem(s: State, key: AssetKey, valor: number): void {
+  if (!Number.isFinite(valor) || valor < 1) return;
+  const origem = key === "saque2" ? (s.assets.saque2.params.ativoReal === "nasdaq" ? "nasdaq" : "ouro") : key;
+  const p = s.assets[origem].params;
+  if (p.alavancagem && p.alavancagem > 0) p.marginPerLot = p.marginPerLot * p.alavancagem / valor;
+  p.alavancagem = valor;
+  sincronizarParametros(s);
+}
+
 /** Compartilha condições da corretora sem modificar dinheiro ou histórico. */
 export function sincronizarParametros(s: State, anterior?: State): void {
   const origem = s.assets.saque2.params.ativoReal === "nasdaq" ? "nasdaq" : "ouro";
-  const comissao = s.assets[origem].params.comissaoPorContrato;
+  const referencia = s.assets[origem].params;
+  if (referencia.alavancagem) {
+    s.assets.saque2.params.alavancagem = referencia.alavancagem;
+    s.assets.saque2.params.marginPerLot = referencia.marginPerLot;
+  } else delete s.assets.saque2.params.alavancagem;
+  const comissao = referencia.comissaoPorContrato;
   if (comissao === undefined) delete s.assets.saque2.params.comissaoPorContrato;
   else s.assets.saque2.params.comissaoPorContrato = comissao;
   const alterado = anterior && ASSETS.find(k =>
@@ -306,6 +322,7 @@ export function normalizeState(p: any): State {
     }
     if (a.params.saqueDebitadoMesa !== undefined && (!Number.isFinite(a.params.saqueDebitadoMesa) || a.params.saqueDebitadoMesa < 0)) delete a.params.saqueDebitadoMesa;
     if (a.params.comissaoPorContrato !== undefined && (typeof a.params.comissaoPorContrato !== "number" || !Number.isFinite(a.params.comissaoPorContrato) || a.params.comissaoPorContrato < 0)) delete a.params.comissaoPorContrato;
+    if (a.params.alavancagem !== undefined && (typeof a.params.alavancagem !== "number" || !Number.isFinite(a.params.alavancagem) || a.params.alavancagem < 1)) delete a.params.alavancagem;
     const d = defaultAssetsBase[k].params;
     if (typeof a.params.marginPerLot !== "number") a.params.marginPerLot = d.marginPerLot;
     if (typeof a.params.stopoutPct !== "number") a.params.stopoutPct = d.stopoutPct;

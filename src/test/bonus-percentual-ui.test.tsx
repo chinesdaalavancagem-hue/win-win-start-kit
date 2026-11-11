@@ -22,3 +22,15 @@ it('salva 150%, aplica o crédito correto e preserva após recarregar',async()=>
  expect(screen.getByLabelText(/Bônus da corretora/)).toHaveValue('150');
  expect(screen.getByText('Conquistado: $750')).toBeInTheDocument();
 });
+it('confirma alavancagem inteira ao sair do campo e recalcula sem usar dígitos parciais',async()=>{
+ const s=defaultState(); s.activeTab='ouro'; s.assets.ouro.params.marginPerLot=810;
+ let saved=JSON.stringify(s);
+ render(<Platform leftMenuOpen load={async()=>saved} save={async v=>{saved=v;return true;}} isAdmin officialAcceptedAt={null}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Bônus e saques'}));
+ const input=screen.getByLabelText(/Alavancagem efetiva/);
+ fireEvent.focus(input); fireEvent.change(input,{target:{value:'5'}}); fireEvent.change(input,{target:{value:'500'}}); fireEvent.blur(input);
+ expect(screen.getByLabelText(/Margem estimada por 1 lote/)).toHaveValue('810');
+ fireEvent.focus(input); fireEvent.change(input,{target:{value:'1000'}}); fireEvent.blur(input);
+ expect(screen.getByLabelText(/Margem estimada por 1 lote/)).toHaveValue('405');
+ await waitFor(()=>expect(JSON.parse(saved).assets.saque2.params.marginPerLot).toBe(405),{timeout:5000});
+});

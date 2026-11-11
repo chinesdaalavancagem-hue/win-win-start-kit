@@ -11,7 +11,7 @@ import { applyOfficialParams, buildOfficialParams, isOfficialParams } from "@/li
 import {
   type AssetKey, type State, type TabKey, type Asset, type MesaFuturos, MESAS_FUTUROS, nomeMesa, diasAvaliacaoAtivo, diasAvaliacaoGold, limitesTradeify, limitesTopstep, adicionarDiaGold, removerDiaGold,
   percentualBonus, podeReverterDeposito, reverterDeposito, taxasMesaDia, metaLiquidaDia, projetarPrimeiroPayout, simularSaque2, aplicarDeposito, aplicarSaque, projetarAportesFuturos, conciliarCreditoForex, calcAporteFracionado, calcCaixaCiclo, clampDayIndex, computeAssetCalcs, defaultState, fmt, fmtSigned, handleProfit, handleStop,
-  historicoTotals, isValidState, normalizeState, sincronizarParametros, parseNum, parseValorFinanceiro, parseResultadoCfd, podeDesfazerUltimaOperacao, projetarZeragemBonus, reiniciarCicloBonus, resetBonus, tipoLabel, undoLast,
+  historicoTotals, isValidState, normalizeState, sincronizarParametros, definirAlavancagem, parseNum, parseValorFinanceiro, parseResultadoCfd, podeDesfazerUltimaOperacao, projetarZeragemBonus, reiniciarCicloBonus, resetBonus, tipoLabel, undoLast,
 } from "@/lib/platform/engine";
 
 type Section = "operacoes" | "parametros" | "bonus" | "aporte" | "caixa" | "meta";
@@ -280,7 +280,7 @@ export function Platform({ onOpenCarteira, mesasDisponiveis = MESAS_FUTUROS, lef
 
 /* ---------- pequenos componentes ---------- */
 
-function NumField({ label, value, onChange, readOnly, helper, placeholder, cockpit }: { label: ReactNode; value: number; onChange?: (n: number) => void; readOnly?: boolean; helper?: ReactNode; placeholder?: string; cockpit?: boolean }) {
+function NumField({ label, value, onChange, readOnly, helper, placeholder, cockpit, commitOnBlur }: { label: ReactNode; value: number; onChange?: (n: number) => void; readOnly?: boolean; helper?: ReactNode; placeholder?: string; cockpit?: boolean; commitOnBlur?: boolean }) {
   const [text, setText] = useState(String(value));
   const focused = useRef(false);
   useEffect(() => { if (!focused.current) setText(String(value)); }, [value]);
@@ -290,8 +290,8 @@ function NumField({ label, value, onChange, readOnly, helper, placeholder, cockp
       <input type="text" inputMode="decimal" value={text} readOnly={readOnly} placeholder={placeholder}
         enterKeyHint="done"
         onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); } }}
-        onFocus={() => { focused.current = true; }} onBlur={() => { focused.current = false; setText(String(value)); }}
-        onChange={(e) => { setText(e.target.value); onChange?.(parseNum(e.target.value)); }}
+        onFocus={() => { focused.current = true; }} onBlur={() => { focused.current = false; if (commitOnBlur) { const n = parseValorFinanceiro(text); if (n !== null && n >= 1) { onChange?.(n); setText(String(n)); } else setText(String(value)); } else setText(String(value)); }}
+        onChange={(e) => { setText(e.target.value); if (!commitOnBlur) onChange?.(parseNum(e.target.value)); }}
         className={cockpit
           ? "w-full rounded-md border border-transparent bg-transparent px-0 py-0.5 font-mono text-2xl font-bold text-slate-50 outline-none transition-colors hover:border-[#19334f] focus:border-blue-500/70 focus:bg-[#081320] focus:px-1.5 sm:text-[28px]"
           : cn("w-full rounded-md border bg-input/40 px-3 py-2 font-mono text-sm outline-none focus:ring-2 focus:ring-ring", readOnly && "opacity-70")} />
@@ -371,7 +371,7 @@ const Note = ({ children }: { children: ReactNode }) => <p className="mt-3 font-
 function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, assetKey, section, mutate, isAdmin }: { state: State; bancasGlobais?: Banca[] | undefined; bancaAtivaId?: string | undefined; contaMesa?: string | undefined; mesaAtiva: MesaFuturos; assetKey: AssetKey; section: Section; mutate: (fn: (s: State) => void) => void; isAdmin: boolean }) {
   const asset = state.assets[assetKey];
   const avaliacaoDias = diasAvaliacaoAtivo(asset, assetKey);
-  const setP = (k: keyof Asset["params"]) => (v: number) => mutate((s) => { (s.assets[k === "comissaoPorContrato" && assetKey === "saque2" ? (s.assets.saque2.params.ativoReal === "nasdaq" ? "nasdaq" : "ouro") : assetKey].params as unknown as Record<string, number>)[k] = v; });
+  const setP = (k: keyof Asset["params"]) => (v: number) => mutate((s) => { (s.assets[(k === "comissaoPorContrato" || (k === "marginPerLot" && !!s.assets.saque2.params.alavancagem)) && assetKey === "saque2" ? (s.assets.saque2.params.ativoReal === "nasdaq" ? "nasdaq" : "ouro") : assetKey].params as unknown as Record<string, number>)[k] = v; });
   const bonus = asset.bonus;
   // O Forex é compartilhado entre as bancas e ativos: considerar todos os depósitos e bônus disponíveis.
   const forexProprio = Object.values(state.assets).reduce((sum, a) => sum + Math.max(0, a.bonus.deposito || 0), 0);
@@ -562,7 +562,7 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               
               <div className="rounded-xl border border-[#18324e] bg-[#091827] p-3"><NumField label="Lucro líquido desejado ($, sem a taxa)" value={asset.params.lucroDesejado} onChange={setP("lucroDesejado")} /></div>
-              <div className="rounded-xl border border-[#183b43] bg-[#091a20] p-3"><NumField label="Margem exigida por 1 lote ($)" value={asset.params.marginPerLot} onChange={setP("marginPerLot")} /></div>
+              <div className="rounded-xl border border-[#183b43] bg-[#091a20] p-3"><NumField label="Margem exigida por 1 lote ($)" value={asset.params.marginPerLot} onChange={setP("marginPerLot")} helper="Referência para estimar o aporte. Atualize com a margem de 1 lote exibida no MT5; pode variar com cotação e condições da corretora." /></div>
               
               {assetKey === "saque2" && <div className="rounded-xl border border-[#183b43] bg-[#091a20] p-3"><NumField label="Saque 2 líquido projetado ($)" value={continuidade?.segundo.saque ?? 0} readOnly helper="Valor automático da projeção do ciclo atual: considera o saldo retido na mesa, as novas metas, 50%, split de 90% e o teto da Lucid, quando aplicável." /></div>}
               {assetKey !== "saque2" && <div className="rounded-xl border border-[#183b43] bg-[#091a20] p-3"><NumField label="1º payout líquido projetado ($)" value={payoutProjetado.liquido} readOnly helper={mesaAtiva === "lucid" ? `Meta geral ${fmt(payoutProjetado.lucro)} × 50% (teto de US$ 2.000 brutos) × 90%. Débito projetado na mesa: ${fmt(payoutProjetado.bruto)}.` : `Meta geral ${fmt(payoutProjetado.lucro)} × 50% × 90%. Débito projetado na mesa: ${fmt(payoutProjetado.bruto)}.`} /></div>}
@@ -891,6 +891,8 @@ function BonusPanel({ state, assetKey, reserva, folga, mutate }: { state: State;
             <h3 className="text-sm font-bold text-slate-100">Configuração e movimentações</h3>
           </div>
           <div className="mb-4 space-y-3">
+            <NumField label="Alavancagem efetiva deste ativo (1:X)" value={state.assets[assetKey].params.alavancagem ?? 0} commitOnBlur onChange={v => mutate(s => definirAlavancagem(s, assetKey, v))} helper="Digite 500 para 1:500 ou 1000 para 1:1000 e pressione Enter. Zero indica não configurada. Na primeira vez, informe a alavancagem correspondente à margem atual. Depois, trocar a alavancagem recalcula a margem estimada proporcionalmente. Não altera lotes nem lucro por ponto." />
+            <NumField label="Margem estimada por 1 lote ($)" value={state.assets[assetKey].params.marginPerLot} onChange={v => { if (Number.isFinite(v) && v >= 0) mutate(s => { const key = assetKey === "saque2" && s.assets.saque2.params.alavancagem ? (s.assets.saque2.params.ativoReal === "nasdaq" ? "nasdaq" : "ouro") : assetKey; s.assets[key].params.marginPerLot = v; }); }} helper="Use a margem atual do MT5 como referência. Esta estimativa não consulta cotações ao vivo e pode mudar durante notícias ou conforme o volume. O Saque 2 acompanha o ativo de origem após configurar a alavancagem." />
             <NumField label="Stop-out da corretora (%)" value={state.assets[assetKey].params.stopoutPct} onChange={(v) => mutate(s => { s.assets[assetKey].params.stopoutPct = v; })} />
             <NumField label="Bônus da corretora (%)" value={percentualBonus(b)} onChange={(v) => { if (Number.isFinite(v) && v >= 0) mutate(s => { s.assets[assetKey].bonus.percentual = v; }); }} helper="Ex.: 0, 25, 100 ou 150. Compartilhado entre mesas e Saque 2. Vale para novos depósitos e projeções; não altera o bônus já registrado. Ajuste ao mudar de promoção." />
             <NumField label="Teto de bônus do plano ($)" value={b.bonusCap} onChange={(v) => mutate((s) => { if (v) s.assets[assetKey].bonus.bonusCap = v; })} />
