@@ -3,7 +3,7 @@ import {render,screen,fireEvent,waitFor} from '@testing-library/react';
 import {it,expect,vi} from 'vitest';
 import {Bancas} from '../components/platform/Bancas';
 import {Platform} from '../components/platform/Platform';
-import {defaultState, prepararMesaVest, limitesVest, computeAssetCalcs, projetarPrimeiroPayout, simularSaque2, adicionarDiaGold, handleProfit, undoLast} from '../lib/platform/engine';
+import {definirParametroVest, margemVest, alavancagemVest, normalizeState, defaultState, prepararMesaVest, limitesVest, computeAssetCalcs, projetarPrimeiroPayout, simularSaque2, adicionarDiaGold, handleProfit, undoLast} from '../lib/platform/engine';
 import {novaBanca,parseBancas,referenciaDaMesa} from '../lib/platform/bancas';
 import {buildOfficialParams,isOfficialParams,applyOfficialParams} from '../lib/platform/official-params';
 vi.mock('@/integrations/supabase/client',()=>({supabase:{auth:{getSession:vi.fn(async()=>({data:{session:null}}))}}}));
@@ -86,4 +86,28 @@ it('cria conta Vest pela interface com preço padrão e reabre o documento',asyn
  expect(created.state.assets.ouro.days[0]!.meta).toBe(2000);
  expect(created.state.assets.ouro.params.mll).toBe(600);
  expect(reloaded.bancas[0]!.state.log).toEqual(old.state.log);
+});
+
+it('alavancagem Vest muda só margem, persiste e acompanha Saque 2',()=>{
+ const s=setup(),a=s.assets.ouro;
+ const antes=computeAssetCalcs(a,'ouro'),fx=a.params.marginPerLot;
+ expect(margemVest(a,'ouro',10)).toBeUndefined();
+ definirParametroVest(s,'ouro','vestPrecoIndice',4100);
+ expect(margemVest(a,'ouro',10)).toBe(1640);
+ definirParametroVest(s,'saque2','vestAlavancagem',10);
+ expect(margemVest(a,'ouro',10)).toBe(4100);
+ expect(margemVest(s.assets.saque2,'saque2',5)).toBe(2050);
+ expect(computeAssetCalcs(a,'ouro')).toEqual(antes);expect(a.params.marginPerLot).toBe(fx);
+ definirParametroVest(s,'ouro','vestAlavancagem',26);expect(alavancagemVest(a,'ouro')).toBe(10);
+ const restored=normalizeState(JSON.parse(JSON.stringify(s)));expect(restored.assets.ouro.params.vestAlavancagem).toBe(10);
+ const payload=buildOfficialParams(s,undefined,'vest');expect(isOfficialParams(payload)).toBe(true);
+ const target=setup();applyOfficialParams(target,payload);expect(margemVest(target.assets.ouro,'ouro',10)).toBe(4100);
+ payload.assets.ouro.params.vestAlavancagem=26;expect(isOfficialParams(payload)).toBe(false);
+});
+it('edita alavancagem Vest e mostra margem por card',async()=>{
+ const s=setup();render(<Platform load={async()=>JSON.stringify(s)} save={async()=>true} isAdmin officialAcceptedAt={null} mesaAtiva="vest"/>);
+ fireEvent.change(await screen.findByLabelText('Alavancagem da Vest'),{target:{value:'10'}});
+ const price=screen.getByLabelText(/Preço de índice na Vest/);
+ fireEvent.change(price,{target:{value:'4100'}});fireEvent.blur(price);
+ await waitFor(()=>expect(screen.getAllByText(/Margem estimada na Vest \(10x\): 4.100 USDC/).length).toBeGreaterThan(0));
 });

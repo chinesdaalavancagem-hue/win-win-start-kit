@@ -17,6 +17,9 @@ export interface Params {
   splitPct?: number;
   mnq: number; hfm: number; mll: number; saldoInicial: number; taxa: number; lucroDesejado: number;
   alavancagem?: number;
+  /** Margem da mesa Vest, independente da corretora CFD. */
+  vestAlavancagem?: number;
+  vestPrecoIndice?: number;
   marginPerLot: number; stopoutPct: number; saqueAprovada: number; folgaExtraPct: number; ativoReal?: "ouro" | "nasdaq";
 }
 /** Meta do card é bruta: mantém o movimento de preço usado no hedge. */
@@ -27,6 +30,24 @@ export function percentualSplit(a: Asset): number {
 export function definirSplit(s: State, valor: number): void {
   if (!Number.isFinite(valor) || valor < 0 || valor > 100) return;
   for (const key of ASSETS) s.assets[key].params.splitPct = valor;
+}
+export function maxAlavancagemVest(a: Asset, key: AssetKey): number {
+  return (key === "nasdaq" || (key === "saque2" && a.params.ativoReal === "nasdaq")) ? 50 : 25;
+}
+export function alavancagemVest(a: Asset, key: AssetKey): number {
+  const v = a.params.vestAlavancagem, max = maxAlavancagemVest(a, key);
+  return typeof v === "number" && Number.isInteger(v) && v >= 1 && v <= max ? v : max;
+}
+export function margemVest(a: Asset, key: AssetKey, unidades: number): number | undefined {
+  const preco = a.params.vestPrecoIndice;
+  if (typeof preco !== "number" || !Number.isFinite(preco) || preco <= 0 || !Number.isFinite(unidades) || unidades < 0) return undefined;
+  return unidades * preco / alavancagemVest(a, key);
+}
+export function definirParametroVest(s: State, key: AssetKey, campo: "vestAlavancagem" | "vestPrecoIndice", valor: number): void {
+  const origem = key === "saque2" ? (s.assets.saque2.params.ativoReal === "nasdaq" ? "nasdaq" : "ouro") : key;
+  if (!Number.isFinite(valor) || (campo === "vestPrecoIndice" ? valor < 0 : !Number.isInteger(valor) || valor < 1 || valor > maxAlavancagemVest(s.assets[origem], origem))) return;
+  s.assets[origem].params[campo] = valor;
+  sincronizarParametros(s);
 }
 export function taxasMesaDia(a: Asset, d: Day): number {
   
@@ -321,6 +342,11 @@ export function sincronizarParametros(s: State, anterior?: State): void {
     s.assets.saque2.params.marginPerLot = referencia.marginPerLot;
   } else delete s.assets.saque2.params.alavancagem;
   s.assets.saque2.params.splitPct = percentualSplit(s.assets[origem]);
+  for (const campo of ["vestAlavancagem", "vestPrecoIndice"] as const) {
+    const valor = referencia[campo];
+    if (valor === undefined) delete s.assets.saque2.params[campo];
+    else s.assets.saque2.params[campo] = valor;
+  }
   const comissao = referencia.comissaoPorContrato;
   if (comissao === undefined) delete s.assets.saque2.params.comissaoPorContrato;
   else s.assets.saque2.params.comissaoPorContrato = comissao;
@@ -369,6 +395,8 @@ export function normalizeState(p: any): State {
         ![r.saldoAntes, r.depositoAntes, r.bonusAntes, r.ganhoAntes].every(v => typeof v === "number" && Number.isFinite(v) && v >= 0))) delete evento.reversaoDeposito;
     }
     a.params.splitPct = percentualSplit(a);
+    if (a.params.vestAlavancagem !== undefined && (typeof a.params.vestAlavancagem !== "number" || !Number.isInteger(a.params.vestAlavancagem) || a.params.vestAlavancagem < 1 || a.params.vestAlavancagem > maxAlavancagemVest(a, k))) delete a.params.vestAlavancagem;
+    if (a.params.vestPrecoIndice !== undefined && (typeof a.params.vestPrecoIndice !== "number" || !Number.isFinite(a.params.vestPrecoIndice) || a.params.vestPrecoIndice < 0)) delete a.params.vestPrecoIndice;
     if (a.params.saqueDebitadoMesa !== undefined && (!Number.isFinite(a.params.saqueDebitadoMesa) || a.params.saqueDebitadoMesa < 0)) delete a.params.saqueDebitadoMesa;
     if (a.params.comissaoPorContrato !== undefined && (typeof a.params.comissaoPorContrato !== "number" || !Number.isFinite(a.params.comissaoPorContrato) || a.params.comissaoPorContrato < 0)) delete a.params.comissaoPorContrato;
     if (a.params.alavancagem !== undefined && (typeof a.params.alavancagem !== "number" || !Number.isFinite(a.params.alavancagem) || a.params.alavancagem < 1)) delete a.params.alavancagem;

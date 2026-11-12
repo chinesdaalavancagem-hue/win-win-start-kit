@@ -11,7 +11,7 @@ import { registrarAuditoria } from "@/lib/auditoria-registro";
 import { applyOfficialParams, buildOfficialParams, isOfficialParams } from "@/lib/platform/official-params";
 import {
   type AssetKey, type State, type TabKey, type Asset, type MesaFuturos, MESAS_FUTUROS, nomeMesa, diasAvaliacaoAtivo, diasAvaliacaoGold, limitesTradeify, limitesTopstep, limitesVest, adicionarDiaGold, removerDiaGold,
-  percentualSplit, definirSplit, percentualBonus, podeReverterDeposito, reverterDeposito, taxasMesaDia, metaLiquidaDia, projetarPrimeiroPayout, simularSaque2, aplicarDeposito, aplicarSaque, projetarAportesFuturos, conciliarCreditoForex, calcAporteFracionado, calcCaixaCiclo, clampDayIndex, computeAssetCalcs, defaultState, fmt, fmtSigned, handleProfit, handleStop,
+  alavancagemVest, maxAlavancagemVest, margemVest, definirParametroVest, percentualSplit, definirSplit, percentualBonus, podeReverterDeposito, reverterDeposito, taxasMesaDia, metaLiquidaDia, projetarPrimeiroPayout, simularSaque2, aplicarDeposito, aplicarSaque, projetarAportesFuturos, conciliarCreditoForex, calcAporteFracionado, calcCaixaCiclo, clampDayIndex, computeAssetCalcs, defaultState, fmt, fmtSigned, handleProfit, handleStop,
   historicoTotals, isValidState, normalizeState, sincronizarParametros, definirAlavancagem, parseNum, parseValorFinanceiro, parseResultadoCfd, podeDesfazerUltimaOperacao, projetarZeragemBonus, reiniciarCicloBonus, resetBonus, tipoLabel, undoLast,
 } from "@/lib/platform/engine";
 
@@ -487,6 +487,17 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
         <p className="mt-1 text-xs text-slate-300">Forex próprio projetado na abertura: ${fmt(continuidade.forexProprioInicial)} · bônus: ${fmt(continuidade.forexBonusInicial)} · dívida anterior não recuperada: ${fmt(continuidade.dividaAnterior)} · folga inicial na mesa: ${fmt(continuidade.limites[0] ?? 0)}. Limites manuais dos cards continuam valendo. Saques são projeções, sujeitos às regras da mesa.</p>
         {(continuidade.limites[0] ?? 0) <= 0 && <p className="mt-2 text-xs text-amber-300">O saque projetado deixa a conta no piso ou abaixo dele. Reduza o débito do saque ou reveja os resultados do ciclo 1 antes de simular a continuidade.</p>}
       </div>}
+      {mesaAtiva === "vest" && (section === "parametros" || section === "operacoes") && <section className="mb-3 rounded-xl border border-[#18324e] bg-[#091827] p-3" aria-label="Margem da Vest">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="text-sm text-slate-300">Alavancagem da Vest
+            <select className="mt-1 block w-full rounded-lg border border-[#18324e] bg-[#0b0f19] p-2 text-slate-100" value={alavancagemVest(asset, assetKey)} onChange={e => mutate(s => definirParametroVest(s, assetKey, "vestAlavancagem", Number(e.target.value)))}>
+              {Array.from({length: maxAlavancagemVest(asset, assetKey)}, (_, i) => <option key={i+1} value={i+1}>{i+1}x</option>)}
+            </select>
+          </label>
+          <NumField label="Preço de índice na Vest (USDC)" value={asset.params.vestPrecoIndice ?? 0} commitOnBlur onChange={v => mutate(s => definirParametroVest(s, assetKey, "vestPrecoIndice", v))} helper="Digite a cotação atual do ativo na Vest, sem separador de milhar. Não é atualizada automaticamente." />
+        </div>
+        <p className="mt-2 text-xs text-slate-400">Margem estimada = unidades × preço de índice ÷ alavancagem. Ajusta somente a margem na Vest, sem alterar ganhos, perdas, taxas ou o aporte no Forex. O Saque 2 acompanha. Limites temporários da mesa podem exigir mais margem; confira a prévia da ordem.</p>
+      </section>}
       {section === "parametros" && (
         <div className="space-y-4 lg:space-y-3">
           <section className="relative overflow-hidden rounded-2xl border border-cyan-700/50 bg-[radial-gradient(ellipse_at_top_right,rgba(0,190,255,0.13),transparent_45%),linear-gradient(135deg,#0a192b,#050c17_72%)] p-4 shadow-[0_18px_48px_rgba(0,0,0,0.22)] sm:p-6">
@@ -726,6 +737,7 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
              label={<><FileText className="h-3.5 w-3.5 text-blue-400" />{mesa === "vest" ? "Unidades Vest" : "Contratos"}</>}
              value={d.mnq}
              onChange={setD("mnq")} />
+          {mesa === "vest" && <p className="mt-2 text-xs text-cyan-300">Margem estimada na Vest ({alavancagemVest(asset, assetKey)}x): {margemVest(asset, assetKey, d.mnq) === undefined ? "informe o preço de índice" : `${fmt(margemVest(asset, assetKey, d.mnq)!)} USDC`}</p>}
            
           <span className="mt-2 inline-block rounded-full border border-market-down/40 bg-rose-950/40 px-2 py-0.5 font-mono text-[11px] text-market-down">-${fmt(Math.abs(c.passa))} se passar</span>
         </div>

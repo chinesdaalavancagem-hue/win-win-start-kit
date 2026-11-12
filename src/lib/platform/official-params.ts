@@ -20,11 +20,11 @@ const isNum = (v: unknown) => typeof v === "number" && Number.isFinite(v);
 /** Monta o JSON oficial: só parâmetros e plano diário, nunca saldos, depósitos, histórico ou logs. */
 export function buildOfficialParams(state: State, exportedAt = new Date().toISOString(), mesaFuturos?: MesaFuturos): OfficialParamsPayload {
   const assets = Object.fromEntries(ASSETS.map((key) => {
-    const { splitPct = 90, comissaoPorContrato = 0, ativoReal, mnq, hfm, mll, taxa, lucroDesejado, marginPerLot, stopoutPct, saqueAprovada, folgaExtraPct } = state.assets[key].params;
+    const { vestAlavancagem, vestPrecoIndice, splitPct = 90, comissaoPorContrato = 0, ativoReal, mnq, hfm, mll, taxa, lucroDesejado, marginPerLot, stopoutPct, saqueAprovada, folgaExtraPct } = state.assets[key].params;
     return [key, {
       ...(mesaFuturos === "vest" ? {avaliacaoDias: key === "saque2" ? 0 : state.assets[key].avaliacaoPorMesa?.vest ?? 1} : {}),
       ...(state.assets[key].mesaConfig ? {mesaConfig: structuredClone(state.assets[key].mesaConfig), avaliacaoDias: state.assets[key].avaliacaoPorMesa?.[mesaFuturos!] ?? (key === "saque2" ? 0 : state.assets[key].mesaConfig!.avaliacao)} : {}),
-      params: { splitPct, comissaoPorContrato, mnq, hfm, mll, taxa, lucroDesejado, marginPerLot, stopoutPct, saqueAprovada, folgaExtraPct, ...(ativoReal ? { ativoReal } : {}) },
+      params: { ...(vestAlavancagem !== undefined ? {vestAlavancagem} : {}), ...(vestPrecoIndice !== undefined ? {vestPrecoIndice} : {}), splitPct, comissaoPorContrato, mnq, hfm, mll, taxa, lucroDesejado, marginPerLot, stopoutPct, saqueAprovada, folgaExtraPct, ...(ativoReal ? { ativoReal } : {}) },
       days: state.assets[key].days.map(({ mnq, lotes, meta, mll }) => ({ mnq, lotes, meta, ...(typeof mll === "number" ? { mll } : {}) })),
     }];
   })) as unknown as OfficialParamsPayload["assets"];
@@ -45,6 +45,8 @@ export function isOfficialParams(payload: unknown): payload is OfficialParamsPay
     if (!idMesaPersonalizada(mesa) && asset?.mesaConfig !== undefined) return false;
     return !!asset && !!params && typeof params === "object" &&
       PARAM_FIELDS.every((f) => isNum(params[f])) &&
+      (params.vestAlavancagem === undefined || (isNum(params.vestAlavancagem) && Number.isInteger(params.vestAlavancagem) && (params.vestAlavancagem as number) >= 1 && (params.vestAlavancagem as number) <= (key === "nasdaq" || (key === "saque2" && params.ativoReal === "nasdaq") ? 50 : 25))) &&
+      (params.vestPrecoIndice === undefined || (isNum(params.vestPrecoIndice) && (params.vestPrecoIndice as number) >= 0)) &&
       (params.splitPct === undefined || (isNum(params.splitPct) && (params.splitPct as number) >= 0 && (params.splitPct as number) <= 100)) &&
       (params.comissaoPorContrato === undefined || (isNum(params.comissaoPorContrato) && (params.comissaoPorContrato as number) >= 0)) &&
       (params.ativoReal === undefined || params.ativoReal === "ouro" || params.ativoReal === "nasdaq") &&
@@ -71,6 +73,8 @@ export function applyOfficialParams(current: State, payload: OfficialParamsPaylo
       // A taxa é o custo real pago por cada banca e não pode ser substituída por JSON oficial.
       if (f !== "taxa") picked[f] = incoming.params[f];
     }
+    if (isNum(incoming.params.vestAlavancagem) && Number.isInteger(incoming.params.vestAlavancagem) && (incoming.params.vestAlavancagem as number) >= 1 && (incoming.params.vestAlavancagem as number) <= (key === "nasdaq" || (key === "saque2" && incoming.params.ativoReal === "nasdaq") ? 50 : 25)) picked.vestAlavancagem = incoming.params.vestAlavancagem;
+    if (isNum(incoming.params.vestPrecoIndice) && (incoming.params.vestPrecoIndice as number) >= 0) picked.vestPrecoIndice = incoming.params.vestPrecoIndice;
     if (isNum(incoming.params.splitPct) && (incoming.params.splitPct as number) >= 0 && (incoming.params.splitPct as number) <= 100) picked.splitPct = incoming.params.splitPct;
     // Publicações antigas sem comissão preservam a configuração local.
     if (isNum(incoming.params.comissaoPorContrato) && (incoming.params.comissaoPorContrato as number) >= 0) picked.comissaoPorContrato = incoming.params.comissaoPorContrato;
