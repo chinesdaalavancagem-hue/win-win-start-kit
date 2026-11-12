@@ -66,7 +66,7 @@ it('cards mostram unidades e pontos; meta geral usa lucro integral, sem 50%',asy
  expect(screen.getAllByLabelText('Meta bruta $')[0]).toHaveValue('2100');
  fireEvent.click(screen.getByRole('button',{name:'Meta geral',hidden:true}));
  expect(screen.getByText('Lucro disponível · 100%')).toBeInTheDocument();
- expect(screen.getByLabelText(/Custo estimado por unidade Vest/)).toBeInTheDocument();
+ expect(screen.getByLabelText(/Taxa por unidade/)).toBeInTheDocument();
 });
 
 it('cria conta Vest pela interface com preço padrão e reabre o documento',async()=>{
