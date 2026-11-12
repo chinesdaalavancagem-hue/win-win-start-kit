@@ -282,7 +282,7 @@ export function Platform({ onOpenCarteira, mesasDisponiveis = MESAS_FUTUROS, lef
 
 /* ---------- pequenos componentes ---------- */
 
-function NumField({ label, value, onChange, readOnly, helper, placeholder, cockpit, commitOnBlur }: { label: ReactNode; value: number; onChange?: (n: number) => void; readOnly?: boolean; helper?: ReactNode; placeholder?: string; cockpit?: boolean; commitOnBlur?: boolean }) {
+function NumField({ label, value, onChange, readOnly, helper, placeholder, cockpit, commitOnBlur, subtle }: { label: ReactNode; value: number; onChange?: (n: number) => void; readOnly?: boolean; helper?: ReactNode; placeholder?: string; cockpit?: boolean; commitOnBlur?: boolean; subtle?: boolean }) {
   const [text, setText] = useState(String(value));
   const focused = useRef(false);
   useEffect(() => { if (!focused.current) setText(String(value)); }, [value]);
@@ -294,7 +294,9 @@ function NumField({ label, value, onChange, readOnly, helper, placeholder, cockp
         onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); } }}
         onFocus={() => { focused.current = true; }} onBlur={() => { focused.current = false; if (commitOnBlur) { const n = parseValorFinanceiro(text); if (n !== null && n >= 1) { onChange?.(n); setText(String(n)); } else setText(String(value)); } else setText(String(value)); }}
         onChange={(e) => { setText(e.target.value); if (!commitOnBlur) onChange?.(parseNum(e.target.value)); }}
-        className={cockpit
+        className={subtle
+          ? "w-full rounded-md border border-transparent bg-transparent px-0 py-0.5 font-mono text-sm text-slate-100 outline-none focus:border-blue-500/70 focus:bg-[#081320] focus:px-1.5"
+          : cockpit
           ? "w-full rounded-md border border-transparent bg-transparent px-0 py-0.5 font-mono text-2xl font-bold text-slate-50 outline-none transition-colors hover:border-[#19334f] focus:border-blue-500/70 focus:bg-[#081320] focus:px-1.5 sm:text-[28px]"
           : cn("w-full rounded-md border bg-input/40 px-3 py-2 font-mono text-sm outline-none focus:ring-2 focus:ring-ring", readOnly && "opacity-70")} />
       {helper && <span className="mt-1 block font-mono text-[11px] text-muted-foreground">{helper}</span>}
@@ -548,7 +550,7 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
               <div className="rounded-xl border border-[#18324e] bg-[#091827] p-3">
                  {<NumField label="$/ponto do contrato futuro" value={asset.params.mnq} onChange={setP("mnq")} />}
                </div>
-              <div className="rounded-xl border border-[#183b43] bg-[#091a20] p-3"><NumField label="Broker CFD $/ponto/lote" value={asset.params.hfm} onChange={setP("hfm")} /></div>
+              <div className="rounded-xl border border-[#183b43] bg-[#091a20] p-3"><NumField subtle label="Broker CFD $/ponto/lote" value={asset.params.hfm} onChange={setP("hfm")} /></div>
               <div className="rounded-xl border border-cyan-950 bg-[#091522] p-3"><NumField label="Saldo broker CFD ($)" value={saldo} readOnly helper={`Saldo financeiro conciliado, incluindo resultados reais e bônus disponível`} /></div>
             </div>
           </section>
@@ -723,7 +725,7 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
         </div>
         <div className="min-w-0 rounded-xl border border-[#18324e] bg-gradient-to-br from-[#0d1b2b] to-[#080f1a] p-3 sm:p-4">
           <NumField cockpit label={<><Target className="h-3.5 w-3.5 text-blue-400" />Meta bruta $</>} value={d.meta} onChange={setD("meta")} />
-          <div className="mt-2"><NumField label="Alvo em ticks" value={row.ticks} onChange={ticks => { if (Number.isFinite(ticks) && ticks >= 0 && c.valorTickMesa && c.valorTickMesa > 0) setD("meta")(Number((Math.ceil(ticks) * c.valorTickMesa).toFixed(8))); }} helper={d.mnq > 0 ? undefined : "Informe os contratos para calcular o valor."} /></div>
+          <div className="mt-2"><NumField subtle label="Alvo em ticks" value={row.ticks} onChange={ticks => { if (Number.isFinite(ticks) && ticks >= 0 && c.valorTickMesa && c.valorTickMesa > 0) setD("meta")(Number((Math.ceil(ticks) * c.valorTickMesa).toFixed(8))); }} helper={d.mnq > 0 ? undefined : "Informe os contratos para calcular o valor."} /></div>
           {<p className="mt-1 text-[11px] text-slate-300">Taxas: ${fmt(taxasMesaDia(asset, d))} · Líquido previsto: ${fmt(metaLiquidaDia(asset, d))}</p>}
           {<div className="mt-1.5 space-y-1">
             {campoEod(String(i), "Resultado líquido do dia ($)")}
@@ -735,7 +737,7 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
           </p>}
           {<NumField cockpit label="Loss limit do cenário ($)" value={c.limiteDoCard ?? asset.params.mll} onChange={ajustarStop} />}
           {c.ticksReprova !== undefined && c.valorTickMesa
-             ? (<NumField label="Stop em ticks" value={c.ticksReprova} onChange={ticks => ajustarStop(Math.ceil(ticks) * c.valorTickMesa!)} />)
+             ? (<NumField subtle label="Stop em ticks" value={c.ticksReprova} onChange={ticks => ajustarStop(Math.ceil(ticks) * c.valorTickMesa!)} />)
              : <p>Informe os contratos para calcular os ticks.</p>}
           {d[campoStop] !== undefined && <button type="button" className="mt-1 text-xs text-cyan-300 underline" onClick={() => ajustarStop(0)}>Usar limite automático</button>}
         </div>
