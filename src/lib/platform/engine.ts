@@ -13,11 +13,21 @@ export interface Params {
   saqueDebitadoMesa?: number;
   /** Comissão total de entrada + saída por contrato; ausente mantém o legado sem desconto. */
   comissaoPorContrato?: number;
+  /** Percentual do lucro solicitado que pertence ao trader. Legado: 90%. */
+  splitPct?: number;
   mnq: number; hfm: number; mll: number; saldoInicial: number; taxa: number; lucroDesejado: number;
   alavancagem?: number;
   marginPerLot: number; stopoutPct: number; saqueAprovada: number; folgaExtraPct: number; ativoReal?: "ouro" | "nasdaq";
 }
 /** Meta do card é bruta: mantém o movimento de preço usado no hedge. */
+export function percentualSplit(a: Asset): number {
+  const v = a.params.splitPct;
+  return typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= 100 ? v : 90;
+}
+export function definirSplit(s: State, valor: number): void {
+  if (!Number.isFinite(valor) || valor < 0 || valor > 100) return;
+  for (const key of ASSETS) s.assets[key].params.splitPct = valor;
+}
 export function taxasMesaDia(a: Asset, d: Day): number {
   
   const taxa = a.params.comissaoPorContrato;
@@ -282,7 +292,7 @@ export const freshBonus = (): Bonus => ({ percentual: 100, deposito: 0, bonusAtu
 
 export function defaultState(): State {
   const assets = clone(defaultAssetsBase) as unknown as Record<AssetKey, Asset>;
-  for (const k of ASSETS) { assets[k].attempt = freshAttempt(); assets[k].bonus = freshBonus(); }
+  for (const k of ASSETS) { assets[k].attempt = freshAttempt(); assets[k].bonus = freshBonus(); assets[k].params.splitPct = 90; }
   return { activeTab: "nasdaq", assets, log: [], cfdBalance: 0, totalGasto: 0, forexSaldoReal: 0, counts: { aprovadas: 0, reprovadas: 0 } };
 }
 
@@ -310,6 +320,7 @@ export function sincronizarParametros(s: State, anterior?: State): void {
     s.assets.saque2.params.alavancagem = referencia.alavancagem;
     s.assets.saque2.params.marginPerLot = referencia.marginPerLot;
   } else delete s.assets.saque2.params.alavancagem;
+  s.assets.saque2.params.splitPct = percentualSplit(s.assets[origem]);
   const comissao = referencia.comissaoPorContrato;
   if (comissao === undefined) delete s.assets.saque2.params.comissaoPorContrato;
   else s.assets.saque2.params.comissaoPorContrato = comissao;
@@ -357,6 +368,7 @@ export function normalizeState(p: any): State {
       if (r !== undefined && (!r || typeof r.assinatura !== "string" ||
         ![r.saldoAntes, r.depositoAntes, r.bonusAntes, r.ganhoAntes].every(v => typeof v === "number" && Number.isFinite(v) && v >= 0))) delete evento.reversaoDeposito;
     }
+    a.params.splitPct = percentualSplit(a);
     if (a.params.saqueDebitadoMesa !== undefined && (!Number.isFinite(a.params.saqueDebitadoMesa) || a.params.saqueDebitadoMesa < 0)) delete a.params.saqueDebitadoMesa;
     if (a.params.comissaoPorContrato !== undefined && (typeof a.params.comissaoPorContrato !== "number" || !Number.isFinite(a.params.comissaoPorContrato) || a.params.comissaoPorContrato < 0)) delete a.params.comissaoPorContrato;
     if (a.params.alavancagem !== undefined && (typeof a.params.alavancagem !== "number" || !Number.isFinite(a.params.alavancagem) || a.params.alavancagem < 1)) delete a.params.alavancagem;
@@ -833,7 +845,7 @@ export function projetarPrimeiroPayout(a: Asset, key: AssetKey) {
     total + resultadoMesaDia(a, avaliacao + i), 0);
   const brutoSemTeto = Math.round(Math.max(0, lucro) * (a.mesaFuturos === "vest" ? 1 : 0.5) * 100) / 100;
   const bruto = a.mesaFuturos === "lucid" ? Math.min(2000, brutoSemTeto) : brutoSemTeto;
-  const liquido = Math.round(bruto * 0.9 * 100) / 100;
+  const liquido = Math.round(bruto * percentualSplit(a)) / 100;
   return {lucro, bruto, liquido};
 }
 
@@ -926,7 +938,7 @@ export function simularSaque2(s: State, bonusPct = percentualBonus(s.assets.saqu
   const lucroSegundoCiclo = segundo.days.reduce((total, d, i) => total + (resultados[i] ?? metaLiquidaDia(segundo, d)), 0);
   const baseSaque2 = Math.max(0, saldoMesaInicial + lucroSegundoCiclo);
   const saque2Bruto = Math.min(mesa === "lucid" ? 2000 : Infinity, Math.round(baseSaque2 * (mesa === "vest" ? 1 : 0.5) * 100) / 100);
-  const saque2Liquido = Math.round(saque2Bruto * 0.9 * 100) / 100;
+  const saque2Liquido = Math.round(saque2Bruto * percentualSplit(origem)) / 100;
   const calcsCaixa = calcs.map((c, i) => {
     const registro = diasRegistrados.find(e => e.day === i + 1);
     const custo = operacao?.indice === i ? operacao.custo : typeof registro?.cfdReal === "number" ? -registro.cfdReal : c.custoSePassar;
