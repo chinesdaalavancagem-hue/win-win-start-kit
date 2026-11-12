@@ -35,14 +35,15 @@ export interface Attempt { resultadosMesaEod?: Record<string, number>; currentDa
 export interface ReversaoDeposito { saldoAntes: number; depositoAntes: number; bonusAntes: number; ganhoAntes: number; assinatura: string }
 export interface BonusLog { reversaoDeposito?: ReversaoDeposito; ts: number; tipo: "deposito" | "saque" | "reset" | "ajuste_credito" | "reinicio_ciclo"; valor: number; dia?: number; bonusGanho?: number; proporcao?: number; bonusReduzido?: number; depositoZerado?: number }
 export interface Bonus { percentual?: number; deposito: number; bonusAtual: number; bonusGanhoTotal: number; bonusCap: number; log: BonusLog[] }
-export type MesaFuturos = "tradefive" | "lucid" | "mff" | "topstep" | MesaPersonalizada["id"];
+export type MesaFuturos = "tradefive" | "lucid" | "mff" | "topstep" | "vest" | MesaPersonalizada["id"];
 export const MESAS_FUTUROS: Record<MesaFuturos, { nome: string; consistencia: number; avaliacao: number; payout: number }> = {
   tradefive: { nome: "Tradeify", consistencia: 40, avaliacao: 3, payout: 5 },
   lucid: { nome: "Lucid Trading", consistencia: 50, avaliacao: 2, payout: 5 },
   mff: { nome: "My Funded Futures (MFF)", consistencia: 30, avaliacao: 4, payout: 5 },
+  vest: { nome: "Vest Markets · 10K 1-Step", consistencia: 0, avaliacao: 1, payout: 1 },
   topstep: { nome: "Topstep", consistencia: 55, avaliacao: 2, payout: 5 },
 };
-export interface Asset { mesaConfig?: MesaPersonalizada; params: Params; days: Day[]; attempt: Attempt; bonus: Bonus; mesaFuturos?: MesaFuturos; diasPorMesa?: Partial<Record<MesaFuturos, Day[]>>; avaliacaoPorMesa?: Partial<Record<MesaFuturos, number>> }
+export interface Asset { vestVersion?: 1; mesaConfig?: MesaPersonalizada; params: Params; days: Day[]; attempt: Attempt; bonus: Bonus; mesaFuturos?: MesaFuturos; diasPorMesa?: Partial<Record<MesaFuturos, Day[]>>; avaliacaoPorMesa?: Partial<Record<MesaFuturos, number>> }
 export interface ContinuacaoSaque {
   origem: "ouro" | "nasdaq"; numero: number;
   saldoAntes: number; saldoDepois: number; bruto: number; liquido: number;
@@ -233,8 +234,43 @@ export function prepararMesaPersonalizada(state: State, mesa: MesaPersonalizada,
     asset.attempt = freshAttempt();
   }
 }
+/** Cenário novo; nunca aplicado sobre uma conta existente ou seu histórico. */
+export function prepararMesaVest(state: State): void {
+  state.activeTab = "ouro";
+  for (const key of ASSETS) {
+    const a = state.assets[key];
+    a.vestVersion = 1;
+    a.mesaFuturos = "vest";
+    delete a.mesaConfig;
+    a.params.mnq = 1;
+    a.params.mll = 600;
+    a.params.taxa = key === "saque2" ? 0 : 108.30;
+    a.params.lucroDesejado = key === "saque2" ? 0 : 108.30;
+    a.params.comissaoPorContrato = 0;
+    a.params.saqueAprovada = 180;
+    a.params.ativoReal = key === "nasdaq" ? "nasdaq" : "ouro";
+    a.avaliacaoPorMesa = {vest: key === "saque2" ? 0 : 1};
+    const unidade = key === "nasdaq" ? 2 : 10;
+    const lote = key === "nasdaq" ? 0.8 : 0.04;
+    a.days = [...(key === "saque2" ? [] : [{mnq: unidade, lotes: lote, meta: 2000}]),
+      {mnq: unidade, lotes: lote, meta: 200}];
+    a.diasPorMesa = {vest: structuredClone(a.days)};
+    a.attempt = freshAttempt();
+  }
+  sincronizarParametros(state);
+}
+
+/** Vest 10K: patrimônio reinicia na financiada; piso estático, inclusive após saques. */
+export function limitesVest(a: Asset, key: AssetKey, indice: number) {
+  const avaliacao = diasAvaliacaoAtivo(a, key);
+  let saldo = 10000;
+  for (let i = indice < avaliacao ? 0 : avaliacao; i < indice; i++) saldo += resultadoMesaDia(a, i);
+  const piso = 10000 - a.params.mll;
+  return {saldo, piso, distancia: Math.max(0, Math.round((saldo - piso) * 100) / 100)};
+}
+
 export function diasAvaliacaoAtivo(asset: Asset, key: AssetKey): number {
-  return key === "saque2" ? 0 : key === "ouro" || asset.mesaConfig ? diasAvaliacaoGold(asset) : 3;
+  return key === "saque2" ? 0 : key === "ouro" || asset.mesaConfig || asset.mesaFuturos === "vest" ? diasAvaliacaoGold(asset) : 3;
 }
 export function nomeMesa(mesa: MesaFuturos, config?: MesaPersonalizada): string {
   return config?.id === mesa ? config.nome : MESAS_FUTUROS[mesa]?.nome ?? "Mesa personalizada";
@@ -304,6 +340,7 @@ export function normalizeState(p: any): State {
   if (!p.assets.saque2) p.assets.saque2 = clone(defaultAssetsBase.saque2);
   for (const k of ASSETS) {
     const a = p.assets[k];
+    if (a.vestVersion !== 1) delete a.vestVersion;
     if (a.mesaConfig && validarMesaPersonalizada(a.mesaConfig)) delete a.mesaConfig;
     if (!a.attempt) a.attempt = freshAttempt();
     if (a.attempt.resultadosMesaEod !== undefined) {
@@ -439,6 +476,7 @@ export function limitesLucid(a: Asset, key: AssetKey, indice: number) {
 
 /** Projeção sobre metas planejadas, não um limite efetivo confirmado pela mesa. */
 export function lossLimitGoldProjetado(a: Asset, indice: number): number {
+  if (a.mesaFuturos === "vest") return limitesVest(a, "ouro", indice).distancia;
   if (a.mesaFuturos === "lucid") return limitesLucid(a, "ouro", indice).distancia;
   if (a.mesaFuturos === "topstep") return limitesTopstep(a, "ouro", indice).distancia;
   
@@ -473,12 +511,13 @@ export function computeAssetCalcs(a: Asset, key: AssetKey, continuidade?: { divi
     const limite = limiteAutomatico !== undefined && !(Number.isFinite(d.mll) && (d.mll ?? 0) > 0) && !(Number.isFinite(d.stopPlanejadoTopstep) && (d.stopPlanejadoTopstep ?? 0) > 0) ? limiteAutomatico : a.mesaFuturos === "topstep" ? (typeof stopManual === "number" && Number.isFinite(stopManual) && stopManual > 0
       ? stopManual : limitesTopstep(a, key, indice).distancia) : a.mesaFuturos === "tradefive" && !d.mll ? limitesTradeify(a, key, indice).distancia
       : a.mesaFuturos === "lucid" && d.mll === undefined ? limitesLucid(a, key, indice).distancia
+      : a.mesaFuturos === "vest" && d.mll === undefined ? limitesVest(a, key, indice).distancia
       : key === "ouro" || a.mesaConfig ? lossLimitGoldEfetivo(a, indice) : dayMll(a, d);
-    const pontosAtePiso = exp > 0 ? limite / exp : 0;
+    const pontosAtePiso = exp > 0 ? Math.max(0, limite - (a.mesaFuturos === "vest" ? taxasMesaDia(a, d) : 0)) / exp : 0;
     const ativo = key === "saque2" ? (a.params.ativoReal ?? "ouro") : key;
     const ticksPorPonto = ativo === "ouro" ? 10 : 4;
     // Primeiro tick negociável que toca ou atravessa o piso da mesa.
-    const ticksReprova = exp > 0
+    const ticksReprova = exp > 0 && a.mesaFuturos !== "vest"
       ? Math.ceil(Number((pontosAtePiso * ticksPorPonto).toFixed(10))) : undefined;
     const pontosReprova = ticksReprova === undefined ? pontosAtePiso : ticksReprova / ticksPorPonto;
     const reprova = pontosReprova * d.lotes * hfmPt;
@@ -790,9 +829,9 @@ export function calcAporteFracionado(o: { margem: number; stopoutPct: number; cu
  */
 export function projetarPrimeiroPayout(a: Asset, key: AssetKey) {
   const avaliacao = diasAvaliacaoAtivo(a, key);
-  const lucro = a.days.slice(avaliacao, avaliacao + 5).reduce((total, d, i) =>
+  const lucro = a.days.slice(avaliacao, a.mesaFuturos === "vest" ? undefined : avaliacao + 5).reduce((total, d, i) =>
     total + resultadoMesaDia(a, avaliacao + i), 0);
-  const brutoSemTeto = Math.round(Math.max(0, lucro) * 0.5 * 100) / 100;
+  const brutoSemTeto = Math.round(Math.max(0, lucro) * (a.mesaFuturos === "vest" ? 1 : 0.5) * 100) / 100;
   const bruto = a.mesaFuturos === "lucid" ? Math.min(2000, brutoSemTeto) : brutoSemTeto;
   const liquido = Math.round(bruto * 0.9 * 100) / 100;
   return {lucro, bruto, liquido};
@@ -856,7 +895,7 @@ export function simularSaque2(s: State, bonusPct = percentualBonus(s.assets.saqu
   const lucroMesa = payout.lucro;
   const mesa = origem.mesaFuturos ?? "tradefive";
   // Valores relativos ao saldo nominal: assim 25K e 50K usam a mesma regra.
-  const pisoTravado = mesa === "topstep" ? 0 : mesa === "lucid" || mesa === "tradefive" ? 100 : undefined;
+  const pisoTravado = mesa === "vest" ? -origem.params.mll : mesa === "topstep" ? 0 : mesa === "lucid" || mesa === "tradefive" ? 100 : undefined;
   const anteriores = s.log.filter(e => e.asset === "saque2" && e.origemSaque === origemKey);
   const fechamento = [...anteriores].reverse().find(e => e.tipo !== "profit");
   const ultimo = fechamento?.tipo === "aprovada" ? fechamento.continuacaoSaque : undefined;
@@ -886,7 +925,7 @@ export function simularSaque2(s: State, bonusPct = percentualBonus(s.assets.saqu
   // Os dias efetivamente cadastrados compõem o ciclo; por padrão são cinco.
   const lucroSegundoCiclo = segundo.days.reduce((total, d, i) => total + (resultados[i] ?? metaLiquidaDia(segundo, d)), 0);
   const baseSaque2 = Math.max(0, saldoMesaInicial + lucroSegundoCiclo);
-  const saque2Bruto = Math.min(mesa === "lucid" ? 2000 : Infinity, Math.round(baseSaque2 * 0.5 * 100) / 100);
+  const saque2Bruto = Math.min(mesa === "lucid" ? 2000 : Infinity, Math.round(baseSaque2 * (mesa === "vest" ? 1 : 0.5) * 100) / 100);
   const saque2Liquido = Math.round(saque2Bruto * 0.9 * 100) / 100;
   const calcsCaixa = calcs.map((c, i) => {
     const registro = diasRegistrados.find(e => e.day === i + 1);

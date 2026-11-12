@@ -1,6 +1,6 @@
 import { normalizarCarteira, type Carteira } from "./carteira";
 import { type MesaPersonalizada, idMesaPersonalizada, normalizarMesasPersonalizadas } from "./mesas-personalizadas";
-import { type State, type AssetKey, type Bonus, type MesaFuturos, defaultState, selecionarMesaGold, prepararMesaPersonalizada, historicoTotals, isValidState, normalizeState, sincronizarParametros, podeDesfazerUltimaOperacao, tipoLabel } from "./engine";
+import { type State, type AssetKey, type Bonus, type MesaFuturos, defaultState, selecionarMesaGold, prepararMesaVest, prepararMesaPersonalizada, historicoTotals, isValidState, normalizeState, sincronizarParametros, podeDesfazerUltimaOperacao, tipoLabel } from "./engine";
 import { challengeAccountSchema, type ChallengeAccount } from "../prop-firms";
 
 export type BancaAtivo = "nasdaq" | "ouro";
@@ -56,10 +56,11 @@ export function parseBancas(raw: string | null): BancasDoc {
   if (p && Array.isArray(p.bancas) && (p.bancas.length || p.bancasVersion === 1)) {
     const mesasPersonalizadas = normalizarMesasPersonalizadas(p.mesasPersonalizadas);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const bancas: Banca[] = p.bancas.filter((b: any) => b.mesa !== "ylos" && b.mesa !== "vest" && b.state?.assets?.ouro?.mesaFuturos !== "vest").map((b: any, i: number) => ({
+    const vestLegada = (b: any) => (b.mesa === "vest" || b.state?.assets?.ouro?.mesaFuturos === "vest") && b.state?.assets?.ouro?.vestVersion !== 1;
+    const bancas: Banca[] = p.bancas.filter((b: any) => b.mesa !== "ylos" && !vestLegada(b)).map((b: any, i: number) => ({
       id: String(b.id || newId()), nome: String(b.nome || `Banca ${i + 1}`), criadaEm: Number(b.criadaEm) || Date.now(),
       state: isValidState(b.state) ? normalizeState(b.state) : defaultState(),
-      mesa: b.mesa === "lucid" || b.mesa === "mff" || b.mesa === "topstep" || idMesaPersonalizada(b.mesa) ? b.mesa : "tradefive",
+      mesa: b.mesa === "lucid" || b.mesa === "mff" || b.mesa === "topstep" || b.mesa === "vest" || idMesaPersonalizada(b.mesa) ? b.mesa : "tradefive",
       ...(Number.isFinite(b.taxaCompra) && b.taxaCompra >= 0 ? { taxaCompra: b.taxaCompra } : {}),
       ...(b.ativo === "nasdaq" || b.ativo === "ouro" ? { ativo: b.ativo } : {}),
       ...(typeof b.officialAcceptedAt === "string" ? { officialAcceptedAt: b.officialAcceptedAt } : {}),
@@ -67,16 +68,16 @@ export function parseBancas(raw: string | null): BancasDoc {
       ...(typeof b.contaMesaNome === "string" && /^[A-Za-z0-9][A-Za-z0-9_. -]{1,99}$/.test(b.contaMesaNome) ? { contaMesaNome: b.contaMesaNome } : {}),
       ...(challengeAccountSchema.safeParse(b.challengeAccount).success ? { challengeAccount: challengeAccountSchema.parse(b.challengeAccount) } : {}),
     }));
-    // Retira a mesa descontinuada das operações sem converter suas posições em outra mesa.
-    const legadas = p.bancas.filter((b: any) => b.mesa === "vest" || b.state?.assets?.ouro?.mesaFuturos === "vest");
+    // Mantém o antigo estudo Vest arquivado; novas contas usam unidades explicitamente.
+    const legadas = p.bancas.filter(vestLegada);
     const forexLegado = legadas.length && !p.forex ? forexDoDocumento({bancasVersion:1,activeId:"",bancas:p.bancas.filter((b: any) => isValidState(b.state)).map((b: any) => ({...b,state:normalizeState(structuredClone(b.state))}))}) : undefined;
     if (!bancas.length && legadas.length) bancas.push({...novaBanca("Conta principal"), mesa:"tradefive"});
     bancas.sort((a, b) => (a.criadaEm || 0) - (b.criadaEm || 0));
     const activeId = bancas.some((b) => b.id === p.activeId) ? p.activeId : bancas[0]?.id ?? "";
-    const mesaAtiva: MesaFuturos = p.mesaAtiva === "lucid" || p.mesaAtiva === "mff" || p.mesaAtiva === "topstep" || (idMesaPersonalizada(p.mesaAtiva) && (mesasPersonalizadas.some(m => m.id === p.mesaAtiva) || bancas.some(b => b.mesa === p.mesaAtiva))) ? p.mesaAtiva : "tradefive";
+    const mesaAtiva: MesaFuturos = p.mesaAtiva === "lucid" || p.mesaAtiva === "mff" || p.mesaAtiva === "topstep" || (p.mesaAtiva === "vest" && (!legadas.length || bancas.some(b => b.mesa === "vest"))) || (idMesaPersonalizada(p.mesaAtiva) && (mesasPersonalizadas.some(m => m.id === p.mesaAtiva) || bancas.some(b => b.mesa === p.mesaAtiva))) ? p.mesaAtiva : "tradefive";
     const ids = p.activeIdsMesa && typeof p.activeIdsMesa === "object" ? p.activeIdsMesa as Partial<Record<MesaFuturos, string>> : {};
     const remainingIds = { ...ids } as typeof ids & { ylos?: string; vest?: string };
-    delete remainingIds.vest;
+    if (!bancas.some(b => b.mesa === "vest")) delete remainingIds.vest;
     delete remainingIds.ylos;
     const activeIdsMesa = { ...remainingIds, tradefive: remainingIds.tradefive ?? bancas.find((b) => b.mesa === "tradefive")?.id ?? "" };
     const contasArquivadas = [...(Array.isArray(p.contasArquivadas) ? p.contasArquivadas : []), ...legadas];
@@ -148,7 +149,8 @@ export function referenciaDaMesa(doc: BancasDoc, mesa: MesaFuturos): State {
     ?? bancas.find(b => b.id === doc.activeId) ?? bancas[0];
   const state = structuredClone(banca?.state ?? defaultState());
   const regra = doc.mesasPersonalizadas?.find(m => m.id === mesa);
-  if (!banca && regra) prepararMesaPersonalizada(state, regra);
+  if (!banca && mesa === "vest") prepararMesaVest(state);
+  else if (!banca && regra) prepararMesaPersonalizada(state, regra);
   selecionarMesaGold(state.assets.ouro, mesa);
   return state;
 }

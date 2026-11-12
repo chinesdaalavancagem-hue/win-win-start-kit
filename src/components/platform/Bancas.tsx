@@ -10,7 +10,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Platform } from "./Platform";
-import { fmt, fmtSigned, MESAS_FUTUROS, prepararMesaPersonalizada, selecionarMesaGold, type MesaFuturos } from "@/lib/platform/engine";
+import { fmt, fmtSigned, MESAS_FUTUROS, prepararMesaVest, prepararMesaPersonalizada, selecionarMesaGold, type MesaFuturos } from "@/lib/platform/engine";
 import { type BancasDoc, aplicarForex, extrairForex, forexDoDocumento, novaBanca, parseBancas, referenciaDaMesa, excluirMesaPersonalizada, podeDesfazerBanca, relatorioCsv, resumoBanca } from "@/lib/platform/bancas";
 import { validarCatalogoTopstep, type CatalogoTopstep } from "@/lib/platform/topstep-vinculo";
 import { Plus, Building2, CheckCircle2, Pencil, Trash2, Download, Upload, ArrowUpRight, WalletCards, Activity } from "lucide-react";
@@ -279,7 +279,7 @@ export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectio
                 <form className="flex min-w-0 flex-1 flex-wrap gap-2 sm:min-w-[330px]" onSubmit={(e) => {
                   e.preventDefault();
                   const nomeBanca = nome.trim() || ("");
-                  const valorTaxa = taxaAvaliacao.trim() || ("");
+                  const valorTaxa = taxaAvaliacao.trim() || (mesa === "vest" ? "108.30" : "");
                   if (!nomeBanca || !valorTaxa) return;
                   const valor = Number(valorTaxa.replace(",", "."));
                   if (!Number.isFinite(valor) || valor < 0) return;
@@ -288,7 +288,8 @@ export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectio
                   b.taxaCompra = valor;
                   b.mesa = mesa;
                   const personalizada = doc.mesasPersonalizadas?.find(m => m.id === mesa) ?? selecionada?.state.assets.ouro.mesaConfig;
-                  if (personalizada?.id === mesa) prepararMesaPersonalizada(b.state, personalizada);
+                  if (mesa === "vest") prepararMesaVest(b.state);
+                  else if (personalizada?.id === mesa) prepararMesaPersonalizada(b.state, personalizada);
                   else if (mesa !== "tradefive") selecionarMesaGold(b.state.assets.ouro, mesa);
                   b.state = aplicarForex(b.state, forexDoDocumento(doc));
                   b.state.assets.nasdaq.params.taxa = valor;
@@ -299,7 +300,7 @@ export function Bancas({ load, save, isAdmin, sectionsMenuOpen = false, onSectio
                   persist({ ...doc, activeId: b.id, activeIdsMesa: { ...doc.activeIdsMesa, [mesa]: b.id }, bancas: [...doc.bancas, b] });
                 }}>
                   <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder={"Nome da nova banca"} aria-label="Nome da nova banca" className="h-10 min-w-0 rounded-xl border-cyan-950 bg-[#071426] text-slate-100 placeholder:text-slate-500 focus-visible:ring-cyan-400" maxLength={60} />
-                  <Input type="text" inputMode="decimal" value={taxaAvaliacao} onChange={(e) => setTaxaAvaliacao(e.target.value)} placeholder={"Taxa de avaliação ($)"} aria-label="Taxa de avaliação em dólares" required className="h-10 min-w-[145px] flex-1 rounded-xl border-cyan-950 bg-[#071426] text-slate-100 placeholder:text-slate-500 focus-visible:ring-cyan-400" />
+                  <Input type="text" inputMode="decimal" value={taxaAvaliacao || (mesa === "vest" ? "108.30" : "")} onChange={(e) => setTaxaAvaliacao(e.target.value)} placeholder={"Taxa de avaliação ($)"} aria-label="Taxa de avaliação em dólares" required className="h-10 min-w-[145px] flex-1 rounded-xl border-cyan-950 bg-[#071426] text-slate-100 placeholder:text-slate-500 focus-visible:ring-cyan-400" />
                   <Button type="submit" className="h-10 shrink-0 rounded-xl bg-cyan-300 font-semibold text-slate-950 hover:bg-cyan-200"><Plus className="size-4" /><span className="hidden sm:inline">Criar banca</span><span className="sm:hidden">Criar</span></Button>
                 </form>
                 <Button type="button" variant="outline" className="h-10 rounded-xl border-cyan-900/80 bg-[#071426] text-blue-100 hover:border-cyan-400" onClick={exportar}><Download className="size-4" />Exportar CSV</Button>

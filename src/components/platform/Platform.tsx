@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { registrarAuditoria } from "@/lib/auditoria-registro";
 import { applyOfficialParams, buildOfficialParams, isOfficialParams } from "@/lib/platform/official-params";
 import {
-  type AssetKey, type State, type TabKey, type Asset, type MesaFuturos, MESAS_FUTUROS, nomeMesa, diasAvaliacaoAtivo, diasAvaliacaoGold, limitesTradeify, limitesTopstep, adicionarDiaGold, removerDiaGold,
+  type AssetKey, type State, type TabKey, type Asset, type MesaFuturos, MESAS_FUTUROS, nomeMesa, diasAvaliacaoAtivo, diasAvaliacaoGold, limitesTradeify, limitesTopstep, limitesVest, adicionarDiaGold, removerDiaGold,
   percentualBonus, podeReverterDeposito, reverterDeposito, taxasMesaDia, metaLiquidaDia, projetarPrimeiroPayout, simularSaque2, aplicarDeposito, aplicarSaque, projetarAportesFuturos, conciliarCreditoForex, calcAporteFracionado, calcCaixaCiclo, clampDayIndex, computeAssetCalcs, defaultState, fmt, fmtSigned, handleProfit, handleStop,
   historicoTotals, isValidState, normalizeState, sincronizarParametros, definirAlavancagem, parseNum, parseValorFinanceiro, parseResultadoCfd, podeDesfazerUltimaOperacao, projetarZeragemBonus, reiniciarCicloBonus, resetBonus, tipoLabel, undoLast,
 } from "@/lib/platform/engine";
@@ -248,6 +248,7 @@ export function Platform({ onOpenCarteira, mesasDisponiveis = MESAS_FUTUROS, lef
               if (custom) return <><p>Avaliação: target <strong>${fmt(custom.target)}</strong> · loss limit geral <strong>${fmt(custom.lossLimit)}</strong> · consistência <strong>{custom.consistencia ? `${custom.consistencia}%` : "sem regra"}</strong>.</p><p className="mt-1">Maior meta diária: {fmt(percentualMaiorDia)}% do total{custom.consistencia > 0 && percentualMaiorDia > custom.consistencia ? " — atenção: acima da consistência." : "."}</p><p className="mt-1">Financiada: {custom.payout} dias · meta diária ${fmt(custom.metaFinanciada)} · consistência {custom.consistenciaFinanciada ? `${custom.consistenciaFinanciada}%` : "sem regra"}.</p></>;
               
               if (mesaAtiva === "topstep") return <><p>Avaliação: meta de <strong>US$ 3.000</strong>, loss limit de <strong>US$ 2.000</strong> e consistência máxima de <strong>55%</strong> (possível concluir em 2 dias).</p><p className="mt-1">Maior meta diária / soma das metas: <strong>{fmt(percentualMaiorDia)}%</strong> · {percentualMaiorDia > 55 ? "Atenção: acima da consistência." : "Dentro da consistência planejada."}</p><p className="mt-1">Financiada: <strong>sem consistência</strong>. Para pedir saque: <strong>5 dias operados com lucro mínimo de US$ 150 em cada dia</strong>.</p></>;
+              if (mesaAtiva === "vest") return <p>Vest 10K · 1 fase · alvo líquido US$ 2.000 · perda máxima US$ 600 · piso fixo US$ 9.400 · sem DLL. Financiada: split 90% e pedidos de lucro sob demanda. Os cards representam o plano, não uma exigência de dias mínimos.</p>;
               if (mesa.consistencia === 0) return <p>Sem regra de consistência. Saque: 7 dias úteis com lucro mínimo de US$ 50 por dia (condição separada da avaliação).</p>;
               return <><p>Consistência máxima: <strong className="text-amber-200">{mesa.consistencia}%</strong></p><p className="mt-1">Maior meta diária / soma das metas: <strong>{fmt(percentualMaiorDia)}%</strong></p><p className={cn("mt-1", percentualMaiorDia > mesa.consistencia ? "text-rose-300" : "text-emerald-300")}>{totalMetas <= 0 ? "Configure as metas da avaliação." : percentualMaiorDia > mesa.consistencia ? "Atenção: metas ultrapassam o limite de consistência." : "Metas compatíveis com o limite informado."}</p></>;
             })()}
@@ -529,9 +530,9 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
                 <select value={asset.params.ativoReal === "nasdaq" ? "nasdaq" : "ouro"} className="w-full rounded-xl border border-cyan-950 bg-[#030b15] px-3 py-3 text-sm text-slate-100 outline-none transition focus:border-cyan-400/70"
                   onChange={(e) => mutate((s) => {
                     const p = s.assets.saque2.params; const v = e.target.value === "nasdaq" ? "nasdaq" : "ouro";
-                    p.ativoReal = v; if (v === "nasdaq") { p.mnq = 2; p.hfm = 1; } else { p.mnq = 10; p.hfm = 100; }
+                    p.ativoReal = v; p.mnq = mesaAtiva === "vest" ? 1 : v === "nasdaq" ? 2 : 10; p.hfm = v === "nasdaq" ? 1 : 100;
                   })}>
-                  <option value="ouro">Gold (MGC)</option>
+                  <option value="ouro">{mesaAtiva === "vest" ? "Gold (GC-PERP)" : "Gold (MGC)"}</option>
                   <option value="nasdaq">Nasdaq</option>
                 </select>
               </label>
@@ -548,7 +549,7 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <div className="rounded-xl border border-[#18324e] bg-[#091827] p-3">
-                 {<NumField label="$/ponto do contrato futuro" value={asset.params.mnq} onChange={setP("mnq")} />}
+                 {<NumField label={mesaAtiva === "vest" ? "USDC/ponto por unidade Vest" : "$/ponto do contrato futuro"} value={asset.params.mnq} readOnly={mesaAtiva === "vest"} onChange={setP("mnq")} />}
                </div>
               <div className="rounded-xl border border-[#183b43] bg-[#091a20] p-3"><NumField subtle label="Broker CFD $/ponto/lote" value={asset.params.hfm} onChange={setP("hfm")} /></div>
               <div className="rounded-xl border border-cyan-950 bg-[#091522] p-3"><NumField label="Saldo broker CFD ($)" value={saldo} readOnly helper={`Saldo financeiro conciliado, incluindo resultados reais e bônus disponível`} /></div>
@@ -568,8 +569,8 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
               <div className="rounded-xl border border-[#18324e] bg-[#091827] p-3"><NumField label="Lucro líquido desejado ($, sem a taxa)" value={asset.params.lucroDesejado} onChange={setP("lucroDesejado")} /></div>
               <div className="rounded-xl border border-[#183b43] bg-[#091a20] p-3"><NumField label="Margem exigida por 1 lote ($)" value={asset.params.marginPerLot} onChange={setP("marginPerLot")} helper="Referência para estimar o aporte. Atualize com a margem de 1 lote exibida no MT5; pode variar com cotação e condições da corretora." /></div>
               
-              {assetKey === "saque2" && <div className="rounded-xl border border-[#183b43] bg-[#091a20] p-3"><NumField label="Saque 2 líquido projetado ($)" value={continuidade?.segundo.saque ?? 0} readOnly helper="Valor automático da projeção do ciclo atual: considera o saldo retido na mesa, as novas metas, 50%, split de 90% e o teto da Lucid, quando aplicável." /></div>}
-              {assetKey !== "saque2" && <div className="rounded-xl border border-[#183b43] bg-[#091a20] p-3"><NumField label="1º payout líquido projetado ($)" value={payoutProjetado.liquido} readOnly helper={mesaAtiva === "lucid" ? `Meta geral ${fmt(payoutProjetado.lucro)} × 50% (teto de US$ 2.000 brutos) × 90%. Débito projetado na mesa: ${fmt(payoutProjetado.bruto)}.` : `Meta geral ${fmt(payoutProjetado.lucro)} × 50% × 90%. Débito projetado na mesa: ${fmt(payoutProjetado.bruto)}.`} /></div>}
+              {assetKey === "saque2" && <div className="rounded-xl border border-[#183b43] bg-[#091a20] p-3"><NumField label="Saque 2 líquido projetado ($)" value={continuidade?.segundo.saque ?? 0} readOnly helper={mesaAtiva === "vest" ? "Lucro disponível do ciclo × 90%. Piso estático preservado após o saque." : "Valor automático da projeção do ciclo atual: considera o saldo retido na mesa, as novas metas, 50%, split de 90% e o teto da Lucid, quando aplicável."} /></div>}
+              {assetKey !== "saque2" && <div className="rounded-xl border border-[#183b43] bg-[#091a20] p-3"><NumField label="1º payout líquido projetado ($)" value={payoutProjetado.liquido} readOnly helper={mesaAtiva === "vest" ? `Lucro disponível ${fmt(payoutProjetado.lucro)} × 90%. Débito na mesa: ${fmt(payoutProjetado.bruto)}.` : mesaAtiva === "lucid" ? `Meta geral ${fmt(payoutProjetado.lucro)} × 50% (teto de US$ 2.000 brutos) × 90%. Débito projetado na mesa: ${fmt(payoutProjetado.bruto)}.` : `Meta geral ${fmt(payoutProjetado.lucro)} × 50% × 90%. Débito projetado na mesa: ${fmt(payoutProjetado.bruto)}.`} /></div>}
               <div className="rounded-xl border border-[#18324e] bg-[#091827] p-3"><NumField label="Folga extra de segurança p/ saque (%)" value={asset.params.folgaExtraPct} onChange={setP("folgaExtraPct")} /></div>
             </div>
           </section>
@@ -589,7 +590,7 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
             </div>
           </section>
 
-          {<div className="rounded-xl border border-[#18324e] bg-[#091827] p-3"><NumField label="Taxa por contrato · entrada + saída ($)" value={asset.params.comissaoPorContrato ?? 0} onChange={v => setP("comissaoPorContrato")(Math.max(0, v))} helper="Ex.: US$ 3 × 20 contratos = US$ 60. A meta do card é bruta; as projeções descontam a taxa. O Saque 2 acompanha automaticamente a taxa do ativo de origem. Resultado líquido informado não sofre novo desconto." /></div>}
+          {<div className="rounded-xl border border-[#18324e] bg-[#091827] p-3"><NumField label={mesaAtiva === "vest" ? "Custo estimado por unidade Vest (USDC)" : "Taxa por contrato · entrada + saída ($)"} value={asset.params.comissaoPorContrato ?? 0} onChange={v => setP("comissaoPorContrato")(Math.max(0, v))} helper={mesaAtiva === "vest" ? "Informe entrada + saída + funding estimado, dividido pelas unidades. Ex.: custo total 2 USDC / 10 unidades = 0,20. Zero significa custos não incluídos. A estimativa reduz o lucro e a distância ao piso. Resultado líquido informado não sofre novo desconto." : "Ex.: US$ 3 × 20 contratos = US$ 60. A meta do card é bruta; as projeções descontam a taxa. O Saque 2 acompanha automaticamente a taxa do ativo de origem. Resultado líquido informado não sofre novo desconto."} /></div>}
           <div className="flex items-start gap-2 rounded-xl border border-cyan-950/70 bg-[#06101b] p-3 text-xs leading-relaxed text-blue-100/60">
             <Check className="mt-0.5 size-4 shrink-0 text-emerald-400" />
             <p>Após a aprovação, o histórico e o Profit registram automaticamente o saque líquido projetado na Meta Geral, com o split e o teto da mesa quando aplicável. O valor é guardado no histórico da operação para não mudar ao editar metas futuras.</p>
@@ -599,11 +600,11 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
 
       
       {section === "meta" && (
-        <section aria-label="Meta geral — projeção de lucro dos cinco dias Funded">
-          <div className="rounded-xl border border-[#18324e] bg-[#091827] p-3"><NumField label="Taxa por contrato · entrada + saída ($)" value={asset.params.comissaoPorContrato ?? 0} onChange={v => setP("comissaoPorContrato")(Math.max(0, v))} helper="Ex.: US$ 3 × 20 contratos = US$ 60. A meta do card é bruta; as projeções descontam a taxa. O Saque 2 acompanha automaticamente a taxa do ativo de origem. Resultado líquido informado não sofre novo desconto." /></div>
+        <section aria-label="Meta geral — projeção de lucro da financiada">
+          <div className="rounded-xl border border-[#18324e] bg-[#091827] p-3"><NumField label={mesaAtiva === "vest" ? "Custo estimado por unidade Vest (USDC)" : "Taxa por contrato · entrada + saída ($)"} value={asset.params.comissaoPorContrato ?? 0} onChange={v => setP("comissaoPorContrato")(Math.max(0, v))} helper={mesaAtiva === "vest" ? "Informe entrada + saída + funding estimado, dividido pelas unidades. Ex.: custo total 2 USDC / 10 unidades = 0,20. Zero significa custos não incluídos. A estimativa reduz o lucro e a distância ao piso. Resultado líquido informado não sofre novo desconto." : "Ex.: US$ 3 × 20 contratos = US$ 60. A meta do card é bruta; as projeções descontam a taxa. O Saque 2 acompanha automaticamente a taxa do ativo de origem. Resultado líquido informado não sofre novo desconto."} /></div>
           <div className="mb-3 rounded-2xl border border-cyan-900/70 bg-gradient-to-r from-[#0a1929] to-[#07121e] px-3 py-3 shadow-lg sm:px-4">
             <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-              <p className="flex items-center gap-2 text-xs font-semibold text-blue-100/75"><Target className="size-4 text-cyan-400" />{continuidade ? `Meta geral · Ciclo ${continuidade.numeroCiclo}` : "Meta Funded · D1–D5"}</p>
+              <p className="flex items-center gap-2 text-xs font-semibold text-blue-100/75"><Target className="size-4 text-cyan-400" />{continuidade ? `Meta geral · Ciclo ${continuidade.numeroCiclo}` : mesaAtiva === "vest" ? "Meta da financiada · Vest" : "Meta Funded · D1–D5"}</p>
               <span className="rounded-full border border-cyan-800/60 bg-cyan-950/40 px-2 py-0.5 text-[10px] text-cyan-200/80">Projeção pelas metas/resultados</span>
             </div>
             <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1.1fr_1.1fr] sm:items-stretch">
@@ -613,7 +614,7 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
               </div>
               <div className="grid grid-cols-2 gap-2 sm:col-span-2">
                 <div className="min-w-0 rounded-lg border border-slate-700/40 bg-slate-800/35 px-2.5 py-2">
-                  <p className="text-[10px] leading-tight text-blue-100/65">1º saque · 50%{mesaAtiva === "lucid" ? " (máx. US$ 2.000)" : ""}</p>
+                  <p className="text-[10px] leading-tight text-blue-100/65">{mesaAtiva === "vest" ? "Lucro disponível · 100%" : "1º saque · 50%"}{mesaAtiva === "lucid" ? " (máx. US$ 2.000)" : ""}</p>
                   <p className="mt-1 font-mono text-lg font-bold text-slate-100">$ {fmt(payoutProjetado.bruto)}</p>
                 </div>
                 <div className="min-w-0 rounded-lg border border-emerald-700/40 bg-emerald-950/30 px-2.5 py-2">
@@ -622,7 +623,7 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
                 </div>
               </div>
             </div>
-            <p className="mt-2 flex items-start gap-1.5 text-[10px] leading-snug text-blue-100/55"><span className="shrink-0 text-cyan-400">↳</span> {mesaAtiva === "lucid" ? "Lucid: 50% do lucro, teto de US$ 2.000 brutos por pedido, split de 90%. O lucro não sacado continua na projeção do Saque 2. Elegibilidade deve ser conferida na mesa." : "Projeção de 50% com split de 90%, vinculada ao Saque 2. Tetos de saque e elegibilidade da conta devem ser conferidos na mesa."}</p>
+            <p className="mt-2 flex items-start gap-1.5 text-[10px] leading-snug text-blue-100/55"><span className="shrink-0 text-cyan-400">↳</span> {mesaAtiva === "vest" ? "Vest: projeção de retirada do lucro disponível com split de 90%. Claim Profit credita na conta Primary; retirada para carteira externa é uma etapa separada. O piso permanece estático." : mesaAtiva === "lucid" ? "Lucid: 50% do lucro, teto de US$ 2.000 brutos por pedido, split de 90%. O lucro não sacado continua na projeção do Saque 2. Elegibilidade deve ser conferida na mesa." : "Projeção de 50% com split de 90%, vinculada ao Saque 2. Tetos de saque e elegibilidade da conta devem ser conferidos na mesa."}</p>
           </div>
         </section>
       )}
@@ -633,12 +634,19 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
 
       {section === "operacoes" && (
         <div>
+          {mesaAtiva === "vest" && <div className="mb-3 rounded-xl border border-cyan-900 bg-[#091827] p-3 text-xs leading-relaxed text-slate-300">
+            <p className="font-semibold text-cyan-300">Vest 10K · alvo líquido 2.000 · piso fixo 9.400 · sem DLL · split 90%</p>
+            <p className="mt-1">1 unidade = 1 USDC por ponto. No ouro, 10 unidades equivalem à exposição de 1 MGC; no Nasdaq, 2 unidades à de 1 MNQ. Unidades e lotes iniciais são exemplos editáveis.</p>
+            <p className="mt-1">Simulação em pontos: tick e passo da quantidade ainda não validados. Informe os custos na Meta geral; com custo zero, o resultado não inclui taxas nem funding. Atingir 2.000 brutos com taxas não completa o alvo líquido.</p>
+            <p className="mt-1">A projeção do Forex supõe o mesmo movimento de preço nos dois mercados e USDC equivalente a USD; spread, câmbio, slippage e diferenças entre cotações podem alterar o resultado. Confira também a margem disponível na Vest.</p>
+            <details className="mt-2"><summary className="cursor-pointer text-cyan-300">Regras e fontes da Vest</summary><p className="mt-1">O piso de perda não acompanha os lucros, inclusive na financiada. O pedido de lucro é sob demanda e o crédito na Primary leva até 24 horas. A projeção considera sacar todo o lucro disponível com split de 90%, sem a regra de 50% das outras mesas.</p><p className="mt-1">GC: alavancagem publicada de até 25x; confira a margem vigente no pedido. Taxas de execução e funding variam. Nenhuma ordem é enviada por esta simulação.</p><div className="mt-2 flex flex-wrap gap-3"><a className="underline" href="https://docs.vestmarkets.com/vest-capital/loss-limits" target="_blank" rel="noreferrer">Limites</a><a className="underline" href="https://docs.vestmarkets.com/vest-capital/claiming-profit" target="_blank" rel="noreferrer">Saques</a><a className="underline" href="https://docs.vestmarkets.com/trading/markets" target="_blank" rel="noreferrer">Taxas</a><a className="underline" href="https://docs.vestmarkets.com/trading/cross-margin-and-leverage" target="_blank" rel="noreferrer">Margem e unidades</a></div></details>
+          </div>}
           <div className="space-y-3">
             {visibleRows.map((r) => (
               <DayCard key={r.i} row={r} asset={asset} assetKey={assetKey} bancaId={bancaAtivaId} contaMesa={contaMesa} mesa={mesaAtiva} avaliacaoDias={diasAvaliacaoAtivo(asset, assetKey)} mutate={mutate} excedenteAtualSacavel={excedenteAtualSacavel} />
             ))}
           </div>
-          {isAdmin && <div className="mt-3 flex flex-wrap gap-2"><Button type="button" variant="outline" className="flex-1 border-dashed" onClick={() => mutate((s) => { if (assetKey === "ouro" || asset.mesaConfig) adicionarDiaGold(s.assets[assetKey], "financiada"); else s.assets[assetKey].days.push({ mnq: 1, lotes: 1, meta: 150 }); })}>+ adicionar dia {assetKey === "ouro" ? "financiado" : ""}</Button>{(assetKey === "ouro" || (asset.mesaConfig && assetKey !== "saque2")) && <Button type="button" variant="outline" className="flex-1 border-dashed border-amber-800 text-amber-200" onClick={() => mutate((s) => adicionarDiaGold(s.assets[assetKey], "avaliacao"))}>+ adicionar dia de avaliação</Button>}</div>}
+          {isAdmin && <div className="mt-3 flex flex-wrap gap-2"><Button type="button" variant="outline" className="flex-1 border-dashed" onClick={() => mutate((s) => { if (assetKey === "ouro" || asset.mesaConfig || mesaAtiva === "vest") adicionarDiaGold(s.assets[assetKey], "financiada"); else s.assets[assetKey].days.push({ mnq: 1, lotes: 1, meta: 150 }); })}>+ adicionar dia {assetKey === "ouro" ? "financiado" : ""}</Button>{(assetKey === "ouro" || ((asset.mesaConfig || mesaAtiva === "vest") && assetKey !== "saque2")) && <Button type="button" variant="outline" className="flex-1 border-dashed border-amber-800 text-amber-200" onClick={() => mutate((s) => adicionarDiaGold(s.assets[assetKey], "avaliacao"))}>+ adicionar dia de avaliação</Button>}</div>}
         </div>
       )}
     </div>
@@ -660,7 +668,7 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
   }, [isCurrent]);
   const setD = (k: "mnq" | "lotes" | "meta") => (v: number) => mutate((s) => { s.assets[assetKey].days[i]![k] = v; });
   const projecao = assetKey === "saque2" ? null : mesa === "tradefive" ? limitesTradeify(asset, assetKey, i)
-    : mesa === "topstep" ? limitesTopstep(asset, assetKey, i) : null;
+    : mesa === "topstep" ? limitesTopstep(asset, assetKey, i) : mesa === "vest" ? limitesVest(asset, assetKey, i) : null;
   const campoStop = mesa === "topstep" ? "stopPlanejadoTopstep" : "mll";
   const ajustarStop = (valor: number) => mutate(st => {
     const dia = st.assets[assetKey].days[i];
@@ -700,7 +708,7 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
       data-wow-dia={isCurrent ? `D${i < avaliacaoDias ? i + 1 : i - avaliacaoDias + 1}` : undefined}
       data-wow-contratos-planejados={isCurrent ? d.mnq : undefined}
       data-wow-lote-cfd={isCurrent ? d.lotes : undefined}
-      data-wow-ready={isCurrent && !!bancaId && !!contaMesa && assetKey !== "saque2" && Number.isFinite(d.mnq) && d.mnq > 0 && Number.isFinite(d.lotes) && d.lotes > 0 ? "true" : "false"}
+      data-wow-ready={mesa !== "vest" && isCurrent && !!bancaId && !!contaMesa && assetKey !== "saque2" && Number.isFinite(d.mnq) && d.mnq > 0 && Number.isFinite(d.lotes) && d.lotes > 0 ? "true" : "false"}
       className={cn("platform-day-card overflow-hidden rounded-2xl border border-[#142b43] bg-[#0b0f19] p-3 text-slate-100 shadow-[0_12px_40px_rgba(0,0,0,0.22)] sm:p-5 lg:p-3", isCurrent && "border-[#087cff]/70 ring-1 ring-[#087cff]/25")}>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-[#142b43] pb-3">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -708,12 +716,12 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
           <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-blue-200/85 sm:text-[11px]"><Crosshair className="h-3.5 w-3.5 shrink-0 text-blue-400" />Matriz operacional</p>
           {isCurrent && <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-400 sm:text-xs"><span className="h-2 w-2 rounded-full bg-market-up" />dia atual</span>}
         </div>
-        <button type="button" className="shrink-0 rounded-lg border border-[#19334f] px-2.5 py-1.5 text-xs font-medium text-slate-300 hover:border-blue-500/60 hover:text-white" onClick={() => mutate((s) => { if (assetKey === "ouro" || asset.mesaConfig) removerDiaGold(s.assets[assetKey], i); else s.assets[assetKey].days.splice(i, 1); })}>remover</button>
+        <button type="button" className="shrink-0 rounded-lg border border-[#19334f] px-2.5 py-1.5 text-xs font-medium text-slate-300 hover:border-blue-500/60 hover:text-white" onClick={() => mutate((s) => { if (assetKey === "ouro" || asset.mesaConfig || mesa === "vest") removerDiaGold(s.assets[assetKey], i); else s.assets[assetKey].days.splice(i, 1); })}>remover</button>
       </div>
       <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
         <div className="min-w-0 rounded-xl border border-[#18324e] bg-gradient-to-br from-[#0d1b2b] to-[#080f1a] p-3 lg:p-2.5">
           <NumField cockpit
-             label={<><FileText className="h-3.5 w-3.5 text-blue-400" />{"Contratos"}</>}
+             label={<><FileText className="h-3.5 w-3.5 text-blue-400" />{mesa === "vest" ? "Unidades Vest" : "Contratos"}</>}
              value={d.mnq}
              onChange={setD("mnq")} />
            
@@ -725,18 +733,18 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
         </div>
         <div className="min-w-0 rounded-xl border border-[#18324e] bg-gradient-to-br from-[#0d1b2b] to-[#080f1a] p-3 sm:p-4">
           <NumField cockpit label={<><Target className="h-3.5 w-3.5 text-blue-400" />Meta bruta $</>} value={d.meta} onChange={setD("meta")} />
-          <div className="mt-2"><NumField subtle label="Alvo em ticks" value={row.ticks} onChange={ticks => { if (Number.isFinite(ticks) && ticks >= 0 && c.valorTickMesa && c.valorTickMesa > 0) setD("meta")(Number((Math.ceil(ticks) * c.valorTickMesa).toFixed(8))); }} helper={d.mnq > 0 ? undefined : "Informe os contratos para calcular o valor."} /></div>
+          {mesa === "vest" ? <div className="mt-2"><NumField subtle label="Alvo em pontos" value={c.pontos} onChange={p => { if (p >= 0 && Number.isFinite(p)) setD("meta")(p * d.mnq * asset.params.mnq); }} /></div> : <div className="mt-2"><NumField subtle label="Alvo em ticks" value={row.ticks} onChange={ticks => { if (Number.isFinite(ticks) && ticks >= 0 && c.valorTickMesa && c.valorTickMesa > 0) setD("meta")(Number((Math.ceil(ticks) * c.valorTickMesa).toFixed(8))); }} helper={d.mnq > 0 ? undefined : "Informe os contratos para calcular o valor."} /></div>}
           {<p className="mt-1 text-[11px] text-slate-300">Taxas: ${fmt(taxasMesaDia(asset, d))} · Líquido previsto: ${fmt(metaLiquidaDia(asset, d))}</p>}
           {<div className="mt-1.5 space-y-1">
             {campoEod(String(i), "Resultado líquido do dia ($)")}
           </div>}
         </div>
         <div className="min-w-0 rounded-xl border border-[#18324e] bg-gradient-to-br from-[#0d1b2b] to-[#080f1a] p-3 sm:p-4">
-          {projecao && <p className="mb-1 text-[11px] leading-snug text-slate-300" title="Na abertura deste dia. Usa o resultado líquido informado nos dias anteriores ou a meta menos taxas quando o campo está vazio. Tocar o piso reprova a conta.">
+          {projecao && <p className="mb-1 text-[11px] leading-snug text-slate-300" title={mesa === "vest" ? "Piso estático. A documentação informa reprovação abaixo do piso; igualdade não basta. Custos e execução podem antecipar o limite." : "Na abertura deste dia. Usa o resultado líquido informado nos dias anteriores ou a meta menos taxas quando o campo está vazio. Tocar o piso reprova a conta."}>
             Piso projetado: <strong>${fmt(projecao.piso)}</strong> · Folga: <strong>${fmt(projecao.distancia)}</strong>
           </p>}
           {<NumField cockpit label="Loss limit do cenário ($)" value={c.limiteDoCard ?? asset.params.mll} onChange={ajustarStop} />}
-          {c.ticksReprova !== undefined && c.valorTickMesa
+          {mesa === "vest" ? <p className="mt-2 text-xs text-slate-300">Até o piso: {fmt(c.pontosReprova)} pontos, descontando os custos estimados. Reprovação abaixo do piso.</p> : c.ticksReprova !== undefined && c.valorTickMesa
              ? (<NumField subtle label="Stop em ticks" value={c.ticksReprova} onChange={ticks => ajustarStop(Math.ceil(ticks) * c.valorTickMesa!)} />)
              : <p>Informe os contratos para calcular os ticks.</p>}
           {d[campoStop] !== undefined && <button type="button" className="mt-1 text-xs text-cyan-300 underline" onClick={() => ajustarStop(0)}>Usar limite automático</button>}

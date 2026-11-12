@@ -35,13 +35,13 @@ describe('carteira pessoal',()=>{
   const c=normalizarCarteira({lancamentos:[entry('deposito',Infinity),entry('saque',-1),entry('compra',70)],saldos:[{id:'a',nome:'Teste',valor:-10,data:'2026-11-09'}]});
   expect(c.lancamentos).toHaveLength(1);expect(c.saldos).toHaveLength(0);expect(resumoCarteira(c).rentabilidade).toBe(-100);
  });
- it('retira a mesa descontinuada sem converter posições nem perder seu arquivo ou Forex',()=>{
+ it('preserva o estudo antigo da Vest no arquivo sem converter posições ou perder Forex',()=>{
   const b=novaBanca('Legada');b.state.forexSaldoReal=400;
   const legacy={...b,mesa:'vest',state:{...b.state,vestStudy:{quantity:'10'}}};
   const doc=parseBancas(JSON.stringify({bancasVersion:1,bancas:[legacy],activeId:b.id,mesaAtiva:'vest',activeIdsMesa:{vest:b.id},forex:extrairForex(b.state)}));
   expect(doc.bancas).toHaveLength(1);expect(doc.bancas[0]!.id).not.toBe(b.id);expect(doc.bancas[0]!.state.log).toEqual([]);
   expect(doc.mesaAtiva).toBe('tradefive');expect(doc.forex!.forexSaldoReal).toBe(400);expect(doc.contasArquivadas).toEqual([legacy]);
-  expect(parseBancas(JSON.stringify(doc)).contasArquivadas).toEqual([legacy]);expect(MESAS_FUTUROS).not.toHaveProperty('vest');
+  expect(parseBancas(JSON.stringify(doc)).contasArquivadas).toEqual([legacy]);expect(MESAS_FUTUROS).toHaveProperty('vest');
  });
 });
 
