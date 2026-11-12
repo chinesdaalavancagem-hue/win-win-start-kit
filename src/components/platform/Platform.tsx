@@ -1,3 +1,4 @@
+import { SimulacaoFuturos } from "./SimulacaoFuturos";
 import type { Banca } from "@/lib/platform/bancas";
 import { calcularCoberturaSimultanea } from "@/lib/platform/caixa-consolidado";
 import { createPortal } from "react-dom";
@@ -14,7 +15,7 @@ import {
   historicoTotals, isValidState, normalizeState, sincronizarParametros, definirAlavancagem, parseNum, parseValorFinanceiro, parseResultadoCfd, podeDesfazerUltimaOperacao, projetarZeragemBonus, reiniciarCicloBonus, resetBonus, tipoLabel, undoLast,
 } from "@/lib/platform/engine";
 
-type Section = "operacoes" | "parametros" | "bonus" | "aporte" | "caixa" | "meta";
+type Section = "operacoes" | "parametros" | "bonus" | "aporte" | "caixa" | "meta" | "simulacao";
 type Sync = { mode: "ok" | "busy" | "err"; text: string };
 
 const TABS: { key: TabKey; label: string; dot: string }[] = [
@@ -173,6 +174,7 @@ export function Platform({ onOpenCarteira, mesasDisponiveis = MESAS_FUTUROS, lef
     ["aporte", "Aporte fracionado"],
     ["caixa", "Caixa do ciclo"],
     ["meta", "Meta geral"],
+    ["simulacao", "Simulação"],
   ];
 
 
@@ -268,7 +270,7 @@ export function Platform({ onOpenCarteira, mesasDisponiveis = MESAS_FUTUROS, lef
         </Button>
       </div>
 
-      {tab === "historico" ? <Historico state={state} mutate={mutate} bancas={allBancas} bancasGlobais={bancasGlobais} mesaAtiva={mesaAtiva} bancaAtivaId={bancaAtivaId} podeDesfazerForex={podeDesfazerForex} /> : (
+      {section === "simulacao" && tab !== "historico" ? <SimulacaoFuturos /> : tab === "historico" ? <Historico state={state} mutate={mutate} bancas={allBancas} bancasGlobais={bancasGlobais} mesaAtiva={mesaAtiva} bancaAtivaId={bancaAtivaId} podeDesfazerForex={podeDesfazerForex} /> : (
         <AssetView key={tab} state={state} bancasGlobais={bancasGlobais} bancaAtivaId={bancaAtivaId} contaMesa={contaMesa} mesaAtiva={mesaAtiva} assetKey={tab} section={section} mutate={mutate} isAdmin={isAdmin} />
       )}
 
@@ -721,7 +723,7 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
         </div>
         <div className="min-w-0 rounded-xl border border-[#18324e] bg-gradient-to-br from-[#0d1b2b] to-[#080f1a] p-3 sm:p-4">
           <NumField cockpit label={<><Target className="h-3.5 w-3.5 text-blue-400" />Meta bruta $</>} value={d.meta} onChange={setD("meta")} />
-          <p className="mt-2 font-mono text-[11px] text-muted-foreground">{fmt(row.ticks)} ticks</p>
+          <div className="mt-2"><NumField label="Alvo em ticks" value={row.ticks} onChange={ticks => { if (Number.isFinite(ticks) && ticks >= 0 && c.valorTickMesa && c.valorTickMesa > 0) setD("meta")(Number((Math.ceil(ticks) * c.valorTickMesa).toFixed(8))); }} helper={d.mnq > 0 ? undefined : "Informe os contratos para calcular o valor."} /></div>
           {<p className="mt-1 text-[11px] text-slate-300">Taxas: ${fmt(taxasMesaDia(asset, d))} · Líquido previsto: ${fmt(metaLiquidaDia(asset, d))}</p>}
           {<div className="mt-1.5 space-y-1">
             {campoEod(String(i), "Resultado líquido do dia ($)")}
