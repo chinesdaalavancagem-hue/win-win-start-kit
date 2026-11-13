@@ -107,7 +107,7 @@ it('alavancagem Vest muda só margem, persiste e acompanha Saque 2',()=>{
 it('edita alavancagem Vest e mostra margem por card',async()=>{
  const s=setup();render(<Platform load={async()=>JSON.stringify(s)} save={async()=>true} isAdmin officialAcceptedAt={null} mesaAtiva="vest"/>);
  fireEvent.change(await screen.findByLabelText('Alavancagem da Vest'),{target:{value:'10'}});
- const price=screen.getByLabelText(/Preço de índice na Vest/);
+ const price=screen.getByLabelText(/Cotação de referência/);
  fireEvent.change(price,{target:{value:'4100'}});fireEvent.blur(price);
- await waitFor(()=>expect(screen.getAllByText(/Margem estimada na Vest \(10x\): 0 USDC/).length).toBeGreaterThan(0));
+ await waitFor(()=>expect(screen.getAllByText(/Margem aproximada na Vest \(10x\): 0 USDC/).length).toBeGreaterThan(0));
 });
