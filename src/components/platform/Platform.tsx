@@ -374,7 +374,44 @@ const Note = ({ children }: { children: ReactNode }) => <p className="mt-3 font-
 /* ---------- aba de ativo ---------- */
 
 function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, assetKey, section, mutate, isAdmin }: { state: State; bancasGlobais?: Banca[] | undefined; bancaAtivaId?: string | undefined; contaMesa?: string | undefined; mesaAtiva: MesaFuturos; assetKey: AssetKey; section: Section; mutate: (fn: (s: State) => void) => void; isAdmin: boolean }) {
-  const asset = state.assets[assetKey];
+  // Cotação pública GC-PERP: estado de apresentação, não altera app_data a cada atualização.
+  const [cotacaoVest, setCotacaoVest] = useState<{price:number;asOf:number}|null>(null);
+  const [cotacaoErro, setCotacaoErro] = useState(false);
+  const [quoteClock, setQuoteClock] = useState(Date.now());
+  useEffect(() => {
+    if (mesaAtiva !== "vest" || (assetKey === "saque2" && state.assets.saque2.params.ativoReal === "nasdaq") || assetKey === "nasdaq") {
+      setCotacaoVest(null);setCotacaoErro(false);return;
+    }
+    let cancelled = false;
+    const controller = new AbortController();
+    const refresh = async () => {
+      try {
+        const res = await fetch("/api/cotacoes/vest-gc", { signal: controller.signal, cache: "no-store" });
+        const data: unknown = await res.json();
+        const q = data as {ok?:unknown;price?:unknown;asOf?:unknown};
+        if (!res.ok || q.ok !== true || typeof q.price !== "number" || !Number.isFinite(q.price) || q.price <= 0 || typeof q.asOf !== "number") throw new Error("cotacao_indisponivel");
+        if (!cancelled) { setCotacaoVest({price:q.price,asOf:q.asOf});setCotacaoErro(false);setQuoteClock(Date.now()); }
+      } catch { if (!cancelled) {setCotacaoVest(null);setCotacaoErro(true);setQuoteClock(Date.now());} }
+    };
+    void refresh();
+    const interval = window.setInterval(() => {setQuoteClock(Date.now());void refresh();}, 45000);
+    return () => {cancelled=true;controller.abort();window.clearInterval(interval);};
+  }, [mesaAtiva, assetKey, state.assets.saque2.params.ativoReal]);
+  const precoAuto = cotacaoVest && quoteClock - cotacaoVest.asOf >= 0 && quoteClock - cotacaoVest.asOf <= 120000 ? cotacaoVest.price : null;
+  const assetSalvo = state.assets[assetKey];
+  // A cotação atual entra somente nas projeções; o plano e as metas continuam salvos sem depender dela.
+  const asset = useMemo(() => mesaAtiva === "vest" && precoAuto !== null
+    ? {...assetSalvo,params:{...assetSalvo.params,vestPrecoIndice:precoAuto}}
+    : assetSalvo, [assetSalvo,mesaAtiva,precoAuto]);
+  const stateCotado = useMemo(() => {
+    if (mesaAtiva !== "vest" || precoAuto === null) return state;
+    const assets = {...state.assets,[assetKey]:asset};
+    if (assetKey === "saque2") {
+      const origem = state.assets.saque2.params.ativoReal === "nasdaq" ? "nasdaq" : "ouro";
+      assets[origem] = {...state.assets[origem],params:{...state.assets[origem].params,vestPrecoIndice:precoAuto}};
+    }
+    return {...state,assets};
+  }, [state,asset,assetKey,mesaAtiva,precoAuto]);
   const split = percentualSplit(asset);
   const avaliacaoDias = diasAvaliacaoAtivo(asset, assetKey);
   const setP = (k: keyof Asset["params"]) => (v: number) => mutate((s) => { (s.assets[(k === "comissaoPorContrato" || (k === "marginPerLot" && !!s.assets.saque2.params.alavancagem)) && assetKey === "saque2" ? (s.assets.saque2.params.ativoReal === "nasdaq" ? "nasdaq" : "ouro") : assetKey].params as unknown as Record<string, number>)[k] = v; });
@@ -385,7 +422,7 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
   const saldo = (state.forexSaldoReal ?? forexProprio) + forexBonus;
   const bonusPct = String(percentualBonus(asset.bonus));
   const setBonusPct = (value: string) => { const pct = parseValorFinanceiro(value); if (pct !== null && pct >= 0) mutate(s => { s.assets[assetKey].bonus.percentual = pct; }); };
-  const continuidade = useMemo(() => assetKey === "saque2" ? simularSaque2(state, parseNum(bonusPct)) : null, [state, assetKey, bonusPct]);
+  const continuidade = useMemo(() => assetKey === "saque2" ? simularSaque2(stateCotado, parseNum(bonusPct)) : null, [stateCotado, assetKey, bonusPct]);
   const calcs = continuidade?.calcs ?? computeAssetCalcs(asset, assetKey);
   const caixaCiclo = continuidade?.segundo ?? calcCaixaCiclo(asset, assetKey, parseNum(bonusPct));
   // Atalhos: Shift+N = Profit no dia N; Ctrl+N (ou Alt+N) = Stop no dia N. Só vale para o dia atual; usa o valor teórico.
@@ -494,7 +531,7 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
               {Array.from({length: maxAlavancagemVest(asset, assetKey)}, (_, i) => <option key={i+1} value={i+1}>{i+1}x</option>)}
             </select>
           </label>
-          <NumField label="Cotação de referência (opcional, para o CFD)" value={asset.params.vestPrecoIndice ?? 0} commitOnBlur onChange={v => mutate(s => definirParametroVest(s, assetKey, "vestPrecoIndice", v))} helper="Não é necessária para calcular metas e loss limit da Vest. Informe uma cotação estimada apenas para projetar pontos e o resultado no CFD/MT5." />
+          <div className="text-sm text-slate-300" role="status"><p className="mb-1.5 text-xs font-medium">Cotação automática GC-PERP</p><p className="rounded-lg border border-[#18324e] bg-[#0b0f19] px-3 py-2 font-mono font-semibold text-cyan-200">{precoAuto !== null ? `${fmt(precoAuto)} · Vest` : cotacaoErro ? "Fonte indisponível" : "Consultando..."}</p><p className="mt-1 text-xs text-slate-400">{precoAuto !== null ? "Referência atualizada automaticamente; não é o preço executável do GOLD no MT5." : "A projeção CFD aguarda preço confirmado da fonte. Metas e margens Vest continuam disponíveis."}</p><details className="mt-2"><summary className="cursor-pointer text-xs text-cyan-300">Cotação manual de reserva (opcional)</summary><NumField label="Cotação de referência manual" value={assetSalvo.params.vestPrecoIndice ?? 0} commitOnBlur onChange={v => mutate(st => definirParametroVest(st, assetKey, "vestPrecoIndice", v))} helper="Usada somente quando a fonte automática estiver indisponível. Não altera execuções." /></details></div>
         </div>
         <p className="mt-2 text-xs text-slate-400">Margem Vest estimada = exposição USD ÷ alavancagem. A cotação é opcional para planejar a Vest, mas necessária para projetar o hedge no CFD. O Saque 2 acompanha. Confira a margem real na ordem.</p>
       </section>}
@@ -650,7 +687,7 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
           {mesaAtiva === "vest" && <div className="mb-3 rounded-xl border border-cyan-900 bg-[#091827] p-3 text-xs leading-relaxed text-slate-300">
             <p className="font-semibold text-cyan-300">Vest 10K · alvo líquido 2.000 · piso fixo 9.400 · sem DLL · split {fmt(split)}%</p>
             <p className="mt-1">GC-PERP utiliza exposição em US$, não unidades ou contratos fixos. PnL = exposição × variação percentual do preço. A alavancagem altera a margem, não o PnL.</p>
-            <p className="mt-1">Informe a cotação do ouro na aba Parâmetros antes de calcular pontos ou hedge. Taxa taker estimada: 0,0025% do nocional por execução; maker 0%. Funding e slippage não incluídos. Preencha a exposição USD dos planos antigos manualmente.</p>
+            <p className="mt-1">A cotação GC-PERP é consultada automaticamente para projetar pontos e hedge. Taxa taker estimada: 0,0025% do nocional por execução; maker 0%. Funding e slippage não incluídos. Preencha a exposição USD dos planos antigos manualmente.</p>
             <p className="mt-1">A projeção do Forex supõe o mesmo movimento de preço nos dois mercados e USDC equivalente a USD; spread, câmbio, slippage e diferenças entre cotações podem alterar o resultado. Confira também a margem disponível na Vest.</p>
             <details className="mt-2"><summary className="cursor-pointer text-cyan-300">Regras e fontes da Vest</summary><p className="mt-1">O piso de perda não acompanha os lucros, inclusive na financiada. O pedido de lucro é sob demanda e o crédito na Primary leva até 24 horas. A projeção considera sacar todo o lucro disponível com split de {fmt(split)}%, sem a regra de 50% das outras mesas.</p><p className="mt-1">GC: alavancagem publicada de até 25x; confira a margem vigente no pedido. Taxas de execução e funding variam. Nenhuma ordem é enviada por esta simulação.</p><div className="mt-2 flex flex-wrap gap-3"><a className="underline" href="https://docs.vestmarkets.com/vest-capital/loss-limits" target="_blank" rel="noreferrer">Limites</a><a className="underline" href="https://docs.vestmarkets.com/vest-capital/claiming-profit" target="_blank" rel="noreferrer">Saques</a><a className="underline" href="https://docs.vestmarkets.com/trading/markets" target="_blank" rel="noreferrer">Taxas</a><a className="underline" href="https://docs.vestmarkets.com/trading/cross-margin-and-leverage" target="_blank" rel="noreferrer">Margem e unidades</a></div></details>
           </div>}
@@ -818,7 +855,7 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
        {isCurrent && asset.mesaConfig && (d.mnq <= 0 || d.lotes <= 0) && <p className="mt-3 text-sm text-amber-200">Preencha os contratos e os lotes CFD para calcular e registrar a operação.</p>}
        {isCurrent && mesa === "vest" && (!(d.vestExposicaoUsd && d.vestExposicaoUsd > 0) || !(asset.params.vestPrecoIndice && asset.params.vestPrecoIndice > 0)) && <p className="mt-3 text-sm text-amber-200">A meta, o loss limit e a margem da Vest já são projetados sem cotação. Para estimar o hedge e registrar com sugestão de resultado CFD, informe uma cotação de referência na aba Parâmetros.</p>}
         {isCurrent && (mesa !== "vest" || ((d.vestExposicaoUsd ?? 0) > 0 && (asset.params.vestPrecoIndice ?? 0) > 0)) && (!asset.mesaConfig || (d.mnq > 0 && d.lotes > 0)) && <Settle risco={row.status === "risco"} custo={c.custoSePassar} reprova={c.reprova}
-        onProfit={(real) => mutate((s) => handleProfit(s, assetKey, real))} onStop={(real) => mutate((s) => handleStop(s, assetKey, real))} />}
+        onProfit={(real) => mutate((s) => { if (mesa === "vest" && asset.params.vestPrecoIndice && asset.params.vestPrecoIndice > 0) s.assets[assetKey].params.vestPrecoIndice = asset.params.vestPrecoIndice; handleProfit(s, assetKey, real); })} onStop={(real) => mutate((s) => { if (mesa === "vest" && asset.params.vestPrecoIndice && asset.params.vestPrecoIndice > 0) s.assets[assetKey].params.vestPrecoIndice = asset.params.vestPrecoIndice; handleStop(s, assetKey, real); })} />}
     </div>
   );
 }
