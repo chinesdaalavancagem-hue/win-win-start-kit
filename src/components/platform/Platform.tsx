@@ -747,7 +747,7 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
         </div>
         <div className="min-w-0 rounded-xl border border-[#18324e] bg-gradient-to-br from-[#0d1b2b] to-[#080f1a] p-3 sm:p-4">
           <NumField cockpit label={<><Target className="h-3.5 w-3.5 text-blue-400" />Meta bruta $</>} value={d.meta} onChange={setD("meta")} />
-          {mesa === "vest" ? <div className="mt-2"><NumField subtle label="Alvo em pontos" helper={(asset.params.vestPrecoIndice ?? 0) > 0 ? "Calculado com preço do ouro e exposição em US$." : "Informe o preço do índice em Parâmetros para calcular pontos."} value={c.pontos} onChange={p => { if (p >= 0 && Number.isFinite(p)) setD("meta")(p * ((asset.params.vestPrecoIndice ?? 0) > 0 ? (d.vestExposicaoUsd ?? 0) / asset.params.vestPrecoIndice! : 0)); }} /></div> : <div className="mt-2"><NumField subtle label="Alvo em ticks" value={row.ticks} onChange={ticks => { if (Number.isFinite(ticks) && ticks >= 0 && c.valorTickMesa && c.valorTickMesa > 0) setD("meta")(Number((Math.ceil(ticks) * c.valorTickMesa).toFixed(8))); }} helper={d.mnq > 0 ? undefined : "Informe os contratos para calcular o valor."} /></div>}
+          {mesa === "vest" ? <div className="mt-2"><NumField subtle label="Alvo em pontos" helper={(asset.params.vestPrecoIndice ?? 0) > 0 ? "Calculado com preço do ouro e exposição em US$." : "Informe o preço do índice em Parâmetros para calcular pontos."} value={c.pontos} onChange={p => { const preco = asset.params.vestPrecoIndice ?? 0; if (p >= 0 && Number.isFinite(p) && preco > 0 && (d.vestExposicaoUsd ?? 0) > 0) setD("meta")(p * (d.vestExposicaoUsd ?? 0) / preco); }} /></div> : <div className="mt-2"><NumField subtle label="Alvo em ticks" value={row.ticks} onChange={ticks => { if (Number.isFinite(ticks) && ticks >= 0 && c.valorTickMesa && c.valorTickMesa > 0) setD("meta")(Number((Math.ceil(ticks) * c.valorTickMesa).toFixed(8))); }} helper={d.mnq > 0 ? undefined : "Informe os contratos para calcular o valor."} /></div>}
           {<p className="mt-1 text-[11px] text-slate-300">Taxas: ${fmt(taxasMesaDia(asset, d))} · Líquido previsto: ${fmt(metaLiquidaDia(asset, d))}</p>}
           {<div className="mt-1.5 space-y-1">
             {campoEod(String(i), "Resultado líquido do dia ($)")}
@@ -816,7 +816,8 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
       })() : <p className="mt-2 font-mono text-[11px] text-muted-foreground">{row.statusText}</p>}
        
        {isCurrent && asset.mesaConfig && (d.mnq <= 0 || d.lotes <= 0) && <p className="mt-3 text-sm text-amber-200">Preencha os contratos e os lotes CFD para calcular e registrar a operação.</p>}
-       {isCurrent && (!asset.mesaConfig || (d.mnq > 0 && d.lotes > 0)) && <Settle risco={row.status === "risco"} custo={c.custoSePassar} reprova={c.reprova}
+       {isCurrent && mesa === "vest" && (!(d.vestExposicaoUsd && d.vestExposicaoUsd > 0) || !(asset.params.vestPrecoIndice && asset.params.vestPrecoIndice > 0)) && <p className="mt-3 text-sm text-amber-200">Informe a exposição em US$ e a cotação positiva do ouro em Parâmetros para habilitar as projeções e o registro.</p>}
+        {isCurrent && (mesa !== "vest" || ((d.vestExposicaoUsd ?? 0) > 0 && (asset.params.vestPrecoIndice ?? 0) > 0)) && (!asset.mesaConfig || (d.mnq > 0 && d.lotes > 0)) && <Settle risco={row.status === "risco"} custo={c.custoSePassar} reprova={c.reprova}
         onProfit={(real) => mutate((s) => handleProfit(s, assetKey, real))} onStop={(real) => mutate((s) => handleStop(s, assetKey, real))} />}
     </div>
   );
