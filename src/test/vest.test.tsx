@@ -3,13 +3,13 @@ import {render,screen,fireEvent,waitFor} from '@testing-library/react';
 import {it,expect,vi} from 'vitest';
 import {Bancas} from '../components/platform/Bancas';
 import {Platform} from '../components/platform/Platform';
-import {definirParametroVest, margemVest, alavancagemVest, normalizeState, defaultState, prepararMesaVest, limitesVest, computeAssetCalcs, projetarPrimeiroPayout, simularSaque2, adicionarDiaGold, handleProfit, undoLast} from '../lib/platform/engine';
+import {definirParametroVest, margemVest, alavancagemVest, normalizeState, defaultState, prepararMesaVest, limitesVest, computeAssetCalcs, taxasMesaDia, projetarPrimeiroPayout, simularSaque2, adicionarDiaGold, handleProfit, undoLast} from '../lib/platform/engine';
 import {novaBanca,parseBancas,referenciaDaMesa} from '../lib/platform/bancas';
 import {buildOfficialParams,isOfficialParams,applyOfficialParams} from '../lib/platform/official-params';
 vi.mock('@/integrations/supabase/client',()=>({supabase:{auth:{getSession:vi.fn(async()=>({data:{session:null}}))}}}));
 vi.mock('@/lib/auditoria-registro',()=>({registrarAuditoria:vi.fn(async()=>{})}));
 const setup=()=>{const s=defaultState();prepararMesaVest(s);return s;};
-it('10 unidades de ouro têm exposição de 1 MGC, sem assumir ticks CME',()=>{
+it('GC-PERP calcula a exposição USD em vez de unidades fixas',()=>{
  const s=setup(),a=s.assets.ouro,c=computeAssetCalcs(a,'ouro')[0]!;
  expect(a.params.taxa).toBe(108.3);expect(a.params.mnq).toBe(1);
  expect(c.pontos).toBe(200);expect(c.pontosReprova).toBe(60);
@@ -58,9 +58,9 @@ it('registrar e desfazer ciclo mantém o split Vest e o histórico reversível',
  handleProfit(s,'ouro',-80);expect(s.log.at(-1)?.saque).toBe(180);
  undoLast(s);expect(s.log).toHaveLength(1);expect(s.assets.ouro.attempt.currentDayIndex).toBe(1);
 });
-it('cards mostram unidades e pontos; meta geral usa lucro integral, sem 50%',async()=>{
+it('cards mostram exposição em USD, sem 50% no lucro Vest',async()=>{
  const s=setup();render(<Platform leftMenuOpen load={async()=>JSON.stringify(s)} save={async()=>true} isAdmin officialAcceptedAt={null} mesaAtiva="vest"/>);
- expect((await screen.findAllByLabelText('Unidades Vest'))[0]).toHaveValue('10');
+ expect((await screen.findAllByLabelText('Exposição Vest (US$)'))[0]).toHaveValue('0');
  expect(screen.queryByLabelText('Alvo em ticks')).toBeNull();
  fireEvent.change(screen.getAllByLabelText('Alvo em pontos')[0]!,{target:{value:'210'}});
  expect(screen.getAllByLabelText('Meta bruta $')[0]).toHaveValue('2100');
@@ -91,17 +91,17 @@ it('cria conta Vest pela interface com preço padrão e reabre o documento',asyn
 it('alavancagem Vest muda só margem, persiste e acompanha Saque 2',()=>{
  const s=setup(),a=s.assets.ouro;
  const antes=computeAssetCalcs(a,'ouro'),fx=a.params.marginPerLot;
- expect(margemVest(a,'ouro',10)).toBeUndefined();
+ expect(margemVest(a,'ouro',10000)).toBe(400);
  definirParametroVest(s,'ouro','vestPrecoIndice',4100);
- expect(margemVest(a,'ouro',10)).toBe(1640);
+ expect(margemVest(a,'ouro',10000)).toBe(400);
  definirParametroVest(s,'saque2','vestAlavancagem',10);
- expect(margemVest(a,'ouro',10)).toBe(4100);
- expect(margemVest(s.assets.saque2,'saque2',5)).toBe(2050);
+ expect(margemVest(a,'ouro',10000)).toBe(1000);
+ expect(margemVest(s.assets.saque2,'saque2',5000)).toBe(500);
  expect(computeAssetCalcs(a,'ouro')).toEqual(antes);expect(a.params.marginPerLot).toBe(fx);
  definirParametroVest(s,'ouro','vestAlavancagem',26);expect(alavancagemVest(a,'ouro')).toBe(10);
  const restored=normalizeState(JSON.parse(JSON.stringify(s)));expect(restored.assets.ouro.params.vestAlavancagem).toBe(10);
  const payload=buildOfficialParams(s,undefined,'vest');expect(isOfficialParams(payload)).toBe(true);
- const target=setup();applyOfficialParams(target,payload);expect(margemVest(target.assets.ouro,'ouro',10)).toBe(4100);
+ const target=setup();applyOfficialParams(target,payload);expect(margemVest(target.assets.ouro,'ouro',10000)).toBe(1000);
  payload.assets.ouro.params.vestAlavancagem=26;expect(isOfficialParams(payload)).toBe(false);
 });
 it('edita alavancagem Vest e mostra margem por card',async()=>{
@@ -109,5 +109,5 @@ it('edita alavancagem Vest e mostra margem por card',async()=>{
  fireEvent.change(await screen.findByLabelText('Alavancagem da Vest'),{target:{value:'10'}});
  const price=screen.getByLabelText(/Preço de índice na Vest/);
  fireEvent.change(price,{target:{value:'4100'}});fireEvent.blur(price);
- await waitFor(()=>expect(screen.getAllByText(/Margem estimada na Vest \(10x\): 4.100 USDC/).length).toBeGreaterThan(0));
+ await waitFor(()=>expect(screen.getAllByText(/Margem estimada na Vest \(10x\): 0 USDC/).length).toBeGreaterThan(0));
 });
