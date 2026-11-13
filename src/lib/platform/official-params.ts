@@ -6,7 +6,7 @@ const ASSETS: AssetKey[] = ["nasdaq", "ouro", "saque2"];
 const PARAM_FIELDS = ["mnq", "hfm", "mll", "taxa", "lucroDesejado", "marginPerLot", "stopoutPct", "saqueAprovada", "folgaExtraPct"] as const;
 const DAY_FIELDS = ["mnq", "lotes", "meta"] as const;
 
-type OfficialDay = { mnq: number; lotes: number; meta: number; mll?: number };
+type OfficialDay = { mnq: number; vestExposicaoUsd?: number; lotes: number; meta: number; mll?: number };
 export type OfficialParamsPayload = {
   format: typeof OFFICIAL_PARAMS_FORMAT;
   version: 1;
@@ -25,7 +25,7 @@ export function buildOfficialParams(state: State, exportedAt = new Date().toISOS
       ...(mesaFuturos === "vest" ? {avaliacaoDias: key === "saque2" ? 0 : state.assets[key].avaliacaoPorMesa?.vest ?? 1} : {}),
       ...(state.assets[key].mesaConfig ? {mesaConfig: structuredClone(state.assets[key].mesaConfig), avaliacaoDias: state.assets[key].avaliacaoPorMesa?.[mesaFuturos!] ?? (key === "saque2" ? 0 : state.assets[key].mesaConfig!.avaliacao)} : {}),
       params: { ...(vestAlavancagem !== undefined ? {vestAlavancagem} : {}), ...(vestPrecoIndice !== undefined ? {vestPrecoIndice} : {}), splitPct, comissaoPorContrato, mnq, hfm, mll, taxa, lucroDesejado, marginPerLot, stopoutPct, saqueAprovada, folgaExtraPct, ...(ativoReal ? { ativoReal } : {}) },
-      days: state.assets[key].days.map(({ mnq, lotes, meta, mll }) => ({ mnq, lotes, meta, ...(typeof mll === "number" ? { mll } : {}) })),
+      days: state.assets[key].days.map(({ mnq, lotes, meta, mll, vestExposicaoUsd }) => ({ mnq, lotes, meta, ...(typeof vestExposicaoUsd === "number" ? { vestExposicaoUsd } : {}), ...(typeof mll === "number" ? { mll } : {}) })),
     }];
   })) as unknown as OfficialParamsPayload["assets"];
   return { format: OFFICIAL_PARAMS_FORMAT, version: 1, exportedAt, ...(mesaFuturos ? { mesaFuturos } : {}), assets };
@@ -53,7 +53,7 @@ export function isOfficialParams(payload: unknown): payload is OfficialParamsPay
       Array.isArray(asset.days) && asset.days.every((day) => {
         if (!day || typeof day !== "object") return false;
         const d = day as Record<string, unknown>;
-        return DAY_FIELDS.every((f) => isNum(d[f])) && (d.mll === undefined || isNum(d.mll));
+        return DAY_FIELDS.every((f) => isNum(d[f])) && (d.vestExposicaoUsd === undefined || (isNum(d.vestExposicaoUsd) && (d.vestExposicaoUsd as number) >= 0)) && (d.mll === undefined || isNum(d.mll));
       });
   });
 }
@@ -80,7 +80,7 @@ export function applyOfficialParams(current: State, payload: OfficialParamsPaylo
     if (isNum(incoming.params.comissaoPorContrato) && (incoming.params.comissaoPorContrato as number) >= 0) picked.comissaoPorContrato = incoming.params.comissaoPorContrato;
     if (incoming.params.ativoReal !== undefined) picked.ativoReal = incoming.params.ativoReal;
     current.assets[key].params = { ...current.assets[key].params, ...picked } as State["assets"]["nasdaq"]["params"];
-    current.assets[key].days = incoming.days.map(({ mnq, lotes, meta, mll }) => ({ mnq, lotes, meta, ...(typeof mll === "number" ? { mll } : {}) }));
+    current.assets[key].days = incoming.days.map(({ mnq, lotes, meta, mll, vestExposicaoUsd }) => ({ mnq, lotes, meta, ...(typeof vestExposicaoUsd === "number" ? { vestExposicaoUsd } : {}), ...(typeof mll === "number" ? { mll } : {}) }));
   }
 }
 
