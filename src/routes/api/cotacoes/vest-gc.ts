@@ -1,8 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-// Cotação de referência para projeções. Não envia ordens e não utiliza credenciais MT5.
-// A API pública da Vest informa preço do próprio GC-PERP, não o bid/ask do CFD.
-const URL_VEST = "https://serverprod.vest.exchange/v2/ticker/latest?symbols=GC-PERP";
+// Referência de preço somente para simulação; nunca envia ordens.
+// Primeira fonte: GC-PERP Vest. Reserva: XAU/USD spot público, NÃO é preço executável.
+const VEST_URL = "https://serverprod.vest.exchange/v2/ticker/latest?symbols=GC-PERP";
+const SPOT_URL = "https://api.gold-api.com/price/XAU";
+const MAX_SPOT_AGE_MS = 120000;
 const positive = (value: unknown) => {
   const n = typeof value === "string" || typeof value === "number" ? Number(value) : NaN;
   return Number.isFinite(n) && n > 0 && n < 1000000 ? n : null;
@@ -15,28 +17,40 @@ export function extrairCotacaoGC(payload: unknown): number | null {
     !!item && typeof item === "object" && (item as Record<string, unknown>).symbol === "GC-PERP");
   return ticker ? (positive(ticker.indexPrice) ?? positive(ticker.markPrice)) : null;
 }
+export function extrairSpotXau(payload: unknown, now = Date.now()): {price:number;asOf:number}|null {
+  if (!payload || typeof payload !== "object") return null;
+  const x = payload as Record<string, unknown>;
+  if (x.symbol !== "XAU" || x.currency !== "USD") return null;
+  const price = positive(x.price);
+  const asOf = typeof x.updatedAt === "string" ? Date.parse(x.updatedAt) : NaN;
+  if (price === null || !Number.isFinite(asOf) || asOf > now + 30000 || now - asOf > MAX_SPOT_AGE_MS) return null;
+  return { price, asOf };
+}
+async function requestJson(url: string, headers: Record<string,string>): Promise<unknown> {
+  const resp = await fetch(url, { headers, signal: AbortSignal.timeout(4500), cache: "no-store" });
+  if (!resp.ok) throw new Error("upstream_unavailable");
+  return resp.json() as Promise<unknown>;
+}
 export const Route = createFileRoute("/api/cotacoes/vest-gc")({
   server: {
     handlers: {
       GET: async () => {
+        const headers = { "Cache-Control": "no-store" };
         try {
-          const response = await fetch(URL_VEST, {
-            headers: { "Accept": "application/json", "xrestservermm": "restserver0" },
-            signal: AbortSignal.timeout(4500),
-            cache: "no-store",
-          });
-          if (!response.ok) throw new Error("upstream_not_ok");
-          const payload: unknown = await response.json();
-          const price = extrairCotacaoGC(payload);
-          if (price === null) throw new Error("invalid_quote");
-          return Response.json({ ok: true, symbol: "GC-PERP", price, source: "Vest index/mark", asOf: Date.now() }, {
-            headers: { "Cache-Control": "no-store" },
-          });
-        } catch {
-          return Response.json({ ok: false, error: "cotacao_indisponivel" }, {
-            status: 503, headers: { "Cache-Control": "no-store" },
-          });
-        }
+          const value = await requestJson(VEST_URL, { "Accept":"application/json", "xrestservermm":"restserver0" });
+          const price = extrairCotacaoGC(value);
+          if (price !== null) return Response.json({
+            ok:true, symbol:"GC-PERP", price, source:"Vest GC-PERP", asOf:Date.now(), referenceOnly:true,
+          },{headers});
+        } catch { /* tentar fonte independente de reserva */ }
+        try {
+          const value = await requestJson(SPOT_URL, {"Accept":"application/json"});
+          const data = extrairSpotXau(value);
+          if (data) return Response.json({
+            ok:true, symbol:"XAU/USD", price:data.price,source:"XAU/USD spot (referência)",asOf:data.asOf,referenceOnly:true,
+          },{headers});
+        } catch { /* falha das duas fontes */ }
+        return Response.json({ok:false,error:"cotacao_indisponivel"}, {status:503,headers});
       },
     },
   },
