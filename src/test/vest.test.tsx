@@ -16,6 +16,15 @@ it('GC-PERP calcula a exposição USD em vez de unidades fixas',()=>{
   a.params.vestPrecoIndice=4000;a.days[0]!.vestExposicaoUsd=40000;
   const novo=computeAssetCalcs(a,'ouro')[0]!;expect(novo.pontos).toBe(200);expect(novo.pontosReprova).toBeCloseTo(59.8);expect(novo.reprova).toBeCloseTo(239.2);expect(novo.passa).toBe(-800);expect(taxasMesaDia(a,a.days[0]!)).toBe(2);
 });
+it("lucro líquido do CFD responde ao lote quando a cotação é válida", () => {
+ const s=setup(),a=s.assets.ouro,d=a.days[0]!;
+ a.params.vestPrecoIndice=4000;d.vestExposicaoUsd=10000;d.meta=500;
+ d.lotes=0.10;const primeiro=computeAssetCalcs(a,"ouro")[0]!;
+ d.lotes=0.20;const segundo=computeAssetCalcs(a,"ouro")[0]!;
+ expect(segundo.reprova).toBeCloseTo(primeiro.reprova*2);
+ expect(segundo.liquidoSeReprovar-primeiro.liquidoSeReprovar).toBeCloseTo(primeiro.reprova);
+ expect(segundo.liquidoSeReprovar).toBeGreaterThan(primeiro.liquidoSeReprovar);
+});
 it('custos reduzem meta líquida e distância ao piso, sem mudar registros efetivos',()=>{
  const s=setup(),a=s.assets.ouro;a.params.vestPrecoIndice=4000;a.days[0]!.vestExposicaoUsd=40000;
  const c=computeAssetCalcs(a,'ouro')[0]!;
