@@ -6,7 +6,7 @@ export type AssetKey = "nasdaq" | "ouro" | "saque2";
 export type TabKey = AssetKey | "historico";
 
 /** mll opcional: limite geral EOD de reprovação só deste dia; sem ele usa params.mll. */
-export interface Day { stopPlanejadoTopstep?: number; mnq: number; lotes: number; meta: number; mll?: number }
+export interface Day { stopPlanejadoTopstep?: number; mnq: number; vestExposicaoUsd?: number; lotes: number; meta: number; mll?: number }
 export const dayMll = (a: Asset, d: Day) => (typeof d.mll === "number" && d.mll > 0 ? d.mll : a.params.mll);
 export interface Params {
   /** Débito bruto da mesa no saque; ausente usa o recebimento esperado (legado). */
@@ -38,10 +38,9 @@ export function alavancagemVest(a: Asset, key: AssetKey): number {
   const v = a.params.vestAlavancagem, max = maxAlavancagemVest(a, key);
   return typeof v === "number" && Number.isInteger(v) && v >= 1 && v <= max ? v : max;
 }
-export function margemVest(a: Asset, key: AssetKey, unidades: number): number | undefined {
-  const preco = a.params.vestPrecoIndice;
-  if (typeof preco !== "number" || !Number.isFinite(preco) || preco <= 0 || !Number.isFinite(unidades) || unidades < 0) return undefined;
-  return unidades * preco / alavancagemVest(a, key);
+export function margemVest(a: Asset, key: AssetKey, exposicaoUsd: number): number | undefined {
+  if (!Number.isFinite(exposicaoUsd) || exposicaoUsd < 0) return undefined;
+  return exposicaoUsd / alavancagemVest(a, key);
 }
 export function definirParametroVest(s: State, key: AssetKey, campo: "vestAlavancagem" | "vestPrecoIndice", valor: number): void {
   const origem = key === "saque2" ? (s.assets.saque2.params.ativoReal === "nasdaq" ? "nasdaq" : "ouro") : key;
@@ -51,6 +50,7 @@ export function definirParametroVest(s: State, key: AssetKey, campo: "vestAlavan
 }
 export function taxasMesaDia(a: Asset, d: Day): number {
   
+  if (a.mesaFuturos === "vest") return Math.round(Math.max(0, d.vestExposicaoUsd ?? 0) * 0.00005 * 10000) / 10000;
   const taxa = a.params.comissaoPorContrato;
   return typeof taxa === "number" && Number.isFinite(taxa) && taxa >= 0
     ? Math.round(Math.max(0, d.mnq) * taxa * 100) / 100 : 0;
@@ -542,7 +542,9 @@ export function computeAssetCalcs(a: Asset, key: AssetKey, continuidade?: { divi
   let divida = taxa + (continuidade?.divida ?? 0);
   return a.days.map((d) => {
 
-    const exp = d.mnq * mnqPt;
+    // GC-PERP: exposição nocional em USD; variação em pontos relativa ao preço de entrada.
+    const precoVest = a.params.vestPrecoIndice ?? 0;
+    const exp = a.mesaFuturos === "vest" ? (precoVest > 0 ? (d.vestExposicaoUsd ?? 0) / precoVest : 0) : d.mnq * mnqPt;
     const pontos = exp > 0 ? d.meta / exp : 0;
     const custoSePassar = pontos * d.lotes * hfmPt;
     const indice = a.days.indexOf(d);
