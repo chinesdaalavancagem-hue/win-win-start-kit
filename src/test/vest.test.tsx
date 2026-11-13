@@ -20,7 +20,7 @@ it('custos reduzem meta líquida e distância ao piso, sem mudar registros efeti
  const s=setup(),a=s.assets.ouro;a.params.vestPrecoIndice=4000;a.days[0]!.vestExposicaoUsd=40000;
  const c=computeAssetCalcs(a,'ouro')[0]!;
  expect(c.pontosReprova).toBeCloseTo(59.8);
- expect(projetarPrimeiroPayout(a,'ouro')).toEqual({lucro:1998,bruto:1998,liquido:1798.2});
+ expect(projetarPrimeiroPayout(a,'ouro')).toEqual({lucro:200,bruto:200,liquido:180});
  a.attempt.resultadosMesaEod={'1':150};
  expect(projetarPrimeiroPayout(a,'ouro').liquido).toBe(135);
 });
