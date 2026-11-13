@@ -375,7 +375,7 @@ const Note = ({ children }: { children: ReactNode }) => <p className="mt-3 font-
 
 function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, assetKey, section, mutate, isAdmin }: { state: State; bancasGlobais?: Banca[] | undefined; bancaAtivaId?: string | undefined; contaMesa?: string | undefined; mesaAtiva: MesaFuturos; assetKey: AssetKey; section: Section; mutate: (fn: (s: State) => void) => void; isAdmin: boolean }) {
   // Cotação pública GC-PERP: estado de apresentação, não altera app_data a cada atualização.
-  const [cotacaoVest, setCotacaoVest] = useState<{price:number;asOf:number}|null>(null);
+  const [cotacaoVest, setCotacaoVest] = useState<{price:number;asOf:number;source:string}|null>(null);
   const [cotacaoErro, setCotacaoErro] = useState(false);
   const [quoteClock, setQuoteClock] = useState(Date.now());
   useEffect(() => {
@@ -388,9 +388,9 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
       try {
         const res = await fetch("/api/cotacoes/vest-gc", { signal: controller.signal, cache: "no-store" });
         const data: unknown = await res.json();
-        const q = data as {ok?:unknown;price?:unknown;asOf?:unknown};
+        const q = data as {ok?:unknown;price?:unknown;asOf?:unknown;source?:unknown};
         if (!res.ok || q.ok !== true || typeof q.price !== "number" || !Number.isFinite(q.price) || q.price <= 0 || typeof q.asOf !== "number") throw new Error("cotacao_indisponivel");
-        if (!cancelled) { setCotacaoVest({price:q.price,asOf:q.asOf});setCotacaoErro(false);setQuoteClock(Date.now()); }
+        if (!cancelled) { setCotacaoVest({price:q.price,asOf:q.asOf,source:typeof q.source === "string" ? q.source : "referência externa"});setCotacaoErro(false);setQuoteClock(Date.now()); }
       } catch { if (!cancelled) {setCotacaoVest(null);setCotacaoErro(true);setQuoteClock(Date.now());} }
     };
     void refresh();
@@ -531,7 +531,7 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
               {Array.from({length: maxAlavancagemVest(asset, assetKey)}, (_, i) => <option key={i+1} value={i+1}>{i+1}x</option>)}
             </select>
           </label>
-          <div className="text-sm text-slate-300" role="status"><p className="mb-1.5 text-xs font-medium">Cotação automática GC-PERP</p><p className="rounded-lg border border-[#18324e] bg-[#0b0f19] px-3 py-2 font-mono font-semibold text-cyan-200">{precoAuto !== null ? `${fmt(precoAuto)} · Vest` : cotacaoErro ? "Fonte indisponível" : "Consultando..."}</p><p className="mt-1 text-xs text-slate-400">{precoAuto !== null ? "Referência atualizada automaticamente; não é o preço executável do GOLD no MT5." : "A projeção CFD aguarda preço confirmado da fonte. Metas e margens Vest continuam disponíveis."}</p><details className="mt-2"><summary className="cursor-pointer text-xs text-cyan-300">Cotação manual de reserva (opcional)</summary><NumField label="Cotação de referência manual" value={assetSalvo.params.vestPrecoIndice ?? 0} commitOnBlur onChange={v => mutate(st => definirParametroVest(st, assetKey, "vestPrecoIndice", v))} helper="Usada somente quando a fonte automática estiver indisponível. Não altera execuções." /></details></div>
+          <div className="text-sm text-slate-300" role="status"><p className="mb-1.5 text-xs font-medium">Cotação automática do ouro (referência)</p><p className="rounded-lg border border-[#18324e] bg-[#0b0f19] px-3 py-2 font-mono font-semibold text-cyan-200">{precoAuto !== null ? `${fmt(precoAuto)} · ${cotacaoVest?.source ?? "referência"}` : cotacaoErro ? "Fonte indisponível" : "Consultando..."}</p><p className="mt-1 text-xs text-slate-400">{precoAuto !== null ? "Estimativa de preço, não é cotação executável do GC-PERP nem do GOLD no MT5." : "A projeção CFD aguarda preço confirmado da fonte. Metas e margens Vest continuam disponíveis."}</p><details className="mt-2"><summary className="cursor-pointer text-xs text-cyan-300">Cotação manual de reserva (opcional)</summary><NumField label="Cotação de referência manual" value={assetSalvo.params.vestPrecoIndice ?? 0} commitOnBlur onChange={v => mutate(st => definirParametroVest(st, assetKey, "vestPrecoIndice", v))} helper="Usada somente quando a fonte automática estiver indisponível. Não altera execuções." /></details></div>
         </div>
         <p className="mt-2 text-xs text-slate-400">Margem Vest estimada = exposição USD ÷ alavancagem. A cotação é opcional para planejar a Vest, mas necessária para projetar o hedge no CFD. O Saque 2 acompanha. Confira a margem real na ordem.</p>
       </section>}
@@ -719,6 +719,7 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
   const setD = (k: "mnq" | "lotes" | "meta") => (v: number) => mutate((s) => { s.assets[assetKey].days[i]![k] = v; });
   const projecao = assetKey === "saque2" ? null : mesa === "tradefive" ? limitesTradeify(asset, assetKey, i)
     : mesa === "topstep" ? limitesTopstep(asset, assetKey, i) : mesa === "vest" ? limitesVest(asset, assetKey, i) : null;
+  const cfdSemReferencia = mesa === "vest" && (!(asset.params.vestPrecoIndice && asset.params.vestPrecoIndice > 0) || !(d.vestExposicaoUsd && d.vestExposicaoUsd > 0));
   const campoStop = mesa === "topstep" ? "stopPlanejadoTopstep" : "mll";
   const ajustarStop = (valor: number) => mutate(st => {
     const dia = st.assets[assetKey].days[i];
@@ -805,9 +806,9 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
        <div className={cn("mt-3 flex items-center justify-between gap-3 rounded-xl border p-3.5 lg:p-3", c.liquidoSeReprovar >= 0 ? "border-emerald-500/80 bg-gradient-to-r from-emerald-950/80 via-[#052b2a] to-[#071b20] shadow-[0_0_22px_rgba(0,220,160,0.10)]" : "border-rose-800/80 bg-gradient-to-r from-rose-950/60 to-[#10131f]")}>
         <div className="min-w-0">
           <p className="text-xs font-bold text-slate-100 sm:text-sm">Líquido se reprovar hoje</p>
-          <p className="mt-1 font-mono text-[10px] text-slate-400 sm:text-xs">Dívida a recuperar: ${fmt(c.reprova - c.liquidoSeReprovar)} · Bruto projetado no Forex: ${fmt(c.reprova)}</p>
+          <p className="mt-1 font-mono text-[10px] text-slate-400 sm:text-xs">{cfdSemReferencia ? "Projeção CFD indisponível: aguardando cotação do ouro e exposição em US$." : `Dívida a recuperar: ${fmt(c.reprova - c.liquidoSeReprovar)} · Bruto projetado no Forex: ${fmt(c.reprova)}`}</p>
         </div>
-        <p className={cn("shrink-0 font-mono text-2xl font-extrabold tracking-tight sm:text-3xl lg:!text-[36px] xl:!text-[40px]", c.liquidoSeReprovar >= 0 ? "text-emerald-300 drop-shadow-[0_0_18px_rgba(16,185,129,0.8)]" : "text-rose-400")}>{c.liquidoSeReprovar >= 0 ? "+" : "-"}${fmt(Math.abs(c.liquidoSeReprovar))}</p>
+        <p className={cn("shrink-0 font-mono text-2xl font-extrabold tracking-tight sm:text-3xl lg:!text-[36px] xl:!text-[40px]", cfdSemReferencia ? "text-amber-300" : c.liquidoSeReprovar >= 0 ? "text-emerald-300 drop-shadow-[0_0_18px_rgba(16,185,129,0.8)]" : "text-rose-400")}>{cfdSemReferencia ? "—" : `${c.liquidoSeReprovar >= 0 ? "+" : "-"}${fmt(Math.abs(c.liquidoSeReprovar))}`}</p>
       </div>
 
       {row.caixaDia && d.lotes > 0 ? (() => {
