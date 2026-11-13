@@ -494,9 +494,9 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
               {Array.from({length: maxAlavancagemVest(asset, assetKey)}, (_, i) => <option key={i+1} value={i+1}>{i+1}x</option>)}
             </select>
           </label>
-          <NumField label="Preço de índice na Vest (USDC)" value={asset.params.vestPrecoIndice ?? 0} commitOnBlur onChange={v => mutate(s => definirParametroVest(s, assetKey, "vestPrecoIndice", v))} helper="Digite a cotação atual do ativo na Vest, sem separador de milhar. Não é atualizada automaticamente." />
+          <NumField label="Cotação de referência (opcional, para o CFD)" value={asset.params.vestPrecoIndice ?? 0} commitOnBlur onChange={v => mutate(s => definirParametroVest(s, assetKey, "vestPrecoIndice", v))} helper="Não é necessária para calcular metas e loss limit da Vest. Informe uma cotação estimada apenas para projetar pontos e o resultado no CFD/MT5." />
         </div>
-        <p className="mt-2 text-xs text-slate-400">Margem estimada = unidades × preço de índice ÷ alavancagem. Ajusta somente a margem na Vest, sem alterar ganhos, perdas, taxas ou o aporte no Forex. O Saque 2 acompanha. Limites temporários da mesa podem exigir mais margem; confira a prévia da ordem.</p>
+        <p className="mt-2 text-xs text-slate-400">Margem Vest estimada = exposição USD ÷ alavancagem. A cotação é opcional para planejar a Vest, mas necessária para projetar o hedge no CFD. O Saque 2 acompanha. Confira a margem real na ordem.</p>
       </section>}
       {section === "parametros" && (
         <div className="space-y-4 lg:space-y-3">
@@ -737,17 +737,17 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
              label={<><FileText className="h-3.5 w-3.5 text-blue-400" />{mesa === "vest" ? "Exposição Vest (US$)" : "Contratos"}</>}
              value={mesa === "vest" ? (d.vestExposicaoUsd ?? 0) : d.mnq}
              onChange={mesa === "vest" ? v => { if (Number.isFinite(v) && v >= 0) mutate(st => { st.assets[assetKey].days[i]!.vestExposicaoUsd = v; }); } : setD("mnq")} />
-          {mesa === "vest" && <p className="mt-2 text-xs text-cyan-300">Margem estimada na Vest ({alavancagemVest(asset, assetKey)}x): {margemVest(asset, assetKey, d.vestExposicaoUsd ?? 0) === undefined ? "exposição inválida" : `${fmt(margemVest(asset, assetKey, d.vestExposicaoUsd ?? 0)!)} USDC`}</p>}
+          {mesa === "vest" && <p className="mt-2 text-xs text-cyan-300">Margem aproximada na Vest ({alavancagemVest(asset, assetKey)}x): {margemVest(asset, assetKey, d.vestExposicaoUsd ?? 0) === undefined ? "exposição inválida" : `${fmt(margemVest(asset, assetKey, d.vestExposicaoUsd ?? 0)!)} USDC`}</p>}
            
-          <span className="mt-2 inline-block rounded-full border border-market-down/40 bg-rose-950/40 px-2 py-0.5 font-mono text-[11px] text-market-down">-${fmt(Math.abs(c.passa))} se passar</span>
+          <span className="mt-2 inline-block rounded-full border border-market-down/40 bg-rose-950/40 px-2 py-0.5 font-mono text-[11px] text-market-down">{mesa === "vest" && !(asset.params.vestPrecoIndice && asset.params.vestPrecoIndice > 0) ? "CFD: cotação necessária para estimar perda" : `-${fmt(Math.abs(c.passa))} se passar`}</span>
         </div>
         <div className="min-w-0 rounded-xl border border-[#183b43] bg-gradient-to-br from-[#092126] to-[#080f1a] p-3 lg:p-2.5">
           <NumField cockpit label={<><Layers className="h-3.5 w-3.5 text-cyan-400" />Lotes CFD</>} value={d.lotes} onChange={setD("lotes")} />
-          <span className="mt-2 inline-block rounded-full border border-market-up/40 bg-emerald-950/40 px-2 py-0.5 font-mono text-[11px] text-market-up">+${fmt(c.reprova)} se reprova</span>
+          <span className="mt-2 inline-block rounded-full border border-market-up/40 bg-emerald-950/40 px-2 py-0.5 font-mono text-[11px] text-market-up">{mesa === "vest" && !(asset.params.vestPrecoIndice && asset.params.vestPrecoIndice > 0) ? "CFD: cotação necessária para estimar ganho" : `+${fmt(c.reprova)} se reprova`}</span>
         </div>
         <div className="min-w-0 rounded-xl border border-[#18324e] bg-gradient-to-br from-[#0d1b2b] to-[#080f1a] p-3 sm:p-4">
           <NumField cockpit label={<><Target className="h-3.5 w-3.5 text-blue-400" />Meta bruta $</>} value={d.meta} onChange={setD("meta")} />
-          {mesa === "vest" ? <div className="mt-2"><NumField subtle label="Alvo em pontos" helper={(asset.params.vestPrecoIndice ?? 0) > 0 ? "Calculado com preço do ouro e exposição em US$." : "Informe o preço do índice em Parâmetros para calcular pontos."} value={c.pontos} onChange={p => { const preco = asset.params.vestPrecoIndice ?? 0; if (p >= 0 && Number.isFinite(p) && preco > 0 && (d.vestExposicaoUsd ?? 0) > 0) setD("meta")(p * (d.vestExposicaoUsd ?? 0) / preco); }} /></div> : <div className="mt-2"><NumField subtle label="Alvo em ticks" value={row.ticks} onChange={ticks => { if (Number.isFinite(ticks) && ticks >= 0 && c.valorTickMesa && c.valorTickMesa > 0) setD("meta")(Number((Math.ceil(ticks) * c.valorTickMesa).toFixed(8))); }} helper={d.mnq > 0 ? undefined : "Informe os contratos para calcular o valor."} /></div>}
+          {mesa === "vest" ? <p className="mt-2 text-xs text-cyan-300">Alvo automático: <strong>{(d.vestExposicaoUsd ?? 0) > 0 ? `${fmt(d.meta / d.vestExposicaoUsd! * 100)}%` : "informe exposição"}</strong> de variação favorável · {(asset.params.vestPrecoIndice ?? 0) > 0 ? `${fmt(c.pontos)} pontos estimados` : "cotação dispensável"}</p> : <div className="mt-2"><NumField subtle label="Alvo em ticks" value={row.ticks} onChange={ticks => { if (Number.isFinite(ticks) && ticks >= 0 && c.valorTickMesa && c.valorTickMesa > 0) setD("meta")(Number((Math.ceil(ticks) * c.valorTickMesa).toFixed(8))); }} helper={d.mnq > 0 ? undefined : "Informe os contratos para calcular o valor."} /></div>}
           {<p className="mt-1 text-[11px] text-slate-300">Taxas: ${fmt(taxasMesaDia(asset, d))} · Líquido previsto: ${fmt(metaLiquidaDia(asset, d))}</p>}
           {<div className="mt-1.5 space-y-1">
             {campoEod(String(i), "Resultado líquido do dia ($)")}
@@ -758,7 +758,7 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
             Piso projetado: <strong>${fmt(projecao.piso)}</strong> · Folga: <strong>${fmt(projecao.distancia)}</strong>
           </p>}
           {<NumField cockpit label="Loss limit do cenário ($)" value={c.limiteDoCard ?? asset.params.mll} onChange={ajustarStop} />}
-          {mesa === "vest" ? <p className="mt-2 text-xs text-slate-300">Até o piso: {fmt(c.pontosReprova)} pontos, descontando os custos estimados. Reprovação abaixo do piso.</p> : c.ticksReprova !== undefined && c.valorTickMesa
+          {mesa === "vest" ? <p className="mt-2 text-xs text-slate-300">Até o piso: {(d.vestExposicaoUsd ?? 0) > 0 ? `${fmt(Math.max(0, c.limiteDoCard - taxasMesaDia(asset, d)) / d.vestExposicaoUsd! * 100)}% de movimento contrário (estimativa)` : "informe exposição"}. {(asset.params.vestPrecoIndice ?? 0) > 0 ? `${fmt(c.pontosReprova)} pontos estimados.` : "Sem necessidade de cotação."} Reprovação abaixo do piso.</p> : c.ticksReprova !== undefined && c.valorTickMesa
              ? (<NumField subtle label="Stop em ticks" value={c.ticksReprova} onChange={ticks => ajustarStop(Math.ceil(ticks) * c.valorTickMesa!)} />)
              : <p>Informe os contratos para calcular os ticks.</p>}
           {d[campoStop] !== undefined && <button type="button" className="mt-1 text-xs text-cyan-300 underline" onClick={() => ajustarStop(0)}>Usar limite automático</button>}
@@ -816,7 +816,7 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
       })() : <p className="mt-2 font-mono text-[11px] text-muted-foreground">{row.statusText}</p>}
        
        {isCurrent && asset.mesaConfig && (d.mnq <= 0 || d.lotes <= 0) && <p className="mt-3 text-sm text-amber-200">Preencha os contratos e os lotes CFD para calcular e registrar a operação.</p>}
-       {isCurrent && mesa === "vest" && (!(d.vestExposicaoUsd && d.vestExposicaoUsd > 0) || !(asset.params.vestPrecoIndice && asset.params.vestPrecoIndice > 0)) && <p className="mt-3 text-sm text-amber-200">Informe a exposição em US$ e a cotação positiva do ouro em Parâmetros para habilitar as projeções e o registro.</p>}
+       {isCurrent && mesa === "vest" && (!(d.vestExposicaoUsd && d.vestExposicaoUsd > 0) || !(asset.params.vestPrecoIndice && asset.params.vestPrecoIndice > 0)) && <p className="mt-3 text-sm text-amber-200">A meta, o loss limit e a margem da Vest já são projetados sem cotação. Para estimar o hedge e registrar com sugestão de resultado CFD, informe uma cotação de referência na aba Parâmetros.</p>}
         {isCurrent && (mesa !== "vest" || ((d.vestExposicaoUsd ?? 0) > 0 && (asset.params.vestPrecoIndice ?? 0) > 0)) && (!asset.mesaConfig || (d.mnq > 0 && d.lotes > 0)) && <Settle risco={row.status === "risco"} custo={c.custoSePassar} reprova={c.reprova}
         onProfit={(real) => mutate((s) => handleProfit(s, assetKey, real))} onStop={(real) => mutate((s) => handleStop(s, assetKey, real))} />}
     </div>
