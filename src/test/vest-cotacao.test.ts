@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extrairCotacaoGC } from "../routes/api/cotacoes/vest-gc";
+import { extrairCotacaoGC, extrairSpotXau } from "../routes/api/cotacoes/vest-gc";
 
 describe("cotação automática GC-PERP", () => {
   it("usa apenas o índice confirmado do ativo correto", () => {
@@ -17,5 +17,19 @@ describe("cotação automática GC-PERP", () => {
     expect(extrairCotacaoGC({ tickers: [{symbol:"MGC-PERP", indexPrice:"4000"}] })).toBeNull();
     expect(extrairCotacaoGC({ tickers: [{symbol:"GC-PERP", indexPrice:"-5"}] })).toBeNull();
     expect(extrairCotacaoGC({})).toBeNull();
+  });
+});
+
+describe("fonte de reserva XAU/USD", () => {
+  it("aceita preço válido e recente do ouro spot", () => {
+    const now = Date.parse("2026-11-13T16:00:00Z");
+    expect(extrairSpotXau({symbol:"XAU",currency:"USD",price:4000.25,updatedAt:"2026-11-13T15:59:45Z"},now))
+      .toEqual({price:4000.25,asOf:Date.parse("2026-11-13T15:59:45Z")});
+  });
+  it("rejeita preços atrasados, inválidos ou de outras moedas", () => {
+    const now = Date.parse("2026-11-13T16:00:00Z");
+    expect(extrairSpotXau({symbol:"XAU",currency:"USD",price:4000,updatedAt:"2026-11-13T15:40:00Z"},now)).toBeNull();
+    expect(extrairSpotXau({symbol:"XAU",currency:"EUR",price:4000,updatedAt:"2026-11-13T15:59:45Z"},now)).toBeNull();
+    expect(extrairSpotXau({symbol:"XAU",currency:"USD",price:0,updatedAt:"2026-11-13T15:59:45Z"},now)).toBeNull();
   });
 });
