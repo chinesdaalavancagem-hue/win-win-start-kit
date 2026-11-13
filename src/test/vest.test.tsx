@@ -12,15 +12,15 @@ const setup=()=>{const s=defaultState();prepararMesaVest(s);return s;};
 it('GC-PERP calcula a exposição USD em vez de unidades fixas',()=>{
  const s=setup(),a=s.assets.ouro,c=computeAssetCalcs(a,'ouro')[0]!;
  expect(a.params.taxa).toBe(108.3);expect(a.params.mnq).toBe(1);
- expect(c.pontos).toBe(200);expect(c.pontosReprova).toBe(60);
- expect(c.ticksReprova).toBeUndefined();expect(c.reprova).toBe(240);
- expect(c.liquidoSeReprovar).toBeCloseTo(131.7);expect(c.passa).toBe(-800);
+  expect(c.pontos).toBe(0);expect(c.ticksReprova).toBeUndefined();
+  a.params.vestPrecoIndice=4000;a.days[0]!.vestExposicaoUsd=40000;
+  const novo=computeAssetCalcs(a,'ouro')[0]!;expect(novo.pontos).toBe(200);expect(novo.pontosReprova).toBeCloseTo(59.8);expect(novo.reprova).toBeCloseTo(239.2);expect(novo.passa).toBe(-800);expect(taxasMesaDia(a,a.days[0]!)).toBe(2);
 });
 it('custos reduzem meta líquida e distância ao piso, sem mudar registros efetivos',()=>{
- const s=setup(),a=s.assets.ouro;a.params.comissaoPorContrato=.2;
+ const s=setup(),a=s.assets.ouro;a.params.vestPrecoIndice=4000;a.days[0]!.vestExposicaoUsd=40000;
  const c=computeAssetCalcs(a,'ouro')[0]!;
- expect(c.pontosReprova).toBe(59.8);
- expect(projetarPrimeiroPayout(a,'ouro')).toEqual({lucro:198,bruto:198,liquido:178.2});
+ expect(c.pontosReprova).toBeCloseTo(59.8);
+ expect(projetarPrimeiroPayout(a,'ouro')).toEqual({lucro:1998,bruto:1998,liquido:1798.2});
  a.attempt.resultadosMesaEod={'1':150};
  expect(projetarPrimeiroPayout(a,'ouro').liquido).toBe(135);
 });
@@ -62,11 +62,11 @@ it('cards mostram exposição em USD, sem 50% no lucro Vest',async()=>{
  const s=setup();render(<Platform leftMenuOpen load={async()=>JSON.stringify(s)} save={async()=>true} isAdmin officialAcceptedAt={null} mesaAtiva="vest"/>);
  expect((await screen.findAllByLabelText('Exposição Vest (US$)'))[0]).toHaveValue('0');
  expect(screen.queryByLabelText('Alvo em ticks')).toBeNull();
- fireEvent.change(screen.getAllByLabelText('Alvo em pontos')[0]!,{target:{value:'210'}});
- expect(screen.getAllByLabelText('Meta bruta $')[0]).toHaveValue('2100');
+  fireEvent.change(screen.getAllByLabelText('Exposição Vest (US$)')[0]!,{target:{value:'40000'}});
+  expect(screen.getAllByLabelText('Meta bruta $')[0]).toHaveValue('2000');
  fireEvent.click(screen.getByRole('button',{name:'Meta geral',hidden:true}));
  expect(screen.getByText('Lucro disponível · 100%')).toBeInTheDocument();
- expect(screen.getByLabelText(/Taxa por unidade/)).toBeInTheDocument();
+  expect(screen.getAllByText(/Taxa taker GC-PERP estimada automaticamente/).length).toBeGreaterThan(0);
 });
 
 it('cria conta Vest pela interface com preço padrão e reabre o documento',async()=>{
