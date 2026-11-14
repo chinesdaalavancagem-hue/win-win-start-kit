@@ -302,9 +302,9 @@ function AuthPage() {
               <p className="mt-3 text-sm leading-6 text-slate-400">{mode === "login" ? "Entre para continuar no seu ambiente de trading." : "Preencha seus dados para solicitar seu acesso à plataforma."}</p>
             </div>
 
-            {mode === "login" && firstName && emailMatchesSavedUser && (
+            {mode === "login" && (
               <section className="mb-6 rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.06] p-4" aria-label="Saudação e versículo bíblico">
-                <h2 className="text-base font-semibold text-white">{greetings[dayPeriod]}, {firstName}!</h2>
+                <h2 className="text-base font-semibold text-white">{greetings[dayPeriod]}{firstName && emailMatchesSavedUser ? `, ${firstName}` : ""}!</h2>
                 <p className="mt-1 text-sm text-slate-300">{dayPeriod === "morning" ? "Que Deus abençoe seu dia." : dayPeriod === "afternoon" ? "Que Deus abençoe sua tarde." : "Que Deus abençoe sua noite."}</p>
                 <blockquote className="mt-3 border-l-2 border-cyan-300/40 pl-3 text-sm leading-relaxed text-slate-200">
                   “{dailyVerse.text}”
