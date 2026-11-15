@@ -134,6 +134,7 @@ export interface LogEntry {
   assinaturaForexApos?: string;
 }
 export interface State {
+  presets?: import("@/lib/platform/presets").PresetStore;
   corretora?: { stopoutPct: number; bonusPct: number } | undefined;
   revisoesHistorico?: { ts: number; anteriores: LogEntry[] }[];
   activeTab: TabKey; assets: Record<AssetKey, Asset>; log: LogEntry[]; cfdBalance: number; totalGasto: number;

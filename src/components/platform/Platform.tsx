@@ -9,6 +9,7 @@ import { Undo2, FileText, Layers, Target, TrendingUp, ShieldCheck, Wallet, Chevr
 import { cn } from "@/lib/utils";
 import { registrarAuditoria } from "@/lib/auditoria-registro";
 import { applyOfficialParams, buildOfficialParams, isOfficialParams } from "@/lib/platform/official-params";
+import { applyPreset, capturePreset, isStrategyPreset, PRESET_LABELS, type PresetSlot } from "@/lib/platform/presets";
 import {
   type AssetKey, type State, type TabKey, type Asset, type MesaFuturos, MESAS_FUTUROS, nomeMesa, diasAvaliacaoAtivo, diasAvaliacaoGold, limitesTradeify, limitesTopstep, limitesVest, adicionarDiaGold, removerDiaGold,
   alavancagemVest, maxAlavancagemVest, margemVest, definirParametroVest, percentualSplit, definirSplit, percentualBonus, podeReverterDeposito, reverterDeposito, taxasMesaDia, metaLiquidaDia, projetarPrimeiroPayout, simularSaque2, aplicarDeposito, aplicarSaque, projetarAportesFuturos, conciliarCreditoForex, calcAporteFracionado, calcCaixaCiclo, clampDayIndex, computeAssetCalcs, defaultState, fmt, fmtSigned, handleProfit, handleStop,
@@ -373,6 +374,52 @@ const Note = ({ children }: { children: ReactNode }) => <p className="mt-3 font-
 
 /* ---------- aba de ativo ---------- */
 
+function StrategyPresets({ state, assetKey, mesaAtiva, mutate }: { state: State; assetKey: AssetKey; mesaAtiva: MesaFuturos; mutate: (fn: (s: State) => void) => void }) {
+  const key = `${mesaAtiva}:${assetKey}`;
+  const slots = state.presets?.[key] ?? {};
+  const [message, setMessage] = useState("");
+  return (
+    <section className="rounded-2xl border border-cyan-700/60 bg-[#07182b] p-4 sm:p-5" aria-label="Presets de estratégia">
+      <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h3 className="font-bold text-cyan-100">Meus presets de estratégia</h3>
+          <p className="mt-1 text-xs text-slate-400">Salve e restaure os parâmetros e dias de {ASSET_NAME[assetKey]} nesta mesa. Presets são particulares desta banca e ficam na nuvem.</p>
+        </div>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {PRESET_LABELS.map((label, index) => {
+          const slot = index as PresetSlot;
+          const stored = slots[slot];
+          const valid = isStrategyPreset(stored);
+          return <div key={label} className="rounded-xl border border-cyan-950 bg-[#061322] p-3">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-semibold text-slate-100">{label}</p>
+              <span className="text-[10px] text-slate-400">{valid ? "Salvo" : "Vazio"}</span>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button type="button" size="sm" variant="outline" onClick={() => {
+                if (valid && !window.confirm(`Substituir o preset “${label}” pelos parâmetros atuais?`)) return;
+                mutate((s) => {
+                  s.presets ??= {};
+                  s.presets[key] ??= {};
+                  s.presets[key][slot] = capturePreset(s.assets[assetKey], slot);
+                });
+                setMessage(`Preset “${label}” atualizado. Aguardando sincronização com a nuvem.`);
+              }}>{valid ? "Atualizar preset" : "Salvar neste preset"}</Button>
+              <Button type="button" size="sm" disabled={!valid} onClick={() => {
+                if (!valid || !window.confirm(`Aplicar “${label}” em ${ASSET_NAME[assetKey]}? O plano atual será substituído; saldos e histórico serão preservados.`)) return;
+                mutate((s) => applyPreset(s, assetKey, stored));
+                setMessage(`Preset “${label}” aplicado. Aguardando sincronização com a nuvem.`);
+              }}>Aplicar</Button>
+            </div>
+          </div>;
+        })}
+      </div>
+      {message && <p role="status" className="mt-3 text-xs text-cyan-300">{message} Confira o status de salvamento no cabeçalho.</p>}
+    </section>
+  );
+}
+
 function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, assetKey, section, mutate, isAdmin }: { state: State; bancasGlobais?: Banca[] | undefined; bancaAtivaId?: string | undefined; contaMesa?: string | undefined; mesaAtiva: MesaFuturos; assetKey: AssetKey; section: Section; mutate: (fn: (s: State) => void) => void; isAdmin: boolean }) {
   // Cotação pública GC-PERP: estado de apresentação, não altera app_data a cada atualização.
   const [cotacaoVest, setCotacaoVest] = useState<{price:number;asOf:number;source:string}|null>(null);
@@ -537,6 +584,7 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
       </section>}
       {section === "parametros" && (
         <div className="space-y-4 lg:space-y-3">
+          <StrategyPresets state={state} assetKey={assetKey} mesaAtiva={mesaAtiva} mutate={mutate} />
           <section className="relative overflow-hidden rounded-2xl border border-cyan-700/50 bg-[radial-gradient(ellipse_at_top_right,rgba(0,190,255,0.13),transparent_45%),linear-gradient(135deg,#0a192b,#050c17_72%)] p-4 shadow-[0_18px_48px_rgba(0,0,0,0.22)] sm:p-6">
             <div className="pointer-events-none absolute -right-10 -top-12 size-44 rounded-full border border-cyan-400/10" />
             <div className="relative flex items-start gap-3">
