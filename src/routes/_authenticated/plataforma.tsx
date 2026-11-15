@@ -1,8 +1,8 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Download, LogOut, Menu, X } from "lucide-react";
+import { Download } from "lucide-react";
 import { getMyAccess, signOut } from "@/lib/session";
 import { registrarAuditoria } from "@/lib/auditoria-registro";
 import { Bancas } from "@/components/platform/Bancas";
@@ -25,22 +25,6 @@ function Plataforma() {
   const [installPrompt, setInstallPrompt] = useState<Event | null>(null);
   const [showInstall, setShowInstall] = useState(false);
   const [installHelp, setInstallHelp] = useState(false);
-  const [openMenu, setOpenMenu] = useState<"main" | "sections" | null>(null);
-  const mobileMenuOpen = openMenu === "main";
-  const setMobileMenuOpen = (open: boolean) => setOpenMenu((current) => open ? "main" : current === "main" ? null : current);
-  const setSectionsMenuOpen = (open: boolean) => setOpenMenu((current) => open ? "sections" : current === "sections" ? null : current);
-  // Fecha o menu lateral ao clicar fora, sem consumir o clique do campo ou botão de destino.
-  useEffect(() => {
-    if (!openMenu) return;
-    const fecharAoClicarFora = (event: PointerEvent) => {
-      const alvo = event.target;
-      if (!(alvo instanceof Element)) return;
-      if (alvo.closest('[data-wow-menu-panel], [data-wow-menu-trigger]')) return;
-      setOpenMenu(null);
-    };
-    document.addEventListener("pointerdown", fecharAoClicarFora, true);
-    return () => document.removeEventListener("pointerdown", fecharAoClicarFora, true);
-  }, [openMenu]);
 
   useEffect(() => {
     const standalone = () => window.matchMedia("(display-mode: standalone)").matches ||
@@ -195,35 +179,9 @@ function Plataforma() {
             </Button>
           )}
         </span>
-        <div className="hidden max-w-full flex-wrap gap-2 lg:flex">
-          {state === "ok" && <Button asChild size="sm" variant="outline" className="shrink-0 rounded-xl border-cyan-800/70 bg-[#07162a] text-blue-100 hover:border-cyan-400 hover:bg-blue-950/70"><Link to="/integracao">▦ Integração</Link></Button>}
-          {state === "ok" && <Button asChild size="sm" variant="outline" className="shrink-0 rounded-xl border-cyan-950 bg-[#07101f] text-blue-100 hover:border-cyan-500 hover:bg-blue-950/70"><Link to="/analise-ia">◉ Análise IA</Link></Button>}
-          {isAdmin === true && <Button asChild size="sm" variant="outline" className="shrink-0 rounded-xl border-cyan-950 bg-[#07101f] text-blue-100 hover:border-cyan-500 hover:bg-blue-950/70"><Link to="/admin">♙ Aprovar cadastros</Link></Button>}
-          {state === "ok" && isAdmin && <Button size="sm" disabled={publishBusy} className="shrink-0 rounded-xl bg-cyan-600 text-white hover:bg-cyan-500" onClick={() => void publishOfficial()}><span className="block min-w-0 whitespace-normal break-words text-center leading-tight">↗ Enviar parâmetros aos usuários</span></Button>}
-          {isAdmin === true && <Button asChild size="sm" variant="outline" className="shrink-0 rounded-xl border-cyan-950 bg-[#07101f] text-blue-100 hover:border-cyan-500 hover:bg-blue-950/70"><Link to="/auditoria">⛨ Auditoria</Link></Button>}
-          <Button size="sm" variant="outline" className="shrink-0 rounded-xl border-red-500/70 bg-red-950/50 font-bold text-red-200 shadow-[0_0_18px_rgba(220,38,38,0.16)] transition-colors hover:border-red-400 hover:bg-red-900/70 hover:text-white focus-visible:ring-red-400" onClick={() => signOut(navigate)}><LogOut className="mr-1.5 size-4 shrink-0" aria-hidden="true" />Sair da plataforma</Button>
-        </div>
+        <span className="hidden text-xs font-medium text-cyan-300/80 lg:block">Win or Win · Painel operacional</span>
         {saveError && <p role="alert" className="absolute inset-x-0 top-full border-b border-rose-800/50 bg-rose-950/40 px-4 py-3 text-sm text-rose-100">{saveError}</p>}
       </header>
-      {mobileMenuOpen && (
-        <nav data-wow-menu-panel aria-label="Menu da plataforma" className="fixed left-14 top-[calc(50%-2px)] z-50 flex w-52 max-w-[calc(100vw-5rem)] flex-col gap-2 rounded-xl border border-cyan-800 bg-[#050d1b] p-3 shadow-2xl lg:hidden" onClick={() => setMobileMenuOpen(false)}>
-
-          {state === "ok" && <Button asChild size="sm" variant="outline" className="w-full justify-start rounded-xl border-cyan-800/70 bg-[#07162a] text-blue-100 hover:border-cyan-400 hover:bg-blue-950/70"><Link to="/integracao">▦ Integração</Link></Button>}
-          {state === "ok" && <Button asChild size="sm" variant="outline" className="w-full justify-start rounded-xl border-cyan-950 bg-[#07101f] text-blue-100 hover:border-cyan-500 hover:bg-blue-950/70"><Link to="/analise-ia">◉ Análise IA</Link></Button>}
-          {isAdmin === true && <Button asChild size="sm" variant="outline" className="w-full justify-start rounded-xl border-cyan-950 bg-[#07101f] text-blue-100 hover:border-cyan-500 hover:bg-blue-950/70"><Link to="/admin">♙ Aprovar cadastros</Link></Button>}
-          {state === "ok" && isAdmin && <Button size="sm" disabled={publishBusy} className="h-auto min-h-9 w-full whitespace-normal rounded-xl bg-cyan-600 px-2 py-2 text-white hover:bg-cyan-500" onClick={() => void publishOfficial()}><span className="block min-w-0 whitespace-normal break-words text-center leading-tight">↗ Enviar parâmetros aos usuários</span></Button>}
-          {isAdmin === true && <Button asChild size="sm" variant="outline" className="w-full justify-start rounded-xl border-cyan-950 bg-[#07101f] text-blue-100 hover:border-cyan-500 hover:bg-blue-950/70"><Link to="/auditoria">⛨ Auditoria</Link></Button>}
-          <Button size="sm" variant="outline" className="w-full justify-start rounded-xl border-red-500/70 bg-red-950/50 font-bold text-red-200 shadow-[0_0_18px_rgba(220,38,38,0.16)] transition-colors hover:border-red-400 hover:bg-red-900/70 hover:text-white focus-visible:ring-red-400" onClick={() => signOut(navigate)}><LogOut className="mr-1.5 size-4 shrink-0" aria-hidden="true" />Sair da plataforma</Button>
-        
-        </nav>
-      )}
-
-      {state === "ok" && (
-        <Button data-wow-menu-trigger type="button" size="sm" variant="outline" aria-label={mobileMenuOpen ? "Fechar menu da plataforma" : "Abrir menu da plataforma"} aria-expanded={mobileMenuOpen} onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="fixed left-1 top-[calc(50%-1px)] z-40 flex size-9 items-center justify-center rounded-xl border-cyan-700 bg-[#07162a] p-0 text-blue-100 shadow-xl sm:size-11 lg:hidden">
-          {mobileMenuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
-        </Button>
-      )}
       {state === "ok" && installHelp && showInstall && (
         <div role="status" className="border-b border-amber-700/40 bg-[#142032] px-4 py-2 text-sm text-amber-100">
           { /iPad|iPhone|iPod/.test(navigator.userAgent)
@@ -247,7 +205,7 @@ function Plataforma() {
           <p className="mt-2 text-muted-foreground">Seu cadastro não foi aprovado. Se achar que houve um engano, fale com o administrador.</p>
         </div>
       )}
-      {state === "ok" && <Bancas load={load} save={save} isAdmin={isAdmin} sectionsMenuOpen={openMenu === "sections"} onSectionsMenuChange={setSectionsMenuOpen} />}
+      {state === "ok" && <Bancas load={load} save={save} isAdmin={isAdmin} onPublishOfficial={() => { if (!publishBusy) void publishOfficial(); }} onSignOut={() => void signOut(navigate)} />}
       {state === "ok" && (
         <a
           href="https://t.me/yansignal"

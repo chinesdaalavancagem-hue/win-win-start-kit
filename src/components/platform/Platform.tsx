@@ -2,10 +2,11 @@ import { SimulacaoFuturos } from "./SimulacaoFuturos";
 import type { Banca } from "@/lib/platform/bancas";
 import { calcularCoberturaSimultanea } from "@/lib/platform/caixa-consolidado";
 import { createPortal } from "react-dom";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type CSSProperties } from "react";
+import { Link } from "@tanstack/react-router";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { Undo2, FileText, Layers, Target, TrendingUp, ShieldCheck, Wallet, ChevronRight, Crosshair, Calculator, Check, ChartNoAxesCombined, Landmark, History, Menu, X, SlidersHorizontal, Gift, CircleDollarSign, ChartPie, Building2 } from "lucide-react";
+import { Undo2, FileText, Layers, Target, TrendingUp, ShieldCheck, Wallet, ChevronRight, Crosshair, Calculator, Check, ChartNoAxesCombined, Landmark, History, Menu, X, SlidersHorizontal, Gift, CircleDollarSign, ChartPie, Building2, LogOut, Sparkles, UserCheck, Send, ScrollText, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { registrarAuditoria } from "@/lib/auditoria-registro";
 import { applyOfficialParams, buildOfficialParams, isOfficialParams } from "@/lib/platform/official-params";
@@ -28,31 +29,16 @@ const TABS: { key: TabKey; label: string; dot: string }[] = [
 const ASSET_NAME: Record<AssetKey, string> = { nasdaq: "NASDAQ", ouro: "GOLD", saque2: "SAQUE 2" };
 const rotuloDia = (asset: Asset, key: AssetKey, indice: number) => { const avaliacao = diasAvaliacaoAtivo(asset, key); return `D${indice < avaliacao ? indice + 1 : indice - avaliacao + 1} ${indice < avaliacao ? "Avaliação" : "Financiada"}`; };
 
-export function Platform({ onOpenCarteira, mesasDisponiveis = MESAS_FUTUROS, leftMenuOpen = false, setLeftMenuOpen = () => {}, load, save, isAdmin, officialAcceptedAt, allBancas, bancasGlobais, bancaAtivaId, contaMesa, podeDesfazerForex = true, mesaAtiva = "tradefive", onMesaChange = () => {} }: { onOpenCarteira?: () => void; mesasDisponiveis?: typeof MESAS_FUTUROS; leftMenuOpen?: boolean; setLeftMenuOpen?: (open: boolean) => void; load: () => Promise<string | null>; save: (v: string, acceptedAt?: string) => Promise<boolean>; isAdmin: boolean; officialAcceptedAt: string | null; allBancas?: Banca[]; bancasGlobais?: Banca[] | undefined; bancaAtivaId?: string | undefined; contaMesa?: string | undefined; podeDesfazerForex?: boolean; mesaAtiva?: MesaFuturos; onMesaChange?: (mesa: MesaFuturos) => void }) {
+export function Platform({ onOpenCarteira, onPublishOfficial, onSignOut, mesasDisponiveis = MESAS_FUTUROS, load, save, isAdmin, officialAcceptedAt, allBancas, bancasGlobais, bancaAtivaId, contaMesa, podeDesfazerForex = true, mesaAtiva = "tradefive", onMesaChange = () => {} }: { onOpenCarteira?: () => void; onPublishOfficial?: () => void; onSignOut?: () => void; mesasDisponiveis?: typeof MESAS_FUTUROS; load: () => Promise<string | null>; save: (v: string, acceptedAt?: string) => Promise<boolean>; isAdmin: boolean; officialAcceptedAt: string | null; allBancas?: Banca[]; bancasGlobais?: Banca[] | undefined; bancaAtivaId?: string | undefined; contaMesa?: string | undefined; podeDesfazerForex?: boolean; mesaAtiva?: MesaFuturos; onMesaChange?: (mesa: MesaFuturos) => void }) {
   const [state, setState] = useState<State | null>(null);
   const [section, setSection] = useState<Section>("operacoes");
-  const [activeTabLabel, setActiveTabLabel] = useState<TabKey | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [desktopCollapsed, setDesktopCollapsed] = useState(false);
   const [mostrarMesas, setMostrarMesas] = useState(false);
-  useEffect(() => {
-    if (!activeTabLabel) return;
-    const timer = window.setTimeout(() => setActiveTabLabel(null), 2000);
-    return () => window.clearTimeout(timer);
-  }, [activeTabLabel]);
   const [sync, setSync] = useState<Sync>({ mode: "busy", text: "carregando…" });
   const [tentativaSalvar, repetirSalvamento] = useState(0);
   const [syncTarget, setSyncTarget] = useState<HTMLElement | null>(null);
   const heroRef = useRef<HTMLElement>(null);
-  const leftMenuRef = useRef<HTMLElement>(null);
-  useEffect(() => {
-    if (!leftMenuOpen) return;
-    const fecharFora = (event: PointerEvent) => {
-      if (event.target instanceof Node && !leftMenuRef.current?.contains(event.target)) setLeftMenuOpen(false);
-    };
-    document.addEventListener("pointerdown", fecharFora, true);
-    return () => document.removeEventListener("pointerdown", fecharFora, true);
-  }, [leftMenuOpen, setLeftMenuOpen]);
-  const rightRailRef = useRef<HTMLElement>(null);
-  const [desktopRailTop, setDesktopRailTop] = useState(120);
   const [headerHeight, setHeaderHeight] = useState(112);
   useEffect(() => {
     const header = document.querySelector("header.sticky");
@@ -64,40 +50,12 @@ export function Platform({ onOpenCarteira, mesasDisponiveis = MESAS_FUTUROS, lef
     return () => observer.disconnect();
   }, []);
 
-  useLayoutEffect(() => {
-    const alignRails = () => {
-      if (!heroRef.current) return;
-      const rect = heroRef.current.getBoundingClientRect();
-      const heroTop = rect.top + 24;
-      // Acompanhar o hero somente dentro da área útil da tela. A faixa lateral
-      // permanece acessível durante a rolagem e ao abrir a gestão de bancas.
-      const minTop = headerHeight + 12;
-      const railHeight = rightRailRef.current?.getBoundingClientRect().height ?? 312;
-      const maxTop = Math.max(minTop, window.innerHeight - railHeight - 80);
-      const mobile = window.innerWidth < 1024;
-      const top = mobile
-        ? Math.max(headerHeight + 12, Math.min(rect.bottom + 12, window.innerHeight - 300))
-        : Math.max(minTop, Math.min(heroTop, maxTop));
-      setDesktopRailTop(Math.round(top));
-    };
-    alignRails();
-    // Abrir/fechar a gestão desloca o hero sem resize/scroll da janela e sem
-    // mudar o tamanho do próprio hero. Observar também seus contêineres.
-    const observer = new ResizeObserver(alignRails);
-    if (rightRailRef.current) observer.observe(rightRailRef.current);
-    let container: HTMLElement | null = heroRef.current;
-    while (container) {
-      observer.observe(container);
-      container = container.parentElement;
-    }
-    window.addEventListener("resize", alignRails);
-    window.addEventListener("scroll", alignRails, { passive: true });
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", alignRails);
-      window.removeEventListener("scroll", alignRails);
-    };
-  }, [state !== null, headerHeight]);
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") setMobileMenuOpen(false); };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [mobileMenuOpen]);
   useEffect(() => { setSyncTarget(document.getElementById("wow-header-sync")); }, []);
   const dirty = useRef(false);
 
@@ -181,7 +139,7 @@ export function Platform({ onOpenCarteira, mesasDisponiveis = MESAS_FUTUROS, lef
 
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-12 py-3 sm:px-14 lg:py-3" style={{ "--rail-max-height": `max(56px, calc(100dvh - ${headerHeight + 92}px))` } as CSSProperties}>
+    <div className={cn("w-full px-3 py-3 transition-[padding] duration-200 sm:px-5 lg:py-3", desktopCollapsed ? "lg:pl-[88px]" : "lg:pl-[264px]")}>
       {syncTarget && createPortal(
         <span role="status" className="inline-flex items-center gap-1.5 whitespace-nowrap text-[11px] text-blue-100/75">
           <span className={cn("size-2 rounded-full", sync.mode === "ok" && "bg-emerald-400", sync.mode === "busy" && "bg-amber-400", sync.mode === "err" && "bg-rose-400")} />
@@ -196,8 +154,8 @@ export function Platform({ onOpenCarteira, mesasDisponiveis = MESAS_FUTUROS, lef
               <TrendingUp className="size-7 text-cyan-300" />
             </div>
             <div>
-              <h1 className="font-heading text-2xl font-extrabold tracking-tight text-slate-50 sm:text-3xl">Win or <span className="text-cyan-400">Win</span> Platform</h1>
-              <p className="mt-2 max-w-lg text-sm leading-relaxed text-blue-100/75 sm:text-base">Digite manualmente os contratos, os lotes do broker CFD e a meta de cada dia.</p>
+              <h1 className="font-heading text-2xl font-extrabold tracking-tight text-slate-50 sm:text-3xl">{tab === "historico" ? "Histórico" : `${sections.find(([k]) => k === section)?.[1] ?? "Operações"} · ${ASSET_NAME[tab]}`}</h1>
+              <p className="mt-2 max-w-lg text-sm leading-relaxed text-blue-100/75 sm:text-base">Win or Win Platform · {tab === "historico" ? "Acompanhe os resultados registrados." : "Planejamento e monitoramento do ciclo."}</p>
             </div>
           </div>
 
@@ -205,32 +163,37 @@ export function Platform({ onOpenCarteira, mesasDisponiveis = MESAS_FUTUROS, lef
       </section>
 
 
-      <aside ref={leftMenuRef} className="pointer-events-none fixed left-1 top-[calc(50%-48px)] z-40 flex lg:left-2" aria-label="Menu de operações" style={{ top: typeof window !== "undefined" && window.innerWidth >= 1024 ? desktopRailTop : undefined }}>
-        <div className="flex items-start gap-3">
-          <button type="button" data-wow-menu-trigger aria-label={leftMenuOpen ? "Recolher menu" : "Expandir menu"} aria-expanded={leftMenuOpen} onClick={() => setLeftMenuOpen(!leftMenuOpen)}
-            className="pointer-events-auto flex size-9 items-center justify-center rounded-xl border border-cyan-700/70 bg-[#061322] sm:size-11 lg:size-12 text-cyan-300 shadow-xl hover:bg-blue-950">
-            {leftMenuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
-          </button>
-          {leftMenuOpen && <nav data-wow-menu-panel className="pointer-events-auto lg:max-h-[var(--rail-max-height)] lg:overflow-y-auto flex w-48 flex-col gap-1 rounded-xl border border-cyan-800/70 bg-[#061322] p-2 shadow-2xl" aria-label="Seções da plataforma">
-            {onOpenCarteira && <button type="button" className="rounded-lg px-3 py-2 text-left text-xs font-semibold text-cyan-200 hover:bg-blue-950" onClick={() => {setLeftMenuOpen(false); onOpenCarteira();}}>Carteira pessoal</button>}
-            {sections.map(([k, l]) => (
-              <button key={k} type="button" aria-pressed={tab !== "historico" && section === k} onClick={() => { setSection(k); if (tab === "historico") { mutate((s) => { s.activeTab = "ouro"; }); setActiveTabLabel("ouro"); } setLeftMenuOpen(false); }}
-                className={cn("rounded-lg px-3 py-2 text-left text-xs font-semibold transition-colors", tab !== "historico" && section === k ? "bg-emerald-500/20 text-emerald-300" : "text-blue-100 hover:bg-blue-950")}>{l}</button>
-            ))}
-          </nav>}
+      <button type="button" className="fixed bottom-4 left-3 z-50 flex size-11 items-center justify-center rounded-xl border border-cyan-500/60 bg-[#061322] text-cyan-200 shadow-xl lg:hidden" aria-label={mobileMenuOpen ? "Fechar menu" : "Abrir menu"} aria-expanded={mobileMenuOpen} onClick={() => setMobileMenuOpen(v => !v)}>{mobileMenuOpen ? <X /> : <Menu />}</button>
+      {mobileMenuOpen && <button type="button" aria-label="Fechar navegação" className="fixed inset-0 z-40 bg-black/65 lg:hidden" onClick={() => setMobileMenuOpen(false)} />}
+      <aside className={cn("fixed bottom-0 left-0 z-40 flex flex-col border-r border-cyan-900/70 bg-[#04101f] shadow-2xl transition-[width,transform] duration-200", "w-[260px] lg:translate-x-0", desktopCollapsed ? "lg:w-[76px]" : "lg:w-[248px]", mobileMenuOpen ? "translate-x-0" : "-translate-x-full")} style={{ top: headerHeight }} aria-label="Navegação principal">
+        <div className="flex items-center justify-between border-b border-cyan-950 px-3 py-3">
+          {!desktopCollapsed && <span className="hidden truncate text-sm font-extrabold text-white lg:block">Win or <span className="text-cyan-400">Win</span> <span className="text-[10px] font-normal text-amber-300">{isAdmin ? "MASTER" : "PLATAFORMA"}</span></span>}
+          <button type="button" className="hidden size-9 items-center justify-center rounded-lg text-cyan-300 hover:bg-cyan-900/40 lg:flex" aria-label={desktopCollapsed ? "Expandir menu lateral" : "Recolher menu lateral"} onClick={() => setDesktopCollapsed(v => !v)}>{desktopCollapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}</button>
+          <button type="button" className="ml-auto text-cyan-200 lg:hidden" aria-label="Fechar menu" onClick={() => setMobileMenuOpen(false)}><X size={20} /></button>
         </div>
+        <nav className="min-h-0 flex-1 space-y-4 overflow-y-auto px-2 py-3" aria-label="Menu unificado">
+          <div><p className={cn("mb-2 px-2 text-[10px] font-bold tracking-[.18em] text-slate-500", desktopCollapsed && "lg:sr-only")}>MERCADOS</p>
+            {TABS.map(t => {
+              const Icon = t.key === "nasdaq" ? ChartNoAxesCombined : t.key === "ouro" ? Target : t.key === "saque2" ? Landmark : History;
+              return <button key={t.key} type="button" title={t.label} aria-pressed={tab === t.key} onClick={() => { mutate(s => { s.activeTab = t.key; }); setMobileMenuOpen(false); }} className={cn("mb-1 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-colors", tab === t.key ? "border border-cyan-500/50 bg-cyan-700/20 font-semibold text-cyan-200" : "text-slate-300 hover:bg-blue-950")}><Icon className="size-[18px] shrink-0" /><span className={cn(desktopCollapsed && "lg:sr-only")}>{t.label}</span></button>;
+            })}
+          </div>
+          <div><p className={cn("mb-2 px-2 text-[10px] font-bold tracking-[.18em] text-slate-500", desktopCollapsed && "lg:sr-only")}>GESTÃO</p>
+            {sections.map(([k, label]) => {
+              const icons: Record<Section, typeof Target> = { operacoes: Crosshair, parametros: SlidersHorizontal, bonus: Gift, aporte: Layers, caixa: Wallet, meta: Target, simulacao: Calculator };
+              const Icon = icons[k];
+              return <button key={k} type="button" title={label} aria-pressed={tab !== "historico" && section === k} onClick={() => { setSection(k); if (tab === "historico") mutate(s => { s.activeTab = "ouro"; }); setMobileMenuOpen(false); }} className={cn("mb-1 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-colors", tab !== "historico" && section === k ? "border border-cyan-500/50 bg-cyan-700/20 font-semibold text-cyan-200" : "text-slate-300 hover:bg-blue-950")}><Icon className="size-[18px] shrink-0" /><span className={cn(desktopCollapsed && "lg:sr-only")}>{label}</span></button>;
+            })}
+            <button type="button" title="Escolher mesa" aria-expanded={mostrarMesas} onClick={() => { setMostrarMesas(true); setMobileMenuOpen(false); }} className="mb-1 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-amber-200 hover:bg-amber-950/30"><Building2 className="size-[18px] shrink-0" /><span className={cn(desktopCollapsed && "lg:sr-only")}>Escolher mesa</span></button>
+            {onOpenCarteira && <button type="button" title="Carteira pessoal" onClick={() => { onOpenCarteira(); setMobileMenuOpen(false); }} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-slate-300 hover:bg-blue-950"><Wallet className="size-[18px] shrink-0" /><span className={cn(desktopCollapsed && "lg:sr-only")}>Carteira pessoal</span></button>}
+          </div>
+          <div><p className={cn("mb-2 px-2 text-[10px] font-bold tracking-[.18em] text-slate-500", desktopCollapsed && "lg:sr-only")}>ADMINISTRAÇÃO</p>
+            {([{to:"/integracao",label:"Integração",icon:Layers},{to:"/analise-ia",label:"Análise de IA",icon:Sparkles},...(isAdmin ? [{to:"/admin",label:"Aprovar cadastros",icon:UserCheck},{to:"/auditoria",label:"Auditoria",icon:ScrollText}] : [])] as const).map(({to,label,icon:Icon}) => <Link key={to} to={to as "/integracao" | "/analise-ia" | "/admin" | "/auditoria"} title={label} onClick={() => setMobileMenuOpen(false)} className="mb-1 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-slate-300 hover:bg-blue-950"><Icon className="size-[18px] shrink-0" /><span className={cn(desktopCollapsed && "lg:sr-only")}>{label}</span></Link>)}
+            {isAdmin && onPublishOfficial && <button type="button" title="Enviar parâmetros" onClick={() => { onPublishOfficial(); setMobileMenuOpen(false); }} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-cyan-200 hover:bg-cyan-950/50"><Send className="size-[18px] shrink-0" /><span className={cn(desktopCollapsed && "lg:sr-only")}>Enviar parâmetros</span></button>}
+          </div>
+        </nav>
+        {onSignOut && <button type="button" title="Sair da plataforma" onClick={onSignOut} className="m-2 flex items-center gap-3 rounded-lg border-t border-cyan-950 px-3 py-3 text-left text-sm text-rose-300 hover:bg-rose-950/30"><LogOut className="size-[18px] shrink-0" /><span className={cn(desktopCollapsed && "lg:sr-only")}>Sair da plataforma</span></button>}
       </aside>
-
-      <nav ref={rightRailRef} className="lg:max-h-[var(--rail-max-height)] lg:overflow-y-auto fixed right-1 top-[calc(65%-54px)] z-30 flex -translate-y-1/2 flex-col gap-2 lg:right-2 lg:top-auto lg:translate-y-0" aria-label="Ativos e histórico" style={{ top: typeof window !== "undefined" && window.innerWidth >= 1024 ? desktopRailTop : undefined }}>
-        <button type="button" title="Escolher mesa de futuros" aria-label="Escolher mesa de futuros" aria-expanded={mostrarMesas} onClick={() => setMostrarMesas((v) => !v)} className={cn("relative flex size-9 items-center justify-center rounded-xl border border-cyan-700/70 bg-[#061322] shadow-xl transition-colors lg:size-14", mostrarMesas ? "border-amber-400/70 bg-amber-950/60 text-amber-200" : "border-transparent text-amber-300 hover:bg-amber-950/50")}><Building2 className="size-4 lg:size-5" /></button>
-        {TABS.map((t) => (
-          <button key={t.key} type="button" title={t.label} aria-label={t.label} aria-pressed={tab === t.key} onClick={() => {  setActiveTabLabel(null); mutate((s) => { s.activeTab = t.key; }); setActiveTabLabel(t.key); }}
-            className={cn("relative flex size-9 items-center justify-center rounded-xl border border-cyan-700/70 bg-[#061322] shadow-xl transition-colors lg:size-14", tab === t.key ? "border-cyan-400/70 bg-blue-950 text-white" : "border-transparent text-slate-400 hover:bg-blue-950/60")}>
-            {activeTabLabel === t.key && <span aria-hidden="true" className="pointer-events-none absolute right-full mr-2 whitespace-nowrap rounded-lg border border-cyan-800/80 bg-[#061322] px-3 py-1.5 text-xs font-semibold text-cyan-100 shadow-xl">{t.label}</span>}
-            {t.key === "ouro" ? <svg aria-hidden="true" viewBox="0 0 32 28" className="size-4 lg:size-5 shrink-0" fill="none"><path d="M2 17 8 8h12l6 9-6 9H8L2 17Z" fill="#E9A900" stroke="#FFDF69" strokeWidth="1.2"/><path d="m8 8 6 9-6 9-6-9Z" fill="#FFE075"/><path d="m14 17 6-9 6 9-6 9Z" fill="#FFC533"/></svg> : t.key === "nasdaq" ? <ChartNoAxesCombined className="size-4 lg:size-5 text-sky-400" /> : t.key === "saque2" ? <Landmark className="size-4 lg:size-5 text-violet-400" /> : <History className="size-4 lg:size-5 text-slate-300" />}
-          </button>
-        ))}
-      </nav>
       {mostrarMesas && (
         <aside className="fixed left-1/2 top-1/2 z-50 w-[min(20rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-amber-500/40 bg-[#091525] p-4 shadow-2xl lg:right-20" aria-label="Escolher mesa de futuros">
           <div className="mb-3 flex items-center justify-between gap-2"><h3 className="font-bold text-amber-200">Mesa de futuros · Gold</h3><button type="button" aria-label="Fechar seleção de mesa" className="text-slate-300 hover:text-white" onClick={() => setMostrarMesas(false)}>✕</button></div>
@@ -257,7 +220,7 @@ export function Platform({ onOpenCarteira, mesasDisponiveis = MESAS_FUTUROS, lef
           <p className="mt-2 text-[11px] text-amber-200/80">Cada mesa mantém seus próprios lotes, metas e cards nesta banca. O percentual acima é projeção das metas, não valida ganhos efetivos nem outras regras da firma.</p>
         </aside>
       )}
-      <div className="sticky z-20 mb-3 rounded-xl border border-cyan-950/80 bg-[#06101f]/95 p-2 shadow-lg backdrop-blur-md sm:p-3" style={{ top: headerHeight + 8 }}>
+      {section === "operacoes" && tab !== "historico" && <div className="sticky z-20 mb-3 rounded-xl border border-cyan-950/80 bg-[#06101f]/95 p-2 shadow-lg backdrop-blur-md sm:p-3" style={{ top: headerHeight + 8 }}>
         <div className="mb-3 flex flex-wrap items-center gap-2 text-base font-semibold text-blue-100">
           <span className="size-2.5 rounded-full bg-amber-400 shadow-[0_0_10px_rgba(255,190,40,0.4)]" />
           <span>{lastOperation ? `${ASSET_NAME[lastOperation.asset]} · ${rotuloDia(state.assets[lastOperation.asset], lastOperation.asset, Math.max(0, lastOperation.day - 1))} · ${tipoLabel(lastOperation.tipo, lastOperation.asset)}` : "Nenhuma operação registrada"}</span>
@@ -270,7 +233,7 @@ export function Platform({ onOpenCarteira, mesasDisponiveis = MESAS_FUTUROS, lef
         })}>
           <Undo2 aria-hidden="true" /> Desfazer última operação
         </Button>
-      </div>
+      </div>}
 
       {section === "simulacao" && tab !== "historico" ? <SimulacaoFuturos /> : tab === "historico" ? <Historico state={state} mutate={mutate} bancas={allBancas} bancasGlobais={bancasGlobais} mesaAtiva={mesaAtiva} bancaAtivaId={bancaAtivaId} podeDesfazerForex={podeDesfazerForex} /> : (
         <AssetView key={tab} state={state} bancasGlobais={bancasGlobais} bancaAtivaId={bancaAtivaId} contaMesa={contaMesa} mesaAtiva={mesaAtiva} assetKey={tab} section={section} mutate={mutate} isAdmin={isAdmin} />
