@@ -24,6 +24,7 @@ import { Route as ApiAssistenteRouteImport } from './routes/api/assistente'
 import { Route as ApiAuditoriaRouteImport } from './routes/api/auditoria'
 import { Route as ApiBackupTelegramTesteRouteImport } from './routes/api/backup-telegram-teste'
 import { Route as ApiTelegramTesteRouteImport } from './routes/api/telegram-teste'
+import { Route as ApiCotacoesVestGcRouteImport } from './routes/api/cotacoes/vest-gc'
 import { Route as ApiPlataformaDadosRouteImport } from './routes/api/plataforma/dados'
 import { Route as ApiPlataformaParametrosOficiaisRouteImport } from './routes/api/plataforma/parametros-oficiais'
 import { Route as ApiPublicNotificacoesHedgeRouteImport } from './routes/api/public/notificacoes-hedge'
@@ -108,6 +109,11 @@ const ApiTelegramTesteRoute = ApiTelegramTesteRouteImport.update({
   path: '/api/telegram-teste',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCotacoesVestGcRoute = ApiCotacoesVestGcRouteImport.update({
+  id: '/api/cotacoes/vest-gc',
+  path: '/api/cotacoes/vest-gc',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPlataformaDadosRoute = ApiPlataformaDadosRouteImport.update({
   id: '/api/plataforma/dados',
   path: '/api/plataforma/dados',
@@ -174,6 +180,7 @@ export interface FileRoutesByFullPath {
   '/api/auditoria': typeof ApiAuditoriaRoute
   '/api/backup-telegram-teste': typeof ApiBackupTelegramTesteRoute
   '/api/telegram-teste': typeof ApiTelegramTesteRoute
+  '/api/cotacoes/vest-gc': typeof ApiCotacoesVestGcRoute
   '/api/plataforma/dados': typeof ApiPlataformaDadosRoute
   '/api/plataforma/parametros-oficiais': typeof ApiPlataformaParametrosOficiaisRoute
   '/api/public/notificacoes-hedge': typeof ApiPublicNotificacoesHedgeRoute
@@ -199,6 +206,7 @@ export interface FileRoutesByTo {
   '/api/auditoria': typeof ApiAuditoriaRoute
   '/api/backup-telegram-teste': typeof ApiBackupTelegramTesteRoute
   '/api/telegram-teste': typeof ApiTelegramTesteRoute
+  '/api/cotacoes/vest-gc': typeof ApiCotacoesVestGcRoute
   '/api/plataforma/dados': typeof ApiPlataformaDadosRoute
   '/api/plataforma/parametros-oficiais': typeof ApiPlataformaParametrosOficiaisRoute
   '/api/public/notificacoes-hedge': typeof ApiPublicNotificacoesHedgeRoute
@@ -226,6 +234,7 @@ export interface FileRoutesById {
   '/api/auditoria': typeof ApiAuditoriaRoute
   '/api/backup-telegram-teste': typeof ApiBackupTelegramTesteRoute
   '/api/telegram-teste': typeof ApiTelegramTesteRoute
+  '/api/cotacoes/vest-gc': typeof ApiCotacoesVestGcRoute
   '/api/plataforma/dados': typeof ApiPlataformaDadosRoute
   '/api/plataforma/parametros-oficiais': typeof ApiPlataformaParametrosOficiaisRoute
   '/api/public/notificacoes-hedge': typeof ApiPublicNotificacoesHedgeRoute
@@ -253,6 +262,7 @@ export interface FileRouteTypes {
     | '/api/auditoria'
     | '/api/backup-telegram-teste'
     | '/api/telegram-teste'
+    | '/api/cotacoes/vest-gc'
     | '/api/plataforma/dados'
     | '/api/plataforma/parametros-oficiais'
     | '/api/public/notificacoes-hedge'
@@ -278,6 +288,7 @@ export interface FileRouteTypes {
     | '/api/auditoria'
     | '/api/backup-telegram-teste'
     | '/api/telegram-teste'
+    | '/api/cotacoes/vest-gc'
     | '/api/plataforma/dados'
     | '/api/plataforma/parametros-oficiais'
     | '/api/public/notificacoes-hedge'
@@ -304,6 +315,7 @@ export interface FileRouteTypes {
     | '/api/auditoria'
     | '/api/backup-telegram-teste'
     | '/api/telegram-teste'
+    | '/api/cotacoes/vest-gc'
     | '/api/plataforma/dados'
     | '/api/plataforma/parametros-oficiais'
     | '/api/public/notificacoes-hedge'
@@ -326,6 +338,7 @@ export interface RootRouteChildren {
   ApiAuditoriaRoute: typeof ApiAuditoriaRoute
   ApiBackupTelegramTesteRoute: typeof ApiBackupTelegramTesteRoute
   ApiTelegramTesteRoute: typeof ApiTelegramTesteRoute
+  ApiCotacoesVestGcRoute: typeof ApiCotacoesVestGcRoute
   ApiPlataformaDadosRoute: typeof ApiPlataformaDadosRoute
   ApiPlataformaParametrosOficiaisRoute: typeof ApiPlataformaParametrosOficiaisRoute
   ApiPublicNotificacoesHedgeRoute: typeof ApiPublicNotificacoesHedgeRoute
@@ -444,6 +457,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiTelegramTesteRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/cotacoes/vest-gc': {
+      id: '/api/cotacoes/vest-gc'
+      path: '/api/cotacoes/vest-gc'
+      fullPath: '/api/cotacoes/vest-gc'
+      preLoaderRoute: typeof ApiCotacoesVestGcRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/plataforma/dados': {
       id: '/api/plataforma/dados'
       path: '/api/plataforma/dados'
@@ -540,6 +560,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAuditoriaRoute: ApiAuditoriaRoute,
   ApiBackupTelegramTesteRoute: ApiBackupTelegramTesteRoute,
   ApiTelegramTesteRoute: ApiTelegramTesteRoute,
+  ApiCotacoesVestGcRoute: ApiCotacoesVestGcRoute,
   ApiPlataformaDadosRoute: ApiPlataformaDadosRoute,
   ApiPlataformaParametrosOficiaisRoute: ApiPlataformaParametrosOficiaisRoute,
   ApiPublicNotificacoesHedgeRoute: ApiPublicNotificacoesHedgeRoute,
