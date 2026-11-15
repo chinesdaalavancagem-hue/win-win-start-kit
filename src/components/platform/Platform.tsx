@@ -1,4 +1,5 @@
 import { SimulacaoFuturos } from "./SimulacaoFuturos";
+import { SimuladorCenarios } from "./SimuladorCenarios";
 import type { Banca } from "@/lib/platform/bancas";
 import { calcularCoberturaSimultanea } from "@/lib/platform/caixa-consolidado";
 import { createPortal } from "react-dom";
@@ -15,7 +16,7 @@ import {
   historicoTotals, isValidState, normalizeState, sincronizarParametros, definirAlavancagem, parseNum, parseValorFinanceiro, parseResultadoCfd, podeDesfazerUltimaOperacao, projetarZeragemBonus, reiniciarCicloBonus, resetBonus, tipoLabel, undoLast,
 } from "@/lib/platform/engine";
 
-type Section = "operacoes" | "parametros" | "bonus" | "aporte" | "caixa" | "meta" | "simulacao";
+type Section = "operacoes" | "parametros" | "bonus" | "aporte" | "caixa" | "meta" | "simulacao" | "laboratorio";
 type Sync = { mode: "ok" | "busy" | "err"; text: string };
 
 const TABS: { key: TabKey; label: string; dot: string }[] = [
@@ -175,6 +176,7 @@ export function Platform({ onOpenCarteira, mesasDisponiveis = MESAS_FUTUROS, lef
     ["caixa", "Caixa do ciclo"],
     ["meta", "Meta geral"],
     ["simulacao", "Simulação"],
+    ["laboratorio", "Laboratório de cenários"],
   ];
 
 
@@ -678,6 +680,7 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
         </section>
       )}
 
+      {section === "laboratorio" && <SimuladorCenarios state={stateCotado} assetKey={assetKey} />}
       {section === "aporte" && <AportePanel asset={asset} assetKey={assetKey} calcs={calcs} pct={bonusPct} setPct={setBonusPct} />}
       {section === "caixa" && <CaixaPanel asset={asset} state={state} bancasGlobais={bancasGlobais} bancaAtivaId={bancaAtivaId} assetKey={assetKey} bonusPct={bonusPct} setBonusPct={setBonusPct} /> }
       {section === "bonus" && <BonusPanel state={state} assetKey={assetKey} reserva={reservaComFolga} folga={folga} mutate={mutate} />}
