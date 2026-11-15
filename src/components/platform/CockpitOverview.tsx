@@ -1,5 +1,6 @@
-import { CalendarDays, ChartNoAxesCombined, Check, CircleDollarSign, Clock3, Coins, Layers, ShieldCheck, Target, TrendingUp, Wallet, X } from "lucide-react";
-import { fmt, metaLiquidaDia, type Asset, type AssetKey, type DayCalc, type MesaFuturos } from "@/lib/platform/engine";
+import { useEffect, useState } from "react";
+import { CalendarDays, ChartNoAxesCombined, Check, ChevronLeft, ChevronRight, CircleDollarSign, Clock3, Coins, Layers, ShieldCheck, Target, TrendingUp, Wallet, X } from "lucide-react";
+import { fmt, metaLiquidaDia, type Asset, type AssetKey, type Day, type DayCalc, type MesaFuturos } from "@/lib/platform/engine";
 
 type DayOverview = {
   i: number;
@@ -9,7 +10,7 @@ type DayOverview = {
   caixaDia?: { deposito: number } | undefined;
 };
 
-export function CockpitOverview({ asset, assetKey, mesa, avaliacaoDias, currentIndex, current, days, onSettle }: {
+export function CockpitOverview({ asset, assetKey, mesa, avaliacaoDias, currentIndex, current, days, onSettle, onApply, canEdit }: {
   asset: Asset;
   assetKey: AssetKey;
   mesa: MesaFuturos;
@@ -18,7 +19,25 @@ export function CockpitOverview({ asset, assetKey, mesa, avaliacaoDias, currentI
   current: DayOverview;
   days: DayOverview[];
   onSettle: (mode: "profit" | "stop") => void;
+  onApply: (indice: number, plano: Day, repetirFinanciada: boolean) => void;
+  canEdit: boolean;
 }) {
+  const [selectedIndex, setSelectedIndex] = useState(currentIndex);
+  const [draft, setDraft] = useState<Day>(() => ({ ...current.d }));
+  const [repeat, setRepeat] = useState(false);
+  const [message, setMessage] = useState("");
+  const selected = days[selectedIndex] ?? current;
+  const selectedDay = selected.d;
+  useEffect(() => { setSelectedIndex(currentIndex); }, [currentIndex, assetKey]);
+  useEffect(() => { setDraft({ ...selectedDay }); setRepeat(false); setMessage(""); }, [selectedIndex, assetKey, selectedDay.mnq, selectedDay.lotes, selectedDay.meta, selectedDay.mll, selectedDay.stopPlanejadoTopstep, selectedDay.vestExposicaoUsd]);
+  const mudar = (key: keyof Day, raw: string) => {
+    const value = Number(raw.replace(",", "."));
+    if (raw.trim() === "" || !Number.isFinite(value) || value < 0) return;
+    setDraft(prev => ({ ...prev, [key]: value }));
+    setMessage("");
+  };
+  const financiadaD2 = assetKey !== "saque2" && selectedIndex === avaliacaoDias + 1;
+  const editable = canEdit && selectedIndex >= currentIndex;
   const { d, c } = current;
   const dayNumber = currentIndex < avaliacaoDias ? currentIndex + 1 : currentIndex - avaliacaoDias + 1;
   const fase = currentIndex < avaliacaoDias ? "AVALIAÇÃO" : "FINANCIADA";
@@ -39,6 +58,22 @@ export function CockpitOverview({ asset, assetKey, mesa, avaliacaoDias, currentI
 
   return (
     <div className="mb-5 space-y-4" aria-label="Cockpit de operações">
+      <section className="rounded-xl border border-cyan-500/60 bg-[linear-gradient(135deg,#0b243d,#061321)] p-3 sm:p-4" aria-label="Card matriz de parâmetros">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300">Card matriz · planejamento</p><h2 className="text-base font-bold text-white">D{selectedIndex < avaliacaoDias ? selectedIndex + 1 : selectedIndex - avaliacaoDias + 1} {assetKey === "saque2" || selectedIndex >= avaliacaoDias ? "Financiada" : "Avaliação"}</h2><p className="text-[11px] text-slate-400">{selectedIndex === currentIndex ? "Dia operacional atual" : selectedIndex < currentIndex ? "Dia já concluído · somente leitura" : "Dia futuro · simulação de parâmetros"}</p></div>
+          <div className="flex items-center gap-2"><button type="button" aria-label="Dia anterior" disabled={selectedIndex <= 0} onClick={() => setSelectedIndex(i => Math.max(0, i - 1))} className="rounded-lg border border-cyan-700 p-2 text-cyan-200 disabled:opacity-30"><ChevronLeft className="size-5" /></button><span className="font-mono text-xs text-slate-300">{selectedIndex + 1} / {days.length}</span><button type="button" aria-label="Próximo dia" disabled={selectedIndex >= days.length - 1} onClick={() => setSelectedIndex(i => Math.min(days.length - 1, i + 1))} className="rounded-lg border border-cyan-700 p-2 text-cyan-200 disabled:opacity-30"><ChevronRight className="size-5" /></button></div>
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {([{ key: "mnq", label: mesa === "vest" ? "Unidades" : "Contratos" }, { key: "lotes", label: "Lotes CFD" }, { key: "meta", label: "Meta bruta ($)" }, { key: mesa === "topstep" ? "stopPlanejadoTopstep" : "mll", label: "Loss limit ($)" }] as { key: keyof Day; label: string }[]).map(({key,label}) => <label key={key} className="min-w-0 rounded-lg border border-[#214766] bg-[#091a2d] p-2"><span className="block text-[11px] font-semibold text-slate-300">{label}</span><input aria-label={label} type="number" min="0" step="any" disabled={!editable} value={draft[key] ?? (key === "mll" || key === "stopPlanejadoTopstep" ? selected.c.limiteDoCard ?? asset.params.mll : 0)} onChange={e => mudar(key, e.target.value)} className="mt-1 w-full min-w-0 rounded-md border border-[#244a68] bg-[#071321] px-2 py-1.5 font-mono text-base font-bold text-cyan-200 outline-none focus:border-cyan-400 disabled:opacity-50" /></label>)}
+        </div>
+        {mesa === "vest" && <label className="mt-2 block text-xs text-slate-300">Exposição Vest (US$)<input type="number" min="0" step="any" disabled={!editable} value={draft.vestExposicaoUsd ?? 0} onChange={e => mudar("vestExposicaoUsd", e.target.value)} className="mt-1 w-full rounded-lg border border-[#244a68] bg-[#071321] px-3 py-2 text-white" /></label>}
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          {financiadaD2 && editable && <label className="flex items-center gap-2 text-xs font-semibold text-amber-200"><input type="checkbox" checked={repeat} onChange={e => setRepeat(e.target.checked)} className="size-4 accent-cyan-400" />Aplicar também a todos os dias financiados seguintes</label>}
+          <button type="button" disabled={!editable} onClick={() => { onApply(selectedIndex, draft, repeat && financiadaD2); setMessage(repeat && financiadaD2 ? "Parâmetros enviados ao D2 e aos dias financiados seguintes." : "Parâmetros enviados ao card selecionado."); }} className="ml-auto rounded-lg bg-cyan-400 px-5 py-2 text-sm font-bold text-[#062031] hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-40">OK · Aplicar parâmetros</button>
+        </div>
+        {message && <p role="status" className="mt-2 text-xs text-emerald-300">{message}</p>}
+        <p className="mt-2 text-[11px] text-slate-400">A seta navega pelo planejamento; não avança o ciclo nem registra aprovação ou reprovação. Os cards reais abaixo são atualizados somente ao clicar em OK.</p>
+      </section>
       <div className="grid gap-3 sm:grid-cols-3">
         {[
           { label: "Meta do dia", value: amount(d.meta), icon: Target, color: "text-cyan-300" },

@@ -13,7 +13,7 @@ import { registrarAuditoria } from "@/lib/auditoria-registro";
 import { applyOfficialParams, buildOfficialParams, isOfficialParams } from "@/lib/platform/official-params";
 import { applyPreset, capturePreset, isStrategyPreset, PRESET_LABELS, type PresetSlot } from "@/lib/platform/presets";
 import {
-  type AssetKey, type State, type TabKey, type Asset, type MesaFuturos, MESAS_FUTUROS, nomeMesa, diasAvaliacaoAtivo, diasAvaliacaoGold, limitesTradeify, limitesTopstep, limitesVest, adicionarDiaGold, removerDiaGold,
+  type AssetKey, type State, type TabKey, type Asset, type MesaFuturos, MESAS_FUTUROS, nomeMesa, diasAvaliacaoAtivo, diasAvaliacaoGold, limitesTradeify, limitesTopstep, limitesVest, adicionarDiaGold, removerDiaGold, aplicarParametrosDia,
   alavancagemVest, maxAlavancagemVest, margemVest, definirParametroVest, percentualSplit, definirSplit, percentualBonus, podeReverterDeposito, reverterDeposito, taxasMesaDia, metaLiquidaDia, projetarPrimeiroPayout, simularSaque2, aplicarDeposito, aplicarSaque, projetarAportesFuturos, conciliarCreditoForex, calcAporteFracionado, calcCaixaCiclo, clampDayIndex, computeAssetCalcs, defaultState, fmt, fmtSigned, handleProfit, handleStop,
   historicoTotals, isValidState, normalizeState, sincronizarParametros, definirAlavancagem, parseNum, parseValorFinanceiro, parseResultadoCfd, podeDesfazerUltimaOperacao, projetarZeragemBonus, reiniciarCicloBonus, resetBonus, tipoLabel, undoLast,
 } from "@/lib/platform/engine";
@@ -703,6 +703,11 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
           {rows[curIdx] && <CockpitOverview
             asset={asset} assetKey={assetKey} mesa={mesaAtiva} avaliacaoDias={avaliacaoDias}
             currentIndex={curIdx} current={rows[curIdx]!} days={rows}
+            canEdit={isAdmin}
+            onApply={(indice, plano, repetirFinanciada) => mutate(s => {
+              const a = s.assets[assetKey];
+              aplicarParametrosDia(a, indice, plano, repetirFinanciada, diasAvaliacaoAtivo(a, assetKey));
+            })}
             onSettle={(mode) => {
               const button = document.querySelector<HTMLButtonElement>(`[data-wow-card="active"] [data-wow-settle-${mode}]`);
               button?.scrollIntoView({ behavior: "smooth", block: "center" });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeAssetCalcs, defaultState, MESAS_FUTUROS, selecionarMesaGold, diasAvaliacaoGold, diasAvaliacaoAtivo, removerDiaGold, adicionarDiaGold, limitesTopstep, lossLimitGoldEfetivo } from "../lib/platform/engine";
+import { computeAssetCalcs, defaultState, MESAS_FUTUROS, selecionarMesaGold, diasAvaliacaoGold, diasAvaliacaoAtivo, removerDiaGold, adicionarDiaGold, aplicarParametrosDia, limitesTopstep, lossLimitGoldEfetivo } from "../lib/platform/engine";
 
 describe("perfis Gold por mesa de futuros", () => {
   it("editar o stop do card recalcula ticks, bruto e líquido do red independentemente da meta", () => {
@@ -107,5 +107,21 @@ describe("perfis Gold por mesa de futuros", () => {
     adicionarDiaGold(nasdaq, "financiada");
     expect(nasdaq.days).toHaveLength(8);
     expect(diasAvaliacaoAtivo(nasdaq, "nasdaq")).toBe(2);
+  });
+  it("repete somente os parâmetros do D2 financiado nos dias seguintes sem alterar resultados", () => {
+    const asset = defaultState().assets.nasdaq;
+    selecionarMesaGold(asset, "lucid");
+    asset.attempt.currentDayIndex = 3; // D2 financiado, após 2 dias de avaliação
+    asset.attempt.resultadosMesaEod = { "0": 1200, "1": 900, "2": 125 };
+    const historico = structuredClone(asset.attempt.resultadosMesaEod);
+    const avaliacao = structuredClone(asset.days.slice(0, 2));
+    const primeiroFinanciado = structuredClone(asset.days[2]);
+    const plano = { mnq: 1, lotes: 0.03, meta: 150, mll: 2000 };
+    expect(aplicarParametrosDia(asset, 3, plano, true, 2)).toBe(4);
+    expect(asset.days.slice(3)).toEqual(Array.from({ length: 4 }, () => plano));
+    expect(asset.days.slice(0, 2)).toEqual(avaliacao);
+    expect(asset.days[2]).toEqual(primeiroFinanciado);
+    expect(asset.attempt.resultadosMesaEod).toEqual(historico);
+    expect(aplicarParametrosDia(asset, 2, plano, true, 2)).toBe(0); // dia concluído
   });
 });

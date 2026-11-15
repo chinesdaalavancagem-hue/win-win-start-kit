@@ -204,6 +204,26 @@ export function adicionarDiaGold(asset: Asset, fase: "avaliacao" | "financiada")
   if (posicao <= asset.attempt.currentDayIndex && asset.days.length > 1) asset.attempt.currentDayIndex++;
 }
 
+/** Atualiza apenas o plano operacional. Não altera resultados realizados, caixa ou histórico. */
+export function aplicarParametrosDia(asset: Asset, indice: number, plano: Day, repetirFinanciada = false, avaliacaoDias = 0): number {
+  if (indice < asset.attempt.currentDayIndex || indice >= asset.days.length || indice < 0) return 0;
+  const valido = (valor: number) => Number.isFinite(valor) && valor >= 0;
+  if (![plano.mnq, plano.lotes, plano.meta].every(valido)) return 0;
+  const copiar = (destino: Day) => {
+    destino.mnq = plano.mnq;
+    destino.lotes = plano.lotes;
+    destino.meta = plano.meta;
+    for (const campo of ["mll", "stopPlanejadoTopstep", "vestExposicaoUsd"] as const) {
+      const valor = plano[campo];
+      if (valor !== undefined && valido(valor)) destino[campo] = valor;
+      else delete destino[campo];
+    }
+  };
+  const limite = repetirFinanciada && indice === avaliacaoDias + 1 ? asset.days.length : indice + 1;
+  for (let i = indice; i < limite; i++) copiar(asset.days[i]!);
+  return limite - indice;
+}
+
 /** Preserva a programação de cada mesa, inclusive valores editados pelo usuário. */
 export function selecionarMesaGold(asset: Asset, mesa: MesaFuturos): void {
   if (!MESAS_FUTUROS[mesa]) return;
