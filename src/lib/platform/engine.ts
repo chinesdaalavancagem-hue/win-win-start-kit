@@ -135,6 +135,8 @@ export interface LogEntry {
 }
 export interface State {
   presets?: import("@/lib/platform/presets").PresetStore;
+  /** Último dia aberto no Card Matriz por ativo, independente do dia operacional real. */
+  matrizDiaSelecionado?: Partial<Record<AssetKey, number>>;
   corretora?: { stopoutPct: number; bonusPct: number } | undefined;
   revisoesHistorico?: { ts: number; anteriores: LogEntry[] }[];
   activeTab: TabKey; assets: Record<AssetKey, Asset>; log: LogEntry[]; cfdBalance: number; totalGasto: number;

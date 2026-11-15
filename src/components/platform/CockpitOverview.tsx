@@ -10,7 +10,7 @@ type DayOverview = {
   caixaDia?: { deposito: number } | undefined;
 };
 
-export function CockpitOverview({ asset, assetKey, mesa, avaliacaoDias, currentIndex, current, days, onSettle, onApply, canEdit }: {
+export function CockpitOverview({ asset, assetKey, mesa, avaliacaoDias, currentIndex, current, days, selectedIndex, onSelectDay, onSettle, onApply, canEdit }: {
   asset: Asset;
   assetKey: AssetKey;
   mesa: MesaFuturos;
@@ -18,18 +18,19 @@ export function CockpitOverview({ asset, assetKey, mesa, avaliacaoDias, currentI
   currentIndex: number;
   current: DayOverview;
   days: DayOverview[];
+  selectedIndex: number;
+  onSelectDay: (indice: number) => void;
   onSettle: (mode: "profit" | "stop") => void;
   onApply: (indice: number, plano: Day, repetirFinanciada: boolean) => void;
   canEdit: boolean;
 }) {
-  const [selectedIndex, setSelectedIndex] = useState(currentIndex);
   const [draft, setDraft] = useState<Day>(() => ({ ...current.d }));
   const [repeat, setRepeat] = useState(false);
   const [message, setMessage] = useState("");
   const selected = days[selectedIndex] ?? current;
   const selectedDay = selected.d;
-  useEffect(() => { setSelectedIndex(currentIndex); }, [currentIndex, assetKey]);
-  useEffect(() => { setDraft({ ...selectedDay }); setRepeat(false); setMessage(""); }, [selectedIndex, assetKey, selectedDay.mnq, selectedDay.lotes, selectedDay.meta, selectedDay.mll, selectedDay.stopPlanejadoTopstep, selectedDay.vestExposicaoUsd]);
+  useEffect(() => { setDraft({ ...selectedDay }); setRepeat(false); }, [selectedIndex, assetKey, selectedDay.mnq, selectedDay.lotes, selectedDay.meta, selectedDay.mll, selectedDay.stopPlanejadoTopstep, selectedDay.vestExposicaoUsd]);
+  useEffect(() => { setMessage(""); }, [selectedIndex, assetKey]);
   const mudar = (key: keyof Day, raw: string) => {
     const value = Number(raw.replace(",", "."));
     if (raw.trim() === "" || !Number.isFinite(value) || value < 0) return;
@@ -73,7 +74,7 @@ export function CockpitOverview({ asset, assetKey, mesa, avaliacaoDias, currentI
         <section className="rounded-xl border border-cyan-500/70 bg-[linear-gradient(145deg,#091d33,#061321)] p-4 shadow-[inset_3px_0_0_#06b6d4,0_16px_30px_rgba(0,0,0,0.2)] sm:p-5">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-3"><TrendingUp className="size-7 text-cyan-400" /><div><h2 className="text-xl font-extrabold text-white">D{dayNumber} · {fase}</h2><p className="text-xs text-slate-400">{selectedIndex === currentIndex ? "Dia operacional atual" : selectedIndex < currentIndex ? "Dia concluído · somente leitura" : "Planejamento de dia futuro"} · Card matriz</p></div></div>
-            <div className="flex flex-wrap items-center gap-2"><span className="rounded-full border border-cyan-600/70 bg-cyan-950/40 px-3 py-1 text-xs font-semibold text-cyan-200">{titleAsset}</span><button type="button" aria-label="Dia anterior" disabled={selectedIndex <= 0} onClick={() => setSelectedIndex(i => Math.max(0, i - 1))} className="rounded-lg border border-cyan-700 p-1.5 text-cyan-200 disabled:opacity-30"><ChevronLeft className="size-5" /></button><span className="font-mono text-xs text-slate-300">{selectedIndex + 1}/{days.length}</span><button type="button" aria-label="Próximo dia" disabled={selectedIndex >= days.length - 1} onClick={() => setSelectedIndex(i => Math.min(days.length - 1, i + 1))} className="rounded-lg border border-cyan-700 p-1.5 text-cyan-200 disabled:opacity-30"><ChevronRight className="size-5" /></button></div>
+            <div className="flex flex-wrap items-center gap-2"><span className="rounded-full border border-cyan-600/70 bg-cyan-950/40 px-3 py-1 text-xs font-semibold text-cyan-200">{titleAsset}</span><button type="button" aria-label="Dia anterior" disabled={selectedIndex <= 0} onClick={() => onSelectDay(Math.max(0, selectedIndex - 1))} className="rounded-lg border border-cyan-700 p-1.5 text-cyan-200 disabled:opacity-30"><ChevronLeft className="size-5" /></button><span className="font-mono text-xs text-slate-300">{selectedIndex + 1}/{days.length}</span><button type="button" aria-label="Próximo dia" disabled={selectedIndex >= days.length - 1} onClick={() => onSelectDay(Math.min(days.length - 1, selectedIndex + 1))} className="rounded-lg border border-cyan-700 p-1.5 text-cyan-200 disabled:opacity-30"><ChevronRight className="size-5" /></button></div>
           </div>
           <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
             <MatrixInput label="Meta bruta" value={draft.meta} disabled={!editable} onChange={value => mudar("meta", value)} icon={Target} />

@@ -703,6 +703,11 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
           {rows[curIdx] && <CockpitOverview
             asset={asset} assetKey={assetKey} mesa={mesaAtiva} avaliacaoDias={avaliacaoDias}
             currentIndex={curIdx} current={rows[curIdx]!} days={rows}
+            selectedIndex={Math.min(rows.length - 1, Math.max(0, state.matrizDiaSelecionado?.[assetKey] ?? curIdx))}
+            onSelectDay={(indice) => mutate(s => {
+              s.matrizDiaSelecionado ??= {};
+              s.matrizDiaSelecionado[assetKey] = indice;
+            })}
             canEdit={isAdmin}
             onApply={(indice, plano, repetirFinanciada) => mutate(s => {
               const a = s.assets[assetKey];

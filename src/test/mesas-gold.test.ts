@@ -124,4 +124,16 @@ describe("perfis Gold por mesa de futuros", () => {
     expect(asset.attempt.resultadosMesaEod).toEqual(historico);
     expect(aplicarParametrosDia(asset, 2, plano, true, 2)).toBe(0); // dia concluído
   });
+  it("mantém o dia aberto na matriz e os parâmetros do D5 financiado após serializar o estado", () => {
+    const state = defaultState();
+    selecionarMesaGold(state.assets.nasdaq, "lucid");
+    const indiceD5 = 6; // Lucid: avaliação D1/D2, financiada D1 a D5
+    state.matrizDiaSelecionado = { nasdaq: indiceD5 };
+    const plano = { mnq: 2, lotes: 0.05, meta: 200, mll: 1500 };
+    expect(aplicarParametrosDia(state.assets.nasdaq, indiceD5, plano, false, 2)).toBe(1);
+    const reloaded = JSON.parse(JSON.stringify(state));
+    expect(reloaded.matrizDiaSelecionado.nasdaq).toBe(indiceD5);
+    expect(reloaded.assets.nasdaq.days[indiceD5]).toEqual(plano);
+    expect(reloaded.assets.nasdaq.attempt.currentDayIndex).toBe(0);
+  });
 });
