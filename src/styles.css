@@ -2,6 +2,16 @@
 @source "../src";
 @import "tw-animate-css";
 
+/* Rolagem discreta em ambos os lados: menu lateral e página principal. */
+html { scrollbar-width: thin; scrollbar-color: #29435c transparent; }
+html::-webkit-scrollbar { width: 4px; height: 4px; }
+html::-webkit-scrollbar-thumb { background: #29435c; border-radius: 12px; }
+html::-webkit-scrollbar-track { background: transparent; }
+.wow-thin-scrollbar { scrollbar-width: thin; scrollbar-color: #25435d transparent; }
+.wow-thin-scrollbar::-webkit-scrollbar { width: 3px; }
+.wow-thin-scrollbar::-webkit-scrollbar-thumb { background: #25435d; border-radius: 12px; }
+.wow-thin-scrollbar::-webkit-scrollbar-track { background: transparent; }
+
 @custom-variant dark (&:is(.dark *));
 
 /*
