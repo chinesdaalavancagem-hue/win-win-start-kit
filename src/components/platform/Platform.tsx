@@ -716,13 +716,23 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
             <p className="mt-1">A projeção do Forex supõe o mesmo movimento de preço nos dois mercados e USDC equivalente a USD; spread, câmbio, slippage e diferenças entre cotações podem alterar o resultado. Confira também a margem disponível na Vest.</p>
             <details className="mt-2"><summary className="cursor-pointer text-cyan-300">Regras e fontes da Vest</summary><p className="mt-1">O piso de perda não acompanha os lucros, inclusive na financiada. O pedido de lucro é sob demanda e o crédito na Primary leva até 24 horas. A projeção considera sacar todo o lucro disponível com split de {fmt(split)}%, sem a regra de 50% das outras mesas.</p><p className="mt-1">GC: alavancagem publicada de até 25x; confira a margem vigente no pedido. Taxas de execução e funding variam. Nenhuma ordem é enviada por esta simulação.</p><div className="mt-2 flex flex-wrap gap-3"><a className="underline" href="https://docs.vestmarkets.com/vest-capital/loss-limits" target="_blank" rel="noreferrer">Limites</a><a className="underline" href="https://docs.vestmarkets.com/vest-capital/claiming-profit" target="_blank" rel="noreferrer">Saques</a><a className="underline" href="https://docs.vestmarkets.com/trading/markets" target="_blank" rel="noreferrer">Taxas</a><a className="underline" href="https://docs.vestmarkets.com/trading/cross-margin-and-leverage" target="_blank" rel="noreferrer">Margem e unidades</a></div></details>
           </div>}
-          <div className="space-y-3">
+          <div className="space-y-5">
             <h3 className="pt-2 text-sm font-semibold uppercase tracking-[.15em] text-cyan-300">Detalhes e edição dos dias</h3>
-            {visibleRows.map((r) => (
-              <DayCard key={r.i} row={r} asset={asset} assetKey={assetKey} bancaId={bancaAtivaId} contaMesa={contaMesa} mesa={mesaAtiva} avaliacaoDias={diasAvaliacaoAtivo(asset, assetKey)} mutate={mutate} excedenteAtualSacavel={excedenteAtualSacavel} />
-            ))}
+            {(["avaliacao", "financiada"] as const).map((fase) => {
+              const faseRows = visibleRows.filter((r) => fase === "avaliacao" ? r.i < avaliacaoDias : r.i >= avaliacaoDias);
+              if (!faseRows.length) return null;
+              return <section key={fase} className="space-y-2.5">
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-[#17314a] bg-[#071422] px-3 py-2">
+                  <span className="text-xs font-bold uppercase tracking-[.16em] text-cyan-200">{fase === "avaliacao" ? "Avaliação" : "Conta financiada"}</span>
+                  <span className="text-[11px] text-slate-400">{faseRows.length} {faseRows.length === 1 ? "dia" : "dias"}</span>
+                </div>
+                <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {faseRows.map((r) => <DayCard key={r.i} row={r} asset={asset} assetKey={assetKey} bancaId={bancaAtivaId} contaMesa={contaMesa} mesa={mesaAtiva} avaliacaoDias={avaliacaoDias} mutate={mutate} excedenteAtualSacavel={excedenteAtualSacavel} />)}
+                </div>
+              </section>;
+            })}
           </div>
-          {isAdmin && <div className="mt-3 flex flex-wrap gap-2"><Button type="button" variant="outline" className="flex-1 border-dashed" onClick={() => mutate((s) => { if (assetKey === "ouro" || asset.mesaConfig || mesaAtiva === "vest") adicionarDiaGold(s.assets[assetKey], "financiada"); else s.assets[assetKey].days.push({ mnq: 1, lotes: 1, meta: 150 }); })}>+ adicionar dia {assetKey === "ouro" ? "financiado" : ""}</Button>{(assetKey === "ouro" || ((asset.mesaConfig || mesaAtiva === "vest") && assetKey !== "saque2")) && <Button type="button" variant="outline" className="flex-1 border-dashed border-amber-800 text-amber-200" onClick={() => mutate((s) => adicionarDiaGold(s.assets[assetKey], "avaliacao"))}>+ adicionar dia de avaliação</Button>}</div>}
+          {isAdmin && <div className="mt-3 flex flex-wrap gap-2"><Button type="button" variant="outline" className="flex-1 border-dashed" onClick={() => mutate((s) => adicionarDiaGold(s.assets[assetKey], "financiada"))}>+ adicionar dia financiado</Button>{assetKey !== "saque2" && <Button type="button" variant="outline" className="flex-1 border-dashed border-amber-800 text-amber-200" onClick={() => mutate((s) => adicionarDiaGold(s.assets[assetKey], "avaliacao"))}>+ adicionar dia de avaliação</Button>}</div>}
         </div>
       )}
     </div>
@@ -793,7 +803,7 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
           <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-blue-200/85 sm:text-[11px]"><Crosshair className="h-3.5 w-3.5 shrink-0 text-blue-400" />Matriz operacional</p>
           {isCurrent && <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-400 sm:text-xs"><span className="h-2 w-2 rounded-full bg-market-up" />dia atual</span>}
         </div>
-        <button type="button" className="shrink-0 rounded-lg border border-[#19334f] px-2.5 py-1.5 text-xs font-medium text-slate-300 hover:border-blue-500/60 hover:text-white" onClick={() => mutate((s) => { if (assetKey === "ouro" || asset.mesaConfig || mesa === "vest") removerDiaGold(s.assets[assetKey], i); else s.assets[assetKey].days.splice(i, 1); })}>remover</button>
+        <button type="button" className="shrink-0 rounded-lg border border-[#19334f] px-2.5 py-1.5 text-xs font-medium text-slate-300 hover:border-blue-500/60 hover:text-white" onClick={() => mutate((s) => removerDiaGold(s.assets[assetKey], i))}>remover</button>
       </div>
       <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
         <div className="min-w-0 rounded-xl border border-[#18324e] bg-gradient-to-br from-[#0d1b2b] to-[#080f1a] p-3 lg:p-2.5">

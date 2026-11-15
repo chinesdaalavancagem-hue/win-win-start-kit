@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeAssetCalcs, defaultState, MESAS_FUTUROS, selecionarMesaGold, diasAvaliacaoGold, removerDiaGold, adicionarDiaGold, limitesTopstep, lossLimitGoldEfetivo } from "../lib/platform/engine";
+import { computeAssetCalcs, defaultState, MESAS_FUTUROS, selecionarMesaGold, diasAvaliacaoGold, diasAvaliacaoAtivo, removerDiaGold, adicionarDiaGold, limitesTopstep, lossLimitGoldEfetivo } from "../lib/platform/engine";
 
 describe("perfis Gold por mesa de futuros", () => {
   it("editar o stop do card recalcula ticks, bruto e líquido do red independentemente da meta", () => {
@@ -89,5 +89,23 @@ describe("perfis Gold por mesa de futuros", () => {
     expect(diasAvaliacaoGold(a)).toBe(4);
     selecionarMesaGold(a, "lucid");
     expect(diasAvaliacaoGold(a)).toBe(2);
+  });
+  it("separa Nasdaq Lucid em 2 dias de avaliação e preserva o D1 financiado ao remover D3 legado", () => {
+    const nasdaq = defaultState().assets.nasdaq;
+    selecionarMesaGold(nasdaq, "lucid");
+    expect(diasAvaliacaoAtivo(nasdaq, "nasdaq")).toBe(2);
+    expect(nasdaq.days).toHaveLength(7);
+    expect(nasdaq.days[2]).toBeDefined();
+
+    adicionarDiaGold(nasdaq, "avaliacao");
+    expect(diasAvaliacaoAtivo(nasdaq, "nasdaq")).toBe(3);
+    removerDiaGold(nasdaq, 2);
+    expect(diasAvaliacaoAtivo(nasdaq, "nasdaq")).toBe(2);
+    expect(nasdaq.days).toHaveLength(7);
+    expect(nasdaq.days[2]).toBeDefined(); // D1 financiado continua sendo índice 2
+
+    adicionarDiaGold(nasdaq, "financiada");
+    expect(nasdaq.days).toHaveLength(8);
+    expect(diasAvaliacaoAtivo(nasdaq, "nasdaq")).toBe(2);
   });
 });

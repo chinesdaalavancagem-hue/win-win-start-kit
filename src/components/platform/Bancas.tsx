@@ -291,6 +291,8 @@ export function Bancas({ load, save, isAdmin, onPublishOfficial, onSignOut }: { 
                   if (mesa === "vest") prepararMesaVest(b.state);
                   else if (personalizada?.id === mesa) prepararMesaPersonalizada(b.state, personalizada);
                   else if (mesa !== "tradefive") selecionarMesaGold(b.state.assets.ouro, mesa);
+                  if (mesa !== "tradefive" && !personalizada && mesa !== "vest") selecionarMesaGold(b.state.assets.nasdaq, mesa);
+                  else b.state.assets.nasdaq.mesaFuturos = mesa;
                   b.state = aplicarForex(b.state, forexDoDocumento(doc));
                   b.state.assets.nasdaq.params.taxa = valor;
                   b.state.assets.ouro.params.taxa = valor;

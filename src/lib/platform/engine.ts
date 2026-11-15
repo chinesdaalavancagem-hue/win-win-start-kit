@@ -302,7 +302,7 @@ export function limitesVest(a: Asset, key: AssetKey, indice: number) {
 }
 
 export function diasAvaliacaoAtivo(asset: Asset, key: AssetKey): number {
-  return key === "saque2" ? 0 : key === "ouro" || asset.mesaConfig || asset.mesaFuturos === "vest" ? diasAvaliacaoGold(asset) : 3;
+  return key === "saque2" ? 0 : diasAvaliacaoGold(asset);
 }
 export function nomeMesa(mesa: MesaFuturos, config?: MesaPersonalizada): string {
   return config?.id === mesa ? config.nome : MESAS_FUTUROS[mesa]?.nome ?? "Mesa personalizada";
