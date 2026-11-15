@@ -726,7 +726,7 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
                   <span className="text-xs font-bold uppercase tracking-[.16em] text-cyan-200">{fase === "avaliacao" ? "Avaliação" : "Conta financiada"}</span>
                   <span className="text-[11px] text-slate-400">{faseRows.length} {faseRows.length === 1 ? "dia" : "dias"}</span>
                 </div>
-                <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-2 xl:grid-cols-3">
+                <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-2 2xl:grid-cols-3">
                   {faseRows.map((r) => <DayCard key={r.i} row={r} asset={asset} assetKey={assetKey} bancaId={bancaAtivaId} contaMesa={contaMesa} mesa={mesaAtiva} avaliacaoDias={avaliacaoDias} mutate={mutate} excedenteAtualSacavel={excedenteAtualSacavel} />)}
                 </div>
               </section>;
@@ -796,8 +796,8 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
       data-wow-contratos-planejados={isCurrent ? d.mnq : undefined}
       data-wow-lote-cfd={isCurrent ? d.lotes : undefined}
       data-wow-ready={mesa !== "vest" && isCurrent && !!bancaId && !!contaMesa && assetKey !== "saque2" && Number.isFinite(d.mnq) && d.mnq > 0 && Number.isFinite(d.lotes) && d.lotes > 0 ? "true" : "false"}
-      className={cn("platform-day-card overflow-hidden rounded-2xl border border-[#142b43] bg-[#0b0f19] p-3 text-slate-100 shadow-[0_12px_40px_rgba(0,0,0,0.22)] sm:p-5 lg:p-3", isCurrent && "border-[#087cff]/70 ring-1 ring-[#087cff]/25")}>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-[#142b43] pb-3">
+      className={cn("platform-day-card min-w-0 overflow-hidden rounded-2xl border border-[#142b43] bg-[#0b0f19] p-3 text-slate-100 shadow-[0_12px_40px_rgba(0,0,0,0.22)]", isCurrent && "border-[#087cff]/70 ring-1 ring-[#087cff]/25")}>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2 border-b border-[#142b43] pb-2">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <span className="rounded-lg border border-blue-500 bg-blue-600 px-2.5 py-1 font-mono text-sm font-bold text-white shadow-[0_0_18px_rgba(0,119,255,0.18)]">D{i < avaliacaoDias ? i + 1 : i - avaliacaoDias + 1} <span className="text-[10px] font-semibold uppercase tracking-wide">{i < avaliacaoDias ? "Avaliação" : "Financiada"}</span></span>
           <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-blue-200/85 sm:text-[11px]"><Crosshair className="h-3.5 w-3.5 shrink-0 text-blue-400" />Matriz operacional</p>
@@ -805,7 +805,7 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
         </div>
         <button type="button" className="shrink-0 rounded-lg border border-[#19334f] px-2.5 py-1.5 text-xs font-medium text-slate-300 hover:border-blue-500/60 hover:text-white" onClick={() => mutate((s) => removerDiaGold(s.assets[assetKey], i))}>remover</button>
       </div>
-      <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
+      <div className="grid grid-cols-2 gap-2">
         <div className="min-w-0 rounded-xl border border-[#18324e] bg-gradient-to-br from-[#0d1b2b] to-[#080f1a] p-3 lg:p-2.5">
           <NumField cockpit
              label={<><FileText className="h-3.5 w-3.5 text-blue-400" />{mesa === "vest" ? "Exposição Vest (US$)" : "Contratos"}</>}
@@ -819,7 +819,7 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
           <NumField cockpit label={<><Layers className="h-3.5 w-3.5 text-cyan-400" />Lotes CFD</>} value={d.lotes} onChange={setD("lotes")} />
           <span className="mt-2 inline-block rounded-full border border-market-up/40 bg-emerald-950/40 px-2 py-0.5 font-mono text-[11px] text-market-up">{mesa === "vest" && !(asset.params.vestPrecoIndice && asset.params.vestPrecoIndice > 0) ? "CFD: cotação necessária para estimar ganho" : `+${fmt(c.reprova)} se reprova`}</span>
         </div>
-        <div className="min-w-0 rounded-xl border border-[#18324e] bg-gradient-to-br from-[#0d1b2b] to-[#080f1a] p-3 sm:p-4">
+        <div className="min-w-0 rounded-xl border border-[#18324e] bg-gradient-to-br from-[#0d1b2b] to-[#080f1a] p-2.5">
           <NumField cockpit label={<><Target className="h-3.5 w-3.5 text-blue-400" />Meta bruta $</>} value={d.meta} onChange={setD("meta")} />
           {mesa === "vest" ? <p className="mt-2 text-xs text-cyan-300">Alvo automático: <strong>{(d.vestExposicaoUsd ?? 0) > 0 ? `${fmt(d.meta / d.vestExposicaoUsd! * 100)}%` : "informe exposição"}</strong> de variação favorável · {(asset.params.vestPrecoIndice ?? 0) > 0 ? `${fmt(c.pontos)} pontos estimados` : "cotação dispensável"}</p> : <div className="mt-2"><NumField subtle label="Alvo em ticks" value={row.ticks} onChange={ticks => { if (Number.isFinite(ticks) && ticks >= 0 && c.valorTickMesa && c.valorTickMesa > 0) setD("meta")(Number((Math.ceil(ticks) * c.valorTickMesa).toFixed(8))); }} helper={d.mnq > 0 ? undefined : "Informe os contratos para calcular o valor."} /></div>}
           {<p className="mt-1 text-[11px] text-slate-300">Taxas: ${fmt(taxasMesaDia(asset, d))} · Líquido previsto: ${fmt(metaLiquidaDia(asset, d))}</p>}
@@ -827,7 +827,7 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
             {campoEod(String(i), "Resultado líquido do dia ($)")}
           </div>}
         </div>
-        <div className="min-w-0 rounded-xl border border-[#18324e] bg-gradient-to-br from-[#0d1b2b] to-[#080f1a] p-3 sm:p-4">
+        <div className="min-w-0 rounded-xl border border-[#18324e] bg-gradient-to-br from-[#0d1b2b] to-[#080f1a] p-2.5">
           {projecao && <p className="mb-1 text-[11px] leading-snug text-slate-300" title={mesa === "vest" ? "Piso estático. A documentação informa reprovação abaixo do piso; igualdade não basta. Custos e execução podem antecipar o limite." : "Na abertura deste dia. Usa o resultado líquido informado nos dias anteriores ou a meta menos taxas quando o campo está vazio. Tocar o piso reprova a conta."}>
             Piso projetado: <strong>${fmt(projecao.piso)}</strong> · Folga: <strong>${fmt(projecao.distancia)}</strong>
           </p>}
@@ -839,14 +839,16 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
         </div>
       </div>
 
-       <div className={cn("mt-3 flex items-center justify-between gap-3 rounded-xl border p-3.5 lg:p-3", c.liquidoSeReprovar >= 0 ? "border-emerald-500/80 bg-gradient-to-r from-emerald-950/80 via-[#052b2a] to-[#071b20] shadow-[0_0_22px_rgba(0,220,160,0.10)]" : "border-rose-800/80 bg-gradient-to-r from-rose-950/60 to-[#10131f]")}>
+       <div className={cn("mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border p-2.5", c.liquidoSeReprovar >= 0 ? "border-emerald-500/80 bg-gradient-to-r from-emerald-950/80 via-[#052b2a] to-[#071b20] shadow-[0_0_22px_rgba(0,220,160,0.10)]" : "border-rose-800/80 bg-gradient-to-r from-rose-950/60 to-[#10131f]")}>
         <div className="min-w-0">
           <p className="text-xs font-bold text-slate-100 sm:text-sm">Líquido se reprovar hoje</p>
           <p className="mt-1 font-mono text-[10px] text-slate-400 sm:text-xs">{cfdSemReferencia ? "Projeção CFD indisponível: aguardando cotação do ouro e exposição em US$." : `Dívida a recuperar: ${fmt(c.reprova - c.liquidoSeReprovar)} · Bruto projetado no Forex: ${fmt(c.reprova)}`}</p>
         </div>
-        <p className={cn("shrink-0 font-mono text-2xl font-extrabold tracking-tight sm:text-3xl lg:!text-[36px] xl:!text-[40px]", cfdSemReferencia ? "text-amber-300" : c.liquidoSeReprovar >= 0 ? "text-emerald-300 drop-shadow-[0_0_18px_rgba(16,185,129,0.8)]" : "text-rose-400")}>{cfdSemReferencia ? "—" : `${c.liquidoSeReprovar >= 0 ? "+" : "-"}${fmt(Math.abs(c.liquidoSeReprovar))}`}</p>
+        <p className={cn("shrink-0 font-mono text-xl font-extrabold tracking-tight sm:text-2xl", cfdSemReferencia ? "text-amber-300" : c.liquidoSeReprovar >= 0 ? "text-emerald-300 drop-shadow-[0_0_18px_rgba(16,185,129,0.8)]" : "text-rose-400")}>{cfdSemReferencia ? "—" : `${c.liquidoSeReprovar >= 0 ? "+" : "-"}${fmt(Math.abs(c.liquidoSeReprovar))}`}</p>
       </div>
 
+      <details className="mt-2 rounded-lg border border-[#19334f] bg-[#081321]/60 px-3 py-2">
+        <summary className="cursor-pointer text-[11px] font-semibold text-cyan-200">Ver gestão de caixa, margem e projeções</summary>
       {row.caixaDia && d.lotes > 0 ? (() => {
         const cx = row.caixaDia;
         const total = Math.max(cx.necessario, cx.proprioAntes + cx.bonusAntes, 1);
@@ -888,6 +890,7 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
           </div>
         );
       })() : <p className="mt-2 font-mono text-[11px] text-muted-foreground">{row.statusText}</p>}
+      </details>
        
        {isCurrent && asset.mesaConfig && (d.mnq <= 0 || d.lotes <= 0) && <p className="mt-3 text-sm text-amber-200">Preencha os contratos e os lotes CFD para calcular e registrar a operação.</p>}
        {isCurrent && mesa === "vest" && (!(d.vestExposicaoUsd && d.vestExposicaoUsd > 0) || !(asset.params.vestPrecoIndice && asset.params.vestPrecoIndice > 0)) && <p className="mt-3 text-sm text-amber-200">A meta, o loss limit e a margem da Vest já são projetados sem cotação. Para estimar o hedge e registrar com sugestão de resultado CFD, informe uma cotação de referência na aba Parâmetros.</p>}
