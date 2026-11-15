@@ -15,6 +15,7 @@ import { type BancasDoc, aplicarForex, extrairForex, forexDoDocumento, novaBanca
 import { validarCatalogoTopstep, type CatalogoTopstep } from "@/lib/platform/topstep-vinculo";
 import { Plus, Building2, CheckCircle2, Pencil, Trash2, Download, Upload, ArrowUpRight, WalletCards, Activity } from "lucide-react";
 import { extrairDocumentoBackup, mesclarBackup } from "@/lib/platform/importar-backup";
+import { mesclarPresets } from "@/lib/platform/presets";
 
 export function Bancas({ load, save, isAdmin, onPublishOfficial, onSignOut }: { onPublishOfficial?: () => void; onSignOut?: () => void; load: () => Promise<string | null>; save: (v: string) => Promise<boolean>; isAdmin: boolean }) {
   const [carteiraAberta, setCarteiraAberta] = useState(false);
@@ -132,7 +133,7 @@ export function Bancas({ load, save, isAdmin, onPublishOfficial, onSignOut }: { 
   };
   const loadActive = useCallback(async () => {
     const d = docRef.current; const b = d?.bancas.find((x) => x.id === activeId);
-    return b ? JSON.stringify((() => { const state = aplicarForex(b.state, forexDoDocumento(d!)); if (typeof b.taxaCompra === "number") { state.assets.nasdaq.params.taxa = b.taxaCompra; state.assets.ouro.params.taxa = b.taxaCompra; } selecionarMesaGold(state.assets.ouro, b.mesa ?? "tradefive"); state.assets.nasdaq.mesaFuturos = b.mesa ?? "tradefive"; state.assets.saque2.mesaFuturos = b.mesa ?? "tradefive"; return state; })()) : null;
+    return b ? JSON.stringify((() => { const state = aplicarForex(b.state, forexDoDocumento(d!)); state.presets = mesclarPresets(state.presets, d!.presets); if (typeof b.taxaCompra === "number") { state.assets.nasdaq.params.taxa = b.taxaCompra; state.assets.ouro.params.taxa = b.taxaCompra; } selecionarMesaGold(state.assets.ouro, b.mesa ?? "tradefive"); state.assets.nasdaq.mesaFuturos = b.mesa ?? "tradefive"; state.assets.saque2.mesaFuturos = b.mesa ?? "tradefive"; return state; })()) : null;
   }, [activeId]); // eslint-disable-line react-hooks/exhaustive-deps
   const saveActive = useCallback(async (v: string, acceptedAt?: string) => {
     const d = docRef.current; if (!d) return false;
@@ -140,7 +141,7 @@ export function Bancas({ load, save, isAdmin, onPublishOfficial, onSignOut }: { 
     const updated = JSON.parse(v);
     const banca = d.bancas.find((b) => b.id === id);
     if (banca && typeof banca.taxaCompra === "number") { updated.assets.nasdaq.params.taxa = banca.taxaCompra; updated.assets.ouro.params.taxa = banca.taxaCompra; }
-    const next = { ...d, forex: extrairForex(updated), bancas: d.bancas.map((b) => (b.id === id ? { ...b, state: updated, ...(acceptedAt ? { officialAcceptedAt: acceptedAt } : {}) } : b)) };
+    const next = { ...d, presets: mesclarPresets(d.presets, updated.presets), forex: extrairForex(updated), bancas: d.bancas.map((b) => (b.id === id ? { ...b, state: updated, ...(acceptedAt ? { officialAcceptedAt: acceptedAt } : {}) } : b)) };
     docRef.current = next;
     setDoc(next);
     const ok = await gravarEmOrdem(next);

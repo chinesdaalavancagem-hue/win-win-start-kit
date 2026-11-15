@@ -351,7 +351,7 @@ function StrategyPresets({ state, assetKey, mesaAtiva, mutate }: { state: State;
       <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
         <div>
           <h3 className="font-bold text-cyan-100">Meus presets de estratégia</h3>
-          <p className="mt-1 text-xs text-slate-400">Salve e restaure os parâmetros e dias de {ASSET_NAME[assetKey]} nesta mesa. Presets são particulares desta banca e ficam na nuvem.</p>
+          <p className="mt-1 text-xs text-slate-400">Salve e restaure os parâmetros e dias de {ASSET_NAME[assetKey]} nesta mesa. Os presets ficam na nuvem e podem ser usados em outras bancas da mesma mesa e ativo.</p>
         </div>
       </div>
       <div className="grid gap-2 sm:grid-cols-2">

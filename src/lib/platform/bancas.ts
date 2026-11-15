@@ -2,11 +2,12 @@ import { normalizarCarteira, type Carteira } from "./carteira";
 import { type MesaPersonalizada, idMesaPersonalizada, normalizarMesasPersonalizadas } from "./mesas-personalizadas";
 import { type State, type AssetKey, type Bonus, type MesaFuturos, defaultState, selecionarMesaGold, prepararMesaVest, prepararMesaPersonalizada, historicoTotals, isValidState, normalizeState, sincronizarParametros, podeDesfazerUltimaOperacao, tipoLabel } from "./engine";
 import { challengeAccountSchema, type ChallengeAccount } from "../prop-firms";
+import { mesclarPresets, type PresetStore } from "./presets";
 
 export type BancaAtivo = "nasdaq" | "ouro";
 export interface Banca { id: string; nome: string; criadaEm: number; state: State; taxaCompra?: number; mesa?: MesaFuturos; ativo?: BancaAtivo; officialAcceptedAt?: string; challengeAccount?: ChallengeAccount; contaMesa?: string | undefined; contaMesaNome?: string | undefined }
 export interface ForexCompartilhado { corretora?: State["corretora"]; cfdBalance: number; forexSaldoReal?: number | undefined; bonus: Record<AssetKey, Bonus> }
-export interface BancasDoc { carteira?: Carteira; contasArquivadas?: unknown[]; mesasPersonalizadas?: MesaPersonalizada[]; bancasVersion: 1; activeId: string; bancas: Banca[]; mesaAtiva?: MesaFuturos; activeIdsMesa?: Partial<Record<MesaFuturos, string>>; forex?: ForexCompartilhado }
+export interface BancasDoc { presets?: PresetStore; carteira?: Carteira; contasArquivadas?: unknown[]; mesasPersonalizadas?: MesaPersonalizada[]; bancasVersion: 1; activeId: string; bancas: Banca[]; mesaAtiva?: MesaFuturos; activeIdsMesa?: Partial<Record<MesaFuturos, string>>; forex?: ForexCompartilhado }
 
 export function extrairForex(state: State): ForexCompartilhado {
   return { ...(state.corretora ? { corretora: structuredClone(state.corretora) } : {}), cfdBalance: state.cfdBalance, forexSaldoReal: state.forexSaldoReal, bonus: {
@@ -81,11 +82,12 @@ export function parseBancas(raw: string | null): BancasDoc {
     delete remainingIds.ylos;
     const activeIdsMesa = { ...remainingIds, tradefive: remainingIds.tradefive ?? bancas.find((b) => b.mesa === "tradefive")?.id ?? "" };
     const contasArquivadas = [...(Array.isArray(p.contasArquivadas) ? p.contasArquivadas : []), ...legadas];
-    const doc: BancasDoc = { carteira: normalizarCarteira(p.carteira), contasArquivadas, bancasVersion: 1, activeId, bancas, mesaAtiva, activeIdsMesa, mesasPersonalizadas };
+    const presets = mesclarPresets(...bancas.map(b => b.state.presets), p.presets);
+    const doc: BancasDoc = { carteira: normalizarCarteira(p.carteira), contasArquivadas, bancasVersion: 1, activeId, bancas, mesaAtiva, activeIdsMesa, mesasPersonalizadas, presets };
     return { ...doc, forex: p.forex && Number.isFinite(p.forex.cfdBalance) && p.forex.bonus ? p.forex : forexLegado ?? forexDoDocumento(doc) };
   }
   const first = novaBanca("Banca principal", isValidState(p) ? normalizeState(p) : defaultState());
-  return { bancasVersion: 1, activeId: first.id, bancas: [first], mesaAtiva: "tradefive", activeIdsMesa: { tradefive: first.id }, forex: extrairForex(first.state) };
+  return { bancasVersion: 1, activeId: first.id, bancas: [first], mesaAtiva: "tradefive", activeIdsMesa: { tradefive: first.id }, forex: extrairForex(first.state), presets: mesclarPresets(first.state.presets) };
 }
 
 export function resumoBanca(b: Banca) {

@@ -15,6 +15,27 @@ export interface StrategyPreset {
 /** Chave `${mesa}:${ativo}` para não misturar configurações de mesas diferentes. */
 export type PresetStore = Record<string, Partial<Record<PresetSlot, StrategyPreset>>>;
 
+/** Reúne setups de bancas antigas, mantendo o mais recente para cada mesa/ativo/slot. */
+export function mesclarPresets(...sources: unknown[]): PresetStore {
+  const merged: PresetStore = {};
+  for (const source of sources) {
+    if (!source || typeof source !== "object" || Array.isArray(source)) continue;
+    for (const [key, slots] of Object.entries(source)) {
+      if (!/^[a-z0-9_-]{1,80}:(nasdaq|ouro|saque2)$/.test(key) || !slots || typeof slots !== "object" || Array.isArray(slots)) continue;
+      for (const slot of [0, 1, 2, 3] as PresetSlot[]) {
+        const candidate = (slots as Record<string, unknown>)[slot];
+        if (!isStrategyPreset(candidate)) continue;
+        const existing = merged[key]?.[slot];
+        if (!existing || candidate.updatedAt >= existing.updatedAt) {
+          merged[key] ??= {};
+          merged[key][slot] = structuredClone(candidate);
+        }
+      }
+    }
+  }
+  return merged;
+}
+
 export function capturePreset(asset: Asset, slot: PresetSlot): StrategyPreset {
   const { saldoInicial: _saldo, taxa: _taxa, ...params } = asset.params;
   return {
