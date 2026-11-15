@@ -11,7 +11,10 @@ import { supabase } from "@/integrations/supabase/client";
 async function verificarMasterNaPrevia(userId: string): Promise<boolean> {
   if (typeof window === "undefined") return false;
   const host = window.location.hostname;
-  if (!/^win-or-[a-z0-9]+-win-or-win1\\.vercel\\.app$/.test(host)) return false;
+  const prefix = "win-or-";
+  const suffix = "-win-or-win1.vercel.app";
+  const deploymentId = host.startsWith(prefix) && host.endsWith(suffix) ? host.slice(prefix.length, -suffix.length) : "";
+  if (!/^[a-z0-9]+$/.test(deploymentId)) return false;
   try {
     const { data, error } = await supabase.from("user_roles").select("role")
       .eq("user_id", userId).eq("role", "admin").limit(1);
