@@ -51,7 +51,7 @@ export function simularDesfecho(state: State, key: AssetKey, desfecho: Desfecho,
     eventos.push({ dia, fase, operacao, mesa: arred(mesa), forexProprio: arred(proprio), forexBonus: arred(bonus), caixaPessoal, movimento: arred(movimento) });
   }
 
-  const taxa = inicio === 0 && key !== "saque2" ? max(a.params.taxa) : 0;
+  const taxa = inicio === 0 && a.days.length > 0 && key !== "saque2" ? max(a.params.taxa) : 0;
   if (taxa) registrar("D0", "Desafio", "Custo de compra / avaliação", -taxa);
 
   for (let i = inicio; i < a.days.length; i++) {
