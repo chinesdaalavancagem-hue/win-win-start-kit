@@ -1,4 +1,5 @@
 import { SimulacaoFuturos } from "./SimulacaoFuturos";
+import { CockpitOverview } from "./CockpitOverview";
 import type { Banca } from "@/lib/platform/bancas";
 import { calcularCoberturaSimultanea } from "@/lib/platform/caixa-consolidado";
 import { createPortal } from "react-dom";
@@ -297,8 +298,8 @@ function Settle({ risco, custo, reprova, onProfit, onStop }: { risco: boolean; c
   const abrir = (m: "profit" | "stop") => { setModo(m); setValor(String(Math.round((m === "profit" ? -custo : reprova) * 100) / 100)); };
   if (!modo) return (
     <div className="mt-3 grid grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] gap-1.5 sm:grid-cols-2 sm:gap-2">
-      <Button className="h-10 min-h-9 min-w-0 w-full whitespace-nowrap px-1 text-[10px] leading-snug sm:h-9 sm:px-4 sm:text-sm" type="button" onClick={() => abrir("profit")}>✅ Profit (bateu a meta)</Button>
-      <Button className="h-10 min-h-9 min-w-0 w-full whitespace-nowrap px-1 text-[10px] leading-snug sm:h-9 sm:px-4 sm:text-sm" type="button" variant="destructive" onClick={() => abrir("stop")}>🛑 Stop (reprovou)</Button>
+      <Button data-wow-settle-profit className="h-10 min-h-9 min-w-0 w-full whitespace-nowrap px-1 text-[10px] leading-snug sm:h-9 sm:px-4 sm:text-sm" type="button" onClick={() => abrir("profit")}>✅ Profit (bateu a meta)</Button>
+      <Button data-wow-settle-stop className="h-10 min-h-9 min-w-0 w-full whitespace-nowrap px-1 text-[10px] leading-snug sm:h-9 sm:px-4 sm:text-sm" type="button" variant="destructive" onClick={() => abrir("stop")}>🛑 Stop (reprovou)</Button>
     </div>
   );
   return (
@@ -699,6 +700,15 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
 
       {section === "operacoes" && (
         <div>
+          {rows[curIdx] && <CockpitOverview
+            asset={asset} assetKey={assetKey} mesa={mesaAtiva} avaliacaoDias={avaliacaoDias}
+            currentIndex={curIdx} current={rows[curIdx]!} days={rows}
+            onSettle={(mode) => {
+              const button = document.querySelector<HTMLButtonElement>(`[data-wow-card="active"] [data-wow-settle-${mode}]`);
+              button?.scrollIntoView({ behavior: "smooth", block: "center" });
+              button?.click();
+            }}
+          />}
           {mesaAtiva === "vest" && <div className="mb-3 rounded-xl border border-cyan-900 bg-[#091827] p-3 text-xs leading-relaxed text-slate-300">
             <p className="font-semibold text-cyan-300">Vest 10K · alvo líquido 2.000 · piso fixo 9.400 · sem DLL · split {fmt(split)}%</p>
             <p className="mt-1">GC-PERP utiliza exposição em US$, não unidades ou contratos fixos. PnL = exposição × variação percentual do preço. A alavancagem altera a margem, não o PnL.</p>
@@ -707,6 +717,7 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
             <details className="mt-2"><summary className="cursor-pointer text-cyan-300">Regras e fontes da Vest</summary><p className="mt-1">O piso de perda não acompanha os lucros, inclusive na financiada. O pedido de lucro é sob demanda e o crédito na Primary leva até 24 horas. A projeção considera sacar todo o lucro disponível com split de {fmt(split)}%, sem a regra de 50% das outras mesas.</p><p className="mt-1">GC: alavancagem publicada de até 25x; confira a margem vigente no pedido. Taxas de execução e funding variam. Nenhuma ordem é enviada por esta simulação.</p><div className="mt-2 flex flex-wrap gap-3"><a className="underline" href="https://docs.vestmarkets.com/vest-capital/loss-limits" target="_blank" rel="noreferrer">Limites</a><a className="underline" href="https://docs.vestmarkets.com/vest-capital/claiming-profit" target="_blank" rel="noreferrer">Saques</a><a className="underline" href="https://docs.vestmarkets.com/trading/markets" target="_blank" rel="noreferrer">Taxas</a><a className="underline" href="https://docs.vestmarkets.com/trading/cross-margin-and-leverage" target="_blank" rel="noreferrer">Margem e unidades</a></div></details>
           </div>}
           <div className="space-y-3">
+            <h3 className="pt-2 text-sm font-semibold uppercase tracking-[.15em] text-cyan-300">Detalhes e edição dos dias</h3>
             {visibleRows.map((r) => (
               <DayCard key={r.i} row={r} asset={asset} assetKey={assetKey} bancaId={bancaAtivaId} contaMesa={contaMesa} mesa={mesaAtiva} avaliacaoDias={diasAvaliacaoAtivo(asset, assetKey)} mutate={mutate} excedenteAtualSacavel={excedenteAtualSacavel} />
             ))}

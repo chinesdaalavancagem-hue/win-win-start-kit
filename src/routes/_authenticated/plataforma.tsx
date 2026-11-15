@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Download, Crown } from "lucide-react";
+import { Download, Crown, Cloud, ChevronDown, UserRound, Pencil, Image as ImageIcon, LogOut } from "lucide-react";
 import { getMyAccess, signOut } from "@/lib/session";
 import { registrarAuditoria } from "@/lib/auditoria-registro";
 import { Bancas } from "@/components/platform/Bancas";
@@ -20,6 +20,48 @@ function Plataforma() {
   const [state, setState] = useState<"loading" | "pending" | "rejected" | "ok">("loading");
   const [isAdmin, setIsAdmin] = useState(false);
   const [name, setName] = useState("");
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [editingNickname, setEditingNickname] = useState(false);
+  const [nickname, setNickname] = useState(String(user.user_metadata?.wow_nickname ?? ""));
+  const [nicknameDraft, setNicknameDraft] = useState(String(user.user_metadata?.wow_nickname ?? ""));
+  const [avatar, setAvatar] = useState("");
+  const [profileMessage, setProfileMessage] = useState("");
+  const [profileBusy, setProfileBusy] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    try { setAvatar(window.localStorage.getItem(`wow-avatar-${user.id}`) ?? ""); } catch { /* armazenamento indisponível */ }
+  }, [user.id]);
+  useEffect(() => {
+    if (!profileOpen) return;
+    const close = (event: PointerEvent) => { if (event.target instanceof Node && !profileRef.current?.contains(event.target)) setProfileOpen(false); };
+    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") setProfileOpen(false); };
+    document.addEventListener("pointerdown", close);
+    window.addEventListener("keydown", escape);
+    return () => { document.removeEventListener("pointerdown", close); window.removeEventListener("keydown", escape); };
+  }, [profileOpen]);
+
+  const saveNickname = async () => {
+    const next = nicknameDraft.trim();
+    if (!next || next.length > 32) { setProfileMessage("Use um apelido de 1 a 32 caracteres."); return; }
+    setProfileBusy(true);
+    const { error } = await supabase.auth.updateUser({ data: { wow_nickname: next } });
+    if (error) setProfileMessage("Não foi possível salvar o apelido na conta.");
+    else { setNickname(next); setProfileMessage("Apelido salvo na conta."); setEditingNickname(false); }
+    setProfileBusy(false);
+  };
+  const chooseAvatar = (file?: File) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/") || file.size > 400_000) { setProfileMessage("Escolha uma imagem de até 400 KB."); return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result !== "string" || !reader.result.startsWith("data:image/")) return;
+      try { window.localStorage.setItem(`wow-avatar-${user.id}`, reader.result); setAvatar(reader.result); setProfileMessage("Foto salva neste navegador."); }
+      catch { setProfileMessage("Não foi possível salvar a foto neste navegador."); }
+    };
+    reader.readAsDataURL(file);
+  };
   const [publishBusy, setPublishBusy] = useState(false);
   const [publishMessage, setPublishMessage] = useState("");
   const [installPrompt, setInstallPrompt] = useState<Event | null>(null);
@@ -167,10 +209,7 @@ function Plataforma() {
     <div className="flex min-h-screen flex-col bg-[#030914] text-slate-100">
       <header className="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-3 border-b border-cyan-950/80 bg-[#050d1b]/95 px-3 py-3 text-sm shadow-[0_8px_28px_rgba(0,0,0,0.28)] backdrop-blur-md sm:px-5">
         <span className="flex min-w-0 items-center gap-2 text-blue-100/75">
-          <span className="flex min-w-0 flex-col items-start gap-0.5">
-            <span className="flex items-center gap-1.5 truncate font-semibold"><Crown className="size-4 shrink-0 text-amber-400" aria-hidden="true" />Olá, {isAdmin ? "Master" : (name.trim().split(" ")[0] || "usuário")}</span>
-            <span id="wow-header-sync" className="shrink-0 leading-none" />
-          </span>
+          <span className="inline-flex items-center gap-2 rounded-lg border border-emerald-700/50 bg-emerald-950/20 px-2.5 py-1.5 text-emerald-300"><Cloud className="size-4 shrink-0" aria-hidden="true" /><span className="hidden sm:inline">Nuvem</span><span id="wow-header-sync" className="text-[11px] leading-none" /></span>
           {state === "ok" && showInstall && (
             <Button size="sm" type="button" onClick={() => void installApp()}
               className="h-7 shrink-0 gap-1 rounded-lg border border-amber-300/80 bg-amber-400 px-2 text-[10px] font-bold text-slate-950 hover:bg-amber-300 sm:text-xs">
@@ -178,7 +217,23 @@ function Plataforma() {
             </Button>
           )}
         </span>
-        <span className="hidden text-xs font-medium text-cyan-300/80 lg:block">Win or Win · Painel operacional</span>
+        <div ref={profileRef} className="relative ml-auto">
+          <button type="button" aria-expanded={profileOpen} aria-haspopup="menu" onClick={() => setProfileOpen(v => !v)} className="flex items-center gap-2 rounded-xl p-1 text-slate-100 transition-colors hover:bg-blue-950/50">
+            {isAdmin && <Crown className="size-5 text-amber-400" aria-hidden="true" />}
+            <span className="max-w-32 truncate font-semibold sm:max-w-48">Olá, {nickname || (isAdmin ? "Master" : (name.trim().split(" ")[0] || "usuário"))}</span>
+            <span className="flex size-9 items-center justify-center overflow-hidden rounded-full border border-cyan-500 bg-[#0b2841] font-bold text-cyan-200 shadow-[0_0_12px_rgba(0,200,255,.25)]">{avatar ? <img src={avatar} alt="Foto do perfil" className="size-full object-cover" /> : (nickname || (isAdmin ? "Master" : name) || "U").charAt(0).toUpperCase()}</span>
+            <ChevronDown className="size-4 text-cyan-300" aria-hidden="true" />
+          </button>
+          {profileOpen && <div role="menu" aria-label="Perfil da conta" className="absolute right-0 top-full z-50 mt-2 w-64 rounded-xl border border-cyan-700/60 bg-[#071728] p-2 text-sm shadow-2xl">
+            <div className="flex items-center gap-2 border-b border-cyan-950 px-2 py-2 text-cyan-100"><UserRound className="size-4" /><span className="font-semibold">Perfil {isAdmin ? "Master" : "da conta"}</span></div>
+            {editingNickname ? <div className="space-y-2 p-2"><label className="block text-xs text-slate-300">Apelido<input autoFocus value={nicknameDraft} maxLength={32} onChange={e => setNicknameDraft(e.target.value)} onKeyDown={e => { if (e.key === "Enter") void saveNickname(); }} className="mt-1 w-full rounded-lg border border-cyan-800 bg-[#03101f] px-2 py-2 text-slate-100" /></label><div className="flex gap-2"><Button size="sm" disabled={profileBusy} onClick={() => void saveNickname()}>Salvar</Button><Button size="sm" variant="outline" onClick={() => setEditingNickname(false)}>Cancelar</Button></div></div> : <button type="button" role="menuitem" className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-slate-200 hover:bg-blue-950" onClick={() => { setNicknameDraft(nickname || (isAdmin ? "Master" : name)); setEditingNickname(true); }}><Pencil className="size-4 text-violet-300" />Personalizar apelido</button>}
+            <button type="button" role="menuitem" className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-slate-200 hover:bg-blue-950" onClick={() => avatarInputRef.current?.click()}><ImageIcon className="size-4 text-cyan-300" />Escolher foto</button>
+            <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={e => { chooseAvatar(e.target.files?.[0]); e.currentTarget.value = ""; }} />
+            <p className="px-2 text-[10px] text-slate-500">Apelido salvo na conta; foto armazenada somente neste navegador.</p>
+            {profileMessage && <p role="status" className="px-2 py-1 text-xs text-cyan-200">{profileMessage}</p>}
+            <button type="button" role="menuitem" className="mt-2 flex w-full items-center gap-2 border-t border-cyan-950 px-2 py-2 text-left text-rose-300 hover:bg-rose-950/30" onClick={() => void signOut(navigate)}><LogOut className="size-4" />Sair da plataforma</button>
+          </div>}
+        </div>
         {saveError && <p role="alert" className="absolute inset-x-0 top-full border-b border-rose-800/50 bg-rose-950/40 px-4 py-3 text-sm text-rose-100">{saveError}</p>}
       </header>
       {state === "ok" && installHelp && showInstall && (
