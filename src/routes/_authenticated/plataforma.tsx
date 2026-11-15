@@ -122,6 +122,33 @@ function Plataforma() {
   }, [user.id]);
 
   // Todas as gravações locais passam pela mesma fila para preservar a ordem em que foram solicitadas.
+  // Apenas na prévia: escrita com a sessão autenticada via RLS e CAS.
+  // Atenção: preview e produção compartilham app_data.
+  const savePreviewWithRls = useCallback(async (value: string): Promise<{version:number}|{conflict:true}|null> => {
+    const host = window.location.hostname;
+    const prefix = "win-or-", suffix = "-win-or-win1.vercel.app";
+    const deployment = host.startsWith(prefix) && host.endsWith(suffix) ? host.slice(prefix.length, -suffix.length) : "";
+    if (!/^[a-z0-9]+$/.test(deployment)) return null;
+    const {data: verified,error:authError} = await supabase.auth.getUser();
+    if(authError || verified.user?.id !== user.id) return null;
+    const {data: roles,error:roleError} = await supabase.from("user_roles").select("role")
+      .eq("user_id",user.id).eq("role","admin").limit(1);
+    if(roleError || !roles?.some(role=>role.role==="admin")) return null;
+    const expected=versionRef.current;
+    if(expected!==null){
+      const {data,error}=await supabase.from("app_data")
+        .update({data:value,version:expected+1,updated_at:new Date().toISOString()})
+        .eq("user_id",user.id).eq("version",expected).select("version").maybeSingle();
+      if(error) throw error;
+      return data?.version===expected+1?{version:data.version}:{conflict:true};
+    }
+    const {data,error}=await supabase.from("app_data")
+      .insert({user_id:user.id,data:value,version:1,updated_at:new Date().toISOString()})
+      .select("version").single();
+    if(error){if(error.code==="23505")return {conflict:true};throw error;}
+    return data?.version===1?{version:1}:null;
+  },[user.id]);
+
   const saveQueue = useRef<Promise<void>>(Promise.resolve());
   const save = useCallback((v: string) => queueSaveUnlessConflicted(
     saveQueue,
@@ -148,6 +175,19 @@ function Plataforma() {
         }
         const result = await response.json().catch(() => null) as { version?: unknown; error?: unknown } | null;
         if (!response.ok) {
+          if(response.status>=500){
+            const preview=await savePreviewWithRls(v);
+            if(preview && "conflict" in preview){
+              conflictRef.current=true;
+              await recoverVersionConflict(()=>window.location.reload());
+              return false;
+            }
+            if(preview && "version" in preview){
+              versionRef.current=preview.version;
+              setSaveError("");
+              return true;
+            }
+          }
           const codigo = typeof result?.error === "string" && /^[a-z_]{1,48}$/.test(result.error) ? result.error : "";
           setSaveError(mensagemErroSalvamento(response.status, codigo) + " (" + [response.status, codigo].filter(Boolean).join(" · ") + ")");
           return false;
@@ -165,7 +205,7 @@ function Plataforma() {
       }
     },
     false,
-  ), []);
+  ), [savePreviewWithRls]);
 
   const publishOfficial = async () => {
     if (publishBusy || !isAdmin) return;
@@ -247,6 +287,7 @@ function Plataforma() {
           <p className="mt-2 text-muted-foreground">Seu cadastro não foi aprovado. Se achar que houve um engano, fale com o administrador.</p>
         </div>
       )}
+      {state === "ok" && typeof window !== "undefined" && window.location.hostname.endsWith("-win-or-win1.vercel.app") && <p role="note" className="border-b border-amber-800/60 bg-amber-950/30 px-4 py-2 text-xs text-amber-200">Prévia experimental: dados compartilhados com a plataforma principal. Alterações oficiais salvas aqui também aparecem na produção. Use o Laboratório de Cenários para testes sem alterar os registros reais.</p>}
       {state === "ok" && <Bancas load={load} save={save} isAdmin={isAdmin} sectionsMenuOpen={openMenu === "sections"} onSectionsMenuChange={setSectionsMenuOpen} />}
       {state === "ok" && (
         <a

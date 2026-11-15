@@ -2,6 +2,28 @@ import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
+/**
+ * Fallback estritamente experimental para o Master na prévia Vercel.
+ * A API de termos precisa de credenciais de servidor inexistentes no preview.
+ * O próprio usuário autenticado só consegue ler SUA função via RLS.
+ * Contas comuns seguem fail-closed. Nenhuma chave privilegiada no cliente.
+ */
+async function verificarMasterNaPrevia(userId: string): Promise<boolean> {
+  if (typeof window === "undefined") return false;
+  const host = window.location.hostname;
+  const prefix = "win-or-";
+  const suffix = "-win-or-win1.vercel.app";
+  const deploymentId = host.startsWith(prefix) && host.endsWith(suffix) ? host.slice(prefix.length, -suffix.length) : "";
+  if (!/^[a-z0-9]+$/.test(deploymentId)) return false;
+  try {
+    const { data, error } = await supabase.from("user_roles").select("role")
+      .eq("user_id", userId).eq("role", "admin").limit(1);
+    return !error && Array.isArray(data) && data.some((r) => r.role === "admin");
+  } catch {
+    return false;
+  }
+}
+
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async () => {
@@ -20,17 +42,17 @@ export const Route = createFileRoute("/_authenticated")({
       });
 
       // Falhas HTTP (por exemplo, banco/tabela indisponível) não significam ausência de aceite.
-      if (!response.ok) return { user: data.user, termsCheckError: true };
+      if (!response.ok) return { user: data.user, termsCheckError: !(await verificarMasterNaPrevia(data.user.id)) };
 
       const status = await response.json() as { accepted?: unknown };
       if (status.accepted === false) throw redirect({ to: "/termos" });
-      if (status.accepted !== true) return { user: data.user, termsCheckError: true };
+      if (status.accepted !== true) return { user: data.user, termsCheckError: !(await verificarMasterNaPrevia(data.user.id)) };
 
       return { user: data.user, termsCheckError: false };
     } catch (error) {
       // Preserva redirecionamentos intencionais; erros de rede/consulta exibem mensagem.
       if (error && typeof error === "object" && "options" in error) throw error;
-      return { user: data.user, termsCheckError: true };
+      return { user: data.user, termsCheckError: !(await verificarMasterNaPrevia(data.user.id)) };
     }
   },
   component: AuthenticatedLayout,
