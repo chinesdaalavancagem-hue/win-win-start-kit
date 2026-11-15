@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { AlertTriangle, BookOpen, GitBranch, Save, ShieldCheck, Wallet, TrendingUp } from "lucide-react";
+import { AlertTriangle, BookOpen, GitBranch, Save, ShieldCheck, TrendingUp } from "lucide-react";
 import type { AssetKey, State } from "@/lib/platform/engine";
 import { desfechosPara, expectativaPonderada, simularDesfecho } from "@/lib/platform/simulador-cenarios";
 
@@ -94,7 +94,7 @@ export function SimuladorCenarios({ state, assetKey }: { state: State; assetKey:
     <div className="rounded-2xl border border-cyan-900/50 bg-[#071321] p-4">
       <h3 className="flex items-center gap-2 text-sm font-bold text-white"><TrendingUp className="size-4 text-cyan-300"/>Probabilidades personalizadas</h3>
       <p className="mt-1 text-xs text-slate-400">Percentuais ilustrativos editáveis, não probabilidades observadas nem promessa de lucro. Se a soma não for 100%, o cálculo normaliza os pesos e sinaliza isso.</p>
-      <div className="mt-3 space-y-3">{desfechos.map((d,i)=><div key={d.id} className="grid grid-cols-[minmax(0,1fr)_85px] items-center gap-3">
+      <div className="mt-3 space-y-3">{desfechos.map((d)=><div key={d.id} className="grid grid-cols-[minmax(0,1fr)_85px] items-center gap-3">
         <label className="min-w-0 text-xs text-slate-200">{d.titulo}<input aria-label={`Probabilidade de ${d.titulo}`} type="range" min="0" max="100" step="1" value={pesosEfetivos[d.id]??0} onChange={e=>setPesos(o=>({...o,[d.id]:Number(e.target.value)}))} className="mt-1 block w-full accent-violet-500"/></label>
         <input type="number" min="0" max="100" aria-label={`Percentual de ${d.titulo}`} value={Math.round((pesosEfetivos[d.id]??0)*100)/100} onChange={e=>setPesos(o=>({...o,[d.id]:Math.max(0,Math.min(100,Number(e.target.value)||0))}))} className={campo}/></div>)}</div>
       {expectativa && <p className="mt-3 text-sm text-cyan-200">Soma dos pesos: <strong>{numero(expectativa.somaPesos)}%</strong> · Média ponderada: <strong>{usd(expectativa.media)}</strong>{expectativa.normalizado?" · Pesos normalizados para calcular a média.":""}</p>}
