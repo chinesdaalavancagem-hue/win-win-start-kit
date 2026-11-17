@@ -342,6 +342,7 @@ function AuthPage() {
               <Button type="submit" className="h-12 w-full rounded-xl border border-cyan-200/20 bg-gradient-to-r from-cyan-500 to-sky-500 font-semibold text-slate-950 shadow-lg shadow-cyan-950/30 transition hover:brightness-110" disabled={loading}>
                 {loading ? "Aguarde..." : mode === "login" ? "Entrar na plataforma" : "Solicitar cadastro"}
               </Button>
+              {mode === "signup" && <p className="text-xs leading-relaxed text-slate-400">Por segurança, a plataforma registra uma credencial de navegador e informações técnicas mínimas do dispositivo. Cada cadastro permite um computador e um celular autorizados; trocas exigem aprovação do administrador.</p>}
             </form>
 
             {mode === "login" && (

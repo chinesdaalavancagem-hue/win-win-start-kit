@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated")({
@@ -20,25 +20,45 @@ export const Route = createFileRoute("/_authenticated")({
       });
 
       // Falhas HTTP (por exemplo, banco/tabela indisponível) não significam ausência de aceite.
-      if (!response.ok) return { user: data.user, termsCheckError: true };
+      if (!response.ok) return { user: data.user, termsCheckError: true, deviceBlocked: false };
 
       const status = await response.json() as { accepted?: unknown };
       if (status.accepted === false) throw redirect({ to: "/termos" });
-      if (status.accepted !== true) return { user: data.user, termsCheckError: true };
+      if (status.accepted !== true) return { user: data.user, termsCheckError: true, deviceBlocked: false };
 
-      return { user: data.user, termsCheckError: false };
+      const deviceResponse = await fetch("/api/dispositivos/", {
+        headers: { authorization: `Bearer ${token}` }, cache: "no-store", credentials: "same-origin",
+      });
+      const device = deviceResponse.ok ? await deviceResponse.json() as { allowed?: boolean } : null;
+      return { user: data.user, termsCheckError: false, deviceBlocked: device?.allowed !== true };
     } catch (error) {
       // Preserva redirecionamentos intencionais; erros de rede/consulta exibem mensagem.
       if (error && typeof error === "object" && "options" in error) throw error;
-      return { user: data.user, termsCheckError: true };
+      return { user: data.user, termsCheckError: true, deviceBlocked: false };
     }
   },
   component: AuthenticatedLayout,
 });
 
 function AuthenticatedLayout() {
-  const { termsCheckError } = Route.useRouteContext();
+  const { termsCheckError, deviceBlocked } = Route.useRouteContext();
   const [retrying, setRetrying] = useState(false);
+  const [revoked, setRevoked] = useState(false);
+
+  useEffect(() => {
+    if (termsCheckError || deviceBlocked) return;
+    let alive = true;
+    const check = async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (!data.session?.access_token) return;
+        const response = await fetch("/api/dispositivos/", { headers: { authorization: `Bearer ${data.session.access_token}` }, credentials: "same-origin", cache: "no-store" });
+        if (!response.ok || (await response.json() as { allowed?: boolean }).allowed !== true) if (alive) setRevoked(true);
+      } catch { if (alive) setRevoked(true); }
+    };
+    const timer = window.setInterval(() => void check(), 60_000);
+    return () => { alive = false; window.clearInterval(timer); };
+  }, [termsCheckError, deviceBlocked]);
 
   if (termsCheckError) {
     return (
@@ -64,5 +84,6 @@ function AuthenticatedLayout() {
     );
   }
 
+  if (deviceBlocked || revoked) return <main className="flex min-h-screen items-center justify-center bg-[#030914] px-4 text-slate-100"><section role="alert" className="w-full max-w-sm rounded-xl border border-rose-900 bg-[#091321] p-7 text-center shadow-xl"><h1 className="text-lg font-bold">Acesso não autorizado</h1><p className="mt-2 text-sm text-slate-300">Contate o administrador.</p></section></main>;
   return <Outlet />;
 }

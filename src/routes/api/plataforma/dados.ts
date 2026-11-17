@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { MAX_SAVED_DATA_LENGTH } from "@/lib/platform/save-errors";
 import { challengeAccountSchema } from "@/lib/prop-firms";
+import { deviceAllowed } from "@/lib/device-access.server";
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -112,6 +113,8 @@ export const Route = createFileRoute("/api/plataforma/dados")({
       POST: async ({ request }) => {
         const user = await authenticatedUser(request);
         if (!user) return json({ error: "unauthorized" }, 401);
+        try { if (!(await deviceAllowed(request, user.id))) return json({ error: "unauthorized" }, 403); }
+        catch { return json({ error: "device_unavailable" }, 503); }
 
         try {
           const { getTermsStatusForUser } = await import("@/lib/terms.server");

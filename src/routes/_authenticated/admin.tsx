@@ -13,11 +13,38 @@ export const Route = createFileRoute("/_authenticated/admin")({
 });
 
 type Profile = { id: string; full_name: string; phone: string; cpf: string; birth_date: string | null; email: string; approved: boolean; rejected: boolean; created_at: string };
+type Device = { id: string; user_id: string; name: string; device_type: "desktop" | "mobile"; user_agent: string; status: "pending" | "approved" | "revoked"; created_at: string; last_seen_at: string | null };
 
 function Admin() {
   const { user } = Route.useRouteContext();
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [rows, setRows] = useState<Profile[]>([]);
+  const [devices, setDevices] = useState<Device[]>([]);
+  const [deviceMessage, setDeviceMessage] = useState("");
+
+  async function deviceFetch(path: string, options?: RequestInit) {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) throw new Error("Sessão expirada");
+    const response = await fetch(path, { ...options, headers: { "content-type": "application/json", authorization: `Bearer ${token}`, ...options?.headers } });
+    if (!response.ok) throw new Error("Não foi possível consultar os dispositivos.");
+    return response.json();
+  }
+
+  async function loadDevices() {
+    try { const result = await deviceFetch("/api/dispositivos/?admin=1") as { devices: Device[] }; setDevices(result.devices); }
+    catch { setDeviceMessage("Não foi possível carregar os dispositivos. Tente novamente."); }
+  }
+
+  async function decideDevice(deviceId: string, action: "approve" | "deny" | "revoke") {
+    if (action === "approve" && !window.confirm("Autorizar este dispositivo e desativar automaticamente o anterior da mesma categoria?")) return;
+    try {
+      const result = await deviceFetch("/api/dispositivos/", { method: "POST", body: JSON.stringify({ deviceId, action }) }) as { ok: boolean };
+      if (!result.ok) throw new Error("Não foi possível alterar a autorização.");
+      setDeviceMessage(action === "approve" ? "Dispositivo autorizado. O anterior foi revogado." : "Dispositivo desautorizado.");
+      await loadDevices();
+    } catch { setDeviceMessage("Falha ao alterar o dispositivo. Tente novamente."); }
+  }
 
   async function load() {
     const { data } = await supabase.from("profiles").select("*").order("created_at", { ascending: false });
@@ -25,7 +52,7 @@ function Admin() {
   }
 
   useEffect(() => {
-    getMyAccess(user.id).then(({ isAdmin }) => { setAllowed(isAdmin); if (isAdmin) load(); });
+    getMyAccess(user.id).then(({ isAdmin }) => { setAllowed(isAdmin); if (isAdmin) { void load(); void loadDevices(); } });
   }, [user.id]);
 
   async function toggle(p: Profile) {
@@ -60,6 +87,14 @@ function Admin() {
         <div className="rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-transparent p-4"><p className="text-sm text-muted-foreground">Aprovados</p><p className="mt-2 text-2xl font-bold tabular-nums">{rows.filter((p) => p.approved && !p.rejected).length}</p></div>
         <div className="rounded-2xl border border-rose-500/30 bg-gradient-to-br from-rose-500/10 to-transparent p-4"><p className="text-sm text-muted-foreground">Rejeitados</p><p className="mt-2 text-2xl font-bold tabular-nums">{rows.filter((p) => p.rejected).length}</p></div>
       </div>
+      <section className="rounded-2xl border border-cyan-800/70 bg-[#071728] p-5 text-slate-100">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-bold">Dispositivos autorizados</h2><p className="text-xs text-slate-400">Cada usuário pode manter um computador e um celular. Uma troca aprovada revoga o dispositivo anterior da mesma categoria.</p></div><Button size="sm" variant="outline" onClick={() => void loadDevices()}>Atualizar solicitações</Button></div>
+        {deviceMessage && <p role="status" className="mb-3 text-xs text-cyan-300">{deviceMessage}</p>}
+        <div className="space-y-2">
+          {devices.filter(d => d.status !== "revoked").map(d => <div key={d.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-cyan-950 bg-[#081321] px-3 py-3"><div className="min-w-0"><p className="font-semibold">{d.name} · {d.device_type === "mobile" ? "Celular" : "Computador"}</p><p className="max-w-[500px] truncate text-[11px] text-slate-400">{d.user_agent}</p><p className="text-[11px] text-slate-500">Solicitado em {new Date(d.created_at).toLocaleString("pt-BR")} · {d.status === "approved" ? "Autorizado" : "Aguardando autorização"}</p></div><div className="flex gap-2">{d.status === "pending" ? <><Button size="sm" onClick={() => void decideDevice(d.id, "approve")}>Autorizar troca</Button><Button size="sm" variant="outline" onClick={() => void decideDevice(d.id, "deny")}>Recusar</Button></> : <Button size="sm" variant="outline" onClick={() => void decideDevice(d.id, "revoke")}>Desativar</Button>}</div></div>)}
+          {!devices.some(d => d.status !== "revoked") && <p className="text-xs text-slate-400">Nenhum dispositivo registrado.</p>}
+        </div>
+      </section>
       <div className="space-y-3">
         {rows.map((p) => (
           <div key={p.id} className="flex flex-col gap-4 rounded-2xl border border-border/80 bg-card p-5 shadow-sm transition-colors hover:border-cyan-900/50 md:flex-row md:items-center md:justify-between">
