@@ -14,6 +14,12 @@ export type Database = {
   }
   public: {
     Tables: {
+      device_access: {
+        Row: { id: string; user_id: string; device_type: string; token_hash: string; user_agent: string; status: string; created_at: string; last_seen_at: string | null; decided_at: string | null; decided_by: string | null }
+        Insert: { id?: string; user_id: string; device_type: string; token_hash: string; user_agent?: string; status?: string; created_at?: string; last_seen_at?: string | null; decided_at?: string | null; decided_by?: string | null }
+        Update: { id?: string; user_id?: string; device_type?: string; token_hash?: string; user_agent?: string; status?: string; created_at?: string; last_seen_at?: string | null; decided_at?: string | null; decided_by?: string | null }
+        Relationships: []
+      }
       activity_logs: {
         Row: {
           action: string
@@ -493,6 +499,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      approve_device_access: { Args: { p_device_id: string; p_admin_id: string }; Returns: boolean }
       consume_ai_analysis_quota: {
         Args: { p_limit?: number; p_user_id: string }
         Returns: number
