@@ -137,7 +137,10 @@ export interface LogEntry {
   /** Assinatura do Forex compartilhado após a operação, para reversão segura. */
   assinaturaForexApos?: string;
 }
+export interface PayoutRegistro { status: "elegivel" | "solicitado" | "recebido"; valorRecebido?: number; atualizadoEm: number }
 export interface State {
+  /** Confirmações manuais, por ID do evento de fechamento na mesma banca. Nunca alteram o histórico original. */
+  payoutRegistros?: Record<string, PayoutRegistro>;
   presets?: import("@/lib/platform/presets").PresetStore;
   /** Último dia aberto no Card Matriz por ativo, independente do dia operacional real. */
   matrizDiaSelecionado?: Partial<Record<AssetKey, number>>;
@@ -442,6 +445,14 @@ export function normalizeState(p: any): State {
     if (typeof a.params.folgaExtraPct !== "number") a.params.folgaExtraPct = d.folgaExtraPct;
   }
   if (p.assets.saque2.params.ativoReal !== "ouro" && p.assets.saque2.params.ativoReal !== "nasdaq") p.assets.saque2.params.ativoReal = "ouro";
+  if (p.payoutRegistros !== undefined) {
+    const entradas = p.payoutRegistros && typeof p.payoutRegistros === "object" && !Array.isArray(p.payoutRegistros) ? Object.entries(p.payoutRegistros) : [];
+    p.payoutRegistros = Object.fromEntries(entradas.filter(([id, registro]) => {
+      const r = registro as PayoutRegistro | null;
+      return /^\\d+$/.test(id) && r && ["elegivel", "solicitado", "recebido"].includes(r.status) &&
+        Number.isFinite(r.atualizadoEm) && (r.valorRecebido === undefined || (Number.isFinite(r.valorRecebido) && r.valorRecebido >= 0));
+    }));
+  }
   if (!Array.isArray(p.log)) p.log = [];
   for (const e of p.log) {
     if (e.continuacaoSaque !== undefined) {
