@@ -15,7 +15,7 @@ import { applyPreset, capturePreset, isStrategyPreset, PRESET_LABELS, type Prese
 import {
   type AssetKey, type State, type TabKey, type Asset, type MesaFuturos, MESAS_FUTUROS, nomeMesa, diasAvaliacaoAtivo, diasAvaliacaoGold, limitesTradeify, limitesTopstep, limitesVest, adicionarDiaGold, removerDiaGold, aplicarParametrosDia,
   alavancagemVest, maxAlavancagemVest, margemVest, definirParametroVest, percentualSplit, definirSplit, percentualBonus, podeReverterDeposito, reverterDeposito, taxasMesaDia, metaLiquidaDia, projetarPrimeiroPayout, simularSaque2, aplicarDeposito, aplicarSaque, projetarAportesFuturos, conciliarCreditoForex, calcAporteFracionado, calcCaixaCiclo, clampDayIndex, computeAssetCalcs, defaultState, fmt, fmtSigned, handleProfit, handleStop,
-  historicoTotals, isValidState, normalizeState, sincronizarParametros, definirAlavancagem, parseNum, parseValorFinanceiro, parseResultadoCfd, podeDesfazerUltimaOperacao, projetarZeragemBonus, reiniciarCicloBonus, resetBonus, tipoLabel, undoLast,
+  ajustarLotesParaLucro, historicoTotals, isValidState, normalizeState, sincronizarParametros, definirAlavancagem, parseNum, parseValorFinanceiro, parseResultadoCfd, podeDesfazerUltimaOperacao, projetarZeragemBonus, reiniciarCicloBonus, resetBonus, tipoLabel, undoLast,
 } from "@/lib/platform/engine";
 
 type Section = "operacoes" | "parametros" | "bonus" | "aporte" | "caixa" | "meta" | "simulacao";
@@ -709,6 +709,14 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
               s.matrizDiaSelecionado[assetKey] = indice;
             })}
             canEdit={isAdmin}
+            onBrokerChange={corretora => mutate(s => { s.assets[assetKey].params.corretoraCfd = corretora; })}
+            onSpreadChange={pontos => mutate(s => { s.assets[assetKey].params.spreadPontosCfd = pontos; })}
+            onAdjustAll={alvo => {
+              const calculado = ajustarLotesParaLucro(asset, assetKey, alvo);
+              if (calculado.erro) return calculado.erro;
+              mutate(s => { s.assets[assetKey].params.lucroDesejado = alvo; s.assets[assetKey].days = calculado.dias; });
+              return null;
+            }}
             onApply={(indice, plano, repetirFinanciada) => mutate(s => {
               const a = s.assets[assetKey];
               aplicarParametrosDia(a, indice, plano, repetirFinanciada, diasAvaliacaoAtivo(a, assetKey));
@@ -827,6 +835,7 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
         </div>
         <div className="min-w-0 rounded-xl border border-[#183b43] bg-gradient-to-br from-[#092126] to-[#080f1a] p-3 lg:p-2.5">
           <NumField cockpit label={<><Layers className="h-3.5 w-3.5 text-cyan-400" />Lotes CFD</>} value={d.lotes} onChange={setD("lotes")} />
+          <p className="mt-1 text-[10px] text-cyan-200/80">Spread efetivo: {fmt(asset.params.spreadPontosCfd ?? 0)} pontos · {asset.params.corretoraCfd === "hfm" ? "HFM" : asset.params.corretoraCfd === "fot" ? "FOT Markets" : "CFD personalizado"}</p>
           <span className="mt-2 inline-block rounded-full border border-market-up/40 bg-emerald-950/40 px-2 py-0.5 font-mono text-[11px] text-market-up">{mesa === "vest" && !(asset.params.vestPrecoIndice && asset.params.vestPrecoIndice > 0) ? "CFD: cotação necessária para estimar ganho" : `+${fmt(c.reprova)} se reprova`}</span>
         </div>
         <div className="min-w-0 rounded-xl border border-[#18324e] bg-gradient-to-br from-[#0d1b2b] to-[#080f1a] p-2.5">
