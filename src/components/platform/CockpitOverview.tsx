@@ -10,7 +10,7 @@ type DayOverview = {
   caixaDia?: { deposito: number } | undefined;
 };
 
-export function CockpitOverview({ asset, assetKey, mesa, avaliacaoDias, currentIndex, current, days, selectedIndex, onSelectDay, onSettle, onApply, canEdit }: {
+export function CockpitOverview({ asset, assetKey, mesa, avaliacaoDias, currentIndex, current, days, selectedIndex, onSelectDay, onSettle, onApply, canEdit, onBrokerChange, onSpreadChange, onAdjustAll }: {
   asset: Asset;
   assetKey: AssetKey;
   mesa: MesaFuturos;
@@ -23,10 +23,15 @@ export function CockpitOverview({ asset, assetKey, mesa, avaliacaoDias, currentI
   onSettle: (mode: "profit" | "stop") => void;
   onApply: (indice: number, plano: Day, repetirFinanciada: boolean) => void;
   canEdit: boolean;
+  onBrokerChange: (broker: "manual" | "hfm" | "fot" | "outra") => void;
+  onSpreadChange: (pontos: number) => void;
+  onAdjustAll: (alvo: number) => string | null;
 }) {
   const [draft, setDraft] = useState<Day>(() => ({ ...current.d }));
   const [repeat, setRepeat] = useState(false);
   const [message, setMessage] = useState("");
+  const [alvoDraft, setAlvoDraft] = useState(String(asset.params.lucroDesejado));
+  useEffect(() => { setAlvoDraft(String(asset.params.lucroDesejado)); }, [asset.params.lucroDesejado, assetKey]);
   const selected = days[selectedIndex] ?? current;
   const selectedDay = selected.d;
   useEffect(() => { setDraft({ ...selectedDay }); setRepeat(false); }, [selectedIndex, assetKey, selectedDay.mnq, selectedDay.lotes, selectedDay.meta, selectedDay.mll, selectedDay.stopPlanejadoTopstep, selectedDay.vestExposicaoUsd]);
@@ -69,6 +74,29 @@ export function CockpitOverview({ asset, assetKey, mesa, avaliacaoDias, currentI
           <div className="flex items-center gap-4"><Icon className={`size-8 shrink-0 ${color}`} /><div className="min-w-0"><p className="text-sm font-medium text-blue-100">{label}</p><p className="truncate font-mono text-xl font-bold tracking-tight text-cyan-300 sm:text-2xl">{value}</p></div></div>
         </div>)}
       </div>
+
+      <section className="rounded-xl border border-cyan-600/45 bg-[#091a2c] p-3 sm:p-4" aria-label="Ajuste automático do hedge por spread">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div><h3 className="text-sm font-bold text-cyan-100">Ajustar todos os lotes CFD</h3><p className="mt-1 text-xs text-slate-400">Configure a corretora e o spread efetivo; calcule os lotes para atingir o lucro por reprovação, incluindo a taxa da mesa e os custos anteriores.</p></div>
+          <span className="rounded-lg border border-amber-700/40 px-2 py-1 text-[10px] text-amber-200">Simulação · não executa ordens</span>
+        </div>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_auto] xl:items-end">
+          <label className="text-xs text-slate-300">Corretora CFD
+            <select aria-label="Corretora CFD" disabled={!canEdit} value={asset.params.corretoraCfd ?? "manual"} onChange={e => onBrokerChange(e.target.value as "manual" | "hfm" | "fot" | "outra")} className="mt-1.5 block w-full rounded-lg border border-[#214766] bg-[#061321] px-3 py-2.5 text-sm text-slate-100 disabled:opacity-50">
+              <option value="manual">Personalizada</option><option value="hfm">HFM</option><option value="fot">FOT Markets</option><option value="outra">Outra corretora</option>
+            </select>
+          </label>
+          <label className="text-xs text-slate-300">Spread efetivo (pontos do ativo)
+            <input key={`${assetKey}-${asset.params.spreadPontosCfd ?? 0}`} aria-label="Spread efetivo em pontos do ativo" disabled={!canEdit} type="number" min="0" step="0.01" defaultValue={asset.params.spreadPontosCfd ?? 0} onBlur={e => { const valor = Number(e.currentTarget.value); if (Number.isFinite(valor) && valor >= 0) onSpreadChange(valor); else e.currentTarget.value = String(asset.params.spreadPontosCfd ?? 0); }} className="mt-1.5 block w-full rounded-lg border border-[#214766] bg-[#061321] px-3 py-2.5 font-mono text-sm text-slate-100 disabled:opacity-50"/>
+          </label>
+          <label className="text-xs text-slate-300">Lucro por reprovação (US$)
+            <input aria-label="Lucro desejado por reprovação" disabled={!canEdit} type="text" inputMode="decimal" value={alvoDraft} onChange={e => setAlvoDraft(e.target.value)} className="mt-1.5 block w-full rounded-lg border border-[#214766] bg-[#061321] px-3 py-2.5 font-mono text-sm text-slate-100 disabled:opacity-50" />
+          </label>
+          <button type="button" disabled={!canEdit} onClick={() => { const valor = Number(alvoDraft.trim().replace(",", ".")); if (!alvoDraft.trim() || !Number.isFinite(valor) || valor < 0) { setMessage("Informe um lucro válido antes de ajustar."); return; } const erro = onAdjustAll(valor); setMessage(erro ?? "Lotes dos dias futuros recalculados; confira margem e projeções antes de operar."); }} className="rounded-lg bg-gradient-to-r from-cyan-500 to-emerald-400 px-4 py-2.5 text-sm font-extrabold text-[#061625] hover:brightness-110 disabled:opacity-40">Ajustar todos os lotes</button>
+        </div>
+        <p className="mt-2 text-[11px] leading-relaxed text-slate-400">Informe o spread total estimado de entrada e saída na mesma unidade dos pontos usados para o CFD. A seleção da corretora é apenas identificação, sem cotação automática. O ajuste preserva os dias concluídos, arredonda o lote para cima em 0,01 e não garante execução ou PnL exatos. Confirme especificação do símbolo, volume mínimo, step e margem na corretora.</p>
+        {message && <p role="status" className="mt-2 text-xs font-semibold text-cyan-300">{message}</p>}
+      </section>
 
       <div className="grid items-stretch gap-4 xl:grid-cols-[minmax(0,1.65fr)_minmax(320px,1fr)]">
         <section className="rounded-xl border border-cyan-500/70 bg-[linear-gradient(145deg,#091d33,#061321)] p-4 shadow-[inset_3px_0_0_#06b6d4,0_16px_30px_rgba(0,0,0,0.2)] sm:p-5">
