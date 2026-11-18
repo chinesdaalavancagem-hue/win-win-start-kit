@@ -13,6 +13,10 @@ export interface Params {
   saqueDebitadoMesa?: number;
   /** Comissão total de entrada + saída por contrato; ausente mantém o legado sem desconto. */
   comissaoPorContrato?: number;
+  /** Nome informativo da corretora CFD; não implica cotação automática. */
+  corretoraCfd?: "manual" | "hfm" | "fot" | "outra";
+  /** Spread efetivo em pontos do ativo de referência usado nos cálculos CFD (não ticks da mesa). */
+  spreadPontosCfd?: number;
   /** Percentual do lucro solicitado que pertence ao trader. Legado: 90%. */
   splitPct?: number;
   mnq: number; hfm: number; mll: number; saldoInicial: number; taxa: number; lucroDesejado: number;
@@ -370,6 +374,12 @@ export function sincronizarParametros(s: State, anterior?: State): void {
     if (valor === undefined) delete s.assets.saque2.params[campo];
     else s.assets.saque2.params[campo] = valor;
   }
+  // O Saque 2 acompanha as condições CFD do ativo real; sem afetar outros ativos.
+  for (const campo of ["corretoraCfd", "spreadPontosCfd"] as const) {
+    const valor = referencia[campo];
+    if (valor === undefined) delete s.assets.saque2.params[campo];
+    else (s.assets.saque2.params as unknown as Record<string, string | number>)[campo] = valor;
+  }
   const comissao = referencia.comissaoPorContrato;
   if (comissao === undefined) delete s.assets.saque2.params.comissaoPorContrato;
   else s.assets.saque2.params.comissaoPorContrato = comissao;
@@ -422,6 +432,8 @@ export function normalizeState(p: any): State {
     if (a.params.vestPrecoIndice !== undefined && (typeof a.params.vestPrecoIndice !== "number" || !Number.isFinite(a.params.vestPrecoIndice) || a.params.vestPrecoIndice < 0)) delete a.params.vestPrecoIndice;
     if (a.params.saqueDebitadoMesa !== undefined && (!Number.isFinite(a.params.saqueDebitadoMesa) || a.params.saqueDebitadoMesa < 0)) delete a.params.saqueDebitadoMesa;
     if (a.params.comissaoPorContrato !== undefined && (typeof a.params.comissaoPorContrato !== "number" || !Number.isFinite(a.params.comissaoPorContrato) || a.params.comissaoPorContrato < 0)) delete a.params.comissaoPorContrato;
+    if (a.params.spreadPontosCfd !== undefined && (!Number.isFinite(a.params.spreadPontosCfd) || a.params.spreadPontosCfd < 0)) delete a.params.spreadPontosCfd;
+    if (a.params.corretoraCfd !== undefined && !["manual", "hfm", "fot", "outra"].includes(a.params.corretoraCfd)) delete a.params.corretoraCfd;
     if (a.params.alavancagem !== undefined && (typeof a.params.alavancagem !== "number" || !Number.isFinite(a.params.alavancagem) || a.params.alavancagem < 1)) delete a.params.alavancagem;
     const d = defaultAssetsBase[k].params;
     if (typeof a.params.marginPerLot !== "number") a.params.marginPerLot = d.marginPerLot;
@@ -562,6 +574,7 @@ export function lossLimitGoldEfetivo(a: Asset, indice: number): number {
 export function computeAssetCalcs(a: Asset, key: AssetKey, continuidade?: { divida: number; limites: number[] }): DayCalc[] {
   const { mnq: mnqPt, hfm: hfmPt, taxa, lucroDesejado } = a.params;
   const incluiPretensao = key === "saque2";
+  const spread = Number.isFinite(a.params.spreadPontosCfd) ? Math.max(0, a.params.spreadPontosCfd ?? 0) : 0;
   let divida = taxa + (continuidade?.divida ?? 0);
   return a.days.map((d) => {
 
@@ -569,7 +582,9 @@ export function computeAssetCalcs(a: Asset, key: AssetKey, continuidade?: { divi
     const precoVest = a.params.vestPrecoIndice ?? 0;
     const exp = a.mesaFuturos === "vest" ? (precoVest > 0 ? (d.vestExposicaoUsd ?? 0) / precoVest : 0) : d.mnq * mnqPt;
     const pontos = exp > 0 ? d.meta / exp : 0;
-    const custoSePassar = pontos * d.lotes * hfmPt;
+    // Spread de ida e volta: custo adicional na aprovação e redução do ganho na reprovação.
+    // O valor informado já representa o custo efetivo total, para não cobrar duas vezes.
+    const custoSePassar = (pontos + spread) * d.lotes * hfmPt;
     const indice = a.days.indexOf(d);
     const stopManual = d.stopPlanejadoTopstep;
     const limiteAutomatico = continuidade?.limites[indice];
@@ -585,7 +600,7 @@ export function computeAssetCalcs(a: Asset, key: AssetKey, continuidade?: { divi
     const ticksReprova = exp > 0 && a.mesaFuturos !== "vest"
       ? Math.ceil(Number((pontosAtePiso * ticksPorPonto).toFixed(10))) : undefined;
     const pontosReprova = ticksReprova === undefined ? pontosAtePiso : ticksReprova / ticksPorPonto;
-    const reprova = pontosReprova * d.lotes * hfmPt;
+    const reprova = (pontosReprova - spread) * d.lotes * hfmPt;
     const dividaReal = divida;
     const dividaHoje = incluiPretensao ? dividaReal + lucroDesejado : dividaReal;
     const alvoBruto = incluiPretensao ? dividaHoje : dividaReal + lucroDesejado;
@@ -593,6 +608,31 @@ export function computeAssetCalcs(a: Asset, key: AssetKey, continuidade?: { divi
     divida += custoSePassar;
     return { pontos, limiteDoCard: limite, ticksReprova, valorTickMesa: exp / ticksPorPonto, custoSePassar, passa: -custoSePassar, pontosReprova, reprova, dividaHoje, alvoBruto, liquidoSeReprovar, bateuAlvo: liquidoSeReprovar >= lucroDesejado * 0.98 };
   });
+}
+
+/** Calcula lotes CFD sequencialmente para atingir o lucro desejado em qualquer reprovação.
+ * Não altera o ativo recebido; preserva dias anteriores ao dia operacional atual.
+ * O spread informado é custo efetivo total, em pontos do mesmo ativo usado no cálculo CFD.
+ */
+export function ajustarLotesParaLucro(a: Asset, key: AssetKey, alvo: number): { dias: Day[]; erro?: string } {
+  if (!Number.isFinite(alvo) || alvo < 0) return { dias: a.days, erro: "Informe um lucro desejado válido." };
+  const copia: Asset = { ...a, params: { ...a.params, lucroDesejado: alvo }, days: a.days.map(d => ({ ...d })) };
+  const spread = Math.max(0, copia.params.spreadPontosCfd ?? 0);
+  const inicio = Math.max(0, copia.attempt.currentDayIndex);
+  for (let i = inicio; i < copia.days.length; i++) {
+    const dia = copia.days[i]!;
+    const calculo = computeAssetCalcs(copia, key)[i];
+    if (!calculo || !Number.isFinite(calculo.pontosReprova) || calculo.pontosReprova <= spread || copia.params.hfm <= 0) {
+      return { dias: a.days, erro: `D${i + 1}: o limite e o spread não permitem projetar ganho no CFD.` };
+    }
+    // alvoBruto incorpora taxa da mesa, perdas CFD dos dias anteriores e lucro pretendido.
+    const coeficiente = (calculo.pontosReprova - spread) * copia.params.hfm;
+    const ideal = calculo.alvoBruto / coeficiente;
+    if (!Number.isFinite(ideal) || ideal < 0 || ideal > 1000) return { dias: a.days, erro: `D${i + 1}: lote calculado fora da faixa válida.` };
+    // Arredonda para cima em passos de 0,01; o lucro fica no mínimo próximo ao alvo.
+    dia.lotes = Math.max(0.01, Math.ceil((ideal - 1e-9) * 100) / 100);
+  }
+  return { dias: copia.days };
 }
 
 export function nextLogId(s: State) { return s.log.reduce((m, e) => Math.max(m, e.id || 0), 0) + 1; }
