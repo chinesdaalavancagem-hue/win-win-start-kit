@@ -9,6 +9,20 @@ import { Bancas } from "@/components/platform/Bancas";
 import { mensagemErroSalvamento } from "@/lib/platform/save-errors";
 import { queueSaveUnlessConflicted, readVersionedAppData, recoverVersionConflict } from "@/lib/platform/versioned-save";
 
+async function compactarDocumento(data: string): Promise<{ data: string; encoding?: "gzip-base64" }> {
+  // O histórico acumulado pode exceder o limite de 4,5 MB da Vercel.
+  if (data.length < 1_000_000) return { data };
+  if (typeof CompressionStream === "undefined") throw new Error("compression_unavailable");
+  const bytes = new Uint8Array(await new Response(
+    new Blob([data]).stream().pipeThrough(new CompressionStream("gzip")),
+  ).arrayBuffer());
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += 8192) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
+  }
+  return { data: btoa(binary), encoding: "gzip-base64" };
+}
+
 export const Route = createFileRoute("/_authenticated/plataforma")({
   head: () => ({ meta: [{ title: "Plataforma — Win or Win" }, { name: "description", content: "Sua plataforma Win or Win." }, { property: "og:title", content: "Plataforma — Win or Win" }, { property: "og:description", content: "Planeje contratos, operações, bônus e saques na Win or Win." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
   component: Plataforma,
@@ -157,13 +171,14 @@ function Plataforma() {
         const { data } = await supabase.auth.getSession();
         const token = data.session?.access_token;
         if (!token) { setSaveError(mensagemErroSalvamento(401)); return false; }
+        const payload = await compactarDocumento(v);
         const response = await fetch("/api/plataforma/dados", {
           method: "POST",
           headers: {
             "content-type": "application/json",
             authorization: "Bearer " + token,
           },
-          body: JSON.stringify({ data: v, expectedVersion: versionRef.current }),
+          body: JSON.stringify({ ...payload, expectedVersion: versionRef.current }),
         });
         if (response.status === 409) {
           // Bloqueia imediatamente todos os saves até o reload. O load() após
