@@ -12,6 +12,55 @@ html::-webkit-scrollbar-track { background: transparent; }
 .wow-thin-scrollbar::-webkit-scrollbar-thumb { background: #25435d; border-radius: 12px; }
 .wow-thin-scrollbar::-webkit-scrollbar-track { background: transparent; }
 
+/* Temas de leitura da área autenticada. Não alteram números nem estilos do login.
+   A interface legada usa fundos hexadecimais fixos; estas regras os harmonizam
+   com a paleta selecionada sem modificar centenas de componentes operacionais. */
+.wow-theme { transition: background-color 180ms ease, color 180ms ease; }
+.wow-theme-azul {
+  --wow-page: #163953; --wow-surface: #23506d; --wow-header: #14354e;
+  --background: oklch(0.34 0.052 235); --card: oklch(0.42 0.05 235);
+  --popover: oklch(0.42 0.05 235); --input: oklch(0.45 0.045 235);
+  --border: oklch(0.61 0.045 235); --muted: oklch(0.42 0.04 235);
+  --muted-foreground: oklch(0.86 0.02 235); --foreground: oklch(0.98 0.005 230);
+}
+.wow-theme-grafite {
+  --wow-page: #283b4a; --wow-surface: #374e60; --wow-header: #253643;
+  --background: oklch(0.34 0.02 235); --card: oklch(0.42 0.018 235);
+  --popover: oklch(0.42 0.018 235); --input: oklch(0.46 0.02 235);
+  --border: oklch(0.62 0.018 235); --muted: oklch(0.43 0.018 235);
+  --muted-foreground: oklch(0.86 0.01 235); --foreground: oklch(0.98 0.005 230);
+}
+.wow-theme-claro {
+  --wow-page: #eaf2fa; --wow-surface: #ffffff; --wow-header: #d9e9f5;
+  --background: oklch(0.97 0.009 240); --card: oklch(1 0 0);
+  --popover: oklch(1 0 0); --input: oklch(0.96 0.012 240);
+  --border: oklch(0.78 0.027 240); --muted: oklch(0.93 0.012 240);
+  --muted-foreground: oklch(0.4 0.027 240); --foreground: oklch(0.24 0.035 240);
+  --card-foreground: oklch(0.24 0.035 240); --popover-foreground: oklch(0.24 0.035 240);
+  --primary: oklch(0.48 0.12 225); --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.92 0.017 235); --secondary-foreground: oklch(0.24 0.035 240);
+  --market-up: oklch(0.45 0.15 155); --market-down: oklch(0.51 0.19 25);
+}
+.wow-theme:not(.wow-theme-escuro) { background: var(--wow-page) !important; }
+.wow-theme:not(.wow-theme-escuro) :is([class*='bg-[#'], [class*='bg-[radial-gradient'], [class*='bg-[linear-gradient']):not(.fixed) {
+  background-color: var(--wow-surface) !important;
+  background-image: none !important;
+}
+.wow-theme:not(.wow-theme-escuro) > header { background: var(--wow-header) !important; }
+.wow-theme:not(.wow-theme-escuro) aside[aria-label='Navegação principal'] { background: var(--wow-header) !important; }
+.wow-theme:not(.wow-theme-escuro) [class*='border-cyan-'] { border-color: color-mix(in srgb, var(--wow-header), #81b9db 65%) !important; }
+.wow-theme-claro { color: #193249 !important; }
+.wow-theme-claro :is([class*='text-slate-'], [class*='text-blue-100'], [class*='text-white']) { color: #193249 !important; }
+.wow-theme-claro :is([class*='text-cyan-'], [class*='text-sky-']) { color: #09668b !important; }
+.wow-theme-claro [class*='text-emerald-'] { color: #087447 !important; }
+.wow-theme-claro [class*='text-rose-'] { color: #bc2847 !important; }
+.wow-theme-claro [class*='text-amber-'] { color: #956114 !important; }
+.wow-theme-claro :is(input, select, textarea) { background: #fff !important; color: #193249 !important; border-color: #9bb9d0 !important; }
+.wow-theme-claro :is(input, textarea)::placeholder { color: #607c93; }
+.wow-theme-claro :is([class*='hover:bg-blue-']:hover, [class*='hover:bg-cyan-']:hover) { background-color: #dbeaf5 !important; }
+.wow-theme-claro svg text { fill: #435d75 !important; }
+.wow-theme-claro [class*='bg-emerald-'], .wow-theme-claro [class*='bg-rose-'] { background-color: #e2f3ed; }
+
 @custom-variant dark (&:is(.dark *));
 
 /*
