@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { MAX_SAVED_DATA_LENGTH } from "@/lib/platform/save-errors";
 import { challengeAccountSchema } from "@/lib/prop-firms";
 import { deviceAllowed } from "@/lib/device-access.server";
+import { gunzipSync } from "node:zlib";
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -131,7 +132,17 @@ export const Route = createFileRoute("/api/plataforma/dados")({
         if (!body || typeof body !== "object" || typeof (body as Record<string, unknown>).data !== "string" || !Object.prototype.hasOwnProperty.call(body, "expectedVersion") || !((body as Record<string, unknown>).expectedVersion === null || (Number.isSafeInteger((body as Record<string, unknown>).expectedVersion) && Number((body as Record<string, unknown>).expectedVersion) >= 1))) {
           return json({ error: "invalid_body" }, 400);
         }
-        const value = (body as { data: string }).data;
+        let value = (body as { data: string }).data;
+        if ((body as { encoding?: unknown }).encoding !== undefined) {
+          if ((body as { encoding?: unknown }).encoding !== "gzip-base64" || value.length > 20_000_000 || !/^[A-Za-z0-9+/]*={0,2}$/.test(value)) {
+            return json({ error: "invalid_body" }, 400);
+          }
+          try {
+            value = gunzipSync(Buffer.from(value, "base64"), { maxOutputLength: 100_000_000 }).toString("utf8");
+          } catch {
+            return json({ error: "invalid_body" }, 400);
+          }
+        }
         const expectedVersion = (body as { data: string; expectedVersion: number | null }).expectedVersion;
         if (value.length > MAX_SAVED_DATA_LENGTH) return json({ error: "payload_too_large" }, 413);
         let parsedState: Record<string, unknown>;
