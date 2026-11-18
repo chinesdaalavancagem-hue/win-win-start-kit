@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Download, Crown, Cloud, ChevronDown, UserRound, Pencil, Image as ImageIcon, LogOut } from "lucide-react";
+import { Download, Crown, Cloud, ChevronDown, UserRound, Pencil, Image as ImageIcon, LogOut, Palette, Check } from "lucide-react";
 import { getMyAccess, signOut } from "@/lib/session";
 import { registrarAuditoria } from "@/lib/auditoria-registro";
 import { Bancas } from "@/components/platform/Bancas";
@@ -35,6 +35,17 @@ function Plataforma() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [name, setName] = useState("");
   const [profileOpen, setProfileOpen] = useState(false);
+  const [tema, setTema] = useState<"escuro" | "azul" | "grafite" | "claro">("escuro");
+  const [themeOpen, setThemeOpen] = useState(false);
+  useEffect(() => {
+    const salvo = window.localStorage.getItem(`wow-theme-${user.id}`);
+    if (salvo === "escuro" || salvo === "azul" || salvo === "grafite" || salvo === "claro") setTema(salvo);
+  }, [user.id]);
+  const mudarTema = (novo: typeof tema) => {
+    setTema(novo);
+    try { window.localStorage.setItem(`wow-theme-${user.id}`, novo); } catch { /* continua nesta sessão */ }
+    setThemeOpen(false);
+  };
   const [editingNickname, setEditingNickname] = useState(false);
   const [nickname, setNickname] = useState(String(user.user_metadata?.wow_nickname ?? ""));
   const [nicknameDraft, setNicknameDraft] = useState(String(user.user_metadata?.wow_nickname ?? ""));
@@ -221,7 +232,7 @@ function Plataforma() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#030914] text-slate-100">
+    <div className={`wow-theme wow-theme-${tema} flex min-h-screen flex-col bg-[#030914] text-slate-100`}>
       <header className="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-3 border-b border-cyan-950/80 bg-[#050d1b]/95 px-3 py-3 text-sm shadow-[0_8px_28px_rgba(0,0,0,0.28)] backdrop-blur-md sm:px-5">
         <span className="flex min-w-0 items-center gap-2 text-blue-100/75">
           <span className="inline-flex items-center gap-2 rounded-lg border border-emerald-700/50 bg-emerald-950/20 px-2.5 py-1.5 text-emerald-300"><Cloud className="size-4 shrink-0" aria-hidden="true" /><span className="hidden sm:inline">Nuvem</span><span id="wow-header-sync" className="text-[11px] leading-none" /></span>
@@ -232,7 +243,14 @@ function Plataforma() {
             </Button>
           )}
         </span>
-        <div ref={profileRef} className="relative ml-auto">
+        <div className="relative ml-auto">
+          <button type="button" aria-label="Trocar tema da plataforma" aria-expanded={themeOpen} aria-haspopup="true" onClick={() => { setThemeOpen(v => !v); setProfileOpen(false); }} className="flex items-center gap-2 rounded-xl border border-cyan-700/70 bg-[#091b2b] px-3 py-2 text-cyan-200 hover:border-cyan-400"><Palette className="size-4" /><span className="hidden text-xs font-semibold sm:inline">Tema</span><ChevronDown className="size-3" /></button>
+          {themeOpen && <div role="group" aria-label="Escolha o tema visual" className="absolute right-0 top-full z-50 mt-2 w-56 rounded-xl border border-cyan-700/60 bg-[#071728] p-2 shadow-2xl">
+            {([ ["escuro", "Escuro original", "#071525"], ["azul", "Azul Dia", "#255578"], ["grafite", "Grafite", "#405263"], ["claro", "Claro", "#f3f8fd"] ] as const).map(([key, label, cor]) => <button key={key} type="button" aria-pressed={tema === key} onClick={() => mudarTema(key)} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm text-slate-100 hover:bg-cyan-900/30"><span className="size-5 rounded-full border border-slate-400/50" style={{ backgroundColor: cor }} /><span className="flex-1">{label}</span>{tema === key && <Check className="size-4 text-emerald-400" />}</button>)}
+            <p className="px-2 py-1 text-[10px] text-slate-400">A preferência fica salva neste dispositivo.</p>
+          </div>}
+        </div>
+        <div ref={profileRef} className="relative">
           <button type="button" aria-expanded={profileOpen} aria-haspopup="menu" onClick={() => setProfileOpen(v => !v)} className="flex items-center gap-2 rounded-xl p-1 text-slate-100 transition-colors hover:bg-blue-950/50">
             {isAdmin && <Crown className="size-5 text-amber-400" aria-hidden="true" />}
             <span className="max-w-32 truncate font-semibold sm:max-w-48">Olá, {nickname || (isAdmin ? "Master" : (name.trim().split(" ")[0] || "usuário"))}</span>
