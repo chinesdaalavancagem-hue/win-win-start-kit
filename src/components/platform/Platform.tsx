@@ -1136,6 +1136,7 @@ function Historico({ state, mutate, bancas, bancasGlobais, mesaAtiva, bancaAtiva
           {bancas?.map((b) => <option key={b.id} value={b.id}>{b.nome}</option>)}
         </select>
       </label>}
+      <HistoricoCiclos bancas={filtradas} state={state} bancaAtivaId={bancaAtivaId} />
       <Chart state={estadoHistorico} />
       <Simulador state={estadoHistorico} />
       <div className="mb-3 flex justify-between">
@@ -1148,6 +1149,49 @@ function Historico({ state, mutate, bancas, bancasGlobais, mesaAtiva, bancaAtiva
       {!podeDesfazerForex && state.log.length > 0 && podeEditarHistorico && <p className="mb-2 text-xs text-amber-300">Desfazer indisponível: o saldo compartilhado mudou após a operação ou o registro antigo não possui verificação segura. Os dados foram preservados.</p>}
       <LogList state={estadoHistorico} />
     </div>
+  );
+}
+
+/** Apenas eventos encerrados com resultado registrado; não mistura previsão nem duplica dias intermediários. */
+function HistoricoCiclos({ bancas, state, bancaAtivaId }: { bancas?: Banca[] | undefined; state: State; bancaAtivaId?: string | undefined }) {
+  const ciclos = (bancas ?? []).flatMap((b) => {
+    const registros = (b.id === bancaAtivaId ? state : b.state).log;
+    return registros.filter((e) => e.tipo === "aprovada" || e.tipo === "reprovada").map((e) => ({
+      chave: `${b.id}-${e.id}-${e.ts}`,
+      banca: b.nome,
+      mesa: nomeMesa(b.mesa ?? "tradefive", b.state.assets.ouro.mesaConfig),
+      evento: e,
+    }));
+  }).sort((a, b) => b.evento.ts - a.evento.ts);
+  const completos = ciclos.filter((c) => typeof c.evento.resultadoReal === "number" && Number.isFinite(c.evento.resultadoReal));
+  const totalReal = completos.reduce((sum, c) => sum + c.evento.resultadoReal, 0);
+  const positivos = completos.filter((c) => c.evento.resultadoReal > 0).length;
+  const [expandido, setExpandido] = useState(true);
+  return (
+    <section className="mb-4 overflow-hidden rounded-xl border border-cyan-700/45 bg-[#071525]">
+      <button type="button" aria-expanded={expandido} onClick={() => setExpandido((v) => !v)} className="flex w-full items-center justify-between gap-3 border-b border-cyan-900/60 px-4 py-3 text-left hover:bg-cyan-950/30">
+        <span className="font-semibold text-cyan-100">Resultado financeiro por ciclo <span className="ml-2 text-xs font-normal text-slate-400">{completos.length} encerrado(s) com valor registrado</span></span>
+        <span className="text-sm font-semibold text-slate-200">{expandido ? "Recolher −" : "Expandir +"}</span>
+      </button>
+      {expandido && <div className="p-3 sm:p-4">
+        <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <Metric label="Resultado registrado dos ciclos" value={fmtSigned(totalReal)} tone={totalReal >= 0 ? "pos" : "neg"} />
+          <Metric label="Ciclos positivos" value={`${positivos} de ${completos.length}`} />
+          <Metric label="Taxa de ciclos positivos" value={completos.length ? `${fmt(100 * positivos / completos.length)}%` : "—"} />
+        </div>
+        <p className="mb-3 text-xs text-amber-200/85">Valores históricos registrados no encerramento de cada ciclo. Não são previsões nem comprovantes de saque. Dias intermediários não entram novamente na soma.</p>
+        {ciclos.length === 0 ? <p className="py-4 text-sm text-slate-400">Nenhum ciclo encerrado nas bancas selecionadas.</p> : <div className="overflow-x-auto rounded-lg border border-cyan-950">
+          <table className="w-full min-w-[720px] text-left text-xs sm:text-sm">
+            <thead className="bg-cyan-950/45 text-slate-300"><tr><th className="px-3 py-2">Encerramento</th><th className="px-3 py-2">Mesa / banca</th><th className="px-3 py-2">Ativo</th><th className="px-3 py-2">Situação</th><th className="px-3 py-2 text-right">Custo próprio</th><th className="px-3 py-2 text-right">Resultado registrado</th></tr></thead>
+            <tbody className="divide-y divide-cyan-950/80">{ciclos.map(({ chave, banca, mesa, evento: e }) => {
+              const valor = typeof e.resultadoReal === "number" && Number.isFinite(e.resultadoReal) ? e.resultadoReal : null;
+              const custo = typeof e.custoProprioCiclo === "number" && Number.isFinite(e.custoProprioCiclo) ? e.custoProprioCiclo : null;
+              return <tr key={chave} className="hover:bg-cyan-950/25"><td className="whitespace-nowrap px-3 py-2 text-slate-400">{new Date(e.ts).toLocaleDateString("pt-BR")}</td><td className="px-3 py-2"><span className="block text-slate-200">{banca}</span><span className="text-[11px] text-slate-500">{mesa}</span></td><td className="px-3 py-2 font-semibold text-amber-300">{ASSET_NAME[e.asset]}</td><td className="px-3 py-2">{e.tipo === "aprovada" ? "Aprovada" : "Reprovada"}</td><td className="px-3 py-2 text-right text-rose-300">{custo === null ? "Não registrado" : `-$${fmt(custo)}`}</td><td className={cn("px-3 py-2 text-right font-bold", valor === null ? "text-slate-500" : valor >= 0 ? "text-emerald-400" : "text-rose-400")}>{valor === null ? "Não registrado" : fmtSigned(valor)}</td></tr>;
+            })}</tbody>
+          </table>
+        </div>}
+      </div>}
+    </section>
   );
 }
 
@@ -1209,7 +1253,9 @@ function Simulador({ state }: { state: State }) {
 function LogList({ state }: { state: State }) {
   if (!state.log.length) return <p className="py-6 text-center font-mono text-xs text-muted-foreground">nenhum evento registrado ainda</p>;
   return (
-    <div className="divide-y rounded-lg border bg-card">
+    <section className="mb-4 overflow-hidden rounded-xl border border-cyan-900/60 bg-[#071525]">
+      <div className="border-b border-cyan-900/60 px-4 py-3"><h3 className="font-semibold text-slate-100">Movimentações registradas</h3><p className="text-xs text-slate-400">Abra uma linha para ver custos, taxas, spread e outros detalhes do evento.</p></div>
+      <div className="divide-y divide-cyan-950/70">
       {state.log.slice().reverse().map((e) => {
         const dt = new Date(e.ts);
         const date = dt.toLocaleDateString("pt-BR") + " " + dt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
@@ -1232,15 +1278,25 @@ function LogList({ state }: { state: State }) {
           extra += ` · ciclo ${p.numero}: base mesa $${fmt(p.saldoAntes)}, saque bruto $${fmt(p.bruto)}, recebido $${fmt(p.liquido)}, saldo para ciclo ${p.numero + 1} $${fmt(p.saldoDepois)}`;
         }
         return (
-          <div key={e.id} className="flex flex-wrap items-start gap-2 p-3 font-mono text-xs">
-            <span className={cn("rounded px-1.5 py-0.5 text-[10px]", e.asset === "ouro" ? "bg-brand-gold/20 text-brand-gold" : e.asset === "saque2" ? "bg-brand-violet/20 text-brand-violet" : "bg-primary/20 text-primary")}>{ASSET_NAME[e.asset]}</span>
-            <span className="font-semibold">{rotuloDia(state.assets[e.asset], e.asset, Math.max(0, e.day - 1))}</span>
-            <span className="min-w-0 flex-1 text-muted-foreground">{tipoLabel(e.tipo, e.asset)} · {date}{extra}{typeof e.spread === "number" && Math.abs(e.spread) >= 0.005 && <> · spread <span className={e.spread >= 0 ? "text-market-up" : "text-market-down"}>{fmtSigned(e.spread)}</span></>}</span>
-            <span className={e.delta >= 0 ? "text-market-up" : "text-market-down"}>líq. {fmtSigned(e.delta)}</span>
-          </div>
+          <details key={e.id} className="group px-3 py-2 font-mono text-xs open:bg-cyan-950/20">
+            <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1 rounded-md py-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400 [&::-webkit-details-marker]:hidden">
+              <span className={cn("rounded px-1.5 py-0.5 text-[10px]", e.asset === "ouro" ? "bg-brand-gold/20 text-brand-gold" : e.asset === "saque2" ? "bg-brand-violet/20 text-brand-violet" : "bg-primary/20 text-primary")}>{ASSET_NAME[e.asset]}</span>
+              <span className="min-w-[120px] font-semibold text-slate-200">{rotuloDia(state.assets[e.asset], e.asset, Math.max(0, e.day - 1))}</span>
+              <span className="text-slate-400">{date}</span>
+              <span className="min-w-0 flex-1 text-slate-300">{tipoLabel(e.tipo, e.asset)}</span>
+              <span className={cn("font-bold", e.delta >= 0 ? "text-market-up" : "text-market-down")}>{fmtSigned(e.delta)}</span>
+              <span className="text-cyan-400 group-open:rotate-90" aria-hidden="true">›</span>
+            </summary>
+            <div className="mt-2 rounded-lg border border-cyan-900/40 bg-[#030d1a] p-3 leading-relaxed text-slate-300">
+              <p>{tipoLabel(e.tipo, e.asset)} · {date}{extra}{typeof e.spread === "number" && Math.abs(e.spread) >= 0.005 && <> · spread <span className={e.spread >= 0 ? "text-market-up" : "text-market-down"}>{fmtSigned(e.spread)}</span></>}</p>
+              <p className="mt-1">Resultado líquido registrado: <span className={e.delta >= 0 ? "text-market-up" : "text-market-down"}>{fmtSigned(e.delta)}</span></p>
+              <p className="mt-1 text-[11px] text-slate-500">Registro histórico da plataforma, não confirmação externa da corretora.</p>
+            </div>
+          </details>
         );
       })}
-    </div>
+      </div>
+    </section>
   );
 }
 
