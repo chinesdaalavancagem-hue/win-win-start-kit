@@ -1196,29 +1196,67 @@ function HistoricoCiclos({ bancas, state, bancaAtivaId }: { bancas?: Banca[] | u
 }
 
 function Chart({ state }: { state: State }) {
-  const W = 700, H = 220, padL = 46, padR = 14, padT = 14, padB = 24;
-  if (state.log.length === 0) return <div className="mb-4 rounded-lg border bg-card p-8 text-center font-mono text-xs text-muted-foreground">sem eventos registrados ainda</div>;
-  const pts = state.log.reduce<number[]>((acc, e) => { acc.push(acc[acc.length - 1]! + e.delta); return acc; }, [0]);
-  let minV = Math.min(...pts), maxV = Math.max(...pts);
-  if (minV === maxV) { minV -= 10; maxV += 10; }
-  const pad = (maxV - minV) * 0.1; minV -= pad; maxV += pad;
-  const x = (i: number) => padL + (i / Math.max(1, pts.length - 1)) * (W - padL - padR);
-  const y = (v: number) => padT + (1 - (v - minV) / (maxV - minV)) * (H - padT - padB);
-  const txt = { fill: "var(--muted-foreground)", fontSize: 10, fontFamily: "monospace" };
+  const [modo, setModo] = useState<"evolucao" | "operacoes" | "ciclos">("evolucao");
+  const [selecionado, setSelecionado] = useState<number | null>(null);
+  const registros = state.log.slice().sort((a, b) => a.ts - b.ts);
+  const encerramentos = registros.filter((e) => (e.tipo === "aprovada" || e.tipo === "reprovada") && typeof e.resultadoReal === "number" && Number.isFinite(e.resultadoReal));
+  const entradas = modo === "ciclos" ? encerramentos : registros;
+  const valores = entradas.map((e) => modo === "ciclos" ? Number(e.resultadoReal) : e.delta);
+  const pontos = modo === "evolucao" ? valores.reduce<number[]>((acc, v) => { acc.push(acc[acc.length - 1]! + v); return acc; }, [0]) : valores;
+  const soma = valores.reduce((a, b) => a + b, 0);
+  const maxGanho = valores.length ? Math.max(0, ...valores) : 0;
+  const maxPerda = valores.length ? Math.min(0, ...valores) : 0;
+  const ciclosPositivos = encerramentos.filter((e) => Number(e.resultadoReal) > 0).length;
+  const W = 860, H = 290, padL = 82, padR = 24, padT = 24, padB = 42;
+  const minRaw = Math.min(0, ...pontos), maxRaw = Math.max(0, ...pontos);
+  const folga = Math.max(20, (maxRaw - minRaw) * 0.12);
+  const minimo = minRaw - folga, maximo = maxRaw + folga;
+  const x = (i: number) => padL + (i / Math.max(1, pontos.length - 1)) * (W - padL - padR);
+  const y = (v: number) => padT + (1 - (v - minimo) / (maximo - minimo)) * (H - padT - padB);
+  const zero = y(0);
+  const caminho = pontos.map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(2)},${y(v).toFixed(2)}`).join(" ");
+  const area = pontos.length ? `${caminho} L${x(pontos.length - 1)},${zero} L${x(0)},${zero} Z` : "";
+  const registroSelecionado = selecionado === null ? null : entradas[modo === "evolucao" ? selecionado - 1 : selecionado];
+  const valorSelecionado = selecionado === null ? null : pontos[selecionado];
+  const formatoData = (ts: number) => new Date(ts).toLocaleDateString("pt-BR");
+  const rotulo = modo === "evolucao" ? "Resultado acumulado" : modo === "operacoes" ? "Movimentações individuais" : "Resultado dos ciclos encerrados";
+  if (state.log.length === 0) return <div className="mb-4 rounded-xl border border-cyan-900 bg-[#071525] p-8 text-center text-sm text-slate-400">O gráfico será exibido após o primeiro evento registrado.</div>;
   return (
-    <div className="mb-4 rounded-lg border bg-card p-2">
-      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="h-48 w-full">
-        <line x1={padL} y1={y(0)} x2={W - padR} y2={y(0)} style={{ stroke: "var(--border)" }} strokeDasharray="4,4" />
-        <text x={padL - 6} y={y(0) + 4} textAnchor="end" style={txt}>$0</text>
-        <text x={padL - 6} y={padT + 8} textAnchor="end" style={txt}>${fmt(maxV)}</text>
-        <text x={padL - 6} y={H - padB} textAnchor="end" style={txt}>${fmt(minV)}</text>
-        <path d={pts.map((v, i) => `${i ? "L" : "M"}${x(i)},${y(v)}`).join(" ")} fill="none" strokeWidth={2} style={{ stroke: "var(--market-up)" }} />
-        {state.log.map((e, i) => (
-          <circle key={e.id} cx={x(i + 1)} cy={y(pts[i + 1]!)} r={3.5}
-            style={{ fill: e.tipo === "reprovada" ? "var(--market-down)" : e.asset === "ouro" && e.tipo === "profit" ? "var(--brand-gold)" : "var(--market-up)" }} />
-        ))}
-      </svg>
-    </div>
+    <section className="mb-4 overflow-hidden rounded-2xl border border-cyan-600/50 bg-[linear-gradient(145deg,#061526,#030b17)] p-3 shadow-[0_16px_40px_rgba(0,0,0,0.2)] sm:p-5">
+      <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+        <div><h3 className="flex items-center gap-2 text-lg font-bold text-slate-100"><TrendingUp className="size-5 text-cyan-400" />Evolução financeira</h3><p className="text-xs text-slate-400">Histórico de resultados registrados · valores em US$</p></div>
+        <div className="flex rounded-xl border border-cyan-700/60 bg-[#030c1a] p-1" role="group" aria-label="Visualização do gráfico">
+          {([ ["evolucao", "Evolução"], ["operacoes", "Operações"], ["ciclos", "Ciclos"] ] as const).map(([key, label]) => <button type="button" key={key} aria-pressed={modo === key} onClick={() => { setModo(key); setSelecionado(null); }} className={cn("rounded-lg px-3 py-2 text-xs font-semibold transition-colors sm:px-4", modo === key ? "bg-cyan-600/60 text-white shadow-[0_0_12px_rgba(6,182,212,0.25)]" : "text-slate-300 hover:bg-cyan-950")}>{label}</button>)}
+        </div>
+      </div>
+      <div className="mb-2 flex flex-wrap items-end justify-between gap-2 border-t border-cyan-900/40 pt-3">
+        <div><p className="text-xs text-slate-400">{rotulo}</p><p className={cn("text-2xl font-bold tabular-nums", soma >= 0 ? "text-emerald-400" : "text-rose-400")}>{fmtSigned(soma)}</p></div>
+        {registroSelecionado && valorSelecionado !== undefined && valorSelecionado !== null && <div role="status" className="rounded-lg border border-cyan-500/50 bg-[#081c2b] px-3 py-2 text-xs text-slate-200"><span className="font-semibold text-cyan-300">{formatoData(registroSelecionado.ts)} · {ASSET_NAME[registroSelecionado.asset]}</span><span className="ml-2">{tipoLabel(registroSelecionado.tipo, registroSelecionado.asset)}</span><span className={cn("ml-2 font-bold", valorSelecionado >= 0 ? "text-emerald-400" : "text-rose-400")}>{fmtSigned(valorSelecionado)}</span></div>}
+      </div>
+      {pontos.length ? <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full min-w-0" role="img" aria-label={`${rotulo}: ${fmtSigned(soma)}. Selecione um ponto para ver os detalhes.`}>
+        <defs>
+          <linearGradient id="wow-chart-pos" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#10f5a1" stopOpacity="0.42"/><stop offset="100%" stopColor="#10f5a1" stopOpacity="0.02"/></linearGradient>
+          <linearGradient id="wow-chart-neg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#fb5d76" stopOpacity="0.02"/><stop offset="100%" stopColor="#fb5d76" stopOpacity="0.34"/></linearGradient>
+          <clipPath id="wow-chart-above"><rect x={padL} y={padT} width={W - padL - padR} height={Math.max(0, zero - padT)} /></clipPath>
+          <clipPath id="wow-chart-below"><rect x={padL} y={zero} width={W - padL - padR} height={Math.max(0, H - padB - zero)} /></clipPath>
+        </defs>
+        {Array.from({length:5}, (_,i) => { const v=minimo + (maximo-minimo)*i/4; return <g key={i}><line x1={padL} x2={W-padR} y1={y(v)} y2={y(v)} stroke="#31506c" strokeOpacity="0.65" strokeDasharray="4 6"/><text x={padL-9} y={y(v)+4} textAnchor="end" fill="#a2bad1" fontSize="12">{fmtSigned(v)}</text></g>; })}
+        <line x1={padL} x2={W-padR} y1={zero} y2={zero} stroke="#b4e2ed" strokeDasharray="7 5" strokeWidth="1.4" />
+        {modo === "evolucao" ? <>
+          <path d={area} fill="url(#wow-chart-pos)" clipPath="url(#wow-chart-above)"/><path d={area} fill="url(#wow-chart-neg)" clipPath="url(#wow-chart-below)"/>
+          <path d={caminho} fill="none" stroke="#20efad" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" clipPath="url(#wow-chart-above)"/>
+          <path d={caminho} fill="none" stroke="#fb617a" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" clipPath="url(#wow-chart-below)"/>
+        </> : valores.map((v,i) => <rect key={i} x={x(i)-Math.min(16,(W-padL-padR)/Math.max(1,valores.length)*0.36)} y={Math.min(zero,y(v))} width={Math.min(32,(W-padL-padR)/Math.max(1,valores.length)*0.72)} height={Math.max(1,Math.abs(zero-y(v)))} rx="3" fill={v>=0?"#10d996":"#fb617a"} opacity={selecionado===null||selecionado===i?1:0.6}/>)}
+        {pontos.map((v,i) => <circle key={i} cx={x(i)} cy={y(v)} r={selecionado===i?7:5} fill={v>=0?"#25efb5":"#ff6c7d"} fillOpacity={selecionado===i?1:0.01} stroke={selecionado===i?"#fff":"transparent"} strokeWidth="2" tabIndex={0} role="button" aria-label={`${modo === "evolucao" ? "Acumulado" : "Resultado"}: ${fmtSigned(v)}`} onFocus={() => setSelecionado(i)} onMouseEnter={() => setSelecionado(i)} onClick={() => setSelecionado(i)} />)}
+        {Array.from(new Set([0, Math.floor((pontos.length-1)/4), Math.floor((pontos.length-1)/2), Math.floor((pontos.length-1)*3/4), pontos.length-1])).map(i => <text key={i} x={x(i)} y={H-12} textAnchor={i===0?"start":i===pontos.length-1?"end":"middle"} fill="#8fa9c0" fontSize="11">{entradas[modo === "evolucao"?Math.max(0,i-1):i] ? formatoData(entradas[modo === "evolucao"?Math.max(0,i-1):i]!.ts) : "Início"}</text>)}
+      </svg> : <p className="py-10 text-center text-sm text-slate-400">Não há ciclos encerrados com resultado registrado nesta seleção.</p>}
+      <div className="mt-2 grid grid-cols-1 gap-2 border-t border-cyan-900/50 pt-3 sm:grid-cols-3">
+        <Metric label="Maior ganho na seleção" value={fmtSigned(maxGanho)} tone="pos" />
+        <Metric label="Maior perda na seleção" value={fmtSigned(maxPerda)} tone="neg" />
+        <Metric label="Ciclos positivos registrados" value={encerramentos.length ? `${fmt(ciclosPositivos / encerramentos.length * 100)}% (${ciclosPositivos}/${encerramentos.length})` : "—"} />
+      </div>
+      <p className="mt-2 text-[11px] text-slate-500">Dados extraídos do histórico da plataforma. Os valores de ciclos não constituem confirmação externa de saque.</p>
+    </section>
   );
 }
 
