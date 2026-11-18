@@ -20,7 +20,12 @@ function montarCiclos(estado: State, ativo: "ouro" | "nasdaq"): Ciclo[] {
   ).sort((a, b) => a.ts - b.ts || a.id - b.id);
   const primeiro = registros.find(e => e.asset === ativo && e.tipo === "aprovada" && Number(e.saque) > 0);
   if (!primeiro) return [];
-  const ciclos: Ciclo[] = [{ numero: 1, origem: ativo, eventos: [primeiro], fechamento: primeiro }];
+  // O primeiro payout inclui os lucros/perdas registrados desde a última reprovação,
+  // preservando o histórico da avaliação/financiada que levou ao saque.
+  const eventosIniciais = estado.log.filter(e => e.asset === ativo && (e.ts < primeiro.ts || (e.ts === primeiro.ts && e.id <= primeiro.id)))
+    .sort((a, b) => a.ts - b.ts || a.id - b.id);
+  const ultimaReprovacao = eventosIniciais.findLastIndex(e => e.tipo === "reprovada");
+  const ciclos: Ciclo[] = [{ numero: 1, origem: ativo, eventos: eventosIniciais.slice(ultimaReprovacao + 1), fechamento: primeiro }];
   const seguintes = registros.filter(e => e.asset === "saque2" && (e.ts > primeiro.ts || (e.ts === primeiro.ts && e.id > primeiro.id)));
   let atual: Ciclo = { numero: 2, origem: ativo, eventos: [] };
   for (const evento of seguintes) {
@@ -73,11 +78,12 @@ function RegistroSaque({ ciclo, estado, editavel, onUpdate }: {
         <label className="block text-xs text-slate-300">Situação do payout
           <select disabled={!editavel} value={status} onChange={e => {
             const proximo = e.target.value as PayoutRegistro["status"];
-            onUpdate(fechamento.id, proximo === "recebido" ? {status: proximo, valorRecebido: valorRecebido ?? projetado ?? 0, atualizadoEm: Date.now()} : {status: proximo, atualizadoEm: Date.now()});
+            onUpdate(fechamento.id, proximo === "recebido" ? {status: proximo, ...(valorRecebido !== null ? {valorRecebido} : {}), atualizadoEm: Date.now()} : {status: proximo, atualizadoEm: Date.now()});
           }} className="mt-1.5 block w-full max-w-sm rounded-lg border border-cyan-700/60 bg-[#0c2236] p-2 text-sm text-slate-100 disabled:opacity-50">
             <option value="elegivel">Elegível / ainda não solicitado</option><option value="solicitado">Saque solicitado</option><option value="recebido">Saque recebido</option>
           </select>
         </label>
+        {status === "recebido" && valorRecebido === null && <p className="mt-2 text-xs text-amber-200">Informe o valor recebido para que ele entre na soma de saques confirmados. A previsão não será usada automaticamente.</p>}
         {status === "recebido" && <form className="mt-3 flex flex-wrap items-end gap-2" onSubmit={e => {
           e.preventDefault();
           const txt = valorInput.trim();
