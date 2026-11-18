@@ -1297,6 +1297,14 @@ function LogList({ state }: { state: State }) {
       {state.log.slice().reverse().map((e) => {
         const dt = new Date(e.ts);
         const date = dt.toLocaleDateString("pt-BR") + " " + dt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+        // O saldo contábil (delta) inclui bônus consumido; a linha de destaque
+        // mostra o impacto real no bolso sem alterar o registro histórico.
+        const impactoProprio = e.tipo === "profit" && typeof e.custoProprioDia === "number"
+          ? -e.custoProprioDia
+          : e.tipo === "aprovada" && typeof e.resultadoReal === "number"
+            ? e.resultadoReal
+            : e.delta;
+        const destaqueProprio = impactoProprio !== e.delta;
         let extra = "";
         if (e.tipo === "reprovada" && typeof e.bruto === "number") extra = ` · bruto +$${fmt(e.bruto)}${e.taxaCobrada ? ` − taxa mesa -$${fmt(e.taxaCobrada)}` : ""}`;
         else if (typeof e.custoDia === "number") {
@@ -1322,12 +1330,13 @@ function LogList({ state }: { state: State }) {
               <span className="min-w-[120px] font-semibold text-slate-200">{rotuloDia(state.assets[e.asset], e.asset, Math.max(0, e.day - 1))}</span>
               <span className="text-slate-400">{date}</span>
               <span className="min-w-0 flex-1 text-slate-300">{tipoLabel(e.tipo, e.asset)}</span>
-              <span className={cn("font-bold", e.delta >= 0 ? "text-market-up" : "text-market-down")}>{fmtSigned(e.delta)}</span>
+              <span className={cn("font-bold", impactoProprio >= 0 ? "text-market-up" : "text-market-down")} title={destaqueProprio ? "Resultado próprio, sem bônus" : "Resultado líquido registrado"}>{destaqueProprio && <span className="mr-1 text-[10px] font-normal">próprio</span>}{fmtSigned(impactoProprio)}</span>
               <span className="text-cyan-400 group-open:rotate-90" aria-hidden="true">›</span>
             </summary>
             <div className="mt-2 rounded-lg border border-cyan-900/40 bg-[#030d1a] p-3 leading-relaxed text-slate-300">
               <p>{tipoLabel(e.tipo, e.asset)} · {date}{extra}{typeof e.spread === "number" && Math.abs(e.spread) >= 0.005 && <> · spread <span className={e.spread >= 0 ? "text-market-up" : "text-market-down"}>{fmtSigned(e.spread)}</span></>}</p>
-              <p className="mt-1">Resultado líquido registrado: <span className={e.delta >= 0 ? "text-market-up" : "text-market-down"}>{fmtSigned(e.delta)}</span></p>
+              <p className="mt-1">{destaqueProprio ? "Resultado próprio (sem bônus)" : "Resultado líquido registrado"}: <span className={impactoProprio >= 0 ? "text-market-up" : "text-market-down"}>{fmtSigned(impactoProprio)}</span></p>
+              {destaqueProprio && <p className="mt-1 text-[11px] text-slate-400">Movimentação contábil, incluindo bônus: {fmtSigned(e.delta)}</p>}
               <p className="mt-1 text-[11px] text-slate-500">Registro histórico da plataforma, não confirmação externa da corretora.</p>
             </div>
           </details>
