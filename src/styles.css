@@ -17,14 +17,14 @@ html::-webkit-scrollbar-track { background: transparent; }
    com a paleta selecionada sem modificar centenas de componentes operacionais. */
 .wow-theme { transition: background-color 180ms ease, color 180ms ease; }
 .wow-theme-azul {
-  --wow-page: #163953; --wow-surface: #23506d; --wow-header: #14354e;
+  --wow-page: #173b57; --wow-surface: #245371; --wow-header: #163850;
   --background: oklch(0.34 0.052 235); --card: oklch(0.42 0.05 235);
   --popover: oklch(0.42 0.05 235); --input: oklch(0.45 0.045 235);
   --border: oklch(0.61 0.045 235); --muted: oklch(0.42 0.04 235);
   --muted-foreground: oklch(0.86 0.02 235); --foreground: oklch(0.98 0.005 230);
 }
 .wow-theme-grafite {
-  --wow-page: #283b4a; --wow-surface: #374e60; --wow-header: #253643;
+  --wow-page: #2a3c47; --wow-surface: #354d5a; --wow-header: #293e49;
   --background: oklch(0.34 0.02 235); --card: oklch(0.42 0.018 235);
   --popover: oklch(0.42 0.018 235); --input: oklch(0.46 0.02 235);
   --border: oklch(0.62 0.018 235); --muted: oklch(0.43 0.018 235);
@@ -42,13 +42,18 @@ html::-webkit-scrollbar-track { background: transparent; }
   --market-up: oklch(0.45 0.15 155); --market-down: oklch(0.51 0.19 25);
 }
 .wow-theme:not(.wow-theme-escuro) { background: var(--wow-page) !important; }
-.wow-theme:not(.wow-theme-escuro) :is([class*='bg-[#'], [class*='bg-[radial-gradient'], [class*='bg-[linear-gradient']):not(.fixed) {
+.wow-theme-claro :is([class*='bg-[#'], [class*='bg-[radial-gradient'], [class*='bg-[linear-gradient']):not(.fixed) {
   background-color: var(--wow-surface) !important;
   background-image: none !important;
 }
 .wow-theme:not(.wow-theme-escuro) > header { background: var(--wow-header) !important; }
 .wow-theme:not(.wow-theme-escuro) aside[aria-label='Navegação principal'] { background: var(--wow-header) !important; }
-.wow-theme:not(.wow-theme-escuro) [class*='border-cyan-'] { border-color: color-mix(in srgb, var(--wow-header), #81b9db 65%) !important; }
+.wow-theme-claro [class*='border-cyan-'] { border-color: #a9c7dc !important; }
+.wow-theme-azul .platform-day-card { background: #173653 !important; border-color: #5485a3 !important; }
+.wow-theme-grafite .platform-day-card { background: #344957 !important; border-color: #8297a5 !important; }
+.wow-theme-azul .platform-day-card > .grid > div { background: #0b2235 !important; border-color: #416983 !important; }
+.wow-theme-grafite .platform-day-card > .grid > div { background: #1d303c !important; border-color: #526d7b !important; }
+.wow-theme-azul .platform-day-card :is(input, select), .wow-theme-grafite .platform-day-card :is(input, select) { background: #315c77 !important; color: #fff !important; border-color: #5388a5 !important; }
 .wow-theme-claro { color: #193249 !important; }
 .wow-theme-claro :is([class*='text-slate-'], [class*='text-blue-100'], [class*='text-white']) { color: #193249 !important; }
 .wow-theme-claro :is([class*='text-cyan-'], [class*='text-sky-']) { color: #09668b !important; }
@@ -59,7 +64,24 @@ html::-webkit-scrollbar-track { background: transparent; }
 .wow-theme-claro :is(input, textarea)::placeholder { color: #607c93; }
 .wow-theme-claro :is([class*='hover:bg-blue-']:hover, [class*='hover:bg-cyan-']:hover) { background-color: #dbeaf5 !important; }
 .wow-theme-claro svg text { fill: #435d75 !important; }
-.wow-theme-claro [class*='bg-emerald-'], .wow-theme-claro [class*='bg-rose-'] { background-color: #e2f3ed; }
+.wow-theme-claro [class*='bg-emerald-'] { background-color: #e2f3ed; }
+.wow-theme-claro [class*='bg-rose-'] { background-color: #ffebee; }
+/* Os quatro campos de cada card têm gradientes escuros fixos no Dark original.
+   No modo claro, cada bloco recebe fundo próprio e contraste consistente. */
+.wow-theme-claro .platform-day-card { background: #ffffff !important; border-color: #8db7d4 !important; color: #18354b !important; }
+.wow-theme-claro .platform-day-card > .grid > div { background: #edf5fc !important; border-color: #a4c4da !important; color: #17354d !important; }
+.wow-theme-claro .platform-day-card > .grid > div :is([class*='text-slate-'], [class*='text-blue-']) { color: #294b63 !important; }
+.wow-theme-claro .platform-day-card :is(input, select, textarea) { background: #fff !important; color: #102e44 !important; border: 1px solid #91b8d1 !important; }
+.wow-theme-claro .platform-day-card [class*='bg-rose-950'] { background: #ffebee !important; color: #ab2341 !important; }
+.wow-theme-claro .platform-day-card [class*='bg-emerald-950'] { background: #e0f6ed !important; color: #086b49 !important; }
+.wow-theme-claro .platform-day-card > .mt-2.flex { background: #e0f7ea !important; background-image: none !important; border-color: #23a16d !important; }
+.wow-theme-claro .platform-day-card > .mt-2.flex p { color: #144b3d !important; text-shadow: none !important; }
+.wow-theme-claro .platform-day-card > .mt-2.flex[class*='border-rose-'] { background: #ffebee !important; border-color: #db7890 !important; }
+.wow-theme-claro .platform-day-card > .mt-2.flex[class*='border-rose-'] p { color: #842b42 !important; }
+.wow-theme-claro .platform-day-card > .mt-2.flex[class*='border-rose-'] > p { color: #b32948 !important; }
+.wow-theme-claro .platform-day-card > details { background: #f3f8fc !important; border-color: #b6ccdb !important; }
+.wow-theme-claro .platform-day-card > details > summary { color: #13678a !important; }
+.wow-theme-claro .platform-day-card [class*='bg-gradient-to-']:not(.bg-blue-600) { background-image: none !important; }
 
 @custom-variant dark (&:is(.dark *));
 
