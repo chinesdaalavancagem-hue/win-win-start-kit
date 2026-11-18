@@ -1,5 +1,6 @@
 import { SimulacaoFuturos } from "./SimulacaoFuturos";
 import { CockpitOverview } from "./CockpitOverview";
+import { HistoricoSaques } from "./HistoricoSaques";
 import type { Banca } from "@/lib/platform/bancas";
 import { calcularCoberturaSimultanea } from "@/lib/platform/caixa-consolidado";
 import { createPortal } from "react-dom";
@@ -1145,6 +1146,7 @@ function Historico({ state, mutate, bancas, bancasGlobais, mesaAtiva, bancaAtiva
           {bancas?.map((b) => <option key={b.id} value={b.id}>{b.nome}</option>)}
         </select>
       </label>}
+      <HistoricoSaques bancas={filtradas} state={state} bancaAtivaId={bancaAtivaId} mutate={mutate} />
       <HistoricoCiclos bancas={filtradas} state={state} bancaAtivaId={bancaAtivaId} />
       <Chart state={estadoHistorico} />
       <Simulador state={estadoHistorico} />
