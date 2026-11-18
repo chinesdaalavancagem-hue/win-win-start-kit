@@ -1330,7 +1330,7 @@ function LogList({ state }: { state: State }) {
               <span className="min-w-[120px] font-semibold text-slate-200">{rotuloDia(state.assets[e.asset], e.asset, Math.max(0, e.day - 1))}</span>
               <span className="text-slate-400">{date}</span>
               <span className="min-w-0 flex-1 text-slate-300">{tipoLabel(e.tipo, e.asset)}</span>
-              <span className={cn("font-bold", impactoProprio >= 0 ? "text-market-up" : "text-market-down")} title={destaqueProprio ? "Resultado próprio, sem bônus" : "Resultado líquido registrado"}>{destaqueProprio && <span className="mr-1 text-[10px] font-normal">próprio</span>}{fmtSigned(impactoProprio)}</span>
+              <span className={cn("font-bold", impactoProprio >= 0 ? "text-market-up" : "text-market-down")} title={destaqueProprio ? "Resultado próprio, sem bônus" : "Resultado líquido registrado"}>{fmtSigned(impactoProprio)}</span>
               <span className="text-cyan-400 group-open:rotate-90" aria-hidden="true">›</span>
             </summary>
             <div className="mt-2 rounded-lg border border-cyan-900/40 bg-[#030d1a] p-3 leading-relaxed text-slate-300">
