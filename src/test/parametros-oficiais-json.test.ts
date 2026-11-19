@@ -5,6 +5,9 @@ import { OFFICIAL_PARAMS_FORMAT, applyOfficialParams, buildOfficialParams, isOff
 function masterState(): State {
   const s = defaultState();
   s.assets.nasdaq.params.mnq = 7;
+  s.assets.nasdaq.params.corretoraCfd = "fot";
+  s.assets.nasdaq.params.spreadPontosCfd = 1.8;
+  s.assets.nasdaq.params.lucroDesejado = 125;
   s.assets.nasdaq.params.saldoInicial = 9999;
   s.assets.nasdaq.days = [{ mnq: 7, lotes: 3.5, meta: 1800, mll: 1500 }, { mnq: 6, lotes: 2, meta: 1200 }] as State["assets"]["nasdaq"]["days"];
   s.assets.ouro.params.marginPerLot = 900;
@@ -36,6 +39,10 @@ describe("JSON oficial de parâmetros", () => {
     expect(payload.version).toBe(1);
     expect(Object.keys(payload.assets).sort()).toEqual(["nasdaq", "ouro", "saque2"]);
     expect(payload.assets.nasdaq.params.mnq).toBe(7);
+    expect(payload.assets.nasdaq.params.corretoraCfd).toBe("fot");
+    expect(payload.assets.nasdaq.params.spreadPontosCfd).toBe(1.8);
+    expect(payload.assets.nasdaq.params.lucroDesejado).toBe(125);
+    expect(payload.assets.nasdaq.days.map((day: { lotes: number }) => day.lotes)).toEqual([3.5, 2]);
     expect(payload.assets.nasdaq.params.saldoInicial).toBeUndefined();
     expect(payload.assets.nasdaq.days[0]).toEqual({ mnq: 7, lotes: 3.5, meta: 1800, mll: 1500 });
     expect(Object.keys(payload).sort()).toEqual(["assets", "exportedAt", "format", "version"]);
@@ -75,6 +82,9 @@ describe("JSON oficial de parâmetros", () => {
     const before = JSON.parse(JSON.stringify(s));
     applyOfficialParams(s, payload);
     expect(s.assets.nasdaq.params.mnq).toBe(7);
+    expect(s.assets.nasdaq.params.corretoraCfd).toBe("fot");
+    expect(s.assets.nasdaq.params.spreadPontosCfd).toBe(1.8);
+    expect(s.assets.nasdaq.params.lucroDesejado).toBe(125);
     expect(s.assets.ouro.params.marginPerLot).toBe(900);
     expect(s.assets.nasdaq.days).toEqual([{ mnq: 7, lotes: 3.5, meta: 1800, mll: 1500 }, { mnq: 6, lotes: 2, meta: 1200 }]);
     expect(s.assets.nasdaq.params.saldoInicial).toBe(2100);
@@ -85,6 +95,28 @@ describe("JSON oficial de parâmetros", () => {
     expect(s.log).toEqual(before.log);
     expect(s.assets.nasdaq.bonus).toEqual(before.assets.nasdaq.bonus);
     expect(s.assets.nasdaq.attempt).toEqual(before.assets.nasdaq.attempt);
+  });
+
+  it("aceita publicações antigas sem corretora/spread e preserva a configuração local", () => {
+    const payload = roundTrip(masterState());
+    delete payload.assets.nasdaq.params.corretoraCfd;
+    delete payload.assets.nasdaq.params.spreadPontosCfd;
+    expect(isOfficialParams(payload)).toBe(true);
+    const s = commonState();
+    s.assets.nasdaq.params.corretoraCfd = "hfm";
+    s.assets.nasdaq.params.spreadPontosCfd = 0.45;
+    applyOfficialParams(s, payload);
+    expect(s.assets.nasdaq.params.corretoraCfd).toBe("hfm");
+    expect(s.assets.nasdaq.params.spreadPontosCfd).toBe(0.45);
+  });
+
+  it("rejeita corretora desconhecida e spread negativo", () => {
+    const payload = roundTrip(masterState());
+    payload.assets.nasdaq.params.corretoraCfd = "broker-fake";
+    expect(isOfficialParams(payload)).toBe(false);
+    const spreadRuim = roundTrip(masterState());
+    spreadRuim.assets.nasdaq.params.spreadPontosCfd = -0.1;
+    expect(isOfficialParams(spreadRuim)).toBe(false);
   });
 
   it("mantém o valor real pago pela banca ao importar JSON oficial", () => {
