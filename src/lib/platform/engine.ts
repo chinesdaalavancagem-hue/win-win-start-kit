@@ -449,7 +449,7 @@ export function normalizeState(p: any): State {
     const entradas = p.payoutRegistros && typeof p.payoutRegistros === "object" && !Array.isArray(p.payoutRegistros) ? Object.entries(p.payoutRegistros) : [];
     p.payoutRegistros = Object.fromEntries(entradas.filter(([id, registro]) => {
       const r = registro as PayoutRegistro | null;
-      return /^\\d+$/.test(id) && r && ["elegivel", "solicitado", "recebido"].includes(r.status) &&
+      return /^\d+$/.test(id) && r && ["elegivel", "solicitado", "recebido"].includes(r.status) &&
         Number.isFinite(r.atualizadoEm) && (r.valorRecebido === undefined || (Number.isFinite(r.valorRecebido) && r.valorRecebido >= 0));
     }));
   }
