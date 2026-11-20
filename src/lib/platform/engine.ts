@@ -408,7 +408,8 @@ export function sincronizarParametros(s: State, anterior?: State): void {
   for (const k of s.corretora ? ASSETS : ["saque2"] as AssetKey[]) {
     s.assets[k].params.stopoutPct = config.stopoutPct;
     s.assets[k].bonus.percentual = config.bonusPct;
-    s.assets[k].bonus.bonusCap = config.bonusCap;
+    // Backups sem configuração global preservam os tetos locais antigos.
+    if (s.corretora) s.assets[k].bonus.bonusCap = config.bonusCap;
   }
 }
 
@@ -1011,6 +1012,8 @@ export function simularSaque2(s: State, bonusPct = percentualBonus(s.assets.saqu
   const segundo = s.assets.saque2;
   const origemKey: "ouro" | "nasdaq" = segundo.params.ativoReal === "nasdaq" ? "nasdaq" : "ouro";
   const origem = s.assets[origemKey];
+  // O Saque 2 usa o mesmo teto promocional do ativo que originou a continuidade.
+  segundo.bonus.bonusCap = s.corretora?.bonusCap ?? origem.bonus.bonusCap;
   const payout = projetarPrimeiroPayout(origem, origemKey);
   const primeiro = calcCaixaCiclo(origem, origemKey, bonusPct);
   const retirada = payout.bruto;
