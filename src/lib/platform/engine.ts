@@ -1019,9 +1019,17 @@ export function simularSaque2(s: State, bonusPct = percentualBonus(s.assets.saqu
   const saldoMesaInicial = ultimo?.saldoDepois ?? lucroMesa - retirada;
   const resultadoAnterior = ultimo?.resultadoAcumulado ?? primeiro.resultadoFinal;
   const dividaAnterior = ultimo?.divida ?? Math.max(0, -primeiro.resultadoFinal);
-  const forexProprioInicial = ultimo?.forexProprio ?? primeiro.proprioRecuperavel;
-  const forexBonusInicial = ultimo?.forexBonus ?? primeiro.bonusRestante;
-  const bonusUtilizado = ultimo?.bonusUtilizado ?? primeiro.bonusTotal;
+  // No primeiro Saque 2, usar exatamente a base compartilhada exibida em
+  // Bônus e saques: saldo real (ou depósitos, se ainda não houver conciliação)
+  // mais todos os créditos atuais. O ciclo 1 não deve substituir essa base.
+  // A partir do ciclo 3, preservar o caixa congelado no fechamento anterior.
+  const forexProprioCompartilhado = s.forexSaldoReal ?? ASSETS.reduce(
+    (total, k) => total + Math.max(0, s.assets[k].bonus.deposito || 0), 0);
+  const forexBonusCompartilhado = ASSETS.reduce(
+    (total, k) => total + Math.max(0, s.assets[k].bonus.bonusAtual || 0), 0);
+  const forexProprioInicial = ultimo?.forexProprio ?? Math.max(0, forexProprioCompartilhado);
+  const forexBonusInicial = ultimo?.forexBonus ?? forexBonusCompartilhado;
+  const bonusUtilizado = ultimo?.bonusUtilizado ?? Math.max(0, segundo.bonus.bonusGanhoTotal || 0);
   const diasRegistrados = anteriores.filter(e => e.tipo === "profit" && (!fechamento || e.id > fechamento.id));
   const resultados = {...segundo.attempt.resultadosMesaEod};
   for (const e of diasRegistrados) if (Number.isFinite(e.resultadoMesa)) resultados[e.day - 1] = e.resultadoMesa!;
@@ -1048,7 +1056,7 @@ export function simularSaque2(s: State, bonusPct = percentualBonus(s.assets.saqu
     const custo = operacao?.indice === i ? operacao.custo : typeof registro?.cfdReal === "number" ? -registro.cfdReal : c.custoSePassar;
     return {...c, custoSePassar: custo};
   });
-  const segundoCaixa = calcCaixaCiclo({...segundo, bonus: {...segundo.bonus, bonusCap: ultimo?.bonusCap ?? origem.bonus.bonusCap}}, "saque2", bonusPct, {
+  const segundoCaixa = calcCaixaCiclo(segundo, "saque2", bonusPct, {
     proprio: forexProprioInicial, bonus: forexBonusInicial, bonusUtilizado,
   }, calcsCaixa, saque2Liquido);
   return { numeroCiclo, saldoMesaInicial, resultadoAnterior, dividaAnterior, forexProprioInicial, forexBonusInicial, bonusUtilizado, origemKey, primeiro, segundo: segundoCaixa, calcs, limites, lucroMesa, retirada, lucroSegundoCiclo, baseSaque2, saque2Bruto, saque2Liquido,
