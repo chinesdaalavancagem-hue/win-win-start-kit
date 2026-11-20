@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Platform } from "./Platform";
 import { fmt, fmtSigned, MESAS_FUTUROS, prepararMesaVest, prepararMesaPersonalizada, selecionarMesaGold, type MesaFuturos } from "@/lib/platform/engine";
-import { type BancasDoc, aplicarForex, extrairForex, forexDoDocumento, novaBanca, herdarParametrosBanca, parseBancas, referenciaDaMesa, excluirMesaPersonalizada, podeDesfazerBanca, relatorioCsv, resumoBanca } from "@/lib/platform/bancas";
+import { type BancasDoc, aplicarForex, extrairForex, forexDoDocumento, novaBanca, parseBancas, referenciaDaMesa, excluirMesaPersonalizada, podeDesfazerBanca, relatorioCsv, resumoBanca } from "@/lib/platform/bancas";
 import { validarCatalogoTopstep, type CatalogoTopstep } from "@/lib/platform/topstep-vinculo";
 import { Plus, Building2, CheckCircle2, Pencil, Trash2, Download, Upload, ArrowUpRight, WalletCards, Activity } from "lucide-react";
 import { extrairDocumentoBackup, mesclarBackup } from "@/lib/platform/importar-backup";
@@ -295,7 +295,6 @@ export function Bancas({ load, save, isAdmin, onPublishOfficial, onSignOut }: { 
                   if (mesa !== "tradefive" && !personalizada && mesa !== "vest") selecionarMesaGold(b.state.assets.nasdaq, mesa);
                   else b.state.assets.nasdaq.mesaFuturos = mesa;
                   b.state = aplicarForex(b.state, forexDoDocumento(doc));
-                  if (selecionada) b.state = herdarParametrosBanca(b.state, selecionada.state, mesa);
                   b.state.assets.nasdaq.params.taxa = valor;
                   b.state.assets.ouro.params.taxa = valor;
                   setNome(""); setTaxaAvaliacao("");
