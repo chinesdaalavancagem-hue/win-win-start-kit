@@ -42,4 +42,5 @@ it('abre Bônus e saques no Saque 2 usando o teto do ativo de origem',async()=>{
  fireEvent.click(await screen.findByRole('button',{name:'Bônus e saques'}));
  expect(screen.getByText('Conquistado: $35')).toBeInTheDocument();
  expect(screen.getByText('Disponível para ganhar: $65 de $100')).toBeInTheDocument();
+ expect(view.container.querySelector('.h-full.rounded-full')?.getAttribute('style')).toContain('width: 35%');
 });
