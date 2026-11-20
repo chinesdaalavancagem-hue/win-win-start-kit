@@ -700,7 +700,7 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
 
       {section === "aporte" && <AportePanel asset={asset} assetKey={assetKey} calcs={calcs} pct={bonusPct} setPct={setBonusPct} />}
       {section === "caixa" && <CaixaPanel asset={asset} state={state} bancasGlobais={bancasGlobais} bancaAtivaId={bancaAtivaId} assetKey={assetKey} bonusPct={bonusPct} setBonusPct={setBonusPct} /> }
-      {section === "bonus" && <BonusPanel state={state} assetKey={assetKey} reserva={reservaComFolga} folga={folga} mutate={mutate} />}
+      {section === "bonus" && <BonusPanel state={state} assetKey={assetKey} bonusControle={bonusControle} reserva={reservaComFolga} folga={folga} mutate={mutate} />}
 
       {section === "operacoes" && (
         <div>
@@ -923,7 +923,7 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
   );
 }
 
-function BonusPanel({ state, assetKey, reserva, folga, mutate }: { state: State; assetKey: AssetKey; reserva: number; folga: number; mutate: (fn: (s: State) => void) => void }) {
+function BonusPanel({ state, assetKey, bonusControle, reserva, folga, mutate }: { state: State; assetKey: AssetKey; bonusControle: Asset["bonus"]; reserva: number; folga: number; mutate: (fn: (s: State) => void) => void }) {
   const b = state.assets[assetKey].bonus;
   const [dep, setDep] = useState("");
   const [saq, setSaq] = useState("");
