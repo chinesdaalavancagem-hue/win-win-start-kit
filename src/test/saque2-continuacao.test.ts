@@ -39,7 +39,7 @@ describe('Saque 2 continua a projeção do ciclo 1',()=>{
     s.assets.ouro.bonus.bonusAtual=30;
     s.assets.nasdaq.bonus.bonusAtual=20;
     s.assets.saque2.bonus.bonusAtual=10;
-    s.assets.saque2.bonus.bonusCap=100;
+    s.assets.ouro.bonus.bonusCap=100;
     s.assets.ouro.bonus.bonusGanhoTotal=40;
     const r=simularSaque2(s,100), primeiro=r.primeiro, segundo=r.segundo;
     expect(r.forexProprioInicial).toBe(250); // saldo real prevalece sobre depósitos históricos
