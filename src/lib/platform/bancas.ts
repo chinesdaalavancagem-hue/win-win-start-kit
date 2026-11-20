@@ -2,7 +2,8 @@ import { normalizarCarteira, type Carteira } from "./carteira";
 import { type MesaPersonalizada, idMesaPersonalizada, normalizarMesasPersonalizadas } from "./mesas-personalizadas";
 import { type State, type AssetKey, type Bonus, type MesaFuturos, defaultState, selecionarMesaGold, prepararMesaVest, prepararMesaPersonalizada, historicoTotals, isValidState, normalizeState, sincronizarParametros, podeDesfazerUltimaOperacao, tipoLabel } from "./engine";
 import { challengeAccountSchema, type ChallengeAccount } from "../prop-firms";
-import { mesclarPresets, type PresetStore } from "./presets";\nimport { applyOfficialParams, buildOfficialParams } from "./official-params";
+import { mesclarPresets, type PresetStore } from "./presets";
+import { applyOfficialParams, buildOfficialParams } from "./official-params";
 
 export type BancaAtivo = "nasdaq" | "ouro";
 export interface Banca { id: string; nome: string; criadaEm: number; state: State; taxaCompra?: number; mesa?: MesaFuturos; ativo?: BancaAtivo; officialAcceptedAt?: string; challengeAccount?: ChallengeAccount; contaMesa?: string | undefined; contaMesaNome?: string | undefined }
