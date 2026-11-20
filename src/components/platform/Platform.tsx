@@ -970,8 +970,9 @@ function BonusPanel({ state, assetKey, bonusControle, reserva, folga, mutate }: 
 
   const inputClass = "mt-1.5 w-full rounded-xl border border-[#19334f] bg-[#071321] px-3 py-3 font-mono text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-400/70 focus:ring-2 focus:ring-cyan-400/10";
   const labelClass = "block text-xs font-medium text-blue-100/75";
-  const espacoBonus = Math.max(0, b.bonusCap - b.bonusGanhoTotal);
-  const pctBonus = b.bonusCap > 0 ? Math.min(100, (b.bonusGanhoTotal / b.bonusCap) * 100) : 0;
+  // No Saque 2, a barra acompanha o bônus conquistado no ativo de origem.
+  const espacoBonus = Math.max(0, bonusControle.bonusCap - bonusControle.bonusGanhoTotal);
+  const pctBonus = bonusControle.bonusCap > 0 ? Math.min(100, (bonusControle.bonusGanhoTotal / bonusControle.bonusCap) * 100) : 0;
 
   return (
     <section className="relative overflow-hidden rounded-2xl border border-[#142b43] bg-[radial-gradient(ellipse_at_top_right,rgba(0,190,255,0.09),transparent_45%),linear-gradient(135deg,#0b1422,#060d17_72%)] p-4 text-slate-100 shadow-[0_16px_45px_rgba(0,0,0,0.22)] sm:p-6">
