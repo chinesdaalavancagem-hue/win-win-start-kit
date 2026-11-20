@@ -432,6 +432,9 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
   const avaliacaoDias = diasAvaliacaoAtivo(asset, assetKey);
   const setP = (k: keyof Asset["params"]) => (v: number) => mutate((s) => { (s.assets[(k === "comissaoPorContrato" || (k === "marginPerLot" && !!s.assets.saque2.params.alavancagem)) && assetKey === "saque2" ? (s.assets.saque2.params.ativoReal === "nasdaq" ? "nasdaq" : "ouro") : assetKey].params as unknown as Record<string, number>)[k] = v; });
   const bonus = asset.bonus;
+  // No Saque 2, o teto já consumido acompanha o ativo de origem do ciclo anterior.
+  const bonusControleKey: AssetKey = assetKey === "saque2" ? (asset.params.ativoReal === "nasdaq" ? "nasdaq" : "ouro") : assetKey;
+  const bonusControle = state.assets[bonusControleKey].bonus;
   // O Forex é compartilhado entre as bancas e ativos: considerar todos os depósitos e bônus disponíveis.
   const forexProprio = Object.values(state.assets).reduce((sum, a) => sum + Math.max(0, a.bonus.deposito || 0), 0);
   const forexBonus = Object.values(state.assets).reduce((sum, a) => sum + Math.max(0, a.bonus.bonusAtual || 0), 0);
@@ -474,7 +477,7 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
     saldoReal: state.forexSaldoReal ?? forexProprio,
     bonusAtual: forexBonus,
     bonusPct: parseNum(bonusPct),
-    bonusCapRestante: Math.max(0, (asset.bonus.bonusCap || 0) - (asset.bonus.bonusGanhoTotal || 0)),
+    bonusCapRestante: Math.max(0, (bonusControle.bonusCap || 0) - (bonusControle.bonusGanhoTotal || 0)),
   });
   const rows = asset.days.map((d, i) => {
     const c = calcs[i]!;
@@ -999,8 +1002,8 @@ function BonusPanel({ state, assetKey, reserva, folga, mutate }: { state: State;
             <div className="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-300 transition-all" style={{ width: `${pctBonus}%` }} />
           </div>
           <div className="mt-2 flex flex-wrap justify-between gap-1 font-mono text-[11px] text-slate-400">
-            <span>Conquistado: ${fmt(b.bonusGanhoTotal)}</span>
-            <span>Disponível para ganhar: ${fmt(espacoBonus)} de ${fmt(b.bonusCap)}</span>
+            <span>Conquistado: ${fmt(bonusControle.bonusGanhoTotal)}</span>
+            <span>Disponível para ganhar: ${fmt(espacoBonus)} de ${fmt(bonusControle.bonusCap)}</span>
           </div>
           <Button type="button" variant="outline" className="mt-3 rounded-xl border-cyan-800 text-cyan-100" disabled={!(b.bonusGanhoTotal > 0)} onClick={() => {
             if (window.confirm("Reiniciar o ciclo de bônus deste plano para usar outra conta? O contador Conquistado voltará a zero. O saldo Forex, o bônus disponível e o histórico serão mantidos; ajuste os saldos da nova conta separadamente.")) mutate((s) => reiniciarCicloBonus(s, assetKey));
@@ -1019,7 +1022,7 @@ function BonusPanel({ state, assetKey, reserva, folga, mutate }: { state: State;
             <NumField label="Margem estimada por 1 lote ($)" value={state.assets[assetKey].params.marginPerLot} onChange={v => { if (Number.isFinite(v) && v >= 0) mutate(s => { const key = assetKey === "saque2" && s.assets.saque2.params.alavancagem ? (s.assets.saque2.params.ativoReal === "nasdaq" ? "nasdaq" : "ouro") : assetKey; s.assets[key].params.marginPerLot = v; }); }} helper="Use a margem atual do MT5 como referência. Esta estimativa não consulta cotações ao vivo e pode mudar durante notícias ou conforme o volume. O Saque 2 acompanha o ativo de origem após configurar a alavancagem." />
             <NumField label="Stop-out da corretora (%)" value={state.assets[assetKey].params.stopoutPct} onChange={(v) => mutate(s => { s.assets[assetKey].params.stopoutPct = v; })} />
             <NumField label="Bônus da corretora (%)" value={percentualBonus(b)} onChange={(v) => { if (Number.isFinite(v) && v >= 0) mutate(s => { s.assets[assetKey].bonus.percentual = v; }); }} helper="Ex.: 0, 25, 100 ou 150. Compartilhado entre mesas e Saque 2. Vale para novos depósitos e projeções; não altera o bônus já registrado. Ajuste ao mudar de promoção." />
-            <NumField label="Teto de bônus do plano ($)" value={b.bonusCap} onChange={(v) => mutate((s) => { if (v) s.assets[assetKey].bonus.bonusCap = v; })} />
+            <NumField label="Teto de bônus do plano ($)" value={b.bonusCap} onChange={(v) => mutate((s) => { if (Number.isFinite(v) && v >= 0) s.assets[assetKey].bonus.bonusCap = v; })} />
           </div>
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             <div className="rounded-xl border border-[#183b43] bg-gradient-to-br from-[#092126]/80 to-[#080f1a] p-3.5 sm:p-4">
