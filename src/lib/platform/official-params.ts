@@ -3,7 +3,8 @@ import { percentualBonus, type AssetKey, type State, type MesaFuturos } from "@/
 
 export const OFFICIAL_PARAMS_FORMAT = "win-or-win-official-parameters";
 const ASSETS: AssetKey[] = ["nasdaq", "ouro", "saque2"];
-const PARAM_FIELDS = ["mnq", "hfm", "mll", "taxa", "lucroDesejado", "marginPerLot", "stopoutPct", "saqueAprovada", "folgaExtraPct"] as const;\nconst OPTIONAL_PARAM_FIELDS = ["alavancagem", "bonusPct", "bonusCap"] as const;
+const PARAM_FIELDS = ["mnq", "hfm", "mll", "taxa", "lucroDesejado", "marginPerLot", "stopoutPct", "saqueAprovada", "folgaExtraPct"] as const;
+const OPTIONAL_PARAM_FIELDS = ["alavancagem", "bonusPct", "bonusCap"] as const;
 const DAY_FIELDS = ["mnq", "lotes", "meta"] as const;
 
 type OfficialDay = { mnq: number; vestExposicaoUsd?: number; lotes: number; meta: number; mll?: number };
