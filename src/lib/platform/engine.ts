@@ -144,7 +144,7 @@ export interface State {
   presets?: import("@/lib/platform/presets").PresetStore;
   /** Último dia aberto no Card Matriz por ativo, independente do dia operacional real. */
   matrizDiaSelecionado?: Partial<Record<AssetKey, number>>;
-  corretora?: { stopoutPct: number; bonusPct: number } | undefined;
+  corretora?: { stopoutPct: number; bonusPct: number; bonusCap?: number } | undefined;
   revisoesHistorico?: { ts: number; anteriores: LogEntry[] }[];
   activeTab: TabKey; assets: Record<AssetKey, Asset>; log: LogEntry[]; cfdBalance: number; totalGasto: number;
   forexSaldoReal?: number | undefined;
@@ -388,21 +388,27 @@ export function sincronizarParametros(s: State, anterior?: State): void {
   else s.assets.saque2.params.comissaoPorContrato = comissao;
   const alterado = anterior && ASSETS.find(k =>
     s.assets[k].params.stopoutPct !== anterior.assets[k].params.stopoutPct ||
-    percentualBonus(s.assets[k].bonus) !== percentualBonus(anterior.assets[k].bonus));
+    percentualBonus(s.assets[k].bonus) !== percentualBonus(anterior.assets[k].bonus) ||
+    s.assets[k].bonus.bonusCap !== anterior.assets[k].bonus.bonusCap);
   if (alterado) s.corretora = {
     stopoutPct: s.assets[alterado].params.stopoutPct,
     bonusPct: percentualBonus(s.assets[alterado].bonus),
+    bonusCap: s.assets[alterado].bonus.bonusCap,
   };
   if (s.corretora && (!Number.isFinite(s.corretora.stopoutPct) || s.corretora.stopoutPct < 0 ||
-    !Number.isFinite(s.corretora.bonusPct) || s.corretora.bonusPct < 0)) delete s.corretora;
+    !Number.isFinite(s.corretora.bonusPct) || s.corretora.bonusPct < 0 ||
+    (s.corretora.bonusCap !== undefined && (!Number.isFinite(s.corretora.bonusCap) || s.corretora.bonusCap < 0)))) delete s.corretora;
   // Backups antigos adotam o ativo de origem; os saldos continuam separados.
-  const config = s.corretora ?? {
-    stopoutPct: s.assets[origem].params.stopoutPct,
-    bonusPct: percentualBonus(s.assets[origem].bonus),
+  const config = {
+    stopoutPct: s.corretora?.stopoutPct ?? s.assets[origem].params.stopoutPct,
+    bonusPct: s.corretora?.bonusPct ?? percentualBonus(s.assets[origem].bonus),
+    bonusCap: s.corretora?.bonusCap ?? s.assets[origem].bonus.bonusCap,
   };
+  if (s.corretora && s.corretora.bonusCap === undefined) s.corretora = { ...s.corretora, bonusCap: config.bonusCap };
   for (const k of s.corretora ? ASSETS : ["saque2"] as AssetKey[]) {
     s.assets[k].params.stopoutPct = config.stopoutPct;
     s.assets[k].bonus.percentual = config.bonusPct;
+    s.assets[k].bonus.bonusCap = config.bonusCap;
   }
 }
 
@@ -1029,7 +1035,7 @@ export function simularSaque2(s: State, bonusPct = percentualBonus(s.assets.saqu
     (total, k) => total + Math.max(0, s.assets[k].bonus.bonusAtual || 0), 0);
   const forexProprioInicial = ultimo?.forexProprio ?? Math.max(0, forexProprioCompartilhado);
   const forexBonusInicial = ultimo?.forexBonus ?? forexBonusCompartilhado;
-  const bonusUtilizado = ultimo?.bonusUtilizado ?? Math.max(0, segundo.bonus.bonusGanhoTotal || 0);
+  const bonusUtilizado = ultimo?.bonusUtilizado ?? Math.max(0, origem.bonus.bonusGanhoTotal || 0);
   const diasRegistrados = anteriores.filter(e => e.tipo === "profit" && (!fechamento || e.id > fechamento.id));
   const resultados = {...segundo.attempt.resultadosMesaEod};
   for (const e of diasRegistrados) if (Number.isFinite(e.resultadoMesa)) resultados[e.day - 1] = e.resultadoMesa!;
