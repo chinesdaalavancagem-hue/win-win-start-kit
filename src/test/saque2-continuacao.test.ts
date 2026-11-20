@@ -31,14 +31,33 @@ describe('Saque 2 continua a projeção do ciclo 1',()=>{
     s.assets.nasdaq.attempt.resultadosMesaEod={'3':1800};
     expect(simularSaque2(s).limites[0]).toBe(1250);
   });
-  it('carrega dinheiro e bônus sem conceder bônus de novo ou duplicar capital',()=>{
-    const s=setup();s.assets.ouro.bonus.bonusCap=100;
+  it('usa o saldo real, os bônus compartilhados e somente o teto de bônus ainda disponível no Saque 2',()=>{
+    const s=setup();
+    s.forexSaldoReal=250;
+    s.assets.ouro.bonus.deposito=400;
+    s.assets.nasdaq.bonus.deposito=150;
+    s.assets.ouro.bonus.bonusAtual=30;
+    s.assets.nasdaq.bonus.bonusAtual=20;
+    s.assets.saque2.bonus.bonusAtual=10;
+    s.assets.saque2.bonus.bonusCap=100;
+    s.assets.saque2.bonus.bonusGanhoTotal=40;
     const r=simularSaque2(s,100), primeiro=r.primeiro, segundo=r.segundo;
-    expect(segundo.dias[0]!.proprioAntes).toBeCloseTo(primeiro.proprioRecuperavel);
-    expect(segundo.dias[0]!.bonusAntes).toBeCloseTo(primeiro.bonusRestante);
-    expect(primeiro.bonusTotal+segundo.bonusTotal).toBeLessThanOrEqual(100.00001);
+    expect(r.forexProprioInicial).toBe(250); // saldo real prevalece sobre depósitos históricos
+    expect(r.forexBonusInicial).toBe(60); // soma dos créditos atuais nas três abas
+    expect(segundo.dias[0]!.proprioAntes).toBe(250);
+    expect(segundo.dias[0]!.bonusAntes).toBe(60);
+    expect(segundo.bonusUtilizado).toBe(40);
+    expect(segundo.bonusTotal).toBeLessThanOrEqual(60.00001); // teto 100 menos 40 já concedidos
     expect(segundo.resultadoFinal).toBeCloseTo(segundo.saque-segundo.taxa-segundo.perdaPropriaTotal);
-    expect(r.resultadoAcumulado).toBeCloseTo(primeiro.saque+segundo.saque-primeiro.taxa-segundo.taxa-primeiro.perdaPropriaTotal-segundo.perdaPropriaTotal);
+    expect(r.resultadoAcumulado).toBeCloseTo(primeiro.resultadoFinal+segundo.resultadoFinal);
+  });
+  it('usa a soma dos depósitos como saldo próprio somente quando o saldo real ainda não foi conciliado',()=>{
+    const s=setup();
+    s.forexSaldoReal=undefined;
+    s.assets.ouro.bonus.deposito=125;
+    s.assets.nasdaq.bonus.deposito=75;
+    const r=simularSaque2(s);
+    expect(r.forexProprioInicial).toBe(200);
   });
   it('preserva limites manuais e não soma avaliação ao lucro financiado',()=>{
     const s=setup();s.assets.saque2.days[0]!.mll=500;
