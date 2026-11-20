@@ -1,9 +1,9 @@
 import { idMesaPersonalizada, validarMesaPersonalizada, type MesaPersonalizada } from "./mesas-personalizadas";
-import type { AssetKey, State, MesaFuturos } from "@/lib/platform/engine";
+import { percentualBonus, type AssetKey, type State, type MesaFuturos } from "@/lib/platform/engine";
 
 export const OFFICIAL_PARAMS_FORMAT = "win-or-win-official-parameters";
 const ASSETS: AssetKey[] = ["nasdaq", "ouro", "saque2"];
-const PARAM_FIELDS = ["mnq", "hfm", "mll", "taxa", "lucroDesejado", "marginPerLot", "stopoutPct", "saqueAprovada", "folgaExtraPct"] as const;
+const PARAM_FIELDS = ["mnq", "hfm", "mll", "taxa", "lucroDesejado", "marginPerLot", "stopoutPct", "saqueAprovada", "folgaExtraPct"] as const;\nconst OPTIONAL_PARAM_FIELDS = ["alavancagem", "bonusPct", "bonusCap"] as const;
 const DAY_FIELDS = ["mnq", "lotes", "meta"] as const;
 
 type OfficialDay = { mnq: number; vestExposicaoUsd?: number; lotes: number; meta: number; mll?: number };
@@ -20,11 +20,11 @@ const isNum = (v: unknown) => typeof v === "number" && Number.isFinite(v);
 /** Monta o JSON oficial: só parâmetros e plano diário, nunca saldos, depósitos, histórico ou logs. */
 export function buildOfficialParams(state: State, exportedAt = new Date().toISOString(), mesaFuturos?: MesaFuturos): OfficialParamsPayload {
   const assets = Object.fromEntries(ASSETS.map((key) => {
-    const { vestAlavancagem, vestPrecoIndice, splitPct = 90, comissaoPorContrato = 0, corretoraCfd, spreadPontosCfd, ativoReal, mnq, hfm, mll, taxa, lucroDesejado, marginPerLot, stopoutPct, saqueAprovada, folgaExtraPct } = state.assets[key].params;
+    const { vestAlavancagem, vestPrecoIndice, splitPct = 90, comissaoPorContrato = 0, corretoraCfd, spreadPontosCfd, ativoReal, alavancagem, mnq, hfm, mll, taxa, lucroDesejado, marginPerLot, stopoutPct, saqueAprovada, folgaExtraPct } = state.assets[key].params;
     return [key, {
       ...(mesaFuturos === "vest" ? {avaliacaoDias: key === "saque2" ? 0 : state.assets[key].avaliacaoPorMesa?.vest ?? 1} : {}),
       ...(state.assets[key].mesaConfig ? {mesaConfig: structuredClone(state.assets[key].mesaConfig), avaliacaoDias: state.assets[key].avaliacaoPorMesa?.[mesaFuturos!] ?? (key === "saque2" ? 0 : state.assets[key].mesaConfig!.avaliacao)} : {}),
-      params: { ...(vestAlavancagem !== undefined ? {vestAlavancagem} : {}), ...(vestPrecoIndice !== undefined ? {vestPrecoIndice} : {}), splitPct, comissaoPorContrato, ...(corretoraCfd ? { corretoraCfd } : {}), ...(typeof spreadPontosCfd === "number" ? { spreadPontosCfd } : {}), mnq, hfm, mll, taxa, lucroDesejado, marginPerLot, stopoutPct, saqueAprovada, folgaExtraPct, ...(ativoReal ? { ativoReal } : {}) },
+      params: { ...(vestAlavancagem !== undefined ? {vestAlavancagem} : {}), ...(vestPrecoIndice !== undefined ? {vestPrecoIndice} : {}), ...(typeof alavancagem === "number" ? { alavancagem } : {}), bonusPct: percentualBonus(state.assets[key].bonus), bonusCap: state.assets[key].bonus.bonusCap, splitPct, comissaoPorContrato, ...(corretoraCfd ? { corretoraCfd } : {}), ...(typeof spreadPontosCfd === "number" ? { spreadPontosCfd } : {}), mnq, hfm, mll, taxa, lucroDesejado, marginPerLot, stopoutPct, saqueAprovada, folgaExtraPct, ...(ativoReal ? { ativoReal } : {}) },
       days: state.assets[key].days.map(({ mnq, lotes, meta, mll, vestExposicaoUsd }) => ({ mnq, lotes, meta, ...(typeof vestExposicaoUsd === "number" ? { vestExposicaoUsd } : {}), ...(typeof mll === "number" ? { mll } : {}) })),
     }];
   })) as unknown as OfficialParamsPayload["assets"];
@@ -45,6 +45,7 @@ export function isOfficialParams(payload: unknown): payload is OfficialParamsPay
     if (!idMesaPersonalizada(mesa) && asset?.mesaConfig !== undefined) return false;
     return !!asset && !!params && typeof params === "object" &&
       PARAM_FIELDS.every((f) => isNum(params[f])) &&
+      OPTIONAL_PARAM_FIELDS.every((f) => params[f] === undefined || (isNum(params[f]) && (f === "alavancagem" ? (params[f] as number) >= 1 : (params[f] as number) >= 0))) &&
       (params.vestAlavancagem === undefined || (isNum(params.vestAlavancagem) && Number.isInteger(params.vestAlavancagem) && (params.vestAlavancagem as number) >= 1 && (params.vestAlavancagem as number) <= (key === "nasdaq" || (key === "saque2" && params.ativoReal === "nasdaq") ? 50 : 25))) &&
       (params.vestPrecoIndice === undefined || (isNum(params.vestPrecoIndice) && (params.vestPrecoIndice as number) >= 0)) &&
       (params.splitPct === undefined || (isNum(params.splitPct) && (params.splitPct as number) >= 0 && (params.splitPct as number) <= 100)) &&
@@ -83,7 +84,10 @@ export function applyOfficialParams(current: State, payload: OfficialParamsPaylo
     if (incoming.params.corretoraCfd === "manual" || incoming.params.corretoraCfd === "hfm" || incoming.params.corretoraCfd === "fot" || incoming.params.corretoraCfd === "outra") picked.corretoraCfd = incoming.params.corretoraCfd;
     if (isNum(incoming.params.spreadPontosCfd) && (incoming.params.spreadPontosCfd as number) >= 0) picked.spreadPontosCfd = incoming.params.spreadPontosCfd;
     if (incoming.params.ativoReal !== undefined) picked.ativoReal = incoming.params.ativoReal;
+    if (isNum(incoming.params.alavancagem) && incoming.params.alavancagem >= 1) picked.alavancagem = incoming.params.alavancagem;
     current.assets[key].params = { ...current.assets[key].params, ...picked } as State["assets"]["nasdaq"]["params"];
+    if (isNum(incoming.params.bonusPct) && incoming.params.bonusPct >= 0) current.assets[key].bonus.percentual = incoming.params.bonusPct;
+    if (isNum(incoming.params.bonusCap) && incoming.params.bonusCap >= 0) current.assets[key].bonus.bonusCap = incoming.params.bonusCap;
     current.assets[key].days = incoming.days.map(({ mnq, lotes, meta, mll, vestExposicaoUsd }) => ({ mnq, lotes, meta, ...(typeof vestExposicaoUsd === "number" ? { vestExposicaoUsd } : {}), ...(typeof mll === "number" ? { mll } : {}) }));
   }
 }
