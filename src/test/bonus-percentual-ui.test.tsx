@@ -34,3 +34,12 @@ it('confirma alavancagem inteira ao sair do campo e recalcula sem usar dígitos 
  expect(screen.getByLabelText(/Margem estimada por 1 lote/)).toHaveValue('405');
  await waitFor(()=>expect(JSON.parse(saved).assets.saque2.params.marginPerLot).toBe(405),{timeout:5000});
 });
+it('abre Bônus e saques no Saque 2 usando o teto do ativo de origem',async()=>{
+ const s=defaultState(); s.activeTab='saque2'; s.assets.saque2.params.ativoReal='ouro';
+ s.assets.ouro.bonus.bonusGanhoTotal=35; s.assets.ouro.bonus.bonusCap=100;
+ let saved=JSON.stringify(s);
+ render(<Platform leftMenuOpen load={async()=>saved} save={async v=>{saved=v;return true;}} isAdmin officialAcceptedAt={null}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Bônus e saques'}));
+ expect(screen.getByText('Conquistado: $35')).toBeInTheDocument();
+ expect(screen.getByText('Disponível para ganhar: $65 de $100')).toBeInTheDocument();
+});
