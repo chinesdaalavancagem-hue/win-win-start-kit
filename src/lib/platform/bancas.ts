@@ -3,7 +3,6 @@ import { type MesaPersonalizada, idMesaPersonalizada, normalizarMesasPersonaliza
 import { type State, type AssetKey, type Bonus, type MesaFuturos, defaultState, selecionarMesaGold, prepararMesaVest, prepararMesaPersonalizada, historicoTotals, isValidState, normalizeState, sincronizarParametros, podeDesfazerUltimaOperacao, tipoLabel } from "./engine";
 import { challengeAccountSchema, type ChallengeAccount } from "../prop-firms";
 import { mesclarPresets, type PresetStore } from "./presets";
-import { applyOfficialParams, buildOfficialParams } from "./official-params";
 
 export type BancaAtivo = "nasdaq" | "ouro";
 export interface Banca { id: string; nome: string; criadaEm: number; state: State; taxaCompra?: number; mesa?: MesaFuturos; ativo?: BancaAtivo; officialAcceptedAt?: string; challengeAccount?: ChallengeAccount; contaMesa?: string | undefined; contaMesaNome?: string | undefined }
@@ -47,14 +46,6 @@ const newId = () => Math.random().toString(36).slice(2, 10) + Date.now().toStrin
 
 export function novaBanca(nome: string, state: State = defaultState()): Banca {
   return { id: newId(), nome: nome.trim() || "Banca", criadaEm: Date.now(), state };
-}
-
-/** Copia somente parâmetros oficiais e plano diário; saldos, bônus recebido e histórico ficam novos. */
-export function herdarParametrosBanca(destino: State, origem: State, mesa?: MesaFuturos): State {
-  const next = structuredClone(destino);
-  applyOfficialParams(next, buildOfficialParams(origem, new Date().toISOString(), mesa));
-  sincronizarParametros(next, destino);
-  return next;
 }
 
 /** Aceita o formato antigo (um único estado) e o novo (várias bancas). */
