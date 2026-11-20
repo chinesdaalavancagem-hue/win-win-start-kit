@@ -20,6 +20,14 @@ describe('parâmetros vinculados',()=>{
   const previo=structuredClone(next); next.assets.saque2.bonus.percentual=0; sincronizarParametros(next,previo);
   expect(next.assets.ouro.bonus.percentual).toBe(0);
  });
+ it('compartilha também o teto do bônus da corretora entre ativos e bancas',()=>{
+  const s=defaultState(),antes=structuredClone(s);
+  s.assets.ouro.bonus.bonusCap=1250;
+  sincronizarParametros(s,antes);
+  for(const key of ['nasdaq','ouro','saque2'] as const) expect(s.assets[key].bonus.bonusCap).toBe(1250);
+  const outra=defaultState(),next=aplicarForex(outra,extrairForex(s));
+  for(const key of ['nasdaq','ouro','saque2'] as const) expect(next.assets[key].bonus.bonusCap).toBe(1250);
+ });
  it('migra legado pela origem preservando depósitos e operações',()=>{
   const s=defaultState(); s.assets.ouro.bonus.percentual=150; s.assets.ouro.params.stopoutPct=20;
   const before=structuredClone(s);
