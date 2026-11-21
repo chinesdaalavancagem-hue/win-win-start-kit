@@ -1,3 +1,4 @@
+import { normalizarMovimentacoes } from "@/lib/platform/movimentacoes-mesa";
 import { type MesaPersonalizada, validarMesaPersonalizada, metasAvaliacao } from "./mesas-personalizadas";
 // Lógica da plataforma Win or Win (portada 1:1 do HTML original).
 // O formato do estado salvo em app_data NÃO deve mudar — mantém os dados dos usuários.
@@ -141,6 +142,8 @@ export interface PayoutRegistro { status: "elegivel" | "solicitado" | "recebido"
 export interface State {
   /** Confirmações manuais, por ID do evento de fechamento na mesma banca. Nunca alteram o histórico original. */
   payoutRegistros?: Record<string, PayoutRegistro>;
+  /** Movimentações reais da mesa (informativo); não participa de nenhum cálculo operacional. */
+  movimentacoesMesa?: import("@/lib/platform/movimentacoes-mesa").MovimentacoesMesaStore;
   presets?: import("@/lib/platform/presets").PresetStore;
   /** Último dia aberto no Card Matriz por ativo, independente do dia operacional real. */
   matrizDiaSelecionado?: Partial<Record<AssetKey, number>>;
@@ -473,6 +476,10 @@ export function normalizeState(p: any): State {
   if (!p.counts) p.counts = { aprovadas: 0, reprovadas: 0 };
   if (typeof p.totalGasto !== "number") p.totalGasto = 0;
   if (!p.activeTab) p.activeTab = "nasdaq";
+  if (p.movimentacoesMesa !== undefined) {
+    const m = normalizarMovimentacoes(p.movimentacoesMesa);
+    if (m) p.movimentacoesMesa = m; else delete p.movimentacoesMesa;
+  }
   sincronizarParametros(p as State);
   return p as State;
 }

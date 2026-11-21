@@ -1,6 +1,7 @@
 import { SimulacaoFuturos } from "./SimulacaoFuturos";
 import { CockpitOverview } from "./CockpitOverview";
 import { HistoricoSaques } from "./HistoricoSaques";
+import { MovimentacoesMesa } from "./MovimentacoesMesa";
 import type { Banca } from "@/lib/platform/bancas";
 import { calcularCoberturaSimultanea } from "@/lib/platform/caixa-consolidado";
 import { createPortal } from "react-dom";
@@ -19,7 +20,7 @@ import {
   ajustarLotesParaLucro, historicoTotals, isValidState, normalizeState, sincronizarParametros, definirAlavancagem, parseNum, parseValorFinanceiro, parseResultadoCfd, podeDesfazerUltimaOperacao, projetarZeragemBonus, reiniciarCicloBonus, resetBonus, tipoLabel, undoLast,
 } from "@/lib/platform/engine";
 
-type Section = "operacoes" | "parametros" | "bonus" | "aporte" | "caixa" | "meta" | "simulacao";
+type Section = "operacoes" | "parametros" | "bonus" | "aporte" | "caixa" | "meta" | "simulacao" | "movimentacoes";
 type Sync = { mode: "ok" | "busy" | "err"; text: string };
 
 const TABS: { key: TabKey; label: string; dot: string }[] = [
@@ -136,6 +137,7 @@ export function Platform({ onOpenCarteira, onPublishOfficial, onSignOut, mesasDi
     ["caixa", "Caixa do ciclo"],
     ["meta", "Meta geral"],
     ["simulacao", "Simulação"],
+    ["movimentacoes", "Movimentações da Mesa"],
   ];
 
 
@@ -185,9 +187,9 @@ export function Platform({ onOpenCarteira, onPublishOfficial, onSignOut, mesasDi
           </div>
           <div><p className={cn("mb-2 px-2 text-[10px] font-bold tracking-[.18em] text-slate-500", desktopCollapsed && "lg:sr-only")}>GESTÃO</p>
             {sections.map(([k, label]) => {
-              const icons: Record<Section, typeof Target> = { operacoes: Crosshair, parametros: SlidersHorizontal, bonus: Gift, aporte: Layers, caixa: Wallet, meta: Target, simulacao: Calculator };
+              const icons: Record<Section, typeof Target> = { operacoes: Crosshair, parametros: SlidersHorizontal, bonus: Gift, aporte: Layers, caixa: Wallet, meta: Target, simulacao: Calculator, movimentacoes: ScrollText };
               const Icon = icons[k];
-              const colors: Record<Section, string> = { operacoes: "text-cyan-400", parametros: "text-sky-400", bonus: "text-emerald-400", aporte: "text-violet-400", caixa: "text-amber-400", meta: "text-rose-400", simulacao: "text-indigo-300" };
+              const colors: Record<Section, string> = { operacoes: "text-cyan-400", parametros: "text-sky-400", bonus: "text-emerald-400", aporte: "text-violet-400", caixa: "text-amber-400", meta: "text-rose-400", simulacao: "text-indigo-300", movimentacoes: "text-teal-300" };
               return <button key={k} type="button" title={label} aria-pressed={tab !== "historico" && section === k} onClick={() => { setSection(k); if (tab === "historico") mutate(s => { s.activeTab = "ouro"; }); setMobileMenuOpen(false); }} className={cn("mb-1 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-colors", tab !== "historico" && section === k ? "border border-cyan-500/50 bg-cyan-700/20 font-semibold text-cyan-200" : "text-slate-300 hover:bg-blue-950")}><Icon className={cn("size-[18px] shrink-0", colors[k])} /><span className={cn(desktopCollapsed && "lg:sr-only")}>{label}</span></button>;
             })}
             <button type="button" title="Escolher mesa" aria-expanded={mostrarMesas} onClick={() => { setMostrarMesas(true); setMobileMenuOpen(false); }} className="mb-1 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-amber-200 hover:bg-amber-950/30"><Building2 className="size-[18px] shrink-0 text-amber-400" /><span className={cn(desktopCollapsed && "lg:sr-only")}>Escolher mesa</span></button>
@@ -241,7 +243,7 @@ export function Platform({ onOpenCarteira, onPublishOfficial, onSignOut, mesasDi
         </Button>
       </div>}
 
-      {section === "simulacao" && tab !== "historico" ? <SimulacaoFuturos /> : tab === "historico" ? <Historico state={state} mutate={mutate} bancas={allBancas} bancasGlobais={bancasGlobais} mesaAtiva={mesaAtiva} bancaAtivaId={bancaAtivaId} podeDesfazerForex={podeDesfazerForex} /> : (
+      {section === "simulacao" && tab !== "historico" ? <SimulacaoFuturos /> : section === "movimentacoes" && tab !== "historico" ? <MovimentacoesMesa key={`${bancaAtivaId}:${tab}`} state={state} tab={tab} mutate={mutate} /> : tab === "historico" ? <Historico state={state} mutate={mutate} bancas={allBancas} bancasGlobais={bancasGlobais} mesaAtiva={mesaAtiva} bancaAtivaId={bancaAtivaId} podeDesfazerForex={podeDesfazerForex} /> : (
         <AssetView key={tab} state={state} bancasGlobais={bancasGlobais} bancaAtivaId={bancaAtivaId} contaMesa={contaMesa} mesaAtiva={mesaAtiva} assetKey={tab} section={section} mutate={mutate} isAdmin={isAdmin} />
       )}
 
