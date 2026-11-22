@@ -910,7 +910,34 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
               </div>
             </div>
 
-
+              {assetKey !== "saque2" && (() => {
+                const target = asset.mesaConfig?.target ?? asset.days.slice(0, avaliacaoDias).reduce((total, dia) => total + Math.max(0, dia.meta || 0), 0);
+                const realizado = Object.entries(asset.attempt.resultadosMesaEod ?? {}).reduce((total, [chave, valor]) => {
+                  const indice = Number(chave);
+                  return Number.isInteger(indice) && indice >= 0 && indice < avaliacaoDias && Number.isFinite(valor) ? total + valor : total;
+                }, 0);
+                if (target <= 0) return null;
+                const percentual = (realizado / target) * 100;
+                const largura = Math.max(0, Math.min(100, percentual));
+                const restante = Math.max(0, target - realizado);
+                const money = (valor: number) => `${valor < 0 ? "−" : ""}${fmt(Math.abs(valor))}`;
+                return (
+                  <div className="mt-3 rounded-xl border border-cyan-800/60 bg-[#071725] p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs font-bold text-cyan-100">Progresso da meta da mesa</p>
+                      <span className="font-mono text-xs font-bold text-cyan-300">{fmt(Math.max(0, percentual))}%</span>
+                    </div>
+                    <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-slate-800" role="progressbar" aria-label="Progresso da meta da avaliação" aria-valuemin={0} aria-valuemax={100} aria-valuenow={largura}>
+                      <div className="h-full rounded-full bg-gradient-to-r from-cyan-600 to-emerald-400 transition-[width] duration-300" style={{ width: `${largura}%` }} />
+                    </div>
+                    <div className="mt-2 flex flex-wrap items-center justify-between gap-1 text-[11px]">
+                      <span className="text-slate-300">Realizado: <strong className="font-mono text-emerald-300">{money(realizado)}</strong> / {money(target)}</span>
+                      <span className="text-slate-400">{restante > 0 ? `Faltam ${money(restante)}` : "Meta atingida"}</span>
+                    </div>
+                    <p className="mt-1 text-[10px] text-slate-500">Considera somente os resultados líquidos registrados nos dias de avaliação. A consistência é calculada separadamente.</p>
+                  </div>
+                );
+              })()}
 
           </div>
         );
