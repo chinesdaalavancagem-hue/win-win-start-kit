@@ -16,7 +16,7 @@ import { applyOfficialParams, buildOfficialParams, isOfficialParams } from "@/li
 import { applyPreset, capturePreset, isStrategyPreset, PRESET_LABELS, type PresetSlot } from "@/lib/platform/presets";
 import {
   type AssetKey, type State, type TabKey, type Asset, type MesaFuturos, MESAS_FUTUROS, nomeMesa, diasAvaliacaoAtivo, diasAvaliacaoGold, limitesTradeify, limitesTopstep, limitesVest, adicionarDiaGold, removerDiaGold, aplicarParametrosDia,
-  alavancagemVest, maxAlavancagemVest, margemVest, exposicaoVestUsd, definirParametroVest, percentualSplit, definirSplit, percentualBonus, podeReverterDeposito, reverterDeposito, taxasMesaDia, metaLiquidaDia, projetarPrimeiroPayout, simularSaque2, aplicarDeposito, aplicarSaque, projetarAportesFuturos, conciliarCreditoForex, calcAporteFracionado, calcCaixaCiclo, clampDayIndex, computeAssetCalcs, defaultState, fmt, fmtSigned, handleProfit, handleStop,
+  alavancagemVest, maxAlavancagemVest, margemVest, exposicaoVestUsd, contratosMgcEquivalentesVest, definirParametroVest, percentualSplit, definirSplit, percentualBonus, podeReverterDeposito, reverterDeposito, taxasMesaDia, metaLiquidaDia, projetarPrimeiroPayout, simularSaque2, aplicarDeposito, aplicarSaque, projetarAportesFuturos, conciliarCreditoForex, calcAporteFracionado, calcCaixaCiclo, clampDayIndex, computeAssetCalcs, defaultState, fmt, fmtSigned, handleProfit, handleStop,
   ajustarLotesParaLucro, historicoTotals, isValidState, normalizeState, sincronizarParametros, definirAlavancagem, parseNum, parseValorFinanceiro, parseResultadoCfd, podeDesfazerUltimaOperacao, projetarZeragemBonus, reiniciarCicloBonus, resetBonus, tipoLabel, undoLast,
 } from "@/lib/platform/engine";
 
@@ -780,6 +780,8 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
   const projecao = assetKey === "saque2" ? null : mesa === "tradefive" ? limitesTradeify(asset, assetKey, i)
     : mesa === "topstep" ? limitesTopstep(asset, assetKey, i) : mesa === "vest" ? limitesVest(asset, assetKey, i) : null;
   const exposicaoVest = mesa === "vest" ? exposicaoVestUsd(asset, d) : 0;
+  const precoOuroVest = asset.params.vestPrecoIndice ?? 0;
+  const mgcEquivalente = mesa === "vest" ? contratosMgcEquivalentesVest(exposicaoVest, precoOuroVest) : undefined;
   const cfdSemReferencia = mesa === "vest" && (!(asset.params.vestPrecoIndice && asset.params.vestPrecoIndice > 0) || !(exposicaoVest > 0));
   const campoStop = mesa === "topstep" ? "stopPlanejadoTopstep" : "mll";
   const ajustarStop = (valor: number) => mutate(st => {
@@ -837,8 +839,13 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
             <NumField cockpit label="Variação contrária (pontos)" value={d.vestVariacaoContrariaPontos ?? 0} onChange={v => mutate(st => { st.assets[assetKey].days[i]!.vestVariacaoContrariaPontos = Math.max(0, v); })} />
             <div className="col-span-2 rounded-lg border border-cyan-900/60 bg-[#061322] px-3 py-2">
               <p className="text-[10px] uppercase tracking-wide text-slate-400">Exposição calculada automaticamente</p>
-              <p className="mt-1 font-mono text-lg font-bold text-cyan-200">${fmt(exposicaoVest)}</p>
-              <p className="mt-1 text-xs text-cyan-300">Margem aproximada ({alavancagemVest(asset, assetKey)}x): {fmt(margemVest(asset, assetKey, exposicaoVest) ?? 0)} USDC</p>
+              <p className="mt-1 font-mono text-lg font-bold text-cyan-200">US$ {fmt(exposicaoVest)}</p>
+              <p className="mt-1 text-xs text-cyan-300">Margem aproximada ({alavancagemVest(asset, assetKey)}x): US$ {fmt(margemVest(asset, assetKey, exposicaoVest) ?? 0)}</p>
+              <div className="mt-2 rounded-md border border-cyan-900/50 bg-[#0a1b2b] px-2.5 py-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Equivalência CME · Micro Gold (MGC)</p>
+                <p className="mt-0.5 font-mono text-sm font-bold text-white">{mgcEquivalente !== undefined ? `${fmt(mgcEquivalente, 4)} MGC` : "Informe a cotação do ouro"}</p>
+                <p className="mt-0.5 text-[10px] leading-relaxed text-slate-400">1 MGC = 10 oz × US$ {fmt(precoOuroVest)}. Referência de exposição nocional; na Vest a ordem continua sendo informada em dólares.</p>
+              </div>
               <p className="mt-1 text-[11px] leading-relaxed text-slate-400">A variação favorável dimensiona a exposição para atingir a meta. A variação contrária projeta o ganho do hedge se a Vest reprovar, limitada à distância real até o loss limit.</p>
             </div>
           </div> : <NumField cockpit label={<><FileText className="h-3.5 w-3.5 text-blue-400" />Contratos</>} value={d.mnq} onChange={setD("mnq")} />}
