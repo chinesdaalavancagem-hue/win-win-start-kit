@@ -835,18 +835,27 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
       <div className="grid grid-cols-2 gap-2">
         <div className="min-w-0 rounded-xl border border-[#18324e] bg-gradient-to-br from-[#0d1b2b] to-[#080f1a] p-3 lg:p-2.5">
           {mesa === "vest" ? <div className="col-span-2 grid grid-cols-2 gap-2">
-            <NumField cockpit label="Variação favorável (pontos)" value={d.vestVariacaoFavoravelPontos ?? 0} onChange={v => mutate(st => { st.assets[assetKey].days[i]!.vestVariacaoFavoravelPontos = Math.max(0, v); })} />
-            <NumField cockpit label="Variação contrária (pontos)" value={d.vestVariacaoContrariaPontos ?? 0} onChange={v => mutate(st => { st.assets[assetKey].days[i]!.vestVariacaoContrariaPontos = Math.max(0, v); })} />
+            <NumField cockpit label="Quantidade de MGC (equivalente)" value={d.vestMgcContratos ?? mgcEquivalente ?? 0} onChange={v => mutate(st => {
+              const dia = st.assets[assetKey].days[i]!;
+              dia.vestMgcContratos = Math.max(0, v);
+              delete dia.vestVariacaoFavoravelPontos;
+              delete dia.vestVariacaoContrariaPontos;
+            })} />
             <div className="col-span-2 rounded-lg border border-cyan-900/60 bg-[#061322] px-3 py-2">
-              <p className="text-[10px] uppercase tracking-wide text-slate-400">Exposição calculada automaticamente</p>
+              <p className="text-[10px] uppercase tracking-wide text-slate-400">Tamanho equivalente na Vest</p>
               <p className="mt-1 font-mono text-lg font-bold text-cyan-200">US$ {fmt(exposicaoVest)}</p>
               <p className="mt-1 text-xs text-cyan-300">Margem aproximada ({alavancagemVest(asset, assetKey)}x): US$ {fmt(margemVest(asset, assetKey, exposicaoVest) ?? 0)}</p>
-              <div className="mt-2 rounded-md border border-cyan-900/50 bg-[#0a1b2b] px-2.5 py-2">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Equivalência CME · Micro Gold (MGC)</p>
-                <p className="mt-0.5 font-mono text-sm font-bold text-white">{mgcEquivalente !== undefined ? `${fmt(mgcEquivalente, 4)} MGC` : "Informe a cotação do ouro"}</p>
-                <p className="mt-0.5 text-[10px] leading-relaxed text-slate-400">1 MGC = 10 oz × US$ {fmt(precoOuroVest)}. Referência de exposição nocional; na Vest a ordem continua sendo informada em dólares.</p>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <div className="rounded-md border border-cyan-900/50 bg-[#0a1b2b] px-2.5 py-2">
+                  <p className="text-[10px] uppercase tracking-wide text-slate-400">Variação favorável</p>
+                  <p className="mt-1 font-mono text-sm font-bold text-emerald-300">{fmt(c.pontos, 2)} pontos</p>
+                </div>
+                <div className="rounded-md border border-cyan-900/50 bg-[#0a1b2b] px-2.5 py-2">
+                  <p className="text-[10px] uppercase tracking-wide text-slate-400">Variação contrária</p>
+                  <p className="mt-1 font-mono text-sm font-bold text-rose-300">{fmt(c.pontosReprova, 2)} pontos</p>
+                </div>
               </div>
-              <p className="mt-1 text-[11px] leading-relaxed text-slate-400">A variação favorável dimensiona a exposição para atingir a meta. A variação contrária projeta o ganho do hedge se a Vest reprovar, limitada à distância real até o loss limit.</p>
+              <p className="mt-2 text-[10px] leading-relaxed text-slate-400">Referência: 1 MGC = 10 oz × US$ {fmt(precoOuroVest)}. A ordem na Vest continua sendo informada em dólares.</p>
             </div>
           </div> : <NumField cockpit label={<><FileText className="h-3.5 w-3.5 text-blue-400" />Contratos</>} value={d.mnq} onChange={setD("mnq")} />}
            
