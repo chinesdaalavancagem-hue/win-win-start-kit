@@ -75,15 +75,27 @@ it('registrar e desfazer ciclo mantém o split Vest e o histórico reversível',
  handleProfit(s,'ouro',-80);expect(s.log.at(-1)?.saque).toBe(180);
  undoLast(s);expect(s.log).toHaveLength(1);expect(s.assets.ouro.attempt.currentDayIndex).toBe(1);
 });
-it('cards mostram exposição em USD, sem 50% no lucro Vest',async()=>{
- const s=setup();render(<Platform leftMenuOpen load={async()=>JSON.stringify(s)} save={async()=>true} isAdmin officialAcceptedAt={null} mesaAtiva="vest"/>);
- expect((await screen.findAllByLabelText('Variação favorável (pontos)'))[0]).toHaveValue('0');\n expect(screen.queryByLabelText('Alvo em ticks')).toBeNull();\n  fireEvent.change(screen.getAllByLabelText('Variação favorável (pontos)')[0]!,{target:{value:'25'}});\n  fireEvent.change(screen.getAllByLabelText('Variação contrária (pontos)')[0]!,{target:{value:'15'}});\n  expect(screen.getAllByText(/Exposição calculada automaticamente/).length).toBeGreaterThan(0);
-  expect(screen.getAllByLabelText('Meta bruta $')[0]).toHaveValue('2000');
+it('MGC define exposição USD e a calculadora deriva as duas variações',()=>{
+ const s=setup(),a=s.assets.ouro,d=a.days[0]!;
+ a.params.vestPrecoIndice=3631.6;d.meta=2500;d.mll=1500;d.vestMgcContratos=4;
+ expect(exposicaoVestUsd(a,d)).toBe(145264);
+ const c=computeAssetCalcs(a,'ouro')[0]!;
+ expect(c.pontos).toBeCloseTo(62.5);
+ expect(c.pontosReprova).toBeCloseTo((1500-taxasMesaDia(a,d))/40);
+});
+it('card Vest recebe quantidade MGC e mostra variações calculadas',async()=>{
+ const s=setup();s.assets.ouro.params.vestPrecoIndice=3631.6;
+ render(<Platform leftMenuOpen load={async()=>JSON.stringify(s)} save={async()=>true} isAdmin officialAcceptedAt={null} mesaAtiva="vest"/>);
+ expect((await screen.findAllByLabelText('Quantidade de MGC (equivalente)'))[0]).toHaveValue('0');
+ expect(screen.queryByLabelText('Variação favorável (pontos)')).toBeNull();
+ fireEvent.change(screen.getAllByLabelText('Quantidade de MGC (equivalente)')[0]!,{target:{value:'4'}});
+ expect(await screen.findAllByText(/US\$ 145\.264,00/)).not.toHaveLength(0);
+ expect(screen.getAllByText(/50,00 pontos/).length).toBeGreaterThan(0);
+ expect(screen.getAllByLabelText('Meta bruta $')[0]).toHaveValue('2000');
  fireEvent.click(screen.getByRole('button',{name:'Meta geral',hidden:true}));
  expect(screen.getByText('Lucro disponível · 100%')).toBeInTheDocument();
-  expect(screen.getAllByText(/Taxa taker GC-PERP estimada automaticamente/).length).toBeGreaterThan(0);
+ expect(screen.getAllByText(/Taxa taker GC-PERP estimada automaticamente/).length).toBeGreaterThan(0);
 });
-
 it('cria conta Vest pela interface com preço padrão e reabre o documento',async()=>{
  const old={...novaBanca('Topstep existente'),mesa:'topstep'};
  const doc={bancasVersion:1,bancas:[old],activeId:'',mesaAtiva:'vest'};
