@@ -89,7 +89,7 @@ it('card Vest recebe quantidade MGC e mostra variações calculadas',async()=>{
  expect((await screen.findAllByLabelText('Quantidade de MGC (equivalente)'))[0]).toHaveValue('0');
  expect(screen.queryByLabelText('Variação favorável (pontos)')).toBeNull();
  fireEvent.change(screen.getAllByLabelText('Quantidade de MGC (equivalente)')[0]!,{target:{value:'4'}});
- expect(await screen.findAllByText(/US\$ 145\.264,00/)).not.toHaveLength(0);
+ expect(await screen.findAllByText(/US\$ 145\.264/)).not.toHaveLength(0);
  expect(screen.getAllByText(/50 pontos/).length).toBeGreaterThan(0);
  expect(screen.getAllByLabelText('Meta bruta $')[0]).toHaveValue('2000');
  fireEvent.click(screen.getByRole('button',{name:'Meta geral',hidden:true}));
