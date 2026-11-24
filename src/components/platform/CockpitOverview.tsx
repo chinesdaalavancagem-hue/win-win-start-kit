@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { exposicaoVestUsd, useEffect, useState } from "react";
 import { CalendarDays, ChartNoAxesCombined, Check, ChevronLeft, ChevronRight, CircleDollarSign, Clock3, Coins, Layers, ShieldCheck, Target, TrendingUp, Wallet, X } from "lucide-react";
 import { computeAssetCalcs, fmt, metaLiquidaDia, type Asset, type AssetKey, type Day, type DayCalc, type MesaFuturos } from "@/lib/platform/engine";
 
@@ -34,7 +34,7 @@ export function CockpitOverview({ asset, assetKey, mesa, avaliacaoDias, currentI
   useEffect(() => { setAlvoDraft(String(asset.params.lucroDesejado)); }, [asset.params.lucroDesejado, assetKey]);
   const selected = days[selectedIndex] ?? current;
   const selectedDay = selected.d;
-  useEffect(() => { setDraft({ ...selectedDay }); setRepeat(false); }, [selectedIndex, assetKey, selectedDay.mnq, selectedDay.lotes, selectedDay.meta, selectedDay.mll, selectedDay.stopPlanejadoTopstep, selectedDay.vestExposicaoUsd]);
+  useEffect(() => { setDraft({ ...selectedDay }); setRepeat(false); }, [selectedIndex, assetKey, selectedDay.mnq, selectedDay.lotes, selectedDay.meta, selectedDay.mll, selectedDay.stopPlanejadoTopstep, selectedDay.vestExposicaoUsd, selectedDay.vestVariacaoFavoravelPontos, selectedDay.vestVariacaoContrariaPontos]);
   useEffect(() => { setMessage(""); }, [selectedIndex, assetKey]);
   const mudar = (key: keyof Day, raw: string) => {
     const value = Number(raw.replace(",", "."));
@@ -55,7 +55,7 @@ export function CockpitOverview({ asset, assetKey, mesa, avaliacaoDias, currentI
   const limit = c.limiteDoCard ?? asset.params.mll;
   const isVest = mesa === "vest";
   const titleAsset = assetKey === "nasdaq" ? "Nasdaq · MNQ" : assetKey === "ouro" ? (isVest ? "Gold · GC-PERP" : "Gold · MGC") : "Saque 2";
-  const canSettle = selectedIndex === currentIndex && (!isVest || (!!d.vestExposicaoUsd && !!asset.params.vestPrecoIndice));
+  const canSettle = selectedIndex === currentIndex && (!isVest || (exposicaoVestUsd(asset, d) > 0 && !!asset.params.vestPrecoIndice));
   const next = days.slice(selectedIndex + 1, selectedIndex + 4);
   // A curva reflete somente as metas cadastradas, nunca lucros já realizados.
   const chartDays = days.slice(selectedIndex, selectedIndex + 4);
@@ -69,7 +69,7 @@ export function CockpitOverview({ asset, assetKey, mesa, avaliacaoDias, currentI
         {[
           { label: "Meta do dia", value: amount(d.meta), icon: Target, color: "text-cyan-300" },
           { label: isVest ? "Limite de perda" : "Limite EOD", value: amount(limit), icon: ShieldCheck, color: "text-amber-300" },
-          { label: isVest ? "Exposição Vest" : "Contratos", value: isVest ? amount(d.vestExposicaoUsd ?? 0) : `${fmt(d.mnq)} ${assetKey === "nasdaq" ? "MNQ" : "MGC"}`, icon: ChartNoAxesCombined, color: "text-amber-300" },
+          { label: isVest ? "Exposição Vest" : "Contratos", value: isVest ? amount(exposicaoVestUsd(asset, d)) : `${fmt(d.mnq)} ${assetKey === "nasdaq" ? "MNQ" : "MGC"}`, icon: ChartNoAxesCombined, color: "text-amber-300" },
         ].map(({ label, value, icon: Icon, color }) => <div key={label} className="rounded-xl border border-[#214766] bg-[linear-gradient(145deg,#0c2138,#071526)] px-4 py-4 shadow-[0_12px_28px_rgba(0,0,0,0.17)]">
           <div className="flex items-center gap-4"><Icon className={`size-8 shrink-0 ${color}`} /><div className="min-w-0"><p className="text-sm font-medium text-blue-100">{label}</p><p className="truncate font-mono text-xl font-bold tracking-tight text-cyan-300 sm:text-2xl">{value}</p></div></div>
         </div>)}
@@ -107,7 +107,7 @@ export function CockpitOverview({ asset, assetKey, mesa, avaliacaoDias, currentI
           <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
             <MatrixInput label="Meta bruta" value={draft.meta} disabled={!editable} onChange={value => mudar("meta", value)} icon={Target} />
             <Metric label={informed === undefined ? "Líquido previsto" : "Resultado informado"} value={amount(informed ?? plannedNet)} icon={ChartNoAxesCombined} color="text-emerald-400" />
-            <MatrixInput label={isVest ? "Exposição (US$)" : "Contratos"} value={isVest ? draft.vestExposicaoUsd ?? 0 : draft.mnq} disabled={!editable} onChange={value => mudar(isVest ? "vestExposicaoUsd" : "mnq", value)} icon={Layers} />
+            {isVest ? <div className="grid grid-cols-2 gap-2"><MatrixInput label="Variação favorável (pontos)" value={draft.vestVariacaoFavoravelPontos ?? 0} disabled={!editable} onChange={value => mudar("vestVariacaoFavoravelPontos", value)} icon={Layers} /><MatrixInput label="Variação contrária (pontos)" value={draft.vestVariacaoContrariaPontos ?? 0} disabled={!editable} onChange={value => mudar("vestVariacaoContrariaPontos", value)} icon={Layers} /></div> : <MatrixInput label="Contratos" value={draft.mnq} disabled={!editable} onChange={value => mudar("mnq", value)} icon={Layers} />}
             <MatrixInput label="Lotes CFD" value={draft.lotes} disabled={!editable} onChange={value => mudar("lotes", value)} icon={Coins} />
           </div>
           <div className="mt-3 flex flex-wrap items-end gap-3">
@@ -124,7 +124,7 @@ export function CockpitOverview({ asset, assetKey, mesa, avaliacaoDias, currentI
         <section className="rounded-xl border border-[#214766] bg-[linear-gradient(145deg,#0b2035,#061321)] p-4 sm:p-5"><h2 className="flex items-center gap-2 text-lg font-bold text-slate-100"><TrendingUp className="size-6 text-cyan-400" />Projeção de cobertura</h2><p className="mb-4 text-xs text-slate-400">Estimativas para o dia selecionado; não são ganhos realizados.</p><div className="grid grid-cols-2 gap-2"><Metric label="Aporte recomendado" value={amount(selected.caixaDia?.deposito ?? 0)} icon={Wallet} color="text-cyan-300" /><Metric label="Líquido se reprovar" value={isVest && !asset.params.vestPrecoIndice ? "—" : amount(c.liquidoSeReprovar)} icon={CircleDollarSign} color={c.liquidoSeReprovar >= 0 ? "text-emerald-400" : "text-rose-400"} /><div className="col-span-2"><Metric label="Perda estimada no Forex se passar" value={isVest && !asset.params.vestPrecoIndice ? "—" : amount(c.custoSePassar)} icon={Wallet} color="text-rose-400" /></div></div><p className="mt-2 text-[11px] text-slate-400">Aporte: projeção do plano salvo. Ganho/perda no Forex: estimativas com os parâmetros exibidos; confirme com OK para atualizar os cálculos completos.</p><p className="mt-4 text-xs font-medium text-slate-300">Metas planejadas dos próximos dias</p><svg aria-label="Gráfico das metas planejadas" role="img" viewBox="0 0 320 150" className="mt-2 h-40 w-full"><path d="M18 25H302 M18 70H302 M18 116H302" stroke="#1b3c57" strokeWidth="1" strokeDasharray="3 5" /><polyline fill="none" stroke="#20e0ed" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" points={chartPoints.map(p => `${p.x},${p.y}`).join(" ")} />{chartPoints.map(p => <g key={p.x}><circle cx={p.x} cy={p.y} r="4" fill="#8df9ff" /><text x={p.x} y="142" textAnchor="middle" fill="#9dbcd1" fontSize="11">{p.label}</text></g>)}</svg></section>
       </div>
 
-      <section className="rounded-xl border border-[#214766] bg-[linear-gradient(145deg,#0b2035,#061321)] p-4 sm:p-5"><h2 className="flex items-center gap-2 text-lg font-bold text-slate-100"><CalendarDays className="size-6 text-cyan-400" />Próximos dias</h2><p className="mb-3 text-xs text-slate-400">Planejamento e metas dos próximos dias do ciclo</p><div className="overflow-x-auto"><table className="w-full min-w-[590px] text-left text-sm"><thead className="bg-[#142b43] text-xs text-slate-300"><tr><th className="rounded-l-lg p-2">Dia</th><th className="p-2">Tipo</th><th className="p-2">Meta do dia</th><th className="p-2">Limite</th><th className="p-2">{isVest ? "Exposição" : "Contratos"}</th><th className="rounded-r-lg p-2">Status</th></tr></thead><tbody>{next.map(row => <tr key={row.i} className="border-b border-[#19334e] text-slate-200"><td className="p-2 font-bold text-cyan-300">D{row.i < avaliacaoDias ? row.i + 1 : row.i - avaliacaoDias + 1}</td><td className="p-2">{row.i < avaliacaoDias ? "Avaliação" : "Financiada"}</td><td className="p-2">{amount(row.d.meta)}</td><td className="p-2">{amount(row.c.limiteDoCard ?? asset.params.mll)}</td><td className="p-2">{isVest ? amount(row.d.vestExposicaoUsd ?? 0) : fmt(row.d.mnq)}</td><td className="p-2"><span className="inline-flex items-center gap-1 text-sky-300"><Clock3 className="size-4" />Programado</span></td></tr>)}</tbody></table>{!next.length && <p className="p-3 text-xs text-slate-400">Nenhum próximo dia cadastrado.</p>}</div></section>
+      <section className="rounded-xl border border-[#214766] bg-[linear-gradient(145deg,#0b2035,#061321)] p-4 sm:p-5"><h2 className="flex items-center gap-2 text-lg font-bold text-slate-100"><CalendarDays className="size-6 text-cyan-400" />Próximos dias</h2><p className="mb-3 text-xs text-slate-400">Planejamento e metas dos próximos dias do ciclo</p><div className="overflow-x-auto"><table className="w-full min-w-[590px] text-left text-sm"><thead className="bg-[#142b43] text-xs text-slate-300"><tr><th className="rounded-l-lg p-2">Dia</th><th className="p-2">Tipo</th><th className="p-2">Meta do dia</th><th className="p-2">Limite</th><th className="p-2">{isVest ? "Exposição" : "Contratos"}</th><th className="rounded-r-lg p-2">Status</th></tr></thead><tbody>{next.map(row => <tr key={row.i} className="border-b border-[#19334e] text-slate-200"><td className="p-2 font-bold text-cyan-300">D{row.i < avaliacaoDias ? row.i + 1 : row.i - avaliacaoDias + 1}</td><td className="p-2">{row.i < avaliacaoDias ? "Avaliação" : "Financiada"}</td><td className="p-2">{amount(row.d.meta)}</td><td className="p-2">{amount(row.c.limiteDoCard ?? asset.params.mll)}</td><td className="p-2">{isVest ? amount(exposicaoVestUsd(asset, row.d)) : fmt(row.d.mnq)}</td><td className="p-2"><span className="inline-flex items-center gap-1 text-sky-300"><Clock3 className="size-4" />Programado</span></td></tr>)}</tbody></table>{!next.length && <p className="p-3 text-xs text-slate-400">Nenhum próximo dia cadastrado.</p>}</div></section>
     </div>
   );
 }
