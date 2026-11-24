@@ -59,6 +59,13 @@ export function exposicaoVestUsd(a: Asset, d: Day): number {
   if (preco > 0 && favoravel > 0 && d.meta > 0) return Math.round((d.meta * preco / favoravel) * 100) / 100;
   return Math.max(0, d.vestExposicaoUsd ?? 0);
 }
+/** Equivalência nocional aproximada em contratos Micro Gold (MGC de 10 oz).
+ * A Vest continua recebendo tamanho de ordem em USD; MGC é apenas referência CME.
+ */
+export function contratosMgcEquivalentesVest(exposicaoUsd: number, precoOuroUsd: number): number | undefined {
+  if (!Number.isFinite(exposicaoUsd) || exposicaoUsd < 0 || !Number.isFinite(precoOuroUsd) || precoOuroUsd <= 0) return undefined;
+  return exposicaoUsd / (10 * precoOuroUsd);
+}
 
 export function taxasMesaDia(a: Asset, d: Day): number {
   if (a.mesaFuturos === "vest") return Math.round(exposicaoVestUsd(a, d) * 0.00005 * 10000) / 10000;
