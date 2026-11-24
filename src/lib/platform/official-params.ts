@@ -7,7 +7,7 @@ const PARAM_FIELDS = ["mnq", "hfm", "mll", "taxa", "lucroDesejado", "marginPerLo
 const OPTIONAL_PARAM_FIELDS = ["alavancagem", "bonusPct", "bonusCap"] as const;
 const DAY_FIELDS = ["mnq", "lotes", "meta"] as const;
 
-type OfficialDay = { mnq: number; vestExposicaoUsd?: number; lotes: number; meta: number; mll?: number };
+type OfficialDay = { mnq: number; vestExposicaoUsd?: number; vestVariacaoFavoravelPontos?: number; vestVariacaoContrariaPontos?: number; lotes: number; meta: number; mll?: number };
 export type OfficialParamsPayload = {
   format: typeof OFFICIAL_PARAMS_FORMAT;
   version: 1;
@@ -26,7 +26,7 @@ export function buildOfficialParams(state: State, exportedAt = new Date().toISOS
       ...(mesaFuturos === "vest" ? {avaliacaoDias: key === "saque2" ? 0 : state.assets[key].avaliacaoPorMesa?.vest ?? 1} : {}),
       ...(state.assets[key].mesaConfig ? {mesaConfig: structuredClone(state.assets[key].mesaConfig), avaliacaoDias: state.assets[key].avaliacaoPorMesa?.[mesaFuturos!] ?? (key === "saque2" ? 0 : state.assets[key].mesaConfig!.avaliacao)} : {}),
       params: { ...(vestAlavancagem !== undefined ? {vestAlavancagem} : {}), ...(vestPrecoIndice !== undefined ? {vestPrecoIndice} : {}), ...(typeof alavancagem === "number" ? { alavancagem } : {}), bonusPct: percentualBonus(state.assets[key].bonus), bonusCap: state.assets[key].bonus.bonusCap, splitPct, comissaoPorContrato, ...(corretoraCfd ? { corretoraCfd } : {}), ...(typeof spreadPontosCfd === "number" ? { spreadPontosCfd } : {}), mnq, hfm, mll, taxa, lucroDesejado, marginPerLot, stopoutPct, saqueAprovada, folgaExtraPct, ...(ativoReal ? { ativoReal } : {}) },
-      days: state.assets[key].days.map(({ mnq, lotes, meta, mll, vestExposicaoUsd }) => ({ mnq, lotes, meta, ...(typeof vestExposicaoUsd === "number" ? { vestExposicaoUsd } : {}), ...(typeof mll === "number" ? { mll } : {}) })),
+      days: state.assets[key].days.map(({ mnq, lotes, meta, mll, vestExposicaoUsd, vestVariacaoFavoravelPontos, vestVariacaoContrariaPontos }) => ({ mnq, lotes, meta, ...(typeof vestExposicaoUsd === "number" ? { vestExposicaoUsd } : {}), ...(typeof vestVariacaoFavoravelPontos === "number" ? { vestVariacaoFavoravelPontos } : {}), ...(typeof vestVariacaoContrariaPontos === "number" ? { vestVariacaoContrariaPontos } : {}), ...(typeof mll === "number" ? { mll } : {}) })),
     }];
   })) as unknown as OfficialParamsPayload["assets"];
   return { format: OFFICIAL_PARAMS_FORMAT, version: 1, exportedAt, ...(mesaFuturos ? { mesaFuturos } : {}), assets };
@@ -57,7 +57,7 @@ export function isOfficialParams(payload: unknown): payload is OfficialParamsPay
       Array.isArray(asset.days) && asset.days.every((day) => {
         if (!day || typeof day !== "object") return false;
         const d = day as Record<string, unknown>;
-        return DAY_FIELDS.every((f) => isNum(d[f])) && (d.vestExposicaoUsd === undefined || (isNum(d.vestExposicaoUsd) && (d.vestExposicaoUsd as number) >= 0)) && (d.mll === undefined || isNum(d.mll));
+        return DAY_FIELDS.every((f) => isNum(d[f])) && (d.vestExposicaoUsd === undefined || (isNum(d.vestExposicaoUsd) && (d.vestExposicaoUsd as number) >= 0)) && (d.vestVariacaoFavoravelPontos === undefined || (isNum(d.vestVariacaoFavoravelPontos) && d.vestVariacaoFavoravelPontos >= 0)) && (d.vestVariacaoContrariaPontos === undefined || (isNum(d.vestVariacaoContrariaPontos) && d.vestVariacaoContrariaPontos >= 0)) && (d.mll === undefined || isNum(d.mll));
       });
   });
 }
@@ -89,7 +89,7 @@ export function applyOfficialParams(current: State, payload: OfficialParamsPaylo
     current.assets[key].params = { ...current.assets[key].params, ...picked } as State["assets"]["nasdaq"]["params"];
     if (isNum(incoming.params.bonusPct) && incoming.params.bonusPct >= 0) current.assets[key].bonus.percentual = incoming.params.bonusPct;
     if (isNum(incoming.params.bonusCap) && incoming.params.bonusCap >= 0) current.assets[key].bonus.bonusCap = incoming.params.bonusCap;
-    current.assets[key].days = incoming.days.map(({ mnq, lotes, meta, mll, vestExposicaoUsd }) => ({ mnq, lotes, meta, ...(typeof vestExposicaoUsd === "number" ? { vestExposicaoUsd } : {}), ...(typeof mll === "number" ? { mll } : {}) }));
+    current.assets[key].days = incoming.days.map(({ mnq, lotes, meta, mll, vestExposicaoUsd, vestVariacaoFavoravelPontos, vestVariacaoContrariaPontos }) => ({ mnq, lotes, meta, ...(typeof vestExposicaoUsd === "number" ? { vestExposicaoUsd } : {}), ...(typeof vestVariacaoFavoravelPontos === "number" ? { vestVariacaoFavoravelPontos } : {}), ...(typeof vestVariacaoContrariaPontos === "number" ? { vestVariacaoContrariaPontos } : {}), ...(typeof mll === "number" ? { mll } : {}) }));
   }
 }
 
