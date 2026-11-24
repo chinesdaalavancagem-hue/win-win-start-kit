@@ -4,6 +4,14 @@ import { challengeAccountSchema } from "@/lib/prop-firms";
 import { deviceAllowed } from "@/lib/device-access.server";
 import { gunzipSync } from "node:zlib";
 
+const STORED_GZIP_PREFIX = "WOWGZIP1:";
+function decodeStoredAppData(value: string | null | undefined): string | null {
+  if (typeof value !== "string") return null;
+  if (!value.startsWith(STORED_GZIP_PREFIX)) return value;
+  try { return gunzipSync(Buffer.from(value.slice(STORED_GZIP_PREFIX.length), "base64"), { maxOutputLength: 100_000_000 }).toString("utf8"); }
+  catch { throw new Error("stored_app_data_corrupt"); }
+}
+
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -133,10 +141,13 @@ export const Route = createFileRoute("/api/plataforma/dados")({
           return json({ error: "invalid_body" }, 400);
         }
         let value = (body as { data: string }).data;
-        if ((body as { encoding?: unknown }).encoding !== undefined) {
+        const incomingEncoding = (body as { encoding?: unknown }).encoding;
+        let storedValue = value;
+        if (incomingEncoding !== undefined) {
           if ((body as { encoding?: unknown }).encoding !== "gzip-base64" || value.length > 20_000_000 || !/^[A-Za-z0-9+/]*={0,2}$/.test(value)) {
             return json({ error: "invalid_body" }, 400);
           }
+          storedValue = STORED_GZIP_PREFIX + value;
           try {
             value = gunzipSync(Buffer.from(value, "base64"), { maxOutputLength: 100_000_000 }).toString("utf8");
           } catch {
@@ -184,7 +195,7 @@ export const Route = createFileRoute("/api/plataforma/dados")({
         if (profileError || !profile?.approved || profile.rejected) return json({ error: "account_not_approved" }, 403);
 
         const { data: previousRow, error: readError } = await supabaseAdmin.from("app_data")
-          .select("data,version").eq("user_id", user.id).maybeSingle();
+          .select(incomingEncoding === "gzip-base64" ? "version" : "data,version").eq("user_id", user.id).maybeSingle();
         if (readError) {
           console.error("[strategy] previous state read failed", readError.message);
           return json({ error: "read_failed" }, 500);
@@ -200,13 +211,13 @@ export const Route = createFileRoute("/api/plataforma/dados")({
           if (expectedVersion === null) {
             if (previousRow) return json({ error: "version_conflict", version: previousRow.version }, 409);
             const result = await supabaseAdmin.from("app_data").insert({
-              user_id: user.id, data: value, version: 1, updated_at: new Date().toISOString(),
+              user_id: user.id, data: storedValue, version: 1, updated_at: new Date().toISOString(),
             });
             saveError = result.error;
             if (saveError && /duplicate|unique/i.test(saveError.message)) return json({ error: "version_conflict" }, 409);
           } else {
             const result = await supabaseAdmin.from("app_data").update({
-              data: value, version: expectedVersion + 1, updated_at: new Date().toISOString(),
+              data: storedValue, version: expectedVersion + 1, updated_at: new Date().toISOString(),
             }).eq("user_id", user.id).eq("version", expectedVersion).select("version").maybeSingle();
             saveError = result.error;
             if (!saveError && !result.data) return json({ error: "version_conflict", version: previousRow?.version ?? null }, 409);
@@ -241,7 +252,8 @@ export const Route = createFileRoute("/api/plataforma/dados")({
         }
 
         try {
-          const changes = numericChanges(previousRow?.data ?? null, parsedState);
+          const previousState = incomingEncoding === "gzip-base64" ? null : decodeStoredAppData(previousRow?.data ?? null);
+          const changes = numericChanges(previousState, parsedState);
           for (let i = 0; i < changes.length; i += 100) {
             const { error } = await supabaseAdmin.from("activity_logs").insert(changes.slice(i, i + 100).map((details) => ({
               user_id: user.id, action: "update", details,
@@ -254,8 +266,9 @@ export const Route = createFileRoute("/api/plataforma/dados")({
         }
 
         try {
-        const diff = compareStates(previousRow?.data ?? null, value);
-        if (diff.initialSave || diff.changes.length || diff.operationChanged) {
+        const previousState = incomingEncoding === "gzip-base64" ? null : decodeStoredAppData(previousRow?.data ?? null);
+        const diff = incomingEncoding === "gzip-base64" ? null : compareStates(previousState, value);
+        if (diff && (diff.initialSave || diff.changes.length || diff.operationChanged)) {
           const { error: auditError } = await supabaseAdmin.from("audit_logs").insert({
             user_id: user.id,
             category: "strategy",
