@@ -630,7 +630,15 @@ export function computeAssetCalcs(a: Asset, key: AssetKey, continuidade?: { divi
     // Primeiro tick negociável que toca ou atravessa o piso da mesa.
     const ticksReprova = exp > 0 && a.mesaFuturos !== "vest"
       ? Math.ceil(Number((pontosAtePiso * ticksPorPonto).toFixed(10))) : undefined;
-    const pontosReprova = ticksReprova === undefined ? pontosAtePiso : ticksReprova / ticksPorPonto;
+    const pontosReprovaPeloPiso = ticksReprova === undefined ? pontosAtePiso : ticksReprova / ticksPorPonto;
+    // No GC-PERP, a variação contrária informada define o movimento de referência
+    // para o hedge, mas nunca pode ultrapassar a distância real até o piso da conta.
+    // Assim, a Vest quebra no primeiro limite atingido: stop informado ou loss limit.
+    const movimentoContraVest = a.mesaFuturos === "vest" && Number.isFinite(d.vestVariacaoContrariaPontos)
+      ? Math.max(0, d.vestVariacaoContrariaPontos ?? 0) : 0;
+    const pontosReprova = movimentoContraVest > 0
+      ? Math.min(movimentoContraVest, pontosReprovaPeloPiso)
+      : pontosReprovaPeloPiso;
     const reprova = (pontosReprova - spread) * d.lotes * hfmPt;
     const dividaReal = divida;
     const dividaHoje = incluiPretensao ? dividaReal + lucroDesejado : dividaReal;
