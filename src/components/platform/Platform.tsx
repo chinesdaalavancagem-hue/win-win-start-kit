@@ -839,6 +839,7 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
               <p className="text-[10px] uppercase tracking-wide text-slate-400">Exposição calculada automaticamente</p>
               <p className="mt-1 font-mono text-lg font-bold text-cyan-200">${fmt(exposicaoVest)}</p>
               <p className="mt-1 text-xs text-cyan-300">Margem aproximada ({alavancagemVest(asset, assetKey)}x): {fmt(margemVest(asset, assetKey, exposicaoVest) ?? 0)} USDC</p>
+              <p className="mt-1 text-[11px] leading-relaxed text-slate-400">A variação favorável dimensiona a exposição para atingir a meta. A variação contrária projeta o ganho do hedge se a Vest reprovar, limitada à distância real até o loss limit.</p>
             </div>
           </div> : <NumField cockpit label={<><FileText className="h-3.5 w-3.5 text-blue-400" />Contratos</>} value={d.mnq} onChange={setD("mnq")} />}
            
