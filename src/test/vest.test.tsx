@@ -3,13 +3,13 @@ import {render,screen,fireEvent,waitFor} from '@testing-library/react';
 import {it,expect,vi} from 'vitest';
 import {Bancas} from '../components/platform/Bancas';
 import {Platform} from '../components/platform/Platform';
-import {definirParametroVest, margemVest, alavancagemVest, normalizeState, defaultState, prepararMesaVest, limitesVest, computeAssetCalcs, taxasMesaDia, projetarPrimeiroPayout, simularSaque2, adicionarDiaGold, handleProfit, undoLast} from '../lib/platform/engine';
+import {definirParametroVest, margemVest, alavancagemVest, exposicaoVestUsd, normalizeState, defaultState, prepararMesaVest, limitesVest, computeAssetCalcs, taxasMesaDia, projetarPrimeiroPayout, simularSaque2, adicionarDiaGold, handleProfit, undoLast} from '../lib/platform/engine';
 import {novaBanca,parseBancas,referenciaDaMesa} from '../lib/platform/bancas';
 import {buildOfficialParams,isOfficialParams,applyOfficialParams} from '../lib/platform/official-params';
 vi.mock('@/integrations/supabase/client',()=>({supabase:{auth:{getSession:vi.fn(async()=>({data:{session:null}}))}}}));
 vi.mock('@/lib/auditoria-registro',()=>({registrarAuditoria:vi.fn(async()=>{})}));
 const setup=()=>{const s=defaultState();prepararMesaVest(s);return s;};
-it('GC-PERP calcula a exposição USD em vez de unidades fixas',()=>{
+it('GC-PERP deriva exposição dos movimentos favorável e contrário',()=>{\n const s=setup(),a=s.assets.ouro,d=a.days[0]!;\n a.params.vestPrecoIndice=3631.6;d.meta=2500;d.vestVariacaoFavoravelPontos=25;d.vestVariacaoContrariaPontos=15;\n expect(exposicaoVestUsd(a,d)).toBe(363160);\n expect(margemVest(a,'ouro',exposicaoVestUsd(a,d))).toBeCloseTo(14526.4);\n const c=computeAssetCalcs(a,'ouro')[0]!;expect(c.pontos).toBeCloseTo(25);expect(c.pontosReprova).toBeCloseTo(15,0);\n});\nit('GC-PERP calcula a exposição USD em vez de unidades fixas',()=>{
  const s=setup(),a=s.assets.ouro,c=computeAssetCalcs(a,'ouro')[0]!;
  expect(a.params.taxa).toBe(108.3);expect(a.params.mnq).toBe(1);
   expect(c.pontos).toBe(0);expect(c.ticksReprova).toBeUndefined();
@@ -69,9 +69,7 @@ it('registrar e desfazer ciclo mantém o split Vest e o histórico reversível',
 });
 it('cards mostram exposição em USD, sem 50% no lucro Vest',async()=>{
  const s=setup();render(<Platform leftMenuOpen load={async()=>JSON.stringify(s)} save={async()=>true} isAdmin officialAcceptedAt={null} mesaAtiva="vest"/>);
- expect((await screen.findAllByLabelText('Exposição Vest (US$)'))[0]).toHaveValue('0');
- expect(screen.queryByLabelText('Alvo em ticks')).toBeNull();
-  fireEvent.change(screen.getAllByLabelText('Exposição Vest (US$)')[0]!,{target:{value:'40000'}});
+ expect((await screen.findAllByLabelText('Variação favorável (pontos)'))[0]).toHaveValue('0');\n expect(screen.queryByLabelText('Alvo em ticks')).toBeNull();\n  fireEvent.change(screen.getAllByLabelText('Variação favorável (pontos)')[0]!,{target:{value:'25'}});\n  fireEvent.change(screen.getAllByLabelText('Variação contrária (pontos)')[0]!,{target:{value:'15'}});\n  expect(screen.getAllByText(/Exposição calculada automaticamente/).length).toBeGreaterThan(0);
   expect(screen.getAllByLabelText('Meta bruta $')[0]).toHaveValue('2000');
  fireEvent.click(screen.getByRole('button',{name:'Meta geral',hidden:true}));
  expect(screen.getByText('Lucro disponível · 100%')).toBeInTheDocument();
