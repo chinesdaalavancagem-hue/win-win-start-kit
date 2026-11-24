@@ -233,7 +233,7 @@ function Plataforma() {
 
   return (
     <div className={`wow-theme wow-theme-${tema} flex min-h-screen flex-col bg-[#030914] text-slate-100`}>
-      <header className="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-3 border-b border-cyan-950/80 bg-[#050d1b]/95 px-3 py-3 text-sm shadow-[0_8px_28px_rgba(0,0,0,0.28)] backdrop-blur-md sm:px-5">
+      <header className="sticky top-0 z-[60] flex flex-wrap items-center justify-between gap-3 border-b border-cyan-950/80 bg-[#050d1b]/95 px-3 py-3 text-sm shadow-[0_8px_28px_rgba(0,0,0,0.28)] backdrop-blur-md sm:px-5">
         <span className="flex min-w-0 items-center gap-2 text-blue-100/75">
           <span className="inline-flex items-center gap-2 rounded-lg border border-emerald-700/50 bg-emerald-950/20 px-2.5 py-1.5 text-emerald-300"><Cloud className="size-4 shrink-0" aria-hidden="true" /><span className="hidden sm:inline">Nuvem</span><span id="wow-header-sync" className="text-[11px] leading-none" /></span>
           {state === "ok" && showInstall && (
@@ -267,7 +267,7 @@ function Plataforma() {
             <button type="button" role="menuitem" className="mt-2 flex w-full items-center gap-2 border-t border-cyan-950 px-2 py-2 text-left text-rose-300 hover:bg-rose-950/30" onClick={() => void signOut(navigate)}><LogOut className="size-4" />Sair da plataforma</button>
           </div>}
         </div>
-        {saveError && <p role="alert" className="absolute inset-x-0 top-full border-b border-rose-800/50 bg-rose-950/40 px-4 py-3 text-sm text-rose-100">{saveError}</p>}
+        {saveError && <p role="alert" aria-live="assertive" className="absolute inset-x-3 top-full z-[100] mx-auto mt-2 max-w-3xl rounded-lg border border-rose-500/70 bg-[#4c101b] px-4 py-3 text-sm font-medium text-rose-50 shadow-2xl">{saveError}</p>}
       </header>
       {state === "ok" && installHelp && showInstall && (
         <div role="status" className="border-b border-amber-700/40 bg-[#142032] px-4 py-2 text-sm text-amber-100">
