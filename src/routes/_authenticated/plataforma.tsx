@@ -178,46 +178,72 @@ function Plataforma() {
     saveQueue,
     conflictRef,
     async () => {
+      const aguardar = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
       try {
         const { data } = await supabase.auth.getSession();
         const token = data.session?.access_token;
         if (!token) { setSaveError(mensagemErroSalvamento(401)); return false; }
         const payload = await compactarDocumento(v);
-        const response = await fetch("/api/plataforma/dados", {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-            authorization: "Bearer " + token,
-          },
-          body: JSON.stringify({ ...payload, expectedVersion: versionRef.current }),
-        });
-        if (response.status === 409) {
-          // Bloqueia imediatamente todos os saves até o reload. O load() após
-          // recarregar buscará data e version juntos como um único snapshot.
-          conflictRef.current = true;
-          await recoverVersionConflict(() => window.location.reload());
-          return false;
+        // Uma falha transitória de rede/servidor não deve encerrar o autosave no primeiro erro.
+        for (let attempt = 0; attempt < 2; attempt += 1) {
+          let response: Response;
+          try {
+            response = await fetch("/api/plataforma/dados", {
+              method: "POST",
+              headers: {
+                "content-type": "application/json",
+                authorization: "Bearer " + token,
+              },
+              body: JSON.stringify({ ...payload, expectedVersion: versionRef.current }),
+            });
+          } catch {
+            if (attempt === 0) { await aguardar(700); continue; }
+            setSaveError(mensagemErroSalvamento(0));
+            return false;
+          }
+
+          if (response.status === 409) {
+            // Se o servidor gravou mas a resposta se perdeu, reconhece o snapshot idêntico
+            // em vez de sinalizar erro ou recarregar desnecessariamente.
+            const { data: saved, error: readError } = await supabase.from("app_data")
+              .select("data,version").eq("user_id", user.id).maybeSingle();
+            if (!readError && saved?.data === v && typeof saved.version === "number") {
+              versionRef.current = saved.version;
+              setSaveError("");
+              return true;
+            }
+            conflictRef.current = true;
+            await recoverVersionConflict(() => window.location.reload());
+            return false;
+          }
+
+          const result = await response.json().catch(() => null) as { version?: unknown; error?: unknown } | null;
+          if (!response.ok) {
+            if (attempt === 0 && [429, 500, 502, 503, 504].includes(response.status)) {
+              await aguardar(700);
+              continue;
+            }
+            const codigo = typeof result?.error === "string" && /^[a-z_]{1,48}$/.test(result.error) ? result.error : "";
+            setSaveError(mensagemErroSalvamento(response.status, codigo) + " (" + [response.status, codigo].filter(Boolean).join(" · ") + ")");
+            return false;
+          }
+          if (typeof result?.version !== "number") {
+            setSaveError("O servidor não confirmou a gravação. Tente salvar novamente.");
+            return false;
+          }
+          versionRef.current = result.version;
+          setSaveError("");
+          return true;
         }
-        const result = await response.json().catch(() => null) as { version?: unknown; error?: unknown } | null;
-        if (!response.ok) {
-          const codigo = typeof result?.error === "string" && /^[a-z_]{1,48}$/.test(result.error) ? result.error : "";
-          setSaveError(mensagemErroSalvamento(response.status, codigo) + " (" + [response.status, codigo].filter(Boolean).join(" · ") + ")");
-          return false;
-        }
-        if (typeof result?.version !== "number") {
-          setSaveError("O servidor não confirmou a gravação. Tente salvar novamente.");
-          return false;
-        }
-        versionRef.current = result.version;
-        setSaveError("");
-        return true;
+        setSaveError(mensagemErroSalvamento(503, "database_timeout"));
+        return false;
       } catch {
         setSaveError(mensagemErroSalvamento(0));
         return false;
       }
     },
     false,
-  ), []);
+  ), [user.id]);
 
   const publishOfficial = async () => {
     if (publishBusy || !isAdmin) return;
