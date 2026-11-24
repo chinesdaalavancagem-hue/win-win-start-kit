@@ -7,7 +7,7 @@ export type AssetKey = "nasdaq" | "ouro" | "saque2";
 export type TabKey = AssetKey | "historico";
 
 /** mll opcional: limite geral EOD de reprovação só deste dia; sem ele usa params.mll. */
-export interface Day { stopPlanejadoTopstep?: number; mnq: number; vestExposicaoUsd?: number; vestVariacaoFavoravelPontos?: number; vestVariacaoContrariaPontos?: number; lotes: number; meta: number; mll?: number }
+export interface Day { stopPlanejadoTopstep?: number; mnq: number; vestExposicaoUsd?: number; vestMgcContratos?: number; vestVariacaoFavoravelPontos?: number; vestVariacaoContrariaPontos?: number; lotes: number; meta: number; mll?: number }
 export const dayMll = (a: Asset, d: Day) => (typeof d.mll === "number" && d.mll > 0 ? d.mll : a.params.mll);
 export interface Params {
   /** Débito bruto da mesa no saque; ausente usa o recebimento esperado (legado). */
@@ -55,6 +55,12 @@ export function definirParametroVest(s: State, key: AssetKey, campo: "vestAlavan
 }
 export function exposicaoVestUsd(a: Asset, d: Day): number {
   const preco = a.params.vestPrecoIndice ?? 0;
+  // Novo fluxo: o usuário informa contratos equivalentes MGC; a Vest recebe USD.
+  if (typeof d.vestMgcContratos === "number") {
+    if (!Number.isFinite(d.vestMgcContratos) || d.vestMgcContratos < 0 || preco <= 0) return 0;
+    return Math.round(d.vestMgcContratos * 10 * preco * 100) / 100;
+  }
+  // Compatibilidade com planos antigos que ainda guardam a variação favorável.
   const favoravel = d.vestVariacaoFavoravelPontos ?? 0;
   if (preco > 0 && favoravel > 0 && d.meta > 0) return Math.round((d.meta * preco / favoravel) * 100) / 100;
   return Math.max(0, d.vestExposicaoUsd ?? 0);
@@ -641,7 +647,7 @@ export function computeAssetCalcs(a: Asset, key: AssetKey, continuidade?: { divi
     // No GC-PERP, a variação contrária informada define o movimento de referência
     // para o hedge, mas nunca pode ultrapassar a distância real até o piso da conta.
     // Assim, a Vest quebra no primeiro limite atingido: stop informado ou loss limit.
-    const movimentoContraVest = a.mesaFuturos === "vest" && Number.isFinite(d.vestVariacaoContrariaPontos)
+    const movimentoContraVest = a.mesaFuturos === "vest" && typeof d.vestMgcContratos !== "number" && Number.isFinite(d.vestVariacaoContrariaPontos)
       ? Math.max(0, d.vestVariacaoContrariaPontos ?? 0) : 0;
     const pontosReprova = movimentoContraVest > 0
       ? Math.min(movimentoContraVest, pontosReprovaPeloPiso)
