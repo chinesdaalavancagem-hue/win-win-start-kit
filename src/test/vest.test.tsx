@@ -9,7 +9,15 @@ import {buildOfficialParams,isOfficialParams,applyOfficialParams} from '../lib/p
 vi.mock('@/integrations/supabase/client',()=>({supabase:{auth:{getSession:vi.fn(async()=>({data:{session:null}}))}}}));
 vi.mock('@/lib/auditoria-registro',()=>({registrarAuditoria:vi.fn(async()=>{})}));
 const setup=()=>{const s=defaultState();prepararMesaVest(s);return s;};
-it('GC-PERP deriva exposição dos movimentos favorável e contrário',()=>{\n const s=setup(),a=s.assets.ouro,d=a.days[0]!;\n a.params.vestPrecoIndice=3631.6;d.meta=2500;d.mll=1500;d.vestVariacaoFavoravelPontos=25;d.vestVariacaoContrariaPontos=15;\n expect(exposicaoVestUsd(a,d)).toBe(363160);\n expect(margemVest(a,'ouro',exposicaoVestUsd(a,d))).toBeCloseTo(14526.4);\n const c=computeAssetCalcs(a,'ouro')[0]!;expect(c.pontos).toBeCloseTo(25);expect(c.pontosReprova).toBeCloseTo(15,0);\n});\nit('GC-PERP calcula a exposição USD em vez de unidades fixas',()=>{
+it('GC-PERP deriva exposição dos movimentos favorável e contrário',()=>{\n const s=setup(),a=s.assets.ouro,d=a.days[0]!;\n a.params.vestPrecoIndice=3631.6;d.meta=2500;d.mll=1500;d.vestVariacaoFavoravelPontos=25;d.vestVariacaoContrariaPontos=15;\n expect(exposicaoVestUsd(a,d)).toBe(363160);\n expect(margemVest(a,'ouro',exposicaoVestUsd(a,d))).toBeCloseTo(14526.4);\n const c=computeAssetCalcs(a,'ouro')[0]!;expect(c.pontos).toBeCloseTo(25);expect(c.pontosReprova).toBeCloseTo(15,0);\n});\nit('GC-PERP usa a variação contrária informada sem ultrapassar o loss limit',()=>{
+ const s=setup(),a=s.assets.ouro,d=a.days[0]!;
+ a.params.vestPrecoIndice=3631.6;d.meta=2500;d.mll=1500;
+ d.vestVariacaoFavoravelPontos=25;d.vestVariacaoContrariaPontos=10;
+ expect(computeAssetCalcs(a,'ouro')[0]!.pontosReprova).toBe(10);
+ d.vestVariacaoContrariaPontos=20;
+ expect(computeAssetCalcs(a,'ouro')[0]!.pontosReprova).toBeLessThan(15);
+});
+it('GC-PERP calcula a exposição USD em vez de unidades fixas',()=>{
  const s=setup(),a=s.assets.ouro,c=computeAssetCalcs(a,'ouro')[0]!;
  expect(a.params.taxa).toBe(108.3);expect(a.params.mnq).toBe(1);
   expect(c.pontos).toBe(0);expect(c.ticksReprova).toBeUndefined();
