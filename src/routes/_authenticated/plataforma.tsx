@@ -9,6 +9,15 @@ import { Bancas } from "@/components/platform/Bancas";
 import { mensagemErroSalvamento } from "@/lib/platform/save-errors";
 import { queueSaveUnlessConflicted, readVersionedAppData, recoverVersionConflict } from "@/lib/platform/versioned-save";
 
+const STORED_GZIP_PREFIX = "WOWGZIP1:";
+async function descompactarDocumento(data: string): Promise<string> {
+  if (!data.startsWith(STORED_GZIP_PREFIX)) return data;
+  if (typeof DecompressionStream === "undefined") throw new Error("decompression_unavailable");
+  const binary = atob(data.slice(STORED_GZIP_PREFIX.length));
+  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  return new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"))).text();
+}
+
 async function compactarDocumento(data: string): Promise<{ data: string; encoding?: "gzip-base64" }> {
   // O histórico acumulado pode exceder o limite de 4,5 MB da Vercel.
   if (data.length < 1_000_000) return { data };
@@ -169,7 +178,7 @@ function Plataforma() {
     if (error) throw error;
     const snapshot = readVersionedAppData(data);
     versionRef.current = snapshot.version;
-    return snapshot.data || null;
+    return snapshot.data ? await descompactarDocumento(snapshot.data) : null;
   }, [user.id]);
 
   // Todas as gravações locais passam pela mesma fila para preservar a ordem em que foram solicitadas.
@@ -212,7 +221,7 @@ function Plataforma() {
             // em vez de sinalizar erro ou recarregar desnecessariamente.
             const { data: saved, error: readError } = await supabase.from("app_data")
               .select("data,version").eq("user_id", user.id).maybeSingle();
-            if (!readError && saved?.data === v && typeof saved.version === "number") {
+            if (!readError && saved?.data && await descompactarDocumento(saved.data) === v && typeof saved.version === "number") {
               versionRef.current = saved.version;
               setSaveError("");
               return true;
