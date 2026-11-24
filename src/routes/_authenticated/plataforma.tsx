@@ -187,6 +187,8 @@ function Plataforma() {
         // Uma falha transitória de rede/servidor não deve encerrar o autosave no primeiro erro.
         for (let attempt = 0; attempt < 2; attempt += 1) {
           let response: Response;
+          const controller = new AbortController();
+          const requestTimeout = window.setTimeout(() => controller.abort(), 15_000);
           try {
             response = await fetch("/api/plataforma/dados", {
               method: "POST",
@@ -195,11 +197,14 @@ function Plataforma() {
                 authorization: "Bearer " + token,
               },
               body: JSON.stringify({ ...payload, expectedVersion: versionRef.current }),
+              signal: controller.signal,
             });
           } catch {
             if (attempt === 0) { await aguardar(700); continue; }
             setSaveError(mensagemErroSalvamento(0));
             return false;
+          } finally {
+            window.clearTimeout(requestTimeout);
           }
 
           if (response.status === 409) {
