@@ -7,7 +7,7 @@ export type AssetKey = "nasdaq" | "ouro" | "saque2";
 export type TabKey = AssetKey | "historico";
 
 /** mll opcional: limite geral EOD de reprovação só deste dia; sem ele usa params.mll. */
-export interface Day { stopPlanejadoTopstep?: number; mnq: number; vestExposicaoUsd?: number; lotes: number; meta: number; mll?: number }
+export interface Day { stopPlanejadoTopstep?: number; mnq: number; vestExposicaoUsd?: number; vestVariacaoFavoravelPontos?: number; vestVariacaoContrariaPontos?: number; lotes: number; meta: number; mll?: number }
 export const dayMll = (a: Asset, d: Day) => (typeof d.mll === "number" && d.mll > 0 ? d.mll : a.params.mll);
 export interface Params {
   /** Débito bruto da mesa no saque; ausente usa o recebimento esperado (legado). */
@@ -53,9 +53,15 @@ export function definirParametroVest(s: State, key: AssetKey, campo: "vestAlavan
   s.assets[origem].params[campo] = valor;
   sincronizarParametros(s);
 }
+export function exposicaoVestUsd(a: Asset, d: Day): number {
+  const preco = a.params.vestPrecoIndice ?? 0;
+  const favoravel = d.vestVariacaoFavoravelPontos ?? 0;
+  if (preco > 0 && favoravel > 0 && d.meta > 0) return Math.round((d.meta * preco / favoravel) * 100) / 100;
+  return Math.max(0, d.vestExposicaoUsd ?? 0);
+}
+
 export function taxasMesaDia(a: Asset, d: Day): number {
-  
-  if (a.mesaFuturos === "vest") return Math.round(Math.max(0, d.vestExposicaoUsd ?? 0) * 0.00005 * 10000) / 10000;
+  if (a.mesaFuturos === "vest") return Math.round(exposicaoVestUsd(a, d) * 0.00005 * 10000) / 10000;
   const taxa = a.params.comissaoPorContrato;
   return typeof taxa === "number" && Number.isFinite(taxa) && taxa >= 0
     ? Math.round(Math.max(0, d.mnq) * taxa * 100) / 100 : 0;
@@ -605,7 +611,7 @@ export function computeAssetCalcs(a: Asset, key: AssetKey, continuidade?: { divi
 
     // GC-PERP: exposição nocional em USD; variação em pontos relativa ao preço de entrada.
     const precoVest = a.params.vestPrecoIndice ?? 0;
-    const exp = a.mesaFuturos === "vest" ? (precoVest > 0 ? (d.vestExposicaoUsd ?? 0) / precoVest : 0) : d.mnq * mnqPt;
+    const exp = a.mesaFuturos === "vest" ? (precoVest > 0 ? exposicaoVestUsd(a, d) / precoVest : 0) : d.mnq * mnqPt;
     const pontos = exp > 0 ? d.meta / exp : 0;
     // Spread de ida e volta: custo adicional na aprovação e redução do ganho na reprovação.
     // O valor informado já representa o custo efetivo total, para não cobrar duas vezes.
