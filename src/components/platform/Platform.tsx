@@ -848,11 +848,11 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
               <div className="mt-2 grid grid-cols-2 gap-2">
                 <div className="rounded-md border border-cyan-900/50 bg-[#0a1b2b] px-2.5 py-2">
                   <p className="text-[10px] uppercase tracking-wide text-slate-400">Variação favorável</p>
-                  <p className="mt-1 font-mono text-sm font-bold text-emerald-300">{fmt(c.pontos, 2)} pontos</p>
+                  <p className="mt-1 font-mono text-sm font-bold text-emerald-300">{fmt(c.pontos)} pontos</p>
                 </div>
                 <div className="rounded-md border border-cyan-900/50 bg-[#0a1b2b] px-2.5 py-2">
                   <p className="text-[10px] uppercase tracking-wide text-slate-400">Variação contrária</p>
-                  <p className="mt-1 font-mono text-sm font-bold text-rose-300">{fmt(c.pontosReprova, 2)} pontos</p>
+                  <p className="mt-1 font-mono text-sm font-bold text-rose-300">{fmt(c.pontosReprova)} pontos</p>
                 </div>
               </div>
               <p className="mt-2 text-[10px] leading-relaxed text-slate-400">Referência: 1 MGC = 10 oz × US$ {fmt(precoOuroVest)}. A ordem na Vest continua sendo informada em dólares.</p>
