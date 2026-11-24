@@ -1,6 +1,6 @@
-import { exposicaoVestUsd, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { CalendarDays, ChartNoAxesCombined, Check, ChevronLeft, ChevronRight, CircleDollarSign, Clock3, Coins, Layers, ShieldCheck, Target, TrendingUp, Wallet, X } from "lucide-react";
-import { computeAssetCalcs, fmt, metaLiquidaDia, type Asset, type AssetKey, type Day, type DayCalc, type MesaFuturos } from "@/lib/platform/engine";
+import { computeAssetCalcs, exposicaoVestUsd, fmt, metaLiquidaDia, type Asset, type AssetKey, type Day, type DayCalc, type MesaFuturos } from "@/lib/platform/engine";
 
 type DayOverview = {
   i: number;
