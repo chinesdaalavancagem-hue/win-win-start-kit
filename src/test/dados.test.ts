@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { defaultState } from "@/lib/platform/engine";
 import { novaBanca } from "@/lib/platform/bancas";
+import { gzipSync, gunzipSync } from "node:zlib";
 
 const { getUser, upsert, insert, update, updateFilters, previous, writeFailure, syncConfig } = vi.hoisted(() => ({
   getUser: vi.fn(async () => ({ data: { user: { id: "test-user" } }, error: null })),
@@ -114,6 +115,20 @@ describe("validação do salvamento", () => {
     expect(await response.json()).toEqual({ error: "payload_too_large" });
     expect(previous.data).toBe(original); expect(previous.version).toBe(4);
     expect(update).not.toHaveBeenCalled();
+  });
+
+  it("armazena snapshots grandes compactados e mantém a versão sem ler o JSON antigo", async () => {
+    const doc = { ...defaultState(), observacao: "histórico repetido ".repeat(80_000) };
+    const raw = JSON.stringify(doc);
+    const compressed = gzipSync(Buffer.from(raw, "utf8")).toString("base64");
+    const response = await post({ request: new Request("http://localhost/api/plataforma/dados", {
+      method: "POST",
+      headers: { authorization: "Bearer test-token", "content-type": "application/json" },
+      body: JSON.stringify({ data: compressed, encoding: "gzip-base64", expectedVersion: null }),
+    }) });
+    expect(response.status).toBe(200);
+    expect(previous.data?.startsWith("WOWGZIP1:")).toBe(true);
+    expect(gunzipSync(Buffer.from(previous.data!.slice("WOWGZIP1:".length), "base64")).toString("utf8")).toBe(raw);
   });
 
   it("grava com a versão correta e incrementa a versão", async () => {
