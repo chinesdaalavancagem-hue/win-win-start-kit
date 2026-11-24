@@ -56,7 +56,7 @@ describe('Saque 2 continua a projeção do ciclo 1',()=>{
     a.params.marginPerLot=873; a.params.stopoutPct=50;
     a.days.forEach(d=>{d.lotes=0.03;});
     a.bonus.bonusCap=3000;
-    const calcs=a.days.map((_,i)=>({custoSePassar:i===0?109.82:i===1?238.815:0}));
+    const calcs=computeAssetCalcs(a,'saque2').map((calc,i)=>({...calc,custoSePassar:i===0?109.82:i===1?238.815:0}));
     const inicio={proprio:0,bonus:336.60,bonusUtilizado:3000};
     const recalculado=calcCaixaCiclo(a,'saque2',100,inicio,calcs,0,1);
     const antigo=calcCaixaCiclo(a,'saque2',100,inicio,calcs,0,0);
