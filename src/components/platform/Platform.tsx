@@ -938,25 +938,57 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
                   const indice = Number(chave);
                   return Number.isInteger(indice) && indice >= 0 && indice < avaliacaoDias && Number.isFinite(valor) ? total + valor : total;
                 }, 0);
-                if (target <= 0) return null;
-                const percentual = (realizado / target) * 100;
-                const largura = Math.max(0, Math.min(100, percentual));
+                const limiteConsistencia = asset.mesaConfig
+                  ? Math.max(0, asset.mesaConfig.consistenciaFinanciada ?? 0)
+                  : mesaAtiva === "topstep" || mesaAtiva === "vest"
+                    ? 0
+                    : Math.max(0, mesasDisponiveis[mesaAtiva]?.consistencia ?? 0);
+                const resultadosFinanciados = Object.entries(asset.attempt.resultadosMesaEod ?? {}).flatMap(([chave, valor]) => {
+                  const indice = Number(chave);
+                  return Number.isInteger(indice) && indice >= avaliacaoDias && indice < asset.days.length && Number.isFinite(valor) ? [valor] : [];
+                });
+                const lucroFinanciado = resultadosFinanciados.reduce((total, valor) => total + valor, 0);
+                const melhorDiaFinanciado = Math.max(0, ...resultadosFinanciados);
+                const consistenciaAtual = lucroFinanciado > 0 ? melhorDiaFinanciado / lucroFinanciado * 100 : 0;
+                const usoConsistencia = limiteConsistencia > 0 ? consistenciaAtual / limiteConsistencia * 100 : 0;
+                const larguraConsistencia = Math.max(0, Math.min(100, usoConsistencia));
                 const restante = Math.max(0, target - realizado);
                 const money = (valor: number) => `${valor < 0 ? "−" : ""}${fmt(Math.abs(valor))}`;
+                if (target <= 0 && limiteConsistencia <= 0) return null;
+                const corConsistencia = consistenciaAtual > limiteConsistencia
+                  ? { texto: "text-rose-300", barra: "bg-gradient-to-r from-rose-600 to-red-400", status: "Limite ultrapassado" }
+                  : usoConsistencia >= 80
+                    ? { texto: "text-amber-300", barra: "bg-gradient-to-r from-amber-500 to-orange-400", status: "Perto do limite" }
+                    : { texto: "text-emerald-300", barra: "bg-gradient-to-r from-emerald-600 to-cyan-400", status: "Dentro do limite" };
                 return (
-                  <div className="mt-3 rounded-xl border border-cyan-800/60 bg-[#071725] p-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-xs font-bold text-cyan-100">Progresso da meta da mesa</p>
-                      <span className="font-mono text-xs font-bold text-cyan-300">{fmt(Math.max(0, percentual))}%</span>
-                    </div>
-                    <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-slate-800" role="progressbar" aria-label="Progresso da meta da avaliação" aria-valuemin={0} aria-valuemax={100} aria-valuenow={largura}>
-                      <div className="h-full rounded-full bg-gradient-to-r from-cyan-600 to-emerald-400 transition-[width] duration-300" style={{ width: `${largura}%` }} />
-                    </div>
-                    <div className="mt-2 flex flex-wrap items-center justify-between gap-1 text-[11px]">
-                      <span className="text-slate-300">Realizado: <strong className="font-mono text-emerald-300">{money(realizado)}</strong> / {money(target)}</span>
-                      <span className="text-slate-400">{restante > 0 ? `Faltam ${money(restante)}` : "Meta atingida"}</span>
-                    </div>
-                    <p className="mt-1 text-[10px] text-slate-500">Considera somente os resultados líquidos registrados nos dias de avaliação. A consistência é calculada separadamente.</p>
+                  <div className={cn("mt-3 grid gap-2 rounded-xl border border-cyan-800/60 bg-[#071725] p-2.5", limiteConsistencia > 0 && target > 0 ? "grid-cols-2" : "grid-cols-1")}>
+                    {target > 0 && <div className="min-w-0">
+                      <div className="flex min-h-8 flex-wrap items-center justify-between gap-1">
+                        <p className="text-[11px] font-bold leading-tight text-cyan-100 sm:text-xs">Progresso da meta</p>
+                        <span className="font-mono text-xs font-bold text-cyan-300">{fmt(Math.max(0, percentual))}%</span>
+                      </div>
+                      <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-slate-800" role="progressbar" aria-label="Progresso da meta da avaliação" aria-valuemin={0} aria-valuemax={100} aria-valuenow={largura}>
+                        <div className="h-full rounded-full bg-gradient-to-r from-cyan-600 to-emerald-400 transition-[width] duration-300" style={{ width: `${largura}%` }} />
+                      </div>
+                      <div className="mt-2 text-[10px] leading-relaxed text-slate-300">
+                        <span>Realizado: <strong className="font-mono text-emerald-300">{money(realizado)}</strong> / {money(target)}</span>
+                        <p className="text-slate-400">{restante > 0 ? `Faltam ${money(restante)}` : "Meta atingida"}</p>
+                      </div>
+                    </div>}
+                    {limiteConsistencia > 0 && <div className="min-w-0 border-l border-cyan-900/70 pl-2">
+                      <div className="flex min-h-8 flex-wrap items-center justify-between gap-1">
+                        <p className="text-[11px] font-bold leading-tight text-cyan-100 sm:text-xs">Consistência</p>
+                        <span className={cn("font-mono text-xs font-bold", corConsistencia.texto)}>{fmt(consistenciaAtual)}% <span className="text-slate-500">/ {fmt(limiteConsistencia)}%</span></span>
+                      </div>
+                      <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-slate-800" role="progressbar" aria-label="Consistência dos dias financiados em relação ao limite" aria-valuemin={0} aria-valuemax={100} aria-valuenow={larguraConsistencia} aria-valuetext={`${fmt(consistenciaAtual)}% de consistência; limite de ${fmt(limiteConsistencia)}%`}>
+                        <div className={cn("h-full rounded-full transition-[width] duration-300", corConsistencia.barra)} style={{ width: `${larguraConsistencia}%` }} />
+                      </div>
+                      <div className="mt-2 text-[10px] leading-relaxed">
+                        <p className={cn("font-semibold", corConsistencia.texto)}>{resultadosFinanciados.length ? corConsistencia.status : "Aguardando dias financiados"}</p>
+                        <p className="text-slate-400">Maior dia: {money(melhorDiaFinanciado)} · Lucro líquido: {money(lucroFinanciado)}</p>
+                      </div>
+                    </div>}
+                    <p className="col-span-full mt-0.5 text-[10px] text-slate-500">Meta: resultados líquidos da avaliação. Consistência: maior dia positivo ÷ lucro líquido acumulado, considerando somente resultados registrados na fase financiada.</p>
                   </div>
                 );
               })()}
