@@ -51,6 +51,21 @@ describe('Saque 2 continua a projeção do ciclo 1',()=>{
     expect(segundo.resultadoFinal).toBeCloseTo(segundo.saque-segundo.taxa-segundo.perdaPropriaTotal);
     expect(r.resultadoAcumulado).toBeCloseTo(primeiro.resultadoFinal+segundo.resultadoFinal);
   });
+  it('não debita novamente o CFD de dias já concluídos no Saque 2',()=>{
+    const s=setup(), a=s.assets.saque2;
+    a.params.marginPerLot=873; a.params.stopoutPct=50;
+    a.days.forEach(d=>{d.lotes=0.03;});
+    a.bonus.bonusCap=3000;
+    const calcs=a.days.map((_,i)=>({custoSePassar:i===0?109.82:i===1?238.815:0}));
+    const inicio={proprio:0,bonus:336.60,bonusUtilizado:3000};
+    const recalculado=calcCaixaCiclo(a,'saque2',100,inicio,calcs,0,1);
+    const antigo=calcCaixaCiclo(a,'saque2',100,inicio,calcs,0,0);
+    expect(recalculado.dias[0]!.perda).toBe(0);
+    expect(recalculado.dias[1]!.bonusAntes).toBe(336.60);
+    expect(recalculado.dias[1]!.necessario).toBeCloseTo(278.10);
+    expect(recalculado.dias[1]!.deposito).toBe(0);
+    expect(antigo.dias[1]!.deposito).toBeCloseTo(51.32);
+  });
   it('usa a soma dos depósitos como saldo próprio somente quando o saldo real ainda não foi conciliado',()=>{
     const s=setup();
     s.forexSaldoReal=undefined;
