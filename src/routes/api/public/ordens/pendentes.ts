@@ -1,6 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { autenticarToken, json } from "@/lib/integracao.server";
 import { resolveCfdLot } from "@/lib/integracao-lotes";
+import { gunzipSync } from "node:zlib";
+
+function decodeStoredAppData(value: string | null | undefined): string | null {
+  if (typeof value !== "string") return null;
+  const prefix = "WOWGZIP1:";
+  if (!value.startsWith(prefix)) return value;
+  try { return gunzipSync(Buffer.from(value.slice(prefix.length), "base64"), { maxOutputLength: 100_000_000 }).toString("utf8"); }
+  catch { return null; }
+}
 
 // O robô busca as ordens pendentes; elas passam a "sent" para não repetir.
 // "qty" continua sendo a quantidade de contratos da mesa para compatibilidade;
@@ -40,7 +49,7 @@ export const Route = createFileRoute("/api/public/ordens/pendentes")({
           .eq("user_id", userId).maybeSingle();
         return json({
           orders: (data ?? []).map((r) => {
-            const resolution = resolveCfdLot(saved?.data ?? null, r.symbol);
+            const resolution = resolveCfdLot(decodeStoredAppData(saved?.data), r.symbol);
             return {
               id: r.id,
               symbol: r.symbol,
