@@ -191,31 +191,53 @@ export const Route = createFileRoute("/api/plataforma/dados")({
         }
 
         let saveError: { message: string } | null = null;
-        if (expectedVersion === null) {
-          if (previousRow) return json({ error: "version_conflict", version: previousRow.version }, 409);
-          const result = await supabaseAdmin.from("app_data").insert({
-            user_id: user.id, data: value, version: 1, updated_at: new Date().toISOString(),
+        let databaseTimedOut = false;
+        // Um statement_timeout pode ser transitório (contenção momentânea no banco).
+        // Repetimos somente esse caso, uma vez, mantendo o mesmo expectedVersion:
+        // se a primeira transação foi cancelada, a segunda pode gravar sem conflito.
+        for (let attempt = 1; attempt <= 2; attempt += 1) {
+          const startedAt = Date.now();
+          if (expectedVersion === null) {
+            if (previousRow) return json({ error: "version_conflict", version: previousRow.version }, 409);
+            const result = await supabaseAdmin.from("app_data").insert({
+              user_id: user.id, data: value, version: 1, updated_at: new Date().toISOString(),
+            });
+            saveError = result.error;
+            if (saveError && /duplicate|unique/i.test(saveError.message)) return json({ error: "version_conflict" }, 409);
+          } else {
+            const result = await supabaseAdmin.from("app_data").update({
+              data: value, version: expectedVersion + 1, updated_at: new Date().toISOString(),
+            }).eq("user_id", user.id).eq("version", expectedVersion).select("version").maybeSingle();
+            saveError = result.error;
+            if (!saveError && !result.data) return json({ error: "version_conflict", version: previousRow?.version ?? null }, 409);
+          }
+
+          if (!saveError) break;
+          const isStatementTimeout = /statement timeout|canceling statement due to statement timeout/i.test(saveError.message);
+          console.error("[strategy] state save attempt failed", {
+            attempt,
+            elapsed_ms: Date.now() - startedAt,
+            payload_bytes: Buffer.byteLength(value, "utf8"),
+            reason: isStatementTimeout ? "statement_timeout" : "database_write_failed",
           });
-          saveError = result.error;
-          if (saveError && /duplicate|unique/i.test(saveError.message)) return json({ error: "version_conflict" }, 409);
-        } else {
-          const result = await supabaseAdmin.from("app_data").update({
-            data: value, version: expectedVersion + 1, updated_at: new Date().toISOString(),
-          }).eq("user_id", user.id).eq("version", expectedVersion).select("version").maybeSingle();
-          saveError = result.error;
-          if (!saveError && !result.data) return json({ error: "version_conflict", version: previousRow?.version ?? null }, 409);
+          if (!isStatementTimeout || attempt === 2) {
+            databaseTimedOut = isStatementTimeout;
+            break;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 400));
         }
+
         if (saveError) {
-          console.error("[strategy] state save failed", saveError.message);
+          console.error("[strategy] state save failed", databaseTimedOut ? "statement_timeout_after_retry" : "database_write_failed");
           const { error: auditError } = await supabaseAdmin.from("audit_logs").insert({
             user_id: user.id,
             category: "strategy",
             action: "strategy.save_failed",
             outcome: "failed",
-            details: { reason: "database_write_failed" },
+            details: { reason: databaseTimedOut ? "database_statement_timeout" : "database_write_failed" },
           });
           if (auditError) console.error("[audit] failed-save event could not be stored", auditError.message);
-          return json({ error: "save_failed" }, 500);
+          return json({ error: databaseTimedOut ? "database_timeout" : "save_failed" }, databaseTimedOut ? 503 : 500);
         }
 
         try {
