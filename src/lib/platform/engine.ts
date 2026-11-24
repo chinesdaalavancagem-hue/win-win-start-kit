@@ -969,7 +969,7 @@ export function projetarPrimeiroPayout(a: Asset, key: AssetKey) {
 
 export interface CaixaDia { dia: number; necessario: number; saldoAntes: number; proprioAntes: number; bonusAntes: number; proprioDisponivel: number; bonusDisponivel: number; excedenteProprioSacavel: number; deposito: number; bonusGanho: number; perda: number; perdaPropria: number; perdaBonus: number; proprioRestante: number; bonusRestante: number; caixaAcumulado: number }
 /** Caixa do ciclo completo: simula passar em todos os dias (pior caso de caixa) com aporte fracionado e bônus com teto. */
-export function calcCaixaCiclo(a: Asset, key: AssetKey, bonusPct: number, inicio?: { proprio: number; bonus: number; bonusUtilizado: number }, calcs = computeAssetCalcs(a, key), saqueProjetado?: number) {
+export function calcCaixaCiclo(a: Asset, key: AssetKey, bonusPct: number, inicio?: { proprio: number; bonus: number; bonusUtilizado: number }, calcs = computeAssetCalcs(a, key), saqueProjetado?: number, indiceAtual = 0) {
   const p = Math.max(0, bonusPct || 0) / 100;
   const cap = Number.isFinite(a.bonus.bonusCap) ? Math.max(0, a.bonus.bonusCap) : 0;
   const taxa = a.params.taxa || 0;
@@ -981,6 +981,20 @@ export function calcCaixaCiclo(a: Asset, key: AssetKey, bonusPct: number, inicio
     const proprioAntes = proprio;
     const bonusAntes = bonus;
     const saldoAntes = proprioAntes + bonusAntes;
+    // No Saque 2, o saldo inicial já é o caixa real de hoje. Dias anteriores
+    // já foram liquidados e debitados do Forex; simulá-los novamente duplica
+    // a perda e pode gerar um aporte indevido no dia atual.
+    if (i < indiceAtual) {
+      const folgaTotal = Math.max(0, proprioAntes + bonusAntes - necessario);
+      const excedenteProprioSacavel = proprioAntes > 0
+        ? Math.min(proprioAntes, folgaTotal / (1 + bonusAntes / proprioAntes))
+        : 0;
+      return { dia: i + 1, necessario, saldoAntes, proprioAntes, bonusAntes,
+        proprioDisponivel: proprioAntes, bonusDisponivel: bonusAntes,
+        excedenteProprioSacavel, deposito: 0, bonusGanho: 0, perda: 0,
+        perdaPropria: 0, perdaBonus: 0, proprioRestante: proprioAntes,
+        bonusRestante: bonusAntes, caixaAcumulado: taxa + depositado };
+    }
     const falta = Math.max(0, necessario - saldoAntes);
     const espaco = Math.max(0, cap - (inicio?.bonusUtilizado ?? 0) - bonusTotal);
     const deposito = aporteMinimoComBonus(falta, bonusPct, espaco);
@@ -1074,7 +1088,7 @@ export function simularSaque2(s: State, bonusPct = percentualBonus(s.assets.saqu
   });
   const segundoCaixa = calcCaixaCiclo(segundo, "saque2", bonusPct, {
     proprio: forexProprioInicial, bonus: forexBonusInicial, bonusUtilizado,
-  }, calcsCaixa, saque2Liquido);
+  }, calcsCaixa, saque2Liquido, segundo.attempt.currentDayIndex);
   return { numeroCiclo, saldoMesaInicial, resultadoAnterior, dividaAnterior, forexProprioInicial, forexBonusInicial, bonusUtilizado, origemKey, primeiro, segundo: segundoCaixa, calcs, limites, lucroMesa, retirada, lucroSegundoCiclo, baseSaque2, saque2Bruto, saque2Liquido,
     resultadoAcumulado: resultadoAnterior + segundoCaixa.resultadoFinal };
 }
