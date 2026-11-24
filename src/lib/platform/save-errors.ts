@@ -7,6 +7,7 @@ export function mensagemErroSalvamento(status: number, code?: unknown): string {
   if (status === 401 || code === 'unauthorized') return 'Sua sessão expirou. As alterações ainda não foram salvas. Entre novamente na plataforma.';
   if (code === 'terms_acceptance_required') return 'É necessário aceitar os termos atualizados para salvar.';
   if (code === 'account_not_approved') return 'Sua conta não está liberada para salvar. Entre em contato com o suporte.';
+  if (code === 'database_timeout') return 'O banco de dados demorou demais para concluir o salvamento, mesmo após uma nova tentativa. Suas alterações ainda não foram confirmadas. Aguarde alguns instantes e tente novamente.';
   if (status === 400) return 'Uma informação enviada não pôde ser validada. As alterações ainda não foram salvas. Entre em contato com o suporte.';
   if (status === 0) return 'Não foi possível conectar à nuvem. Confira sua conexão; as alterações ainda não foram salvas.';
   return 'A nuvem não conseguiu concluir o salvamento. As alterações ainda não foram salvas. Tente novamente em instantes.';
