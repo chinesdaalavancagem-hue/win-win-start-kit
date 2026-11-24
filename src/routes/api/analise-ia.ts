@@ -3,6 +3,13 @@ import { createResponsesCall } from "@/lib/ai/responses.server";
 import { parseBancas } from "@/lib/platform/bancas";
 import { buildDeterministicAnalysis } from "@/lib/platform/ai-analysis";
 import type { AssetKey } from "@/lib/platform/engine";
+import { gunzipSync } from "node:zlib";
+
+function decodeStoredAppData(value: string): string {
+  const prefix = "WOWGZIP1:";
+  if (!value.startsWith(prefix)) return value;
+  return gunzipSync(Buffer.from(value.slice(prefix.length), "base64"), { maxOutputLength: 100_000_000 }).toString("utf8");
+}
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -63,7 +70,7 @@ export const Route = createFileRoute("/api/analise-ia")({
 
         let parsed: ReturnType<typeof parseBancas>;
         try {
-          const raw = typeof saved.data === "string" ? saved.data : JSON.stringify(saved.data);
+          const raw = decodeStoredAppData(typeof saved.data === "string" ? saved.data : JSON.stringify(saved.data));
           parsed = parseBancas(raw);
         } catch {
           return json({ error: "Os dados salvos da banca não puderam ser lidos." }, 400);
