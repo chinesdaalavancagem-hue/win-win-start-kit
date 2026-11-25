@@ -52,6 +52,19 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: ErrorComponentProps) {
   console.error(error);
   const router = useRouter();
+  // Exibe uma pista técnica segura para falhas do navegador não capturadas nos logs da Vercel.
+  const diagnostic = (() => {
+    const raw = error instanceof Response
+      ? `Resposta HTTP ${error.status}${error.url ? ` em ${new URL(error.url).pathname}` : ""}`
+      : error instanceof Error
+        ? `${error.name}: ${error.message}`
+        : String(error);
+    return raw
+      .replace(/Bearer\\s+[^\\s]+/gi, "Bearer [oculto]")
+      .replace(/([?&](?:token|key|secret|password)=)[^&\\s]+/gi, "$1[oculto]")
+      .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/gi, "[e-mail oculto]")
+      .slice(0, 240);
+  })();
   useEffect(() => {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -79,6 +92,9 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
           Algo deu errado do nosso lado. Você pode tentar atualizar a página ou voltar para a página inicial.
+        </p>
+        <p className="mt-3 rounded-md border border-border bg-muted/40 px-3 py-2 text-left text-xs text-muted-foreground break-words" role="status">
+          Detalhe técnico: {diagnostic || "Não foi possível identificar a mensagem do erro."}
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
