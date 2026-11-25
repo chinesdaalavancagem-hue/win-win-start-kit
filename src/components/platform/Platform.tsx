@@ -445,7 +445,8 @@ function AssetView({ state, mesasDisponiveis, bancasGlobais, bancaAtivaId, conta
   const bonusPct = String(percentualBonus(asset.bonus));
   const setBonusPct = (value: string) => { const pct = parseValorFinanceiro(value); if (pct !== null && pct >= 0) mutate(s => { s.assets[assetKey].bonus.percentual = pct; }); };
   const continuidade = useMemo(() => assetKey === "saque2" ? simularSaque2(stateCotado, parseNum(bonusPct)) : null, [stateCotado, assetKey, bonusPct]);
-  const custosReaisPorDia = custosReaisCiclo(state.log, assetKey);\n  const calcs = continuidade?.calcs ?? computeAssetCalcs(asset, assetKey, undefined, custosReaisPorDia);
+  const custosReaisPorDia = custosReaisCiclo(state.log, assetKey);
+  const calcs = continuidade?.calcs ?? computeAssetCalcs(asset, assetKey, undefined, custosReaisPorDia);
   const caixaCiclo = continuidade?.segundo ?? calcCaixaCiclo(asset, assetKey, parseNum(bonusPct));
   // Atalhos: Shift+N = Profit no dia N; Ctrl+N (ou Alt+N) = Stop no dia N. Só vale para o dia atual; usa o valor teórico.
   const curIdx = asset.attempt.currentDayIndex;
