@@ -940,9 +940,8 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
                 }, 0);
                 const percentual = target > 0 ? (realizado / target) * 100 : 0;
                 const largura = Math.max(0, Math.min(100, percentual));
-                const configMesaAtiva = mesasDisponiveis[mesa];
                 const limiteConsistencia = mesa.startsWith("custom_")
-                  ? Math.max(0, configMesaAtiva?.consistenciaFinanciada ?? asset.mesaConfig?.consistenciaFinanciada ?? 0)
+                  ? Math.max(0, asset.mesaConfig?.consistenciaFinanciada ?? 0)
                   : Math.max(0, MESAS_FUTUROS[mesa]?.consistenciaFinanciada ?? 0);
                 const resultadosFinanciados = Object.entries(asset.attempt.resultadosMesaEod ?? {}).flatMap(([chave, valor]) => {
                   const indice = Number(chave);
