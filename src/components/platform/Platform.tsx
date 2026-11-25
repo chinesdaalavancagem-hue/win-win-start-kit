@@ -932,7 +932,7 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
               </div>
             </div>
 
-              {assetKey !== "saque2" && (() => {
+              {(() => {
                 const target = asset.mesaConfig?.target ?? asset.days.slice(0, avaliacaoDias).reduce((total, dia) => total + Math.max(0, dia.meta || 0), 0);
                 const realizado = Object.entries(asset.attempt.resultadosMesaEod ?? {}).reduce((total, [chave, valor]) => {
                   const indice = Number(chave);
