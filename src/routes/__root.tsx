@@ -54,7 +54,21 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
   const router = useRouter();
   useEffect(() => {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
-    void registrarAuditoria({ category: "system", action: "system.error", outcome: "failed", details: { boundary: "root_error_component" } });
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorName = error instanceof Error ? error.name : typeof error;
+    const errorStack = error instanceof Error ? error.stack ?? "" : "";
+    void registrarAuditoria({
+      category: "system",
+      action: "system.error",
+      outcome: "failed",
+      details: {
+        boundary: "root_error_component",
+        error_name: errorName.slice(0, 80),
+        error_message: errorMessage.slice(0, 450),
+        error_stack: errorStack.slice(0, 450),
+        pathname: window.location.pathname.slice(0, 120),
+      },
+    });
   }, [error]);
 
   return (
