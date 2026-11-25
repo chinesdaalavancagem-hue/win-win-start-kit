@@ -750,7 +750,7 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
                   <span className="text-xs font-bold uppercase tracking-[.16em] text-cyan-200">{fase === "avaliacao" ? "Avaliação" : "Conta financiada"}</span>
                   <span className="text-[11px] text-slate-400">{faseRows.length} {faseRows.length === 1 ? "dia" : "dias"}</span>
                 </div>
-                <div className="grid grid-cols-2 items-start gap-3">
+                <div className={cn("grid items-start gap-3", mesaAtiva === "vest" ? "grid-cols-1" : "grid-cols-2")}>
                   {faseRows.map((r) => <DayCard key={r.i} row={r} asset={asset} assetKey={assetKey} bancaId={bancaAtivaId} contaMesa={contaMesa} mesa={mesaAtiva} avaliacaoDias={avaliacaoDias} mutate={mutate} excedenteAtualSacavel={excedenteAtualSacavel} />)}
                 </div>
               </section>;
