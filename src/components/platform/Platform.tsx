@@ -17,7 +17,7 @@ import { applyPreset, capturePreset, isStrategyPreset, PRESET_LABELS, type Prese
 import {
   type AssetKey, type State, type TabKey, type Asset, type MesaFuturos, MESAS_FUTUROS, nomeMesa, diasAvaliacaoAtivo, diasAvaliacaoGold, limitesTradeify, limitesTopstep, limitesVest, adicionarDiaGold, removerDiaGold, aplicarParametrosDia,
   alavancagemVest, maxAlavancagemVest, margemVest, exposicaoVestUsd, contratosMgcEquivalentesVest, definirParametroVest, percentualSplit, definirSplit, percentualBonus, podeReverterDeposito, reverterDeposito, taxasMesaDia, metaLiquidaDia, projetarPrimeiroPayout, simularSaque2, aplicarDeposito, aplicarSaque, projetarAportesFuturos, conciliarCreditoForex, calcAporteFracionado, calcCaixaCiclo, clampDayIndex, computeAssetCalcs, defaultState, fmt, fmtSigned, handleProfit, handleStop,
-  ajustarLotesParaLucro, historicoTotals, isValidState, normalizeState, sincronizarParametros, definirAlavancagem, parseNum, parseValorFinanceiro, parseResultadoCfd, podeDesfazerUltimaOperacao, projetarZeragemBonus, reiniciarCicloBonus, resetBonus, tipoLabel, undoLast,
+  ajustarLotesParaLucro, historicoTotals, isValidState, normalizeState, sincronizarParametros, definirAlavancagem, parseNum, parseValorFinanceiro, parseResultadoCfd, custosReaisCiclo, podeDesfazerUltimaOperacao, projetarZeragemBonus, reiniciarCicloBonus, resetBonus, tipoLabel, undoLast,
 } from "@/lib/platform/engine";
 
 type Section = "operacoes" | "parametros" | "bonus" | "aporte" | "caixa" | "meta" | "simulacao" | "movimentacoes";
@@ -445,7 +445,7 @@ function AssetView({ state, mesasDisponiveis, bancasGlobais, bancaAtivaId, conta
   const bonusPct = String(percentualBonus(asset.bonus));
   const setBonusPct = (value: string) => { const pct = parseValorFinanceiro(value); if (pct !== null && pct >= 0) mutate(s => { s.assets[assetKey].bonus.percentual = pct; }); };
   const continuidade = useMemo(() => assetKey === "saque2" ? simularSaque2(stateCotado, parseNum(bonusPct)) : null, [stateCotado, assetKey, bonusPct]);
-  const calcs = continuidade?.calcs ?? computeAssetCalcs(asset, assetKey);
+  const custosReaisPorDia = custosReaisCiclo(state.log, assetKey);\n  const calcs = continuidade?.calcs ?? computeAssetCalcs(asset, assetKey, undefined, custosReaisPorDia);
   const caixaCiclo = continuidade?.segundo ?? calcCaixaCiclo(asset, assetKey, parseNum(bonusPct));
   // Atalhos: Shift+N = Profit no dia N; Ctrl+N (ou Alt+N) = Stop no dia N. Só vale para o dia atual; usa o valor teórico.
   const curIdx = asset.attempt.currentDayIndex;
@@ -719,7 +719,7 @@ function AssetView({ state, mesasDisponiveis, bancasGlobais, bancaAtivaId, conta
             onBrokerChange={corretora => mutate(s => { s.assets[assetKey].params.corretoraCfd = corretora; })}
             onSpreadChange={pontos => mutate(s => { s.assets[assetKey].params.spreadPontosCfd = pontos; })}
             onAdjustAll={alvo => {
-              const calculado = ajustarLotesParaLucro(asset, assetKey, alvo);
+              const calculado = ajustarLotesParaLucro(asset, assetKey, alvo, custosReaisPorDia);
               if (calculado.erro) return calculado.erro;
               mutate(s => { s.assets[assetKey].params.lucroDesejado = alvo; s.assets[assetKey].days = calculado.dias; });
               return null;
