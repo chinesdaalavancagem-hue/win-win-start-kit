@@ -1231,17 +1231,17 @@ function Historico({ state, mutate, bancas, bancasGlobais, mesaAtiva, bancaAtiva
   const margem = base > 0 ? (resultadoReal / base) * 100 : null;
   return (
     <div>
-      <div className="mb-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="mb-2 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
         <Metric label="Contas aprovadas" value={resumo.aprovadas} tone="pos" />
         <Metric label="Contas reprovadas" value={resumo.reprovadas} tone="neg" />
         <Metric label="Profit" value={(profit >= 0 ? "+$" : "-$") + fmt(Math.abs(profit))} tone={profit >= 0 ? "pos" : "neg"} />
         <Metric label="Resultado real" value={fmtSigned(resultadoReal)} tone={resultadoReal >= 0 ? "pos" : "neg"} />
+        <Metric label="Custo próprio (sem bônus)" value={`-${fmt(custoProprio)}`} tone="neg" />
       </div>
       <p className="mb-4 font-mono text-xs text-muted-foreground">
         {total > 0 ? `taxa de aprovação: ${fmt((resumo.aprovadas / total) * 100)}% (${total} ciclo${total === 1 ? "" : "s"} concluído${total === 1 ? "" : "s"})` : "nenhum ciclo concluído ainda — use os botões Profit / Stop nos cards de dia."}
       </p>
       <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-4">
-        <Metric label="Custo próprio real (seleção)" value={`$${fmt(custoProprio)}`} tone="neg" />
         <Metric label="Contas compradas" value={total} />
         <Metric label="ROI (resultado real)" value={roi == null ? "-" : `${roi >= 0 ? "+" : ""}${fmt(roi)}%`} tone={roi == null ? undefined : roi >= 0 ? "pos" : "neg"} />
         <Metric label="Margem do resultado real" value={margem == null ? "-" : `${margem >= 0 ? "+" : ""}${fmt(margem)}%`} tone={margem == null ? undefined : margem >= 0 ? "pos" : "neg"} />
