@@ -60,12 +60,12 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
         ? `${error.name}: ${error.message}`
         : String(error);
     const stackLocation = error instanceof Error
-      ? (error.stack ?? "").split("\\n").slice(1, 4).join(" | ")
+      ? (error.stack ?? "").split(String.fromCharCode(10)).slice(1, 4).join(" | ")
       : "";
     return (stackLocation ? `${raw} | ${stackLocation}` : raw)
-      .replace(/Bearer\\s+[^\\s]+/gi, "Bearer [oculto]")
-      .replace(/([?&](?:token|key|secret|password)=)[^&\\s]+/gi, "$1[oculto]")
-      .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/gi, "[e-mail oculto]")
+      .replace(/Bearer\s+[^\s]+/gi, "Bearer [oculto]")
+      .replace(/([?&](?:token|key|secret|password)=)[^&\s]+/gi, "$1[oculto]")
+      .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[e-mail oculto]")
       .slice(0, 600);
   })();
   useEffect(() => {
