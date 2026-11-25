@@ -672,7 +672,9 @@ export function computeAssetCalcs(a: Asset, key: AssetKey, continuidade?: { divi
     const dividaHoje = incluiPretensao ? dividaReal + lucroDesejado : dividaReal;
     const alvoBruto = incluiPretensao ? dividaHoje : dividaReal + lucroDesejado;
     const liquidoSeReprovar = reprova - dividaReal;
-    // Dias já liquidados usam o custo CFD real (incluindo spread/slippage efetivo);\n    // dias atuais e futuros continuam usando a estimativa configurada.\n    divida += Number.isFinite(custosReaisPorDia[indice]) ? custosReaisPorDia[indice]! : custoSePassar;
+    // Dias já liquidados usam o custo CFD real (incluindo spread/slippage efetivo);
+    // dias atuais e futuros continuam usando a estimativa configurada.
+    divida += Number.isFinite(custosReaisPorDia[indice]) ? custosReaisPorDia[indice]! : custoSePassar;
     return { pontos, limiteDoCard: limite, ticksReprova, valorTickMesa: exp / ticksPorPonto, custoSePassar, passa: -custoSePassar, pontosReprova, reprova, dividaHoje, alvoBruto, liquidoSeReprovar, bateuAlvo: liquidoSeReprovar >= lucroDesejado * 0.98 };
   });
 }
