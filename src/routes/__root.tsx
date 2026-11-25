@@ -59,11 +59,14 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
       : error instanceof Error
         ? `${error.name}: ${error.message}`
         : String(error);
-    return raw
+    const stackLocation = error instanceof Error
+      ? (error.stack ?? "").split("\\n").slice(1, 4).join(" | ")
+      : "";
+    return (stackLocation ? `${raw} | ${stackLocation}` : raw)
       .replace(/Bearer\\s+[^\\s]+/gi, "Bearer [oculto]")
       .replace(/([?&](?:token|key|secret|password)=)[^&\\s]+/gi, "$1[oculto]")
       .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/gi, "[e-mail oculto]")
-      .slice(0, 240);
+      .slice(0, 600);
   })();
   useEffect(() => {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
