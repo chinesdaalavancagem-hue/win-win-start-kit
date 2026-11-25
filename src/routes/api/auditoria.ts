@@ -136,6 +136,12 @@ function detailsLabel(r: Row): string {
   }
   if (r.action === "ai.analysis.completed") return safe(d.ativo, 30) ? `Análise concluída para ${safe(d.ativo, 30)}.` : "Análise concluída sem armazenar seu conteúdo.";
   if (r.action === "navigation.opened") { const p = safe(d.page ?? d.tela, 60); return p && !/[?#/]/.test(p) ? `Tela acessada: ${p}.` : "Acesso a uma tela da plataforma."; }
+  if (r.action === "system.error") {
+    const name = safe(d.error_name, 60);
+    const message = safe(d.error_message, 220);
+    const stack = safe(d.error_stack, 180);
+    return [name, message, stack].filter(Boolean).join(": ").slice(0, 450) || "Erro de renderização sem mensagem disponível.";
+  }
   if (r.action === "ui.button_clicked") return safe(d.button ?? d.botao, 60) ? `Botão: ${safe(d.button ?? d.botao, 60)}.` : "Clique registrado na plataforma.";
   if (r.action === "create" && d.tipo === "chave_ea") return "Nova chave do EA gerada. O valor da chave não é exibido.";
   if (r.action === "integration.key_generated") return "A chave foi gerada e armazenada de forma protegida; seu valor não é exibido.";
