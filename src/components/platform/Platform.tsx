@@ -752,7 +752,7 @@ function AssetView({ state, mesasDisponiveis, bancasGlobais, bancaAtivaId, conta
                   <span className="text-[11px] text-slate-400">{faseRows.length} {faseRows.length === 1 ? "dia" : "dias"}</span>
                 </div>
                 <div className={cn("grid items-start gap-3", mesaAtiva === "vest" ? "grid-cols-1" : "grid-cols-2")}>
-                  {faseRows.map((r) => <DayCard key={r.i} row={r} asset={asset} assetKey={assetKey} bancaId={bancaAtivaId} contaMesa={contaMesa} mesa={mesaAtiva} nomeMesa={mesasDisponiveis[mesaAtiva]?.nome} consistenciaFinanciadaMesa={mesasDisponiveis[mesaAtiva]?.consistenciaFinanciada} avaliacaoDias={avaliacaoDias} mutate={mutate} excedenteAtualSacavel={excedenteAtualSacavel} />)}
+                  {faseRows.map((r) => <DayCard key={r.i} row={r} asset={asset} assetKey={assetKey} bancaId={bancaAtivaId} contaMesa={contaMesa} mesa={mesaAtiva} nomeMesa={mesasDisponiveis[mesaAtiva]?.nome} consistenciaAvaliacaoMesa={mesasDisponiveis[mesaAtiva]?.consistencia} consistenciaFinanciadaMesa={mesasDisponiveis[mesaAtiva]?.consistenciaFinanciada} avaliacaoDias={avaliacaoDias} mutate={mutate} excedenteAtualSacavel={excedenteAtualSacavel} />)}
                 </div>
               </section>;
             })}
@@ -766,7 +766,7 @@ function AssetView({ state, mesasDisponiveis, bancasGlobais, bancaAtivaId, conta
 
 type Row = { d: Asset["days"][number]; c: ReturnType<typeof computeAssetCalcs>[number]; i: number; isCurrent: boolean; status: "ok" | "alerta" | "risco"; statusText: string; ticks: number; mult: number; caixaDia?: ReturnType<typeof calcCaixaCiclo>["dias"][number] | undefined };
 
-function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, nomeMesa, consistenciaFinanciadaMesa, avaliacaoDias, mutate, excedenteAtualSacavel }: { row: Row; asset: Asset; assetKey: AssetKey; bancaId?: string | undefined; contaMesa?: string | undefined; mesa: MesaFuturos; nomeMesa?: string; consistenciaFinanciadaMesa?: number; avaliacaoDias: number; mutate: (fn: (s: State) => void) => void; excedenteAtualSacavel: number }) {
+function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, nomeMesa, consistenciaAvaliacaoMesa, consistenciaFinanciadaMesa, avaliacaoDias, mutate, excedenteAtualSacavel }: { row: Row; asset: Asset; assetKey: AssetKey; bancaId?: string | undefined; contaMesa?: string | undefined; mesa: MesaFuturos; nomeMesa?: string; consistenciaAvaliacaoMesa?: number; consistenciaFinanciadaMesa?: number; avaliacaoDias: number; mutate: (fn: (s: State) => void) => void; excedenteAtualSacavel: number }) {
   const { d, c, i, isCurrent } = row;
   const ref = useRef<HTMLDivElement>(null);
   const wasCurrent = useRef(isCurrent);
@@ -941,22 +941,31 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, nomeMesa, con
                 }, 0);
                 const percentual = target > 0 ? (realizado / target) * 100 : 0;
                 const largura = Math.max(0, Math.min(100, percentual));
-                // Zero na configuração de catálogo significa "sem regra", mas não deve ocultar
-                // um limite positivo salvo na banca. FundedNext usa 40% como padrão financiado.
-                const limiteConfigurado = [
+                const ehAvaliacaoCard = i < avaliacaoDias;
+                const ehFundedNext = /funded\s*next/i.test(nomeMesa ?? asset.mesaConfig?.nome ?? String(mesa));
+                const limiteAvaliacaoConfigurado = [
+                  consistenciaAvaliacaoMesa,
+                  asset.mesaConfig?.consistencia,
+                  MESAS_FUTUROS[mesa]?.consistencia,
+                ].find((valor): valor is number => typeof valor === "number" && Number.isFinite(valor) && valor > 0);
+                const limiteFinanciadoConfigurado = [
                   consistenciaFinanciadaMesa,
                   asset.mesaConfig?.consistenciaFinanciada,
                   MESAS_FUTUROS[mesa]?.consistenciaFinanciada,
                 ].find((valor): valor is number => typeof valor === "number" && Number.isFinite(valor) && valor > 0);
-                const ehFundedNext = /funded\s*next/i.test(nomeMesa ?? asset.mesaConfig?.nome ?? String(mesa));
-                const limiteConsistencia = Math.max(0, limiteConfigurado ?? (ehFundedNext ? 40 : 0));
-                const resultadosFinanciados = Object.entries(asset.attempt.resultadosMesaEod ?? {}).flatMap(([chave, valor]) => {
+                const limiteConsistencia = ehAvaliacaoCard
+                  ? Math.max(0, limiteAvaliacaoConfigurado ?? (ehFundedNext ? 55 : 0))
+                  : Math.max(0, limiteFinanciadoConfigurado ?? (ehFundedNext ? 40 : 0));
+                const resultadosConsistencia = Object.entries(asset.attempt.resultadosMesaEod ?? {}).flatMap(([chave, valor]) => {
                   const indice = Number(chave);
-                  return Number.isInteger(indice) && indice >= avaliacaoDias && indice < asset.days.length && Number.isFinite(valor) ? [valor] : [];
+                  const pertenceAFase = ehAvaliacaoCard
+                    ? indice >= 0 && indice < avaliacaoDias
+                    : indice >= avaliacaoDias && indice < asset.days.length;
+                  return Number.isInteger(indice) && pertenceAFase && Number.isFinite(valor) ? [valor] : [];
                 });
-                const lucroFinanciado = resultadosFinanciados.reduce((total, valor) => total + valor, 0);
-                const melhorDiaFinanciado = Math.max(0, ...resultadosFinanciados);
-                const consistenciaAtual = lucroFinanciado > 0 ? melhorDiaFinanciado / lucroFinanciado * 100 : 0;
+                const lucroConsistencia = resultadosConsistencia.reduce((total, valor) => total + valor, 0);
+                const melhorDiaConsistencia = Math.max(0, ...resultadosConsistencia);
+                const consistenciaAtual = lucroConsistencia > 0 ? melhorDiaConsistencia / lucroConsistencia * 100 : 0;
                 const usoConsistencia = limiteConsistencia > 0 ? consistenciaAtual / limiteConsistencia * 100 : 0;
                 const larguraConsistencia = Math.max(0, Math.min(100, usoConsistencia));
                 const restante = Math.max(0, target - realizado);
@@ -987,15 +996,15 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, nomeMesa, con
                         <p className="text-[11px] font-bold leading-tight text-cyan-100 sm:text-xs">Consistência</p>
                         <span className={cn("font-mono text-xs font-bold", corConsistencia.texto)}>{fmt(consistenciaAtual)}% <span className="text-slate-500">/ {fmt(limiteConsistencia)}%</span></span>
                       </div>
-                      <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-slate-800" role="progressbar" aria-label="Consistência dos dias financiados em relação ao limite" aria-valuemin={0} aria-valuemax={100} aria-valuenow={larguraConsistencia} aria-valuetext={`${fmt(consistenciaAtual)}% de consistência; limite de ${fmt(limiteConsistencia)}%`}>
+                      <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-slate-800" role="progressbar" aria-label={ehAvaliacaoCard ? "Consistência dos dias de avaliação em relação ao limite" : "Consistência dos dias financiados em relação ao limite"} aria-valuemin={0} aria-valuemax={100} aria-valuenow={larguraConsistencia} aria-valuetext={`${fmt(consistenciaAtual)}% de consistência; limite de ${fmt(limiteConsistencia)}%`}>
                         <div className={cn("h-full rounded-full transition-[width] duration-300", corConsistencia.barra)} style={{ width: `${larguraConsistencia}%` }} />
                       </div>
                       <div className="mt-2 text-[10px] leading-relaxed">
-                        <p className={cn("font-semibold", corConsistencia.texto)}>{resultadosFinanciados.length ? corConsistencia.status : "Aguardando dias financiados"}</p>
-                        <p className="text-slate-400">Maior dia: {money(melhorDiaFinanciado)} · Lucro líquido: {money(lucroFinanciado)}</p>
+                        <p className={cn("font-semibold", corConsistencia.texto)}>{resultadosConsistencia.length ? corConsistencia.status : ehAvaliacaoCard ? "Aguardando resultados da avaliação" : "Aguardando dias financiados"}</p>
+                        <p className="text-slate-400">Maior dia: {money(melhorDiaConsistencia)} · Lucro líquido: {money(lucroConsistencia)}</p>
                       </div>
                     </div>}
-                    <p className="col-span-full mt-0.5 text-[10px] text-slate-500">Meta: resultados líquidos da avaliação. Consistência: maior dia positivo ÷ lucro líquido acumulado, considerando somente resultados registrados na fase financiada.</p>
+                    <p className="col-span-full mt-0.5 text-[10px] text-slate-500">Meta: resultados líquidos da avaliação. Consistência: maior dia positivo ÷ lucro líquido acumulado, calculada separadamente na fase correspondente ao card.</p>
                   </div>
                 );
               })()}
