@@ -942,9 +942,9 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
                 const largura = Math.max(0, Math.min(100, percentual));
                 const limiteConsistencia = asset.mesaConfig
                   ? Math.max(0, asset.mesaConfig.consistenciaFinanciada ?? 0)
-                  : mesaAtiva === "topstep" || mesaAtiva === "vest"
+                  : mesa === "topstep" || mesa === "vest"
                     ? 0
-                    : Math.max(0, mesasDisponiveis[mesaAtiva]?.consistencia ?? 0);
+                    : Math.max(0, MESAS_FUTUROS[mesa]?.consistencia ?? 0);
                 const resultadosFinanciados = Object.entries(asset.attempt.resultadosMesaEod ?? {}).flatMap(([chave, valor]) => {
                   const indice = Number(chave);
                   return Number.isInteger(indice) && indice >= avaliacaoDias && indice < asset.days.length && Number.isFinite(valor) ? [valor] : [];
