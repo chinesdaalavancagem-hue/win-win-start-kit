@@ -825,7 +825,11 @@ export function historicoTotals(s: State) {
   }, 0);
   const resultadoReal = ciclos.reduce((total, e) =>
     total + (typeof e.resultadoReal === "number" && Number.isFinite(e.resultadoReal) ? e.resultadoReal : 0), 0);
-  const custoProprio = ciclos.reduce((total, e) =>
+  // Dias avançados durante o ciclo ainda aberto contam também; ciclos encerrados
+  // usam custoProprioCiclo (que já inclui seus dias) para evitar dupla contagem.
+  const custoProprioDiasAbertos = s.log.filter((e) => e.tipo === "profit").reduce((total, e) =>
+    total + (typeof e.custoProprioDia === "number" && Number.isFinite(e.custoProprioDia) ? Math.max(0, e.custoProprioDia) : 0), 0);
+  const custoProprio = custoProprioDiasAbertos + ciclos.reduce((total, e) =>
     total + (typeof e.custoProprioCiclo === "number" && Number.isFinite(e.custoProprioCiclo) ? Math.max(0, e.custoProprioCiclo) : 0), 0);
   return { profit, resultadoReal, custoProprio };
 }
