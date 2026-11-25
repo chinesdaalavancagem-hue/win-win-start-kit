@@ -751,7 +751,7 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
                   <span className="text-[11px] text-slate-400">{faseRows.length} {faseRows.length === 1 ? "dia" : "dias"}</span>
                 </div>
                 <div className={cn("grid items-start gap-3", mesaAtiva === "vest" ? "grid-cols-1" : "grid-cols-2")}>
-                  {faseRows.map((r) => <DayCard key={r.i} row={r} asset={asset} assetKey={assetKey} bancaId={bancaAtivaId} contaMesa={contaMesa} mesa={mesaAtiva} avaliacaoDias={avaliacaoDias} mutate={mutate} excedenteAtualSacavel={excedenteAtualSacavel} />)}
+                  {faseRows.map((r) => <DayCard key={r.i} row={r} asset={asset} assetKey={assetKey} bancaId={bancaAtivaId} contaMesa={contaMesa} mesa={mesaAtiva} consistenciaFinanciadaMesa={mesasDisponiveis[mesaAtiva]?.consistenciaFinanciada} avaliacaoDias={avaliacaoDias} mutate={mutate} excedenteAtualSacavel={excedenteAtualSacavel} />)}
                 </div>
               </section>;
             })}
@@ -765,7 +765,7 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
 
 type Row = { d: Asset["days"][number]; c: ReturnType<typeof computeAssetCalcs>[number]; i: number; isCurrent: boolean; status: "ok" | "alerta" | "risco"; statusText: string; ticks: number; mult: number; caixaDia?: ReturnType<typeof calcCaixaCiclo>["dias"][number] | undefined };
 
-function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias, mutate, excedenteAtualSacavel }: { row: Row; asset: Asset; assetKey: AssetKey; bancaId?: string | undefined; contaMesa?: string | undefined; mesa: MesaFuturos; avaliacaoDias: number; mutate: (fn: (s: State) => void) => void; excedenteAtualSacavel: number }) {
+function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, consistenciaFinanciadaMesa, avaliacaoDias, mutate, excedenteAtualSacavel }: { row: Row; asset: Asset; assetKey: AssetKey; bancaId?: string | undefined; contaMesa?: string | undefined; mesa: MesaFuturos; consistenciaFinanciadaMesa?: number; avaliacaoDias: number; mutate: (fn: (s: State) => void) => void; excedenteAtualSacavel: number }) {
   const { d, c, i, isCurrent } = row;
   const ref = useRef<HTMLDivElement>(null);
   const wasCurrent = useRef(isCurrent);
@@ -940,9 +940,9 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, avaliacaoDias
                 }, 0);
                 const percentual = target > 0 ? (realizado / target) * 100 : 0;
                 const largura = Math.max(0, Math.min(100, percentual));
-                const limiteConsistencia = mesa.startsWith("custom_")
-                  ? Math.max(0, asset.mesaConfig?.consistenciaFinanciada ?? 0)
-                  : Math.max(0, MESAS_FUTUROS[mesa]?.consistenciaFinanciada ?? 0);
+                const limiteConsistencia = Math.max(0,
+                  consistenciaFinanciadaMesa ?? asset.mesaConfig?.consistenciaFinanciada ?? MESAS_FUTUROS[mesa]?.consistenciaFinanciada ?? 0
+                );
                 const resultadosFinanciados = Object.entries(asset.attempt.resultadosMesaEod ?? {}).flatMap(([chave, valor]) => {
                   const indice = Number(chave);
                   return Number.isInteger(indice) && indice >= avaliacaoDias && indice < asset.days.length && Number.isFinite(valor) ? [valor] : [];
