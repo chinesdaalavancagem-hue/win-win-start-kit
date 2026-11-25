@@ -953,9 +953,14 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, nomeMesa, con
                   asset.mesaConfig?.consistenciaFinanciada,
                   MESAS_FUTUROS[mesa]?.consistenciaFinanciada,
                 ].find((valor): valor is number => typeof valor === "number" && Number.isFinite(valor) && valor > 0);
-                const limiteConsistencia = ehAvaliacaoCard
-                  ? Math.max(0, limiteAvaliacaoConfigurado ?? (ehFundedNext ? 55 : 0))
-                  : Math.max(0, limiteFinanciadoConfigurado ?? (ehFundedNext ? 40 : 0));
+                // FundedNext Futures Legacy/Flex: na Challenge, o teto é 40% do target total por dia.
+                // Não é a participação do maior dia no lucro acumulado até o momento.
+                const regraFundedNextAvaliacao = ehFundedNext && ehAvaliacaoCard;
+                const limiteConsistencia = regraFundedNextAvaliacao
+                  ? 40
+                  : ehAvaliacaoCard
+                    ? Math.max(0, limiteAvaliacaoConfigurado ?? 0)
+                    : Math.max(0, limiteFinanciadoConfigurado ?? (ehFundedNext ? 40 : 0));
                 const resultadosConsistencia = Object.entries(asset.attempt.resultadosMesaEod ?? {}).flatMap(([chave, valor]) => {
                   const indice = Number(chave);
                   const pertenceAFase = ehAvaliacaoCard
@@ -965,14 +970,18 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, nomeMesa, con
                 });
                 const lucroConsistencia = resultadosConsistencia.reduce((total, valor) => total + valor, 0);
                 const melhorDiaConsistencia = Math.max(0, ...resultadosConsistencia);
-                const consistenciaAtual = lucroConsistencia > 0 ? melhorDiaConsistencia / lucroConsistencia * 100 : 0;
-                const usoConsistencia = limiteConsistencia > 0 ? consistenciaAtual / limiteConsistencia * 100 : 0;
+                const consistenciaAtual = regraFundedNextAvaliacao
+                  ? (target > 0 ? melhorDiaConsistencia / target * 100 : 0)
+                  : (lucroConsistencia > 0 ? melhorDiaConsistencia / lucroConsistencia * 100 : 0);
+                const usoConsistencia = regraFundedNextAvaliacao
+                  ? (target > 0 ? melhorDiaConsistencia / (target * 0.4) * 100 : 0)
+                  : (limiteConsistencia > 0 ? consistenciaAtual / limiteConsistencia * 100 : 0);
                 const larguraConsistencia = Math.max(0, Math.min(100, usoConsistencia));
                 const restante = Math.max(0, target - realizado);
                 const money = (valor: number) => `${valor < 0 ? "−" : ""}${fmt(Math.abs(valor))}`;
                 if (target <= 0 && limiteConsistencia <= 0) return null;
                 const corConsistencia = consistenciaAtual > limiteConsistencia
-                  ? { texto: "text-rose-300", barra: "bg-gradient-to-r from-rose-600 to-red-400", status: "Limite ultrapassado" }
+                  ? { texto: "text-rose-300", barra: "bg-gradient-to-r from-rose-600 to-red-400", status: regraFundedNextAvaliacao ? "Target recalculado pela regra" : "Limite ultrapassado" }
                   : usoConsistencia >= 80
                     ? { texto: "text-amber-300", barra: "bg-gradient-to-r from-amber-500 to-orange-400", status: "Perto do limite" }
                     : { texto: "text-emerald-300", barra: "bg-gradient-to-r from-emerald-600 to-cyan-400", status: "Dentro do limite" };
@@ -1001,10 +1010,10 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, nomeMesa, con
                       </div>
                       <div className="mt-2 text-[10px] leading-relaxed">
                         <p className={cn("font-semibold", corConsistencia.texto)}>{resultadosConsistencia.length ? corConsistencia.status : ehAvaliacaoCard ? "Aguardando resultados da avaliação" : "Aguardando dias financiados"}</p>
-                        <p className="text-slate-400">Maior dia: {money(melhorDiaConsistencia)} · Lucro líquido: {money(lucroConsistencia)}</p>
+                        <p className="text-slate-400">{regraFundedNextAvaliacao ? <>Maior dia: {money(melhorDiaConsistencia)} · Teto diário: {money(target * 0.4)}</> : <>Maior dia: {money(melhorDiaConsistencia)} · Lucro líquido: {money(lucroConsistencia)}</>}</p>
                       </div>
                     </div>}
-                    <p className="col-span-full mt-0.5 text-[10px] text-slate-500">Meta: resultados líquidos da avaliação. Consistência: maior dia positivo ÷ lucro líquido acumulado, calculada separadamente na fase correspondente ao card.</p>
+                    <p className="col-span-full mt-0.5 text-[10px] text-slate-500">{regraFundedNextAvaliacao ? "FundedNext Futures Challenge: o maior lucro diário pode ser até 40% do target. Se ultrapassar, o target necessário é recalculado; isso não reprova automaticamente a conta." : "Consistência: maior dia positivo ÷ lucro líquido acumulado, calculada separadamente na fase correspondente ao card."}</p>
                   </div>
                 );
               })()}
