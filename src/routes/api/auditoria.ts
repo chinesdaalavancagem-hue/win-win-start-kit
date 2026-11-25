@@ -166,6 +166,14 @@ export const Route = createFileRoute("/api/auditoria")({
       if (typeof event.category !== "string" || !CATEGORIES.has(event.category) || typeof event.action !== "string" || !CLIENT_ACTIONS.has(event.action) || (event.outcome !== undefined && (typeof event.outcome !== "string" || !OUTCOMES.has(event.outcome)))) return json({ error: "invalid_event" }, 400);
       const details = validateDetails(event.details);
       if (details === null) return json({ error: "invalid_details" }, 400);
+      if (event.action === "system.error") {
+        console.error("[ROOT_RENDER_ERROR]", {
+          error_name: details.error_name,
+          error_message: details.error_message,
+          error_stack: details.error_stack,
+          pathname: details.pathname,
+        });
+      }
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       if (event.action === "integration.file_published") {
         const { data: roles } = await supabaseAdmin.from("user_roles").select("role").eq("user_id", user.id);
