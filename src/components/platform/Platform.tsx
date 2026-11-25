@@ -32,7 +32,7 @@ const TABS: { key: TabKey; label: string; dot: string }[] = [
 const ASSET_NAME: Record<AssetKey, string> = { nasdaq: "NASDAQ", ouro: "GOLD", saque2: "SAQUE 2" };
 const rotuloDia = (asset: Asset, key: AssetKey, indice: number) => { const avaliacao = diasAvaliacaoAtivo(asset, key); return `D${indice < avaliacao ? indice + 1 : indice - avaliacao + 1} ${indice < avaliacao ? "Avaliação" : "Financiada"}`; };
 
-export function Platform({ onOpenCarteira, onPublishOfficial, onSignOut, mesasDisponiveis = MESAS_FUTUROS, load, save, isAdmin, officialAcceptedAt, allBancas, bancasGlobais, bancaAtivaId, contaMesa, podeDesfazerForex = true, mesaAtiva = "tradefive", onMesaChange = () => {} }: { onOpenCarteira?: () => void; onPublishOfficial?: () => void; onSignOut?: () => void; mesasDisponiveis?: typeof MESAS_FUTUROS; load: () => Promise<string | null>; save: (v: string, acceptedAt?: string) => Promise<boolean>; isAdmin: boolean; officialAcceptedAt: string | null; allBancas?: Banca[]; bancasGlobais?: Banca[] | undefined; bancaAtivaId?: string | undefined; contaMesa?: string | undefined; podeDesfazerForex?: boolean; mesaAtiva?: MesaFuturos; onMesaChange?: (mesa: MesaFuturos) => void }) {
+export function Platform({ onOpenCarteira, onPublishOfficial, onSignOut, mesasDisponiveis: catalogoMesas = MESAS_FUTUROS, load, save, isAdmin, officialAcceptedAt, allBancas, bancasGlobais, bancaAtivaId, contaMesa, podeDesfazerForex = true, mesaAtiva = "tradefive", onMesaChange = () => {} }: { onOpenCarteira?: () => void; onPublishOfficial?: () => void; onSignOut?: () => void; mesasDisponiveis?: typeof MESAS_FUTUROS; load: () => Promise<string | null>; save: (v: string, acceptedAt?: string) => Promise<boolean>; isAdmin: boolean; officialAcceptedAt: string | null; allBancas?: Banca[]; bancasGlobais?: Banca[] | undefined; bancaAtivaId?: string | undefined; contaMesa?: string | undefined; podeDesfazerForex?: boolean; mesaAtiva?: MesaFuturos; onMesaChange?: (mesa: MesaFuturos) => void }) {
   const [state, setState] = useState<State | null>(null);
   const [section, setSection] = useState<Section>("operacoes");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -207,12 +207,12 @@ export function Platform({ onOpenCarteira, onPublishOfficial, onSignOut, mesasDi
           <div className="mb-3 flex items-center justify-between gap-2"><h3 className="font-bold text-amber-200">Mesa de futuros · Gold</h3><button type="button" aria-label="Fechar seleção de mesa" className="text-slate-300 hover:text-white" onClick={() => setMostrarMesas(false)}>✕</button></div>
           <label className="block text-xs text-slate-300">Mesa utilizada nesta banca</label>
           <select className="mt-2 w-full rounded-lg border border-amber-800/70 bg-[#06101f] p-3 text-sm text-white" value={mesaAtiva} onChange={(e) => onMesaChange(e.target.value as MesaFuturos)}>
-            {Object.entries(mesasDisponiveis).map(([id, m]) => <option key={id} value={id}>{m.nome} · {m.consistencia === 0 ? "Sem consistência" : `${m.consistencia}%`}</option>)}
+            {Object.entries(catalogoMesas).map(([id, m]) => <option key={id} value={id}>{m.nome} · {m.consistencia === 0 ? "Sem consistência" : `${m.consistencia}%`}</option>)}
           </select>
-          <p className="mt-3 text-xs leading-relaxed text-slate-300">{(() => { const m = mesasDisponiveis[mesaAtiva] ?? MESAS_FUTUROS.tradefive; const avaliacao = diasAvaliacaoGold(state.assets.ouro); return `${avaliacao} dias de avaliação + ${state.assets.ouro.days.length - avaliacao} dias de conta financiada = ${state.assets.ouro.days.length} cards (padrão da mesa: ${m.avaliacao}+${m.payout}).`; })()}</p>
+          <p className="mt-3 text-xs leading-relaxed text-slate-300">{(() => { const m = catalogoMesas[mesaAtiva] ?? MESAS_FUTUROS.tradefive; const avaliacao = diasAvaliacaoGold(state.assets.ouro); return `${avaliacao} dias de avaliação + ${state.assets.ouro.days.length - avaliacao} dias de conta financiada = ${state.assets.ouro.days.length} cards (padrão da mesa: ${m.avaliacao}+${m.payout}).`; })()}</p>
           <div className="mt-3 rounded-lg border border-amber-900/60 bg-black/20 p-3 text-xs text-slate-200">
             {(() => {
-              const mesa = mesasDisponiveis[mesaAtiva] ?? MESAS_FUTUROS.tradefive;
+              const mesa = catalogoMesas[mesaAtiva] ?? MESAS_FUTUROS.tradefive;
               const dias = state.assets.ouro.days.slice(0, diasAvaliacaoGold(state.assets.ouro));
               const totalMetas = dias.reduce((v, dia) => v + Math.max(0, metaLiquidaDia(state.assets.ouro, dia)), 0);
               const percentualMaiorDia = totalMetas > 0 ? Math.max(...dias.map((dia) => Math.max(0, metaLiquidaDia(state.assets.ouro, dia)))) / totalMetas * 100 : 0;
@@ -751,7 +751,7 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
                   <span className="text-[11px] text-slate-400">{faseRows.length} {faseRows.length === 1 ? "dia" : "dias"}</span>
                 </div>
                 <div className={cn("grid items-start gap-3", mesaAtiva === "vest" ? "grid-cols-1" : "grid-cols-2")}>
-                  {faseRows.map((r) => <DayCard key={r.i} row={r} asset={asset} assetKey={assetKey} bancaId={bancaAtivaId} contaMesa={contaMesa} mesa={mesaAtiva} consistenciaFinanciadaMesa={mesasDisponiveis[mesaAtiva]?.consistenciaFinanciada} avaliacaoDias={avaliacaoDias} mutate={mutate} excedenteAtualSacavel={excedenteAtualSacavel} />)}
+                  {faseRows.map((r) => <DayCard key={r.i} row={r} asset={asset} assetKey={assetKey} bancaId={bancaAtivaId} contaMesa={contaMesa} mesa={mesaAtiva} consistenciaFinanciadaMesa={catalogoMesas[mesaAtiva]?.consistenciaFinanciada} avaliacaoDias={avaliacaoDias} mutate={mutate} excedenteAtualSacavel={excedenteAtualSacavel} />)}
                 </div>
               </section>;
             })}
