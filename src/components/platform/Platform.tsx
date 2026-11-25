@@ -245,7 +245,7 @@ export function Platform({ onOpenCarteira, onPublishOfficial, onSignOut, mesasDi
       </div>}
 
       {section === "simulacao" && tab !== "historico" ? <SimulacaoFuturos /> : section === "movimentacoes" && tab !== "historico" ? <MovimentacoesMesa key={`${bancaAtivaId}:${tab}`} state={state} tab={tab} mutate={mutate} /> : tab === "historico" ? <Historico state={state} mutate={mutate} bancas={allBancas} bancasGlobais={bancasGlobais} mesaAtiva={mesaAtiva} bancaAtivaId={bancaAtivaId} podeDesfazerForex={podeDesfazerForex} /> : (
-        <AssetView key={tab} state={state} bancasGlobais={bancasGlobais} bancaAtivaId={bancaAtivaId} contaMesa={contaMesa} mesaAtiva={mesaAtiva} assetKey={tab} section={section} mutate={mutate} isAdmin={isAdmin} />
+        <AssetView key={tab} state={state} mesasDisponiveis={catalogoMesas} bancasGlobais={bancasGlobais} bancaAtivaId={bancaAtivaId} contaMesa={contaMesa} mesaAtiva={mesaAtiva} assetKey={tab} section={section} mutate={mutate} isAdmin={isAdmin} />
       )}
 
       <BackupMenu state={state} mutate={mutate} save={save} onApplied={setState} isAdmin={isAdmin} officialAcceptedAt={officialAcceptedAt} mesaAtiva={mesaAtiva} />
@@ -392,7 +392,7 @@ function StrategyPresets({ state, assetKey, mesaAtiva, mutate }: { state: State;
   );
 }
 
-function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, assetKey, section, mutate, isAdmin }: { state: State; bancasGlobais?: Banca[] | undefined; bancaAtivaId?: string | undefined; contaMesa?: string | undefined; mesaAtiva: MesaFuturos; assetKey: AssetKey; section: Section; mutate: (fn: (s: State) => void) => void; isAdmin: boolean }) {
+function AssetView({ state, mesasDisponiveis, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, assetKey, section, mutate, isAdmin }: { state: State; mesasDisponiveis: typeof MESAS_FUTUROS; bancasGlobais?: Banca[] | undefined; bancaAtivaId?: string | undefined; contaMesa?: string | undefined; mesaAtiva: MesaFuturos; assetKey: AssetKey; section: Section; mutate: (fn: (s: State) => void) => void; isAdmin: boolean }) {
   // Cotação pública GC-PERP: estado de apresentação, não altera app_data a cada atualização.
   const [cotacaoVest, setCotacaoVest] = useState<{price:number;asOf:number;source:string}|null>(null);
   const [cotacaoErro, setCotacaoErro] = useState(false);
@@ -752,7 +752,7 @@ function AssetView({ state, bancasGlobais, bancaAtivaId, contaMesa, mesaAtiva, a
                   <span className="text-[11px] text-slate-400">{faseRows.length} {faseRows.length === 1 ? "dia" : "dias"}</span>
                 </div>
                 <div className={cn("grid items-start gap-3", mesaAtiva === "vest" ? "grid-cols-1" : "grid-cols-2")}>
-                  {faseRows.map((r) => <DayCard key={r.i} row={r} asset={asset} assetKey={assetKey} bancaId={bancaAtivaId} contaMesa={contaMesa} mesa={mesaAtiva} consistenciaFinanciadaMesa={catalogoMesas[mesaAtiva]?.consistenciaFinanciada} avaliacaoDias={avaliacaoDias} mutate={mutate} excedenteAtualSacavel={excedenteAtualSacavel} />)}
+                  {faseRows.map((r) => <DayCard key={r.i} row={r} asset={asset} assetKey={assetKey} bancaId={bancaAtivaId} contaMesa={contaMesa} mesa={mesaAtiva} consistenciaFinanciadaMesa={mesasDisponiveis[mesaAtiva]?.consistenciaFinanciada} avaliacaoDias={avaliacaoDias} mutate={mutate} excedenteAtualSacavel={excedenteAtualSacavel} />)}
                 </div>
               </section>;
             })}
