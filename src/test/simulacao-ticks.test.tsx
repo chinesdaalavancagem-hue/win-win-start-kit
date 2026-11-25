@@ -18,8 +18,24 @@ it('exibe preços e permite inverter o lado sem tocar nos cards',()=>{
  fireEvent.change(screen.getByLabelText('Preço de entrada'),{target:{value:'3991,5'}});
  fireEvent.change(screen.getByLabelText('Alvo em ticks'),{target:{value:'122'}});
  expect(screen.getByText('4.003,70')).toBeInTheDocument();
+ expect(screen.getByText(/ganho estimado: US\$ 122,00/)).toBeInTheDocument();
  fireEvent.change(screen.getByLabelText('Direção'),{target:{value:'venda'}});
  expect(screen.getByText('3.979,30')).toBeInTheDocument();
+});
+it('converte ganho e perda desejados em ticks e preços conforme os micros contratos',()=>{
+ render(<SimulacaoFuturos/>);
+ fireEvent.change(screen.getByLabelText('Preço de entrada'),{target:{value:'3991,5'}});
+ fireEvent.change(screen.getByLabelText('Quantidade de contratos (micros)'),{target:{value:'2'}});
+ fireEvent.click(screen.getByRole('button',{name:'Informar valor em US$'}));
+ fireEvent.change(screen.getByLabelText('Quanto deseja ganhar? (US$)'),{target:{value:'300'}});
+ fireEvent.change(screen.getByLabelText('Quanto aceita perder? (US$)'),{target:{value:'200'}});
+ expect(screen.getByText('4.006,50')).toBeInTheDocument();
+ expect(screen.getByText('3.981,50')).toBeInTheDocument();
+ expect(screen.getByText(/150 ticks · ganho estimado: US\$ 300,00/)).toBeInTheDocument();
+ expect(screen.getByText(/100 ticks · perda estimada: US\$ 200,00/)).toBeInTheDocument();
+ fireEvent.change(screen.getByLabelText('Direção'),{target:{value:'venda'}});
+ expect(screen.getByText('3.976,50')).toBeInTheDocument();
+ expect(screen.getByText('4.001,50')).toBeInTheDocument();
 });
 it('edita ticks do alvo no card e abre simulação pelo menu',async()=>{
  const s=defaultState();s.activeTab='ouro';s.assets.ouro.days[0]!.mnq=4;
