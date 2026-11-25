@@ -615,7 +615,22 @@ export function lossLimitGoldEfetivo(a: Asset, indice: number): number {
   return typeof manual === "number" && Number.isFinite(manual) && manual > 0 ? manual : lossLimitGoldProjetado(a, indice);
 }
 
-export function computeAssetCalcs(a: Asset, key: AssetKey, continuidade?: { divida: number; limites: number[] }): DayCalc[] {
+/** Custos CFD realmente liquidados nos dias já avançados do ciclo ainda aberto. */
+export function custosReaisCiclo(log: LogEntry[], key: AssetKey): Record<number, number> {
+  let ultimoFechamento = -1;
+  for (let i = log.length - 1; i >= 0; i--) {
+    if (log[i]!.asset === key && log[i]!.tipo !== "profit") { ultimoFechamento = i; break; }
+  }
+  const custos: Record<number, number> = {};
+  for (const evento of log.slice(ultimoFechamento + 1)) {
+    if (evento.asset !== key || evento.tipo !== "profit" || !Number.isFinite(evento.cfdReal)) continue;
+    // cfdReal é a liquidação efetiva (negativa); converte para custo positivo.
+    custos[evento.day - 1] = Math.max(0, -Number(evento.cfdReal));
+  }
+  return custos;
+}
+
+export function computeAssetCalcs(a: Asset, key: AssetKey, continuidade?: { divida: number; limites: number[] }, custosReaisPorDia: Record<number, number> = {}): DayCalc[] {
   const { mnq: mnqPt, hfm: hfmPt, taxa, lucroDesejado } = a.params;
   const incluiPretensao = key === "saque2";
   const spread = Number.isFinite(a.params.spreadPontosCfd) ? Math.max(0, a.params.spreadPontosCfd ?? 0) : 0;
@@ -657,7 +672,7 @@ export function computeAssetCalcs(a: Asset, key: AssetKey, continuidade?: { divi
     const dividaHoje = incluiPretensao ? dividaReal + lucroDesejado : dividaReal;
     const alvoBruto = incluiPretensao ? dividaHoje : dividaReal + lucroDesejado;
     const liquidoSeReprovar = reprova - dividaReal;
-    divida += custoSePassar;
+    // Dias já liquidados usam o custo CFD real (incluindo spread/slippage efetivo);\n    // dias atuais e futuros continuam usando a estimativa configurada.\n    divida += Number.isFinite(custosReaisPorDia[indice]) ? custosReaisPorDia[indice]! : custoSePassar;
     return { pontos, limiteDoCard: limite, ticksReprova, valorTickMesa: exp / ticksPorPonto, custoSePassar, passa: -custoSePassar, pontosReprova, reprova, dividaHoje, alvoBruto, liquidoSeReprovar, bateuAlvo: liquidoSeReprovar >= lucroDesejado * 0.98 };
   });
 }
@@ -666,14 +681,14 @@ export function computeAssetCalcs(a: Asset, key: AssetKey, continuidade?: { divi
  * Não altera o ativo recebido; preserva dias anteriores ao dia operacional atual.
  * O spread informado é custo efetivo total, em pontos do mesmo ativo usado no cálculo CFD.
  */
-export function ajustarLotesParaLucro(a: Asset, key: AssetKey, alvo: number): { dias: Day[]; erro?: string } {
+export function ajustarLotesParaLucro(a: Asset, key: AssetKey, alvo: number, custosReaisPorDia: Record<number, number> = {}): { dias: Day[]; erro?: string } {
   if (!Number.isFinite(alvo) || alvo < 0) return { dias: a.days, erro: "Informe um lucro desejado válido." };
   const copia: Asset = { ...a, params: { ...a.params, lucroDesejado: alvo }, days: a.days.map(d => ({ ...d })) };
   const spread = Math.max(0, copia.params.spreadPontosCfd ?? 0);
   const inicio = Math.max(0, copia.attempt.currentDayIndex);
   for (let i = inicio; i < copia.days.length; i++) {
     const dia = copia.days[i]!;
-    const calculo = computeAssetCalcs(copia, key)[i];
+    const calculo = computeAssetCalcs(copia, key, undefined, custosReaisPorDia)[i];
     if (!calculo || !Number.isFinite(calculo.pontosReprova) || calculo.pontosReprova <= spread || copia.params.hfm <= 0) {
       return { dias: a.days, erro: `D${i + 1}: o limite e o spread não permitem projetar ganho no CFD.` };
     }
