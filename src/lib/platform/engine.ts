@@ -91,12 +91,12 @@ export interface ReversaoDeposito { saldoAntes: number; depositoAntes: number; b
 export interface BonusLog { reversaoDeposito?: ReversaoDeposito; ts: number; tipo: "deposito" | "saque" | "reset" | "ajuste_credito" | "reinicio_ciclo"; valor: number; dia?: number; bonusGanho?: number; proporcao?: number; bonusReduzido?: number; depositoZerado?: number }
 export interface Bonus { percentual?: number; deposito: number; bonusAtual: number; bonusGanhoTotal: number; bonusCap: number; log: BonusLog[] }
 export type MesaFuturos = "tradefive" | "lucid" | "mff" | "topstep" | "vest" | MesaPersonalizada["id"];
-export const MESAS_FUTUROS: Record<MesaFuturos, { nome: string; consistencia: number; avaliacao: number; payout: number }> = {
-  tradefive: { nome: "Tradeify", consistencia: 40, avaliacao: 3, payout: 5 },
-  lucid: { nome: "Lucid Trading", consistencia: 50, avaliacao: 2, payout: 5 },
-  mff: { nome: "My Funded Futures (MFF)", consistencia: 30, avaliacao: 4, payout: 5 },
-  vest: { nome: "Vest Markets · 10K 1-Step", consistencia: 0, avaliacao: 1, payout: 1 },
-  topstep: { nome: "Topstep", consistencia: 55, avaliacao: 2, payout: 5 },
+export const MESAS_FUTUROS: Record<MesaFuturos, { nome: string; consistencia: number; consistenciaFinanciada: number; avaliacao: number; payout: number }> = {
+  tradefive: { nome: "Tradeify", consistencia: 40, consistenciaFinanciada: 40, avaliacao: 3, payout: 5 },
+  lucid: { nome: "Lucid Trading", consistencia: 50, consistenciaFinanciada: 50, avaliacao: 2, payout: 5 },
+  mff: { nome: "My Funded Futures (MFF)", consistencia: 30, consistenciaFinanciada: 30, avaliacao: 4, payout: 5 },
+  vest: { nome: "Vest Markets · 10K 1-Step", consistencia: 0, consistenciaFinanciada: 0, avaliacao: 1, payout: 1 },
+  topstep: { nome: "Topstep", consistencia: 55, consistenciaFinanciada: 40, avaliacao: 2, payout: 5 },
 };
 export interface Asset { vestVersion?: 1; mesaConfig?: MesaPersonalizada; params: Params; days: Day[]; attempt: Attempt; bonus: Bonus; mesaFuturos?: MesaFuturos; diasPorMesa?: Partial<Record<MesaFuturos, Day[]>>; avaliacaoPorMesa?: Partial<Record<MesaFuturos, number>> }
 export interface ContinuacaoSaque {
