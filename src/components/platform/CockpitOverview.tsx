@@ -116,7 +116,7 @@ export function CockpitOverview({ asset, assetKey, mesa, avaliacaoDias, currentI
           <p className="mt-2 text-[11px] text-slate-500">Use OK para salvar os parâmetros do dia selecionado. Aprovar/Reprovar só ficam ativos no dia operacional atual e abrem confirmação no card abaixo.</p>
         </section>
 
-<p className="mb-3 text-xs text-slate-400">Planejamento e metas dos próximos dias do ciclo</p><div className="overflow-x-auto"><table className="w-full min-w-[590px] text-left text-sm"><thead className="bg-[#142b43] text-xs text-slate-300"><tr><th className="rounded-l-lg p-2">Dia</th><th className="p-2">Tipo</th><th className="p-2">Meta do dia</th><th className="p-2">Limite</th><th className="p-2">{isVest ? "Exposição" : "Contratos"}</th><th className="rounded-r-lg p-2">Status</th></tr></thead><tbody>{next.map(row => <tr key={row.i} className="border-b border-[#19334e] text-slate-200"><td className="p-2 font-bold text-cyan-300">D{row.i < avaliacaoDias ? row.i + 1 : row.i - avaliacaoDias + 1}</td><td className="p-2">{row.i < avaliacaoDias ? "Avaliação" : "Financiada"}</td><td className="p-2">{amount(row.d.meta)}</td><td className="p-2">{amount(row.c.limiteDoCard ?? asset.params.mll)}</td><td className="p-2">{isVest ? amount(exposicaoVestUsd(asset, row.d)) : fmt(row.d.mnq)}</td><td className="p-2"><span className="inline-flex items-center gap-1 text-sky-300"><Clock3 className="size-4" />Programado</span></td></tr>)}</tbody></table>{!next.length && <p className="p-3 text-xs text-slate-400">Nenhum próximo dia cadastrado.</p>}</div></section>
+
     </div>
   );
 }
