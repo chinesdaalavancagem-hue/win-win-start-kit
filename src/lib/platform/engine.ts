@@ -624,8 +624,13 @@ export function custosReaisCiclo(log: LogEntry[], key: AssetKey): Record<number,
   const custos: Record<number, number> = {};
   for (const evento of log.slice(ultimoFechamento + 1)) {
     if (evento.asset !== key || evento.tipo !== "profit" || !Number.isFinite(evento.cfdReal)) continue;
-    // cfdReal é a liquidação efetiva (negativa); converte para custo positivo.
-    custos[evento.day - 1] = Math.max(0, -Number(evento.cfdReal));
+    // A dívida a recuperar considera somente o dinheiro próprio efetivamente debitado.
+    // A parcela coberta pelo bônus não é dívida do usuário; o custo próprio já
+    // incorpora taxas e o slippage real registrado no dia.
+    const custoProprio = Number.isFinite(evento.custoProprioDia)
+      ? Math.max(0, Number(evento.custoProprioDia))
+      : Math.max(0, -Number(evento.cfdReal)); // compatibilidade com históricos antigos sem detalhamento.
+    custos[evento.day - 1] = custoProprio;
   }
   return custos;
 }
