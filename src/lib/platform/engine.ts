@@ -639,7 +639,9 @@ export function computeAssetCalcs(a: Asset, key: AssetKey, continuidade?: { divi
   const { mnq: mnqPt, hfm: hfmPt, taxa, lucroDesejado } = a.params;
   const incluiPretensao = key === "saque2";
   const spread = Number.isFinite(a.params.spreadPontosCfd) ? Math.max(0, a.params.spreadPontosCfd ?? 0) : 0;
-  let divida = taxa + (continuidade?.divida ?? 0);
+  // Quando D1 já foi liquidado, custoProprioDia inclui a taxa inicial; não somá-la novamente.
+  const taxaInicialPendente = Number.isFinite(custosReaisPorDia[0]) ? 0 : taxa;
+  let divida = taxaInicialPendente + (continuidade?.divida ?? 0);
   return a.days.map((d) => {
 
     // GC-PERP: exposição nocional em USD; variação em pontos relativa ao preço de entrada.
