@@ -1416,7 +1416,7 @@ function LogList({ state }: { state: State }) {
   if (!state.log.length) return <p className="py-6 text-center font-mono text-xs text-muted-foreground">nenhum evento registrado ainda</p>;
   return (
     <section className="mb-4 overflow-hidden rounded-xl border border-cyan-900/60 bg-[#071525]">
-      <div className="border-b border-cyan-900/60 px-4 py-3"><h3 className="font-semibold text-slate-100">Movimentações registradas</h3><p className="text-xs text-slate-400">Abra uma linha para ver custos, taxas, spread e outros detalhes do evento.</p></div>
+      <div className="border-b border-cyan-900/60 px-4 py-3"><h3 className="font-semibold text-slate-100">Movimentações registradas</h3><p className="text-xs text-slate-400">Abra uma linha para ver custos, taxas, slippage e outros detalhes do evento.</p></div>
       <div className="divide-y divide-cyan-950/70">
       {state.log.slice().reverse().map((e) => {
         const dt = new Date(e.ts);
@@ -1458,7 +1458,7 @@ function LogList({ state }: { state: State }) {
               <span className="text-cyan-400 group-open:rotate-90" aria-hidden="true">›</span>
             </summary>
             <div className="mt-2 rounded-lg border border-cyan-900/40 bg-[#030d1a] p-3 leading-relaxed text-slate-300">
-              <p>{tipoLabel(e.tipo, e.asset)} · {date}{extra}{typeof e.spread === "number" && Math.abs(e.spread) >= 0.005 && <> · spread <span className={e.spread >= 0 ? "text-market-up" : "text-market-down"}>{fmtSigned(e.spread)}</span></>}</p>
+              <p>{tipoLabel(e.tipo, e.asset)} · {date}{extra}{typeof e.spread === "number" && Math.abs(e.spread) >= 0.005 && <> · slippage <span className={e.spread >= 0 ? "text-market-up" : "text-market-down"}>{fmtSigned(e.spread)}</span></>}</p>
               <p className="mt-1">{destaqueProprio ? "Resultado próprio (sem bônus)" : "Resultado líquido registrado"}: <span className={impactoProprio >= 0 ? "text-market-up" : "text-market-down"}>{fmtSigned(impactoProprio)}</span></p>
               {destaqueProprio && <p className="mt-1 text-[11px] text-slate-400">Movimentação contábil, incluindo bônus: {fmtSigned(e.delta)}</p>}
               <p className="mt-1 text-[11px] text-slate-500">Registro histórico da plataforma, não confirmação externa da corretora.</p>
