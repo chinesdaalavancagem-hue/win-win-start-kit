@@ -289,7 +289,7 @@ function ConfirmButton({ children, confirmText, onConfirm, className, variant = 
   );
 }
 
-/** Registro real da saída no CFD: sugere o valor teórico e permite ajustar pelo spread/slippage. */
+/** Registro real da saída no CFD: sugere o valor teórico e permite ajustar pelo slippage. */
 function Settle({ risco, custo, reprova, onProfit, onStop }: { risco: boolean; custo: number; reprova: number; onProfit: (real: number) => void; onStop: (real: number) => void }) {
   const [modo, setModo] = useState<null | "profit" | "stop">(null);
   const [valor, setValor] = useState("");
@@ -314,7 +314,7 @@ function Settle({ risco, custo, reprova, onProfit, onStop }: { risco: boolean; c
       <input id="valor-real" inputMode="decimal" enterKeyHint="done" value={valor} onChange={(e) => setValor(e.target.value)} autoFocus
         onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (valorInvalido) return; setModo(null); (modo === "profit" ? onProfit : onStop)(real); } else if (e.key === "Escape") setModo(null); }}
         className="mt-1 w-full rounded-md border bg-background px-2 py-1.5 font-mono text-foreground" />
-      <p className="mt-1 font-mono text-xs">spread/slippage: <span className={spread === null ? "text-market-down" : spread >= 0 ? "text-market-up" : "text-market-down"}>{spread === null ? "Valor CFD inválido" : fmtSigned(spread)}</span></p>
+      <p className="mt-1 font-mono text-xs">slippage: <span className={spread === null ? "text-market-down" : spread >= 0 ? "text-market-up" : "text-market-down"}>{spread === null ? "Valor CFD inválido" : fmtSigned(spread)}</span></p>
       {modo === "profit" && risco && <p className="mt-1 text-xs text-market-down">⚠️ margem em risco</p>}
       <div className="mt-3 grid grid-cols-2 gap-2">
         <Button type="button" variant={modo === "stop" ? "destructive" : "default"} disabled={valorInvalido} onClick={() => { if (valorInvalido) return; setModo(null); (modo === "profit" ? onProfit : onStop)(real); }}>confirmar</Button>
