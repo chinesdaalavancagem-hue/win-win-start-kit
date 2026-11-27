@@ -839,13 +839,31 @@ export function tipoLabel(tipo: string, asset: string) {
   return tipo;
 }
 
+/** Resultado efetivo do ciclo: quando o payout foi confirmado, usa o valor líquido recebido,
+ * descontando o custo próprio histórico. Antes da confirmação, mantém a projeção gravada.
+ */
+export function resultadoHistoricoCiclo(s: State, fechamento: LogEntry, custoProprio = fechamento.custoProprioCiclo): number | null {
+  if (fechamento.tipo !== "aprovada") {
+    return typeof fechamento.resultadoReal === "number" && Number.isFinite(fechamento.resultadoReal) ? fechamento.resultadoReal : null;
+  }
+  const payout = s.payoutRegistros?.[String(fechamento.id)];
+  if (payout?.status === "recebido" && typeof payout.valorRecebido === "number" &&
+      Number.isFinite(payout.valorRecebido) && typeof custoProprio === "number" && Number.isFinite(custoProprio)) {
+    return Math.round((payout.valorRecebido - Math.max(0, custoProprio)) * 100) / 100;
+  }
+  if (typeof fechamento.resultadoReal === "number" && Number.isFinite(fechamento.resultadoReal)) return fechamento.resultadoReal;
+  if (typeof custoProprio === "number" && Number.isFinite(custoProprio)) {
+    return Math.round(((fechamento.saque ?? 0) - Math.max(0, custoProprio)) * 100) / 100;
+  }
+  return null;
+}
+
 export function historicoTotals(s: State) {
   const ciclos = s.log.filter((e) => e.tipo === "aprovada" || e.tipo === "reprovada");
-  // Usar os valores registrados na época da operação, nunca parâmetros atuais da banca.
+  // Usar valores históricos; payout recebido substitui a projeção somente após confirmação.
   const profit = ciclos.reduce((total, e) => {
-    if (typeof e.resultadoReal === "number" && Number.isFinite(e.resultadoReal)) return total + e.resultadoReal;
-    if (e.tipo === "aprovada" && typeof e.custoProprioCiclo === "number") return total + (e.saque ?? 0) - e.custoProprioCiclo;
-    return total;
+    const resultado = resultadoHistoricoCiclo(s, e);
+    return resultado === null ? total : total + resultado;
   }, 0);
   const resultadoReal = ciclos.reduce((total, e) =>
     total + (typeof e.resultadoReal === "number" && Number.isFinite(e.resultadoReal) ? e.resultadoReal : 0), 0);
