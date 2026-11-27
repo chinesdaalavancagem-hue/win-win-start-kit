@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { Banca } from "@/lib/platform/bancas";
-import { fmt, fmtSigned, type AssetKey, type LogEntry, type State, type PayoutRegistro } from "@/lib/platform/engine";
+import { fmt, fmtSigned, resultadoHistoricoCiclo, type AssetKey, type LogEntry, type State, type PayoutRegistro } from "@/lib/platform/engine";
 
 const ativoNome: Record<AssetKey, string> = { ouro: "Gold", nasdaq: "Nasdaq", saque2: "Saque 2" };
 const dataHora = (ts: number) => new Date(ts).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
@@ -54,11 +54,10 @@ function RegistroSaque({ ciclo, estado, editavel, onUpdate }: {
   const projetado = fechamento && typeof fechamento.saque === "number" && Number.isFinite(fechamento.saque) ? fechamento.saque : null;
   const status = !fechamento ? "andamento" : salvo?.status ?? "elegivel";
   const valorRecebido = status === "recebido" && typeof salvo?.valorRecebido === "number" && Number.isFinite(salvo.valorRecebido) ? salvo.valorRecebido : null;
-  const somaCustos = ciclo.eventos.reduce((s, e) => s + (typeof e.custoProprioDia === "number" && Number.isFinite(e.custoProprioDia) ? Math.max(0, e.custoProprioDia) : 0), 0);
   const custoProprio = fechamento && typeof fechamento.custoProprioCiclo === "number" && Number.isFinite(fechamento.custoProprioCiclo)
     ? Math.max(0, fechamento.custoProprioCiclo) : somaCustos;
   const custoBonus = ciclo.eventos.reduce((s, e) => s + (typeof e.custoBonusDia === "number" && Number.isFinite(e.custoBonusDia) ? Math.max(0, e.custoBonusDia) : 0), 0);
-  const resultado = fechamento && typeof fechamento.resultadoReal === "number" && Number.isFinite(fechamento.resultadoReal) ? fechamento.resultadoReal : null;
+  const resultado = fechamento ? resultadoHistoricoCiclo(estado, fechamento, custoProprio) : null;
   const progressos = ciclo.eventos.filter(e => e.tipo === "profit").length;
   const rotuloStatus = { andamento: "Em andamento", elegivel: "Elegível · não solicitado", solicitado: "Solicitado", recebido: "Recebido" }[status];
   return <article className="overflow-hidden rounded-xl border border-[#254966] bg-[#081726]">
