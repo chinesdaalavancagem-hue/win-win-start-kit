@@ -54,6 +54,8 @@ function RegistroSaque({ ciclo, estado, editavel, onUpdate }: {
   const projetado = fechamento && typeof fechamento.saque === "number" && Number.isFinite(fechamento.saque) ? fechamento.saque : null;
   const status = !fechamento ? "andamento" : salvo?.status ?? "elegivel";
   const valorRecebido = status === "recebido" && typeof salvo?.valorRecebido === "number" && Number.isFinite(salvo.valorRecebido) ? salvo.valorRecebido : null;
+  const somaCustos = ciclo.eventos.reduce((total, evento) =>
+    total + (typeof evento.custoProprioDia === "number" && Number.isFinite(evento.custoProprioDia) ? Math.max(0, evento.custoProprioDia) : 0), 0);
   const custoProprio = fechamento && typeof fechamento.custoProprioCiclo === "number" && Number.isFinite(fechamento.custoProprioCiclo)
     ? Math.max(0, fechamento.custoProprioCiclo) : somaCustos;
   const custoBonus = ciclo.eventos.reduce((s, e) => s + (typeof e.custoBonusDia === "number" && Number.isFinite(e.custoBonusDia) ? Math.max(0, e.custoBonusDia) : 0), 0);
