@@ -865,7 +865,7 @@ function DayCard({ row, asset, assetKey, bancaId, contaMesa, mesa, nomeMesa, con
         </div>
         <div className="min-w-0 rounded-xl border border-[#183b43] bg-gradient-to-br from-[#092126] to-[#080f1a] p-3 lg:p-2.5">
           <NumField cockpit label={<><Layers className="h-3.5 w-3.5 text-cyan-400" />Lotes CFD</>} value={d.lotes} onChange={setD("lotes")} />
-          <p className="mt-1 text-[10px] text-cyan-200/80">Spread efetivo: {fmt(asset.params.spreadPontosCfd ?? 0)} pontos · {asset.params.corretoraCfd === "hfm" ? "HFM" : asset.params.corretoraCfd === "fot" ? "FOT Markets" : "CFD personalizado"}</p>
+          <p className="mt-1 text-[10px] text-cyan-200/80">Spread efetivo: {fmt(asset.params.spreadPontosCfd ?? 0)} pontos · "Corretora CFD"</p>
           <span className="mt-2 inline-block rounded-full border border-market-up/40 bg-emerald-950/40 px-2 py-0.5 font-mono text-[11px] text-market-up">{mesa === "vest" && !(asset.params.vestPrecoIndice && asset.params.vestPrecoIndice > 0) ? "CFD: cotação necessária para estimar ganho" : `+${fmt(c.reprova)} se reprova`}</span>
         </div>
         <div className="min-w-0 rounded-xl border border-[#18324e] bg-gradient-to-br from-[#0d1b2b] to-[#080f1a] p-2.5">
