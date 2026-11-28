@@ -76,11 +76,9 @@ export function CockpitOverview({ asset, assetKey, mesa, avaliacaoDias, currentI
           <span className="rounded-lg border border-amber-700/40 px-2 py-1 text-[10px] text-amber-200">Simulação · não executa ordens</span>
         </div>
         <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_auto] xl:items-end">
-          <label className="text-xs text-slate-300">Corretora CFD
-            <select aria-label="Corretora CFD" disabled={!canEdit} value={asset.params.corretoraCfd === "manual" || !asset.params.corretoraCfd ? "manual" : "outra"} onChange={e => onBrokerChange(e.target.value as "manual" | "outra")} className="mt-1.5 block w-full rounded-lg border border-[#214766] bg-[#061321] px-3 py-2.5 text-sm text-slate-100 disabled:opacity-50">
-              <option value="manual">Personalizada</option><option value="outra">Corretora CFD</option>
-            </select>
-          </label>
+          <div className="text-xs text-slate-300">Corretora CFD
+            <div aria-label="Corretora CFD" className="mt-1.5 block w-full rounded-lg border border-[#214766] bg-[#061321] px-3 py-2.5 text-sm text-slate-100">Corretora CFD</div>
+          </div>
           <label className="text-xs text-slate-300">Spread efetivo (pontos do ativo)
             <input key={`${assetKey}-${asset.params.spreadPontosCfd ?? 0}`} aria-label="Spread efetivo em pontos do ativo" disabled={!canEdit} type="number" min="0" step="0.01" defaultValue={asset.params.spreadPontosCfd ?? 0} onBlur={e => { const valor = Number(e.currentTarget.value); if (Number.isFinite(valor) && valor >= 0) onSpreadChange(valor); else e.currentTarget.value = String(asset.params.spreadPontosCfd ?? 0); }} className="mt-1.5 block w-full rounded-lg border border-[#214766] bg-[#061321] px-3 py-2.5 font-mono text-sm text-slate-100 disabled:opacity-50"/>
           </label>
