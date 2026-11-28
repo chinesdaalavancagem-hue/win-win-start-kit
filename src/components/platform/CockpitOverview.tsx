@@ -60,16 +60,6 @@ export function CockpitOverview({ asset, assetKey, mesa, avaliacaoDias, currentI
 
   return (
     <div className="mb-5 space-y-4" aria-label="Cockpit de operações">
-      <div className="grid gap-3 sm:grid-cols-3">
-        {[
-          { label: "Meta do dia", value: amount(d.meta), icon: Target, color: "text-cyan-300" },
-          { label: isVest ? "Limite de perda" : "Limite EOD", value: amount(limit), icon: ShieldCheck, color: "text-amber-300" },
-          { label: isVest ? "Exposição Vest" : "Contratos", value: isVest ? amount(exposicaoVestUsd(asset, d)) : `${fmt(d.mnq)} ${assetKey === "nasdaq" ? "MNQ" : "MGC"}`, icon: ChartNoAxesCombined, color: "text-amber-300" },
-        ].map(({ label, value, icon: Icon, color }) => <div key={label} className="rounded-xl border border-[#214766] bg-[linear-gradient(145deg,#0c2138,#071526)] px-4 py-4 shadow-[0_12px_28px_rgba(0,0,0,0.17)]">
-          <div className="flex items-center gap-4"><Icon className={`size-8 shrink-0 ${color}`} /><div className="min-w-0"><p className="text-sm font-medium text-blue-100">{label}</p><p className="truncate font-mono text-xl font-bold tracking-tight text-cyan-300 sm:text-2xl">{value}</p></div></div>
-        </div>)}
-      </div>
-
       <section className="rounded-xl border border-cyan-600/45 bg-[#091a2c] p-3 sm:p-4" aria-label="Ajuste automático do hedge por spread">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div><h3 className="text-sm font-bold text-cyan-100">Ajustar todos os lotes CFD</h3><p className="mt-1 text-xs text-slate-400">Configure o spread efetivo; calcule os lotes para atingir o lucro por reprovação, incluindo a taxa da mesa e os custos anteriores.</p></div>
