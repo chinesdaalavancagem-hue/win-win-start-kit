@@ -72,13 +72,13 @@ export function CockpitOverview({ asset, assetKey, mesa, avaliacaoDias, currentI
 
       <section className="rounded-xl border border-cyan-600/45 bg-[#091a2c] p-3 sm:p-4" aria-label="Ajuste automático do hedge por spread">
         <div className="flex flex-wrap items-start justify-between gap-2">
-          <div><h3 className="text-sm font-bold text-cyan-100">Ajustar todos os lotes CFD</h3><p className="mt-1 text-xs text-slate-400">Configure a corretora e o spread efetivo; calcule os lotes para atingir o lucro por reprovação, incluindo a taxa da mesa e os custos anteriores.</p></div>
+          <div><h3 className="text-sm font-bold text-cyan-100">Ajustar todos os lotes CFD</h3><p className="mt-1 text-xs text-slate-400">Configure o spread efetivo; calcule os lotes para atingir o lucro por reprovação, incluindo a taxa da mesa e os custos anteriores.</p></div>
           <span className="rounded-lg border border-amber-700/40 px-2 py-1 text-[10px] text-amber-200">Simulação · não executa ordens</span>
         </div>
         <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_auto] xl:items-end">
           <label className="text-xs text-slate-300">Corretora CFD
-            <select aria-label="Corretora CFD" disabled={!canEdit} value={asset.params.corretoraCfd ?? "manual"} onChange={e => onBrokerChange(e.target.value as "manual" | "hfm" | "fot" | "outra")} className="mt-1.5 block w-full rounded-lg border border-[#214766] bg-[#061321] px-3 py-2.5 text-sm text-slate-100 disabled:opacity-50">
-              <option value="manual">Personalizada</option><option value="hfm">HFM</option><option value="fot">FOT Markets</option><option value="outra">Outra corretora</option>
+            <select aria-label="Corretora CFD" disabled={!canEdit} value={asset.params.corretoraCfd === "manual" || !asset.params.corretoraCfd ? "manual" : "outra"} onChange={e => onBrokerChange(e.target.value as "manual" | "outra")} className="mt-1.5 block w-full rounded-lg border border-[#214766] bg-[#061321] px-3 py-2.5 text-sm text-slate-100 disabled:opacity-50">
+              <option value="manual">Personalizada</option><option value="outra">Corretora CFD</option>
             </select>
           </label>
           <label className="text-xs text-slate-300">Spread efetivo (pontos do ativo)
@@ -89,7 +89,7 @@ export function CockpitOverview({ asset, assetKey, mesa, avaliacaoDias, currentI
           </label>
           <button type="button" disabled={!canEdit} onClick={() => { const valor = Number(alvoDraft.trim().replace(",", ".")); if (!alvoDraft.trim() || !Number.isFinite(valor) || valor < 0) { setMessage("Informe um lucro válido antes de ajustar."); return; } const erro = onAdjustAll(valor); setMessage(erro ?? "Lotes dos dias futuros recalculados; confira margem e projeções antes de operar."); }} className="rounded-lg bg-gradient-to-r from-cyan-500 to-emerald-400 px-4 py-2.5 text-sm font-extrabold text-[#061625] hover:brightness-110 disabled:opacity-40">Ajustar todos os lotes</button>
         </div>
-        <p className="mt-2 text-[11px] leading-relaxed text-slate-400">Informe o spread total estimado de entrada e saída na mesma unidade dos pontos usados para o CFD. A seleção da corretora é apenas identificação, sem cotação automática. O ajuste preserva os dias concluídos, arredonda o lote para cima em 0,01 e não garante execução ou PnL exatos. Confirme especificação do símbolo, volume mínimo, step e margem na corretora.</p>
+        <p className="mt-2 text-[11px] leading-relaxed text-slate-400">Informe o spread total estimado de entrada e saída na mesma unidade dos pontos usados para o CFD. A identificação da corretora é genérica, sem cotação automática. O ajuste preserva os dias concluídos, arredonda o lote para cima em 0,01 e não garante execução ou PnL exatos. Confirme especificação do símbolo, volume mínimo, step e margem na corretora.</p>
         {message && <p role="status" className="mt-2 text-xs font-semibold text-cyan-300">{message}</p>}
       </section>
 
